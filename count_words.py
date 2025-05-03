@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 
 # Define the input file path relative to the script location
 # Assumes 'data/input.html' exists in the same directory structure
-input_file = os.path.join('data', 'input.html')
+input_file = os.path.join('data', 'output.html')
 
 try:
     # --- 1. Read the HTML file ---
