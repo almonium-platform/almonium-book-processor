@@ -18,7 +18,14 @@ TITLE = "A TALE OF TWO CITIES"
 POEM_IX_INDENT_SPACES = {'i0': 0, 'i1': 1, 'i2': 2, 'i3': 3, 'i4': 4}
 # Indentation mapping for the NEW .poetry .indentX structure
 POETRY_INDENT_SPACES = {'indent1': 1, 'indent2': 2, 'indent3': 3, 'indent4': 4}  # Add more if needed
+CLASSES_TO_REMOVE = [
+    'fig',
+]
 
+# Dictionary for renaming classes: {'old_class_name': 'new_class_name'}
+CLASSES_TO_RENAME = {
+    'legacy-format': 'standard-format',
+}
 # Define the Non-Breaking Space character to use (U+00A0)
 NBSP = " "
 
@@ -129,7 +136,7 @@ def clean_and_modify_html(input_html_path, output_html_path):
     print("Step 0d: Removing all <section> and <table> elements from body...")
     removed_count = 0
     # Find all 'section' and 'table' tags within the body_tag
-    tags_to_remove = body_tag.find_all(['section', 'table'])
+    tags_to_remove = body_tag.find_all(['section', 'table', 'h5', ])
     for tag in tags_to_remove:
         # --- Optional Guard ---
         # You *could* add checks here if you wanted to preserve specific sections/tables
@@ -139,6 +146,53 @@ def clean_and_modify_html(input_html_path, output_html_path):
         tag.decompose()  # Remove the tag and all its contents
         removed_count += 1
     print(f"Removed {removed_count} <section> or <table> elements within body.")
+    # Step 0f: Remove elements by specific classes (New Step)
+    print(f"Step 0f: Removing elements with classes: {', '.join(CLASSES_TO_REMOVE)}...")
+    removed_by_class_count = 0
+    if CLASSES_TO_REMOVE:  # Only run if the list is not empty
+        # Iterate through each class to remove
+        for class_to_remove in CLASSES_TO_REMOVE:
+            # Find all elements with this class within the body
+            elements_found = body_tag.find_all(class_=class_to_remove)
+            for element in elements_found:
+                # Check if element still exists before decomposing
+                if element.parent:
+                    element.decompose()
+                    removed_by_class_count += 1
+        print(f"  Removed {removed_by_class_count} elements based on specified classes.")
+    else:
+        print("  No classes specified for removal.")
+
+    # Step 0g: Rename specified classes (New Step)
+    print(f"Step 0g: Renaming classes based on dictionary: {CLASSES_TO_RENAME}...")
+    renamed_count = 0
+    if CLASSES_TO_RENAME:  # Only run if the dictionary is not empty
+        # Iterate through the old_class -> new_class mapping
+        for old_class, new_class_value in CLASSES_TO_RENAME.items():
+            # Find elements having the old class
+            elements_to_rename = body_tag.find_all(class_=old_class)
+            for element in elements_to_rename:
+                # Check if element still exists
+                if element.parent:
+                    current_classes = element.get('class', [])
+                    # Remove the old class(es)
+                    current_classes = [c for c in current_classes if c != old_class]
+                    # Add the new class(es) - handle space-separated new classes
+                    new_classes_list = new_class_value.split()  # Split 'notice notice-warning' into ['notice', 'notice-warning']
+                    for nc in new_classes_list:
+                        if nc not in current_classes:  # Avoid duplicates if renaming multiple to same
+                            current_classes.append(nc)
+
+                    # Update the class attribute
+                    if current_classes:
+                        element['class'] = current_classes
+                    else:
+                        # If no classes left, remove the attribute
+                        del element['class']
+                    renamed_count += 1
+        print(f"  Processed class renaming for {renamed_count} elements instances.")
+    else:
+        print("  No class renaming rules specified.")
 
     # Step 1: Remove existing inline styles (within body)
     print("Step 1: Removing existing inline styles from body...")
