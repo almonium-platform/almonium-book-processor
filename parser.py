@@ -21,7 +21,7 @@ POETRY_INDENT_SPACES = {'indent1': 1, 'indent2': 2, 'indent3': 3, 'indent4': 4} 
 CLASSES_TO_REMOVE = [
     'fig',
 ]
-
+TAGS_TO_REMOVE = ['section', 'table', 'h5', ]
 # Dictionary for renaming classes: {'old_class_name': 'new_class_name'}
 CLASSES_TO_RENAME = {
     'legacy-format': 'standard-format',
@@ -136,7 +136,7 @@ def clean_and_modify_html(input_html_path, output_html_path):
     print("Step 0d: Removing all <section> and <table> elements from body...")
     removed_count = 0
     # Find all 'section' and 'table' tags within the body_tag
-    tags_to_remove = body_tag.find_all(['section', 'table', 'h5', ])
+    tags_to_remove = body_tag.find_all(TAGS_TO_REMOVE)
     for tag in tags_to_remove:
         # --- Optional Guard ---
         # You *could* add checks here if you wanted to preserve specific sections/tables
