@@ -389,6 +389,56 @@ def clean_and_modify_html(input_html_path, output_html_path):
         hr_count += 1
     print(f"Removed {hr_count} <hr> tags.")
 
+    # Step 12: Group content into <div class="chapter"> based on H2 (New Step)
+    print("Step 12: Grouping content into chapter divs...")
+    chapter_divs_created = 0
+    # Find all H2 tags that are DIRECT children of the body tag
+    # We use list() to make a static copy, as we'll be moving elements around
+    h2_tags = list(body_tag.find_all('h2', recursive=False))
+
+    if not h2_tags:
+        print("  No direct H2 children found in body. Skipping chapterization.")
+    else:
+        for h2 in h2_tags:
+            # Double-check if the h2 still exists and is a direct child of body
+            # (It might have been moved if nested inside something unexpected we didn't clean)
+            if h2.parent != body_tag:
+                continue
+
+            # Create the new chapter div
+            chapter_div = soup.new_tag('div')
+            chapter_div['class'] = 'chapter'  # Assign class
+
+            # Insert the chapter div right before the H2
+            h2.insert_before(chapter_div)
+
+            # Move the H2 inside the chapter div
+            chapter_div.append(h2)
+            chapter_divs_created += 1
+
+            # Move subsequent <p> tags (that were siblings of H2) into the chapter div
+            current_sibling = chapter_div.find_next_sibling()  # Start looking after the new div
+            while current_sibling:
+                next_sibling = current_sibling.find_next_sibling()  # Get next before moving current
+
+                # Check if the sibling is a <p> tag
+                # You could expand this condition to include other tags like blockquote, ul, etc.
+                # if current_sibling.name in ['p', 'blockquote', 'ul', 'ol']:
+                if current_sibling.name == 'p' or current_sibling.name == 'div':
+                    # Move the <p> tag inside the chapter div
+                    chapter_div.append(current_sibling)
+                elif current_sibling.name == 'h2':
+                    # Stop when the next H2 is encountered
+                    break
+                else:
+                    # Stop if it's neither a <p> nor the next H2
+                    # Or decide to include other tags by modifying the condition above
+                    break
+
+                current_sibling = next_sibling  # Move to the next sibling
+
+        print(f"  Created {chapter_divs_created} <div class=\"chapter\"> wrappers.")
+
     # Step 12: Remove empty <p> and <div> tags (New Step)
     print("Step 12: Removing empty <p> and <div> tags...")
     empty_tag_count = 0
