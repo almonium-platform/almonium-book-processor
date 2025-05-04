@@ -201,7 +201,7 @@ def clean_and_modify_html(input_html_path, output_html_path):
     # Find H3s that are likely chapter headings.
     # Criteria: Direct child of body_tag AND potentially having an ID (more robust)
     # Adjust recursive=False if structure differs.
-    potential_chapter_h3s = body_tag.find_all('h3', recursive=True)
+    potential_chapter_h3s = body_tag.find_all('h4', recursive=True)
 
     for h3 in potential_chapter_h3s:
         # --- Refinement: Add checks if needed ---
@@ -448,7 +448,7 @@ def clean_and_modify_html(input_html_path, output_html_path):
                 # Check if the sibling is a <p> tag
                 # You could expand this condition to include other tags like blockquote, ul, etc.
                 # if current_sibling.name in ['p', 'blockquote', 'ul', 'ol']:
-                if current_sibling.name == 'p' or current_sibling.name == 'div':
+                if current_sibling.name == 'p' or current_sibling.name == 'div' or current_sibling.name == 'blockquote':
                     # Move the <p> tag inside the chapter div
                     chapter_div.append(current_sibling)
                 elif current_sibling.name == 'h2':
