@@ -14,6 +14,8 @@ OUTPUT_HTML_PATH = 'data/output.html'  # Output file name
 AUTHOR = "Charles Dickens"
 TITLE = "A TALE OF TWO CITIES"
 
+APPLY_DROPCAPS = True  # Set to True to enable drop caps, False to disable
+
 # Indentation mapping for the OLD .poem .iX structure
 POEM_IX_INDENT_SPACES = {'i0': 0, 'i1': 1, 'i2': 2, 'i3': 3, 'i4': 4}
 # Indentation mapping for the NEW .poetry .indentX structure
@@ -503,7 +505,79 @@ def clean_and_modify_html(input_html_path, output_html_path):
     body_tag.append(the_end_div)
     print("  Appended block.")
 
-    # Step 14: Extract body content, clean blank lines, and wrap in <div class="book"> (Renumbered & Modified)
+    # Step 14: Apply Drop Caps (if enabled) (New Step)
+    print("Step 14: Applying drop caps if enabled...")
+    if APPLY_DROPCAPS:
+        dropcaps_applied = 0
+        # Find all H2s (chapter starts) within the body AFTER chapterization
+        # We need to search within the new 'chapter' divs potentially
+        all_chapter_divs = body_tag.find_all('div', class_='chapter')
+
+        for chapter_div in all_chapter_divs:
+            # Find the first H2 within this chapter div
+            h2 = chapter_div.find('h2')
+            if not h2: continue  # Skip if no H2 found (e.g., preface without H2)
+
+            # Find the first 'p' tag that is a sibling following the H2 *within the chapter div*
+            first_p = h2.find_next_sibling('p')
+
+            # If no 'p' sibling, check if 'p' is the next sibling ignoring non-tags
+            # if not first_p:
+            #     sib = h2.next_sibling
+            #     while sib and not isinstance(sib, Tag): sib = sib.next_sibling
+            #     if sib and sib.name == 'p': first_p = sib
+
+            if first_p:
+                # Add 'pfirst' class
+                current_classes = first_p.get('class', [])
+                if 'pfirst' not in current_classes:
+                    current_classes.append('pfirst')
+                    first_p['class'] = current_classes
+
+                # Find the first actual text content node within the paragraph
+                first_text_node = first_p.find(string=lambda t: isinstance(t, NavigableString) and t.strip())
+
+                if first_text_node:
+                    text = first_text_node.string
+                    # Regex to capture optional leading whitespace/quote and the first letter
+                    # Includes common European accented chars
+                    match = re.match(r'^(\s*["“”‘’]?\s*[A-Za-zÀ-ÖØ-öø-ÿ])(.*)', text, re.DOTALL)
+
+                    if match:
+                        drop_cap_text = match.group(1).strip()  # The char(s) for the drop cap
+                        remaining_text = match.group(2)  # The rest of the text node
+
+                        # Only proceed if drop_cap_text is not empty
+                        if drop_cap_text:
+                            # Create the new span
+                            dropcap_span = soup.new_tag("span")
+                            dropcap_span['class'] = 'dropcap'
+                            dropcap_span.string = drop_cap_text
+
+                            # Replace the original text node with the span
+                            first_text_node.replace_with(dropcap_span)
+
+                            # Insert the remaining text *after* the new span, if any
+                            if remaining_text:
+                                # Need NavigableString for text nodes
+                                dropcap_span.insert_after(NavigableString(remaining_text))
+
+                            dropcaps_applied += 1
+                            print(f"  Applied drop cap '{drop_cap_text}'")  # Debug
+                        else:
+                            print(f"  Skipping drop cap - extracted text was empty for: {text[:30]}...")  # Debug
+                    else:
+                        print(f"  No dropcap pattern match in: {text[:30]}...")  # Debug
+                else:
+                    print(f"  No text node found in pfirst: {first_p.prettify()[:100]}...")  # Debug
+            else:
+                print(f"  No <p> found immediately after h2: {h2.prettify()[:100]}...")  # Debug
+
+        print(f"  Applied drop caps to {dropcaps_applied} paragraphs.")
+    else:
+        print("  Skipping drop cap application (APPLY_DROPCAPS is False).")
+
+    # Step 15: Extract body content, clean blank lines, and wrap in <div class="book"> (Renumbered & Modified)
     print("Step 14: Extracting, cleaning, and wrapping final content...")
     # Decode contents first
     cleaned_body_content_raw = body_tag.decode_contents()
@@ -515,7 +589,7 @@ def clean_and_modify_html(input_html_path, output_html_path):
     final_output_html = f'<div class="book">\n{cleaned_body_content}\n</div>'  # Using f-string for wrapping
     print("  Content extracted, cleaned, and wrapped in <div class=\"book\">.")
 
-    # Step 15: Write final wrapped content to file (Renumbered)
+    # Step 16: Write final wrapped content to file (Renumbered)
     print("Step 15: Writing final wrapped content to output file...")
     try:
         with open(output_html_path, 'w', encoding='utf-8') as f_out:
