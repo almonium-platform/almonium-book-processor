@@ -14,7 +14,7 @@ OUTPUT_HTML_PATH = 'data/output.html'  # Output file name
 AUTHOR = "Charles Dickens"
 TITLE = "A TALE OF TWO CITIES"
 
-APPLY_DROPCAPS = True  # Set to True to enable drop caps, False to disable
+APPLY_DROPCAPS = False  # Set to True to enable drop caps, False to disable
 
 # Indentation mapping for the OLD .poem .iX structure
 POEM_IX_INDENT_SPACES = {'i0': 0, 'i1': 1, 'i2': 2, 'i3': 3, 'i4': 4}
@@ -22,6 +22,8 @@ POEM_IX_INDENT_SPACES = {'i0': 0, 'i1': 1, 'i2': 2, 'i3': 3, 'i4': 4}
 POETRY_INDENT_SPACES = {'indent1': 1, 'indent2': 2, 'indent3': 3, 'indent4': 4}  # Add more if needed
 CLASSES_TO_REMOVE = [
     'fig',
+    'toc',
+    'footnote'
 ]
 TAGS_TO_REMOVE = ['section', 'table', 'h5', ]
 # Dictionary for renaming classes: {'old_class_name': 'new_class_name'}
