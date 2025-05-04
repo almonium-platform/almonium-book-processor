@@ -193,6 +193,28 @@ def clean_and_modify_html(input_html_path, output_html_path):
         print(f"  Processed class renaming for {renamed_count} elements instances.")
     else:
         print("  No class renaming rules specified.")
+    # Step 0h: Standardize potential chapter headings (h3 -> h2) (New Step)
+    print("Step 0h: Standardizing potential chapter headings (h3 -> h2)...")
+    h3_to_h2_count = 0
+    # Find H3s that are likely chapter headings.
+    # Criteria: Direct child of body_tag AND potentially having an ID (more robust)
+    # Adjust recursive=False if structure differs.
+    potential_chapter_h3s = body_tag.find_all('h3', recursive=True)
+
+    for h3 in potential_chapter_h3s:
+        # --- Refinement: Add checks if needed ---
+        # Only convert if it seems like a chapter heading, e.g., has an ID attribute
+        # or specific text patterns. For now, let's convert direct children.
+        # Example stricter check:
+        # if h3.has_attr('id') or "CHAPTER" in h3.get_text().upper() or "PART" in h3.get_text().upper():
+        # --- End Refinement ---
+
+        # Rename the tag itself
+        h3.name = 'h2'
+        h3_to_h2_count += 1
+        # Any attributes like 'id' are preserved automatically by BeautifulSoup
+
+    print(f"  Renamed {h3_to_h2_count} direct child <h3> tags to <h2> for standardization.")
 
     # Step 1: Remove existing inline styles (within body)
     print("Step 1: Removing existing inline styles from body...")
