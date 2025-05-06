@@ -23,7 +23,8 @@ POETRY_INDENT_SPACES = {'indent1': 1, 'indent2': 2, 'indent3': 3, 'indent4': 4} 
 CLASSES_TO_REMOVE = [
     'fig',
     'toc',
-    'footnote'
+    'footnote',
+    'pginternal'
 ]
 TAGS_TO_REMOVE = ['section', 'table', 'h5', ]
 # Dictionary for renaming classes: {'old_class_name': 'new_class_name'}
@@ -450,7 +451,7 @@ def clean_and_modify_html(input_html_path, output_html_path):
                 # Check if the sibling is a <p> tag
                 # You could expand this condition to include other tags like blockquote, ul, etc.
                 # if current_sibling.name in ['p', 'blockquote', 'ul', 'ol']:
-                if current_sibling.name == 'p' or current_sibling.name == 'div' or current_sibling.name == 'blockquote':
+                if current_sibling.name == 'p' or current_sibling.name == 'div' or current_sibling.name == 'blockquote' or current_sibling.name == 'pre':
                     # Move the <p> tag inside the chapter div
                     chapter_div.append(current_sibling)
                 elif current_sibling.name == 'h2':
