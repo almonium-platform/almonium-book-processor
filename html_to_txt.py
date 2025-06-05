@@ -3,6 +3,7 @@
 
 import re
 import sys
+
 from bs4 import BeautifulSoup
 
 # --- Configuration ---
@@ -48,7 +49,7 @@ def html_to_text(input_path, output_path):
     print("Extracting and normalizing text...")
     paragraphs = []
     for elem in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li']):
-        text = elem.get_text(separator='', strip=True)
+        text = ' '.join(elem.stripped_strings)
         normalized = normalize_whitespace(text)
         if normalized:
             paragraphs.append(normalized)
