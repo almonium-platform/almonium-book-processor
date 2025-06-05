@@ -3,24 +3,25 @@
 
 import re
 import sys
-
 from bs4 import BeautifulSoup
 
 # --- Configuration ---
-INPUT_HTML_FILE = 'data/input.html'  # Input HTML file path
-OUTPUT_TXT_FILE = 'data/output.txt'  # Output plain text file path
+INPUT_HTML_FILE = 'data/input.html'
+OUTPUT_TXT_FILE = 'data/output.txt'
+
+
+def normalize_whitespace(text):
+    """
+    Collapse all inner whitespace into single spaces.
+    """
+    return re.sub(r'\s+', ' ', text).strip()
 
 
 def html_to_text(input_path, output_path):
-    """
-    Reads an HTML file, extracts all text content removing tags,
-    cleans up excessive whitespace, and writes to a plain text file.
-    """
     print(f"--- Starting HTML to TXT Conversion ---")
     print(f"Input HTML:  '{input_path}'")
     print(f"Output TXT: '{output_path}'")
 
-    # --- Read Input HTML File ---
     try:
         with open(input_path, 'r', encoding='utf-8') as f_in:
             html_content = f_in.read()
@@ -32,27 +33,28 @@ def html_to_text(input_path, output_path):
         print(f"Error reading file '{input_path}': {e}")
         sys.exit(1)
 
-    # --- Parse HTML ---
     print("Parsing HTML...")
     soup = BeautifulSoup(html_content, 'html.parser')
 
-    # --- Extract Text ---
-    # soup.get_text() extracts all text nodes and concatenates them
-    # separator=" " can optionally add spaces between text blocks from different tags
-    # strip=True removes leading/trailing whitespace from individual text nodes before joining
-    print("Extracting text content...")
-    raw_text = soup.get_text(separator='\n',
-                             strip=True)  # Using newline separator often gives better results than default
+    print("Unwrapping dropcaps...")
+    for dropcap in soup.select('span.dropcap'):
+        dropcap.unwrap()
 
-    # --- Clean Whitespace ---
-    # Remove excessive blank lines created during text extraction
-    print("Cleaning up whitespace...")
-    # Replace sequences of 2 or more newlines (with optional space between) with a single newline
-    cleaned_text = re.sub(r'\n\s*\n+', '\n', raw_text)
-    # Remove leading/trailing whitespace from the whole result
-    cleaned_text = cleaned_text.strip()
+    print("Removing 'THE END' block...")
+    the_end_div = soup.select_one('div.the-end')
+    if the_end_div:
+        the_end_div.decompose()
 
-    # --- Write Output TXT File ---
+    print("Extracting and normalizing text...")
+    paragraphs = []
+    for elem in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li']):
+        text = elem.get_text(separator='', strip=True)
+        normalized = normalize_whitespace(text)
+        if normalized:
+            paragraphs.append(normalized)
+
+    cleaned_text = '\n'.join(paragraphs)
+
     print(f"Writing plain text to '{output_path}'...")
     try:
         with open(output_path, 'w', encoding='utf-8') as f_out:
@@ -63,7 +65,6 @@ def html_to_text(input_path, output_path):
         sys.exit(1)
 
 
-# --- Main Execution Block ---
 if __name__ == "__main__":
     html_to_text(INPUT_HTML_FILE, OUTPUT_TXT_FILE)
     print("--- Script Complete ---")
