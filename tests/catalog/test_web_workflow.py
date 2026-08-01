@@ -80,12 +80,12 @@ def test_epub_task_persists_normalized_content(tmp_path, settings) -> None:
     assert edition.pipeline_runs.get().status == PipelineRun.Status.SUCCEEDED
 
 
-def test_legacy_json_import_keeps_java_id_mapping() -> None:
+def test_migrated_json_import_uses_uuid_identity() -> None:
     artifact = BookArtifact(
         processor_version="0.1.0",
         edition=EditionMetadata(
-            edition_id="shelley-frankenstein-en-orig",
-            work_id="shelley-frankenstein",
+            edition_slug="shelley-frankenstein-en-orig",
+            work_slug="shelley-frankenstein",
             title="Frankenstein",
             author="Mary Shelley",
             language="en",
@@ -97,7 +97,7 @@ def test_legacy_json_import_keeps_java_id_mapping() -> None:
         ),
         blocks=[
             ArtifactBlock(
-                edition_id="shelley-frankenstein-en-orig",
+                edition_slug="shelley-frankenstein-en-orig",
                 block_id="c1.p1",
                 chapter=1,
                 seq=1,
@@ -110,7 +110,7 @@ def test_legacy_json_import_keeps_java_id_mapping() -> None:
 
     edition = import_legacy_artifact(upload)
 
-    assert edition.legacy_id == 1
+    assert str(edition.id) != "1"
     assert edition.status == Edition.Status.READY
     assert ContentBlock.objects.get(edition=edition).block_id == "c1.p1"
 

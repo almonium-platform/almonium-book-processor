@@ -54,7 +54,6 @@ class Edition(TimestampedModel):
         FAILED = "failed", "Failed"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    legacy_id = models.PositiveBigIntegerField(null=True, blank=True, unique=True)
     slug = models.SlugField(max_length=180, unique=True)
     work = models.ForeignKey(Work, related_name="editions", on_delete=models.PROTECT)
     source_edition = models.ForeignKey(
@@ -74,7 +73,7 @@ class Edition(TimestampedModel):
     )
     translator = models.CharField(max_length=300, blank=True)
     cefr_target = models.CharField(max_length=2, blank=True)
-    schema_version = models.PositiveSmallIntegerField(default=1)
+    schema_version = models.PositiveSmallIntegerField(default=2)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     word_count = models.PositiveIntegerField(default=0)
     confidence = models.FloatField(null=True, blank=True)

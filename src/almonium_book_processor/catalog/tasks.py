@@ -63,13 +63,13 @@ def process_epub_edition(self, edition_id: str) -> None:
     try:
         artifact = ingest_epub(
             temporary_path,
-            edition_id=edition.slug,
-            work_id=edition.work.slug,
+            edition_slug=edition.slug,
+            work_slug=edition.work.slug,
             title=edition.title,
             author=edition.author,
             language=edition.language,
             edition_type=edition.edition_type,
-            source_edition_id=edition.source_edition.slug if edition.source_edition else None,
+            source_edition_slug=edition.source_edition.slug if edition.source_edition else None,
             cefr_target=edition.cefr_target or None,
         )
         with transaction.atomic():

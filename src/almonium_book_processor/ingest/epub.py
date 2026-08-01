@@ -33,13 +33,13 @@ def _metadata_value(book: epub.EpubBook, name: str) -> str | None:
 def ingest_epub(
     path: str | Path,
     *,
-    edition_id: str,
-    work_id: str,
+    edition_slug: str,
+    work_slug: str,
     title: str | None = None,
     author: str | None = None,
     language: str | None = None,
     edition_type: str = "original",
-    source_edition_id: str | None = None,
+    source_edition_slug: str | None = None,
     cefr_target: str | None = None,
     expected_chapters: int | None = None,
 ) -> BookArtifact:
@@ -58,7 +58,7 @@ def ingest_epub(
     if missing:
         raise ValueError(f"EPUB metadata is missing {', '.join(missing)}; provide an override")
 
-    builder = BlockBuilder(edition_id)
+    builder = BlockBuilder(edition_slug)
     chapter = 0
     seen_documents: set[str] = set()
     for spine_entry in book.spine:
@@ -111,13 +111,13 @@ def ingest_epub(
     return BookArtifact(
         processor_version=__version__,
         edition=EditionMetadata(
-            edition_id=edition_id,
-            work_id=work_id,
+            edition_slug=edition_slug,
+            work_slug=work_slug,
             title=title,
             author=author,
             language=language,
             edition_type=edition_type,
-            source_edition_id=source_edition_id,
+            source_edition_slug=source_edition_slug,
             cefr_target=cefr_target,
             source=SourceMetadata(
                 format="epub",

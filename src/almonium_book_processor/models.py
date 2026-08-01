@@ -12,8 +12,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = 1
-EditionId = str
+SCHEMA_VERSION = 2
 
 
 class StrictModel(BaseModel):
@@ -62,38 +61,38 @@ class SourceMetadata(StrictModel):
 
 
 class EditionMetadata(StrictModel):
-    edition_id: EditionId = Field(min_length=1, max_length=160)
-    work_id: str = Field(min_length=1, max_length=160)
+    edition_slug: str = Field(min_length=1, max_length=160)
+    work_slug: str = Field(min_length=1, max_length=160)
     title: str = Field(min_length=1)
     author: str = Field(min_length=1)
     language: str = Field(min_length=2, max_length=35)
     edition_type: Literal[
         "original", "human_translation", "machine_translation", "adaptation", "abridgement"
     ] = "original"
-    source_edition_id: str | None = None
+    source_edition_slug: str | None = None
     cefr_target: Literal["A1", "A2", "B1", "B2", "C1", "C2"] | None = None
     source: SourceMetadata
 
     @model_validator(mode="after")
     def validate_identifiers_and_lineage(self) -> EditionMetadata:
         slug_pattern = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-        if not slug_pattern.fullmatch(self.edition_id):
-            raise ValueError("edition_id must be a lowercase kebab-case identifier")
-        if not slug_pattern.fullmatch(self.work_id):
-            raise ValueError("work_id must be a lowercase kebab-case identifier")
+        if not slug_pattern.fullmatch(self.edition_slug):
+            raise ValueError("edition_slug must be a lowercase kebab-case identifier")
+        if not slug_pattern.fullmatch(self.work_slug):
+            raise ValueError("work_slug must be a lowercase kebab-case identifier")
         if (
             self.edition_type in {"adaptation", "abridgement", "machine_translation"}
-            and not self.source_edition_id
+            and not self.source_edition_slug
         ):
-            raise ValueError(f"{self.edition_type} editions require source_edition_id")
+            raise ValueError(f"{self.edition_type} editions require source_edition_slug")
         if self.edition_type == "adaptation" and not self.cefr_target:
             raise ValueError("adaptation editions require cefr_target")
         return self
 
 
 class ContentBlock(StrictModel):
-    schema_version: Literal[1] = SCHEMA_VERSION
-    edition_id: EditionId
+    schema_version: Literal[2] = SCHEMA_VERSION
+    edition_slug: str
     block_id: str = Field(pattern=r"^c\d+\.[a-z]+\d+$")
     chapter: int = Field(ge=0)
     seq: int = Field(ge=1)
@@ -124,7 +123,7 @@ class IngestionWarning(StrictModel):
 
 
 class BookArtifact(StrictModel):
-    schema_version: Literal[1] = SCHEMA_VERSION
+    schema_version: Literal[2] = SCHEMA_VERSION
     processor_version: str = Field(min_length=1)
     edition: EditionMetadata
     blocks: list[ContentBlock]
@@ -135,7 +134,7 @@ class BookArtifact(StrictModel):
         seen_ids: set[str] = set()
         expected_seq: dict[int, int] = {}
         for block in self.blocks:
-            if block.edition_id != self.edition.edition_id:
+            if block.edition_slug != self.edition.edition_slug:
                 raise ValueError(f"block {block.block_id} belongs to another edition")
             if block.block_id in seen_ids:
                 raise ValueError(f"duplicate block_id: {block.block_id}")

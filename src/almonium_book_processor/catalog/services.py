@@ -17,25 +17,6 @@ from almonium_book_processor.catalog.models import (
 )
 from almonium_book_processor.models import BookArtifact
 
-LEGACY_IDS_BY_EDITION_SLUG = {
-    "shelley-frankenstein-en-orig": 1,
-    "shelley-frankenstein-fr-human": 2,
-    "dickens-tale-of-two-cities-en-orig": 3,
-    "carroll-alice-en-orig": 4,
-    "carroll-alice-uk-machine": 5,
-    "milne-winnie-the-pooh-en-orig": 6,
-    "remarque-im-westen-de-orig": 7,
-    "remarque-im-westen-en-human": 8,
-    "barrie-peter-pan-en-orig": 9,
-    "hemingway-farewell-to-arms-en-orig": 10,
-    "wilde-dorian-gray-en-orig": 11,
-    "verne-around-world-fr-orig": 12,
-    "verne-mysterious-island-fr-orig": 13,
-    "fitzgerald-great-gatsby-en-orig": 14,
-    "verne-mysterious-island-en-human": 15,
-    "verne-around-world-en-human": 16,
-}
-
 
 def hash_uploaded_file(upload: BinaryIO) -> str:
     digest = hashlib.sha256()
@@ -155,7 +136,7 @@ def _artifact_from_upload(upload: BinaryIO) -> BookArtifact:
 def _import_legacy_artifact(artifact: BookArtifact) -> Edition:
     metadata = artifact.edition
     work, created = Work.objects.get_or_create(
-        slug=metadata.work_id,
+        slug=metadata.work_slug,
         defaults={
             "title": metadata.title,
             "author": metadata.author,
@@ -168,13 +149,12 @@ def _import_legacy_artifact(artifact: BookArtifact) -> Edition:
         work.original_language = metadata.language
         work.save(update_fields=["title", "author", "original_language", "updated_at"])
     source_edition = None
-    if metadata.source_edition_id:
-        source_edition = Edition.objects.filter(slug=metadata.source_edition_id).first()
+    if metadata.source_edition_slug:
+        source_edition = Edition.objects.filter(slug=metadata.source_edition_slug).first()
 
     edition, _ = Edition.objects.update_or_create(
-        slug=metadata.edition_id,
+        slug=metadata.edition_slug,
         defaults={
-            "legacy_id": LEGACY_IDS_BY_EDITION_SLUG.get(metadata.edition_id),
             "work": work,
             "source_edition": source_edition,
             "title": metadata.title,
@@ -224,7 +204,7 @@ def import_legacy_artifacts(uploads: Iterable[BinaryIO]) -> list[Edition]:
 
     by_slug = {edition.slug: edition for edition in editions}
     for artifact, edition in zip(artifacts, editions, strict=True):
-        source_slug = artifact.edition.source_edition_id
+        source_slug = artifact.edition.source_edition_slug
         if source_slug and edition.source_edition_id is None:
             edition.source_edition = (
                 by_slug.get(source_slug) or Edition.objects.filter(slug=source_slug).first()

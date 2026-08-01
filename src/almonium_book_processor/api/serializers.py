@@ -19,7 +19,6 @@ class EditionSerializer(serializers.ModelSerializer):
         model = Edition
         fields = (
             "id",
-            "legacy_id",
             "slug",
             "work",
             "source_edition_id",

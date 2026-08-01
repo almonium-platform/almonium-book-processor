@@ -25,8 +25,8 @@ OpenAPI document is available at `/api/schema/`.
   credentials and model configuration are supplied.
 
 Internal identifiers are UUIDs. Edition slugs are the human-readable URL
-identifier, and `legacy_id` preserves the existing Java/Firebase numeric IDs
-for the one-time migration. The Java backend does not need an ID rewrite.
+identifier. Numeric legacy book IDs are discarded rather than represented in
+the new schema.
 
 ## Local development
 
@@ -63,8 +63,9 @@ They are a one-time migration input, not application source.
 
 After creating an admin user, open **Import migrated books**, select all JSON
 files in `build/legacy/`, and submit them together. The importer is idempotent,
-retains legacy IDs 1–16, imports originals first, and links translations to
-their source editions regardless of file-selection order.
+imports originals first and links translations to their source editions
+regardless of file-selection order. The historical filenames and IDs do not
+become database identifiers.
 
 Only production needs the full catalogue. Staging has its own small logical
 database so migrations and processing experiments cannot damage production;

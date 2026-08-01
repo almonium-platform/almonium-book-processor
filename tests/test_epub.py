@@ -30,8 +30,8 @@ def test_epub_uses_metadata_spine_order_and_resolves_images(tmp_path) -> None:
 
     artifact = ingest_epub(
         source,
-        edition_id="spine-test-de-orig",
-        work_id="spine-test",
+        edition_slug="spine-test-de-orig",
+        work_slug="spine-test",
     )
 
     assert artifact.edition.title == "Spine Test"

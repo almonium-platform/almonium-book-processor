@@ -14,8 +14,8 @@ from almonium_book_processor.models import (
 
 def edition() -> EditionMetadata:
     return EditionMetadata(
-        edition_id="kafka-verwandlung-de-orig",
-        work_id="kafka-verwandlung",
+        edition_slug="kafka-verwandlung-de-orig",
+        work_slug="kafka-verwandlung",
         title="Die Verwandlung",
         author="Franz Kafka",
         language="de",
@@ -30,7 +30,7 @@ def test_artifact_rejects_non_contiguous_chapter_sequence() -> None:
             edition=edition(),
             blocks=[
                 ContentBlock(
-                    edition_id=edition().edition_id,
+                    edition_slug=edition().edition_slug,
                     block_id="c1.p2",
                     chapter=1,
                     seq=2,
@@ -42,10 +42,10 @@ def test_artifact_rejects_non_contiguous_chapter_sequence() -> None:
 
 
 def test_machine_derived_edition_requires_lineage() -> None:
-    with pytest.raises(ValidationError, match="require source_edition_id"):
+    with pytest.raises(ValidationError, match="require source_edition_slug"):
         EditionMetadata(
-            edition_id="kafka-verwandlung-uk-machine",
-            work_id="kafka-verwandlung",
+            edition_slug="kafka-verwandlung-uk-machine",
+            work_slug="kafka-verwandlung",
             title="Перевтілення",
             author="Франц Кафка",
             language="uk",

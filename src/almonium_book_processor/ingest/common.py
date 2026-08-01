@@ -90,8 +90,8 @@ def has_marker(tag: Tag, markers: set[str]) -> bool:
 class BlockBuilder:
     """Assign deterministic IDs and chapter-local sequence numbers."""
 
-    def __init__(self, edition_id: str) -> None:
-        self.edition_id = edition_id
+    def __init__(self, edition_slug: str) -> None:
+        self.edition_slug = edition_slug
         self.blocks: list[ContentBlock] = []
         self.warnings: list[IngestionWarning] = []
         self._sequence_by_chapter: dict[int, int] = {}
@@ -122,7 +122,7 @@ class BlockBuilder:
         prefix = BLOCK_PREFIX[block_type]
         self.blocks.append(
             ContentBlock(
-                edition_id=self.edition_id,
+                edition_slug=self.edition_slug,
                 block_id=f"c{chapter}.{prefix}{seq}",
                 chapter=chapter,
                 seq=seq,
