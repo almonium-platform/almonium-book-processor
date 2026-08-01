@@ -69,8 +69,8 @@ jobs:
           labels: org.opencontainers.image.revision=${{ inputs.commit_sha }}
           sbom: true
           provenance: mode=max
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=almonium-book-processor
+          cache-to: type=gha,mode=max,scope=almonium-book-processor
 
       - name: Record built image
         env:
@@ -78,4 +78,3 @@ jobs:
         run: |
           echo "### Built Almonium Books image" >> "$GITHUB_STEP_SUMMARY"
           echo "- Digest: \`$IMAGE_DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
-

@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM python:3.12-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -9,11 +11,17 @@ WORKDIR /app
 RUN groupadd --system --gid 10001 app && \
     useradd --system --uid 10001 --gid app --create-home app
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml ./
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -c 'import subprocess, sys, tomllib; project = tomllib.load(open("pyproject.toml", "rb"))["project"]; subprocess.check_call([sys.executable, "-m", "pip", "install", *project["dependencies"], *project["optional-dependencies"]["worker"]])'
+
+COPY README.md ./
 COPY src ./src
 COPY manage.py ./
 
-RUN python -m pip install --no-cache-dir '.[worker]' && \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --no-deps . && \
     DEBUG=false \
     SECRET_KEY=build-only-secret-key-not-used-at-runtime \
     ALLOWED_HOSTS=localhost \
