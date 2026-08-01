@@ -1,6 +1,6 @@
 # Almonium Books
 
-Almonium Books is the Python service for importing EPUB editions, reviewing
+Almonium Books is the Python service for importing EPUB and TEI editions, reviewing
 normalized content, running slow book-processing jobs, and publishing a stable
 REST representation to Almonium clients.
 
@@ -13,11 +13,11 @@ OpenAPI document is available at `/api/schema/`.
 - Django and server-rendered HTML provide the staff-only admin panel.
 - Django REST Framework exposes staff orchestration endpoints and read-only
   public book endpoints.
-- Celery workers ingest EPUBs and will own NLP, alignment, translation, and
+- Celery workers ingest EPUB and TEI P5 sources and will own NLP, alignment, translation, and
   adaptation jobs.
 - PostgreSQL stores normalized works, editions, chapters, blocks, runs,
   warnings, prompts, and model metadata.
-- Uploaded EPUBs are files, not database blobs. Local development uses a Docker
+- Uploaded source files are files, not database blobs. Local development uses a Docker
   volume; deployment uses an environment-specific persistent host directory.
 - spaCy provides local sentence segmentation. Sentence Transformers provides
   multilingual embeddings used by the monotonic alignment candidate builder.
@@ -75,7 +75,7 @@ server or a second manually maintained catalogue.
 
 ## REST resources
 
-- `POST /api/v1/editions/upload/` — staff EPUB upload; returns `202`.
+- `POST /api/v1/editions/upload/` — staff EPUB or TEI XML upload; returns `202`.
 - `GET /api/v1/editions/` and `/api/v1/runs/` — staff operations.
 - `GET /api/v1/public/editions/` — published editions only.
 - `GET /api/v1/public/editions/{slug}/blocks/` — normalized public content.

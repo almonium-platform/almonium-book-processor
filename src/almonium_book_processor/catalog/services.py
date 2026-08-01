@@ -27,7 +27,7 @@ def hash_uploaded_file(upload: BinaryIO) -> str:
 
 
 @transaction.atomic
-def create_epub_edition(
+def create_source_edition(
     *,
     work_slug: str,
     work_title: str,
@@ -58,9 +58,9 @@ def create_epub_edition(
         status=Edition.Status.QUEUED,
     )
 
-    from almonium_book_processor.catalog.tasks import process_epub_edition
+    from almonium_book_processor.catalog.tasks import process_source_edition
 
-    transaction.on_commit(lambda: process_epub_edition.delay(str(edition.id)))
+    transaction.on_commit(lambda: process_source_edition.delay(str(edition.id)))
     return edition
 
 

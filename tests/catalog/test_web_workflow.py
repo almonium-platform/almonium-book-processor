@@ -19,7 +19,7 @@ from almonium_book_processor.catalog.models import (
 from almonium_book_processor.catalog.services import import_legacy_artifact
 from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
-    process_epub_edition,
+    process_source_edition,
     split_edition_sentences,
 )
 from almonium_book_processor.models import (
@@ -70,7 +70,7 @@ def test_epub_task_persists_normalized_content(tmp_path, settings) -> None:
         status=Edition.Status.QUEUED,
     )
 
-    process_epub_edition.run(str(edition.id))
+    process_source_edition.run(str(edition.id))
 
     edition.refresh_from_db()
     assert edition.status == Edition.Status.READY
@@ -78,6 +78,37 @@ def test_epub_task_persists_normalized_content(tmp_path, settings) -> None:
     assert edition.chapters.count() == 1
     assert list(edition.blocks.values_list("text", flat=True)) == ["Eins", "Der erste Abschnitt."]
     assert edition.pipeline_runs.get().status == PipelineRun.Status.SUCCEEDED
+
+
+def test_tei_task_persists_normalized_content(tmp_path, settings) -> None:
+    settings.MEDIA_ROOT = tmp_path / "media"
+    work = Work.objects.create(
+        slug="tei-upload-test",
+        title="TEI Upload Test",
+        author="Ada Author",
+        original_language="en",
+    )
+    source = b"""<TEI xmlns="http://www.tei-c.org/ns/1.0" xml:lang="en">
+      <teiHeader><fileDesc><titleStmt><title>TEI Upload Test</title><author>Ada Author</author>
+      </titleStmt><publicationStmt><p/></publicationStmt><sourceDesc><p/></sourceDesc></fileDesc>
+      </teiHeader><text><body><div type="chapter"><head>One</head><p>First paragraph.</p>
+      </div></body></text></TEI>"""
+    edition = Edition.objects.create(
+        slug="tei-upload-test-en-orig",
+        work=work,
+        title="TEI Upload Test",
+        author="Ada Author",
+        language="en",
+        source_file=SimpleUploadedFile("upload.xml", source),
+        status=Edition.Status.QUEUED,
+    )
+
+    process_source_edition.run(str(edition.id))
+
+    edition.refresh_from_db()
+    assert edition.status == Edition.Status.READY
+    assert list(edition.blocks.values_list("text", flat=True)) == ["One", "First paragraph."]
+    assert edition.pipeline_runs.get().summary["source_format"] == "tei"
 
 
 def test_migrated_json_import_uses_uuid_identity() -> None:

@@ -35,11 +35,11 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 
 
 @staff_member_required
-def upload_epub(request: HttpRequest) -> HttpResponse:
+def upload_source(request: HttpRequest) -> HttpResponse:
     form = EditionUploadForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         edition = form.save()
-        messages.success(request, f"Queued EPUB ingestion for {edition.title}.")
+        messages.success(request, f"Queued source ingestion for {edition.title}.")
         return redirect("catalog:edition-detail", edition_id=edition.id)
     return render(request, "catalog/upload.html", {"form": form})
 

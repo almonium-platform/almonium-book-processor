@@ -18,13 +18,14 @@ from almonium_book_processor.catalog.models import (
     PipelineRun,
 )
 from almonium_book_processor.catalog.services import persist_artifact
-from almonium_book_processor.ingest.epub import ingest_epub
+from almonium_book_processor.ingest.source import ingest_source, source_format
 from almonium_book_processor.processing.nlp import align_embeddings, embed_texts, split_sentences
 
 
 def _copy_source_to_temporary_file(edition: Edition) -> tuple[Path, str]:
     digest = hashlib.sha256()
-    with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as temporary:
+    suffix = Path(edition.source_file.name).suffix.lower()
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temporary:
         with edition.source_file.open("rb") as source:
             for chunk in iter(lambda: source.read(1024 * 1024), b""):
                 digest.update(chunk)
@@ -33,7 +34,7 @@ def _copy_source_to_temporary_file(edition: Edition) -> tuple[Path, str]:
 
 
 @shared_task(bind=True, autoretry_for=(), acks_late=True)
-def process_epub_edition(self, edition_id: str) -> None:
+def process_source_edition(self, edition_id: str) -> None:
     edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
     temporary_path, source_hash = _copy_source_to_temporary_file(edition)
     idempotency_key = f"{edition.id}:{source_hash}:ingest:{__version__}"
@@ -61,7 +62,7 @@ def process_epub_edition(self, edition_id: str) -> None:
     run.save(update_fields=["status", "started_at", "progress", "error", "updated_at"])
 
     try:
-        artifact = ingest_epub(
+        artifact = ingest_source(
             temporary_path,
             edition_slug=edition.slug,
             work_slug=edition.work.slug,
@@ -79,6 +80,7 @@ def process_epub_edition(self, edition_id: str) -> None:
             run.finished_at = timezone.now()
             run.summary = {
                 "celery_task_id": self.request.id,
+                "source_format": source_format(temporary_path),
                 "blocks": len(artifact.blocks),
                 "warnings": len(artifact.warnings),
             }

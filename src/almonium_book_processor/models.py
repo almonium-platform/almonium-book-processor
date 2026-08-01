@@ -54,7 +54,7 @@ class SentenceSpan(StrictModel):
 
 
 class SourceMetadata(StrictModel):
-    format: Literal["epub", "legacy_html"]
+    format: Literal["epub", "tei", "legacy_html"]
     path: str = Field(min_length=1)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     identifier: str | None = None

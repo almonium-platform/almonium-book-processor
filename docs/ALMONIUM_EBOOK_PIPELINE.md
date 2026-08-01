@@ -33,11 +33,13 @@ for DE+EN models loaded simultaneously.
 
 ---
 
-## 2. Input format: switch to EPUB
+## 2. Input formats: EPUB first, TEI when available
 
 Your current HTML-from-Gutenberg approach works but it does not compose.
 
-**Decision: EPUB becomes the primary input.** Reasons:
+**Decision: EPUB is the primary user-upload input. TEI P5 XML, including ELTeC,
+is a first-class curated-catalogue input.** Both normalize into the same block
+schema. Reasons:
 
 1. It is structured. Spine order, chapter boundaries, and metadata are declared
    rather than inferred from `<h2>` heuristics.
@@ -46,6 +48,9 @@ Your current HTML-from-Gutenberg approach works but it does not compose.
    HTML scraping serves only you.
 3. Sources are richer: Standard Ebooks, Gutenberg's own EPUB exports,
    Wikisource exports, and whatever a user drops in.
+4. TEI sources already declare divisions, headings, paragraphs, verse, notes,
+   quotations, and scholarly metadata. Preserving that structure is better than
+   converting it to EPUB or flattening it before ingestion.
 
 Keep an HTML adapter for the sixteen books you have already done. Do not
 rewrite them; write a one-time migration into the normalised format.
@@ -586,7 +591,7 @@ Word: {WORD}
 
 ## 16. Build order
 
-1. Normalised block schema plus EPUB ingester. Migrate your 16 books into it.
+1. Normalised block schema plus EPUB and TEI ingesters. Migrate your 16 books into it.
 2. Sentence splitting and embedding-based alignment for one pair (DE↔EN).
 3. Confidence gates and a review queue.
 4. Admin panel, minimum version.

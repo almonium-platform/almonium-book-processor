@@ -11,7 +11,7 @@
   <header class="topbar">
     <a class="brand" href="{% url 'catalog:dashboard' %}">Almonium Books</a>
     <nav>
-      <a href="{% url 'catalog:upload' %}">Upload EPUB</a>
+      <a href="{% url 'catalog:upload' %}">Upload source</a>
       <a href="{% url 'catalog:import-legacy' %}">Import migrated books</a>
       <a href="{% url 'admin:index' %}">Data admin</a>
       <span>{{ request.user.get_username }}</span>
@@ -23,4 +23,3 @@
   </main>
 </body>
 </html>
-

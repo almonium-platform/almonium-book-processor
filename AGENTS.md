@@ -2,8 +2,9 @@
 
 This repository owns the Python service that ingests, normalizes, reviews, and
 publishes Almonium book editions. It is a web application with background
-workers, not a collection of one-off conversion scripts. EPUB is the supported
-source format. Keep presentation concerns out of normalized book data.
+workers, not a collection of one-off conversion scripts. EPUB and TEI P5 XML
+(including ELTeC) are supported source formats. Keep presentation concerns out
+of normalized book data.
 
 ## Repository ecosystem
 

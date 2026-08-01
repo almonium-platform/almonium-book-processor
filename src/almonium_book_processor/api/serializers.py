@@ -3,7 +3,8 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from almonium_book_processor.catalog.models import ContentBlock, Edition, PipelineRun, Work
-from almonium_book_processor.catalog.services import create_epub_edition
+from almonium_book_processor.catalog.services import create_source_edition
+from almonium_book_processor.ingest.source import SUPPORTED_SOURCE_EXTENSIONS
 
 
 class WorkSerializer(serializers.ModelSerializer):
@@ -50,12 +51,14 @@ class EditionUploadSerializer(serializers.Serializer):
     edition_type = serializers.ChoiceField(choices=Edition.EditionType.choices)
 
     def validate_source_file(self, source):
-        if not source.name.lower().endswith(".epub"):
-            raise serializers.ValidationError("Only EPUB files are supported.")
+        if not any(
+            source.name.lower().endswith(extension) for extension in SUPPORTED_SOURCE_EXTENSIONS
+        ):
+            raise serializers.ValidationError("Only EPUB and TEI XML files are supported.")
         return source
 
     def create(self, validated_data):
-        return create_epub_edition(**validated_data)
+        return create_source_edition(**validated_data)
 
 
 class PipelineRunSerializer(serializers.ModelSerializer):

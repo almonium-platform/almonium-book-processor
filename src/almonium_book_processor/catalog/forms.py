@@ -3,13 +3,14 @@ from __future__ import annotations
 from django import forms
 
 from almonium_book_processor.catalog.models import Edition
-from almonium_book_processor.catalog.services import create_epub_edition
+from almonium_book_processor.catalog.services import create_source_edition
+from almonium_book_processor.ingest.source import SUPPORTED_SOURCE_EXTENSIONS
 
 
 class EditionUploadForm(forms.Form):
     source_file = forms.FileField(
         validators=[],
-        widget=forms.ClearableFileInput(attrs={"accept": ".epub", "data-drop-input": "true"}),
+        widget=forms.ClearableFileInput(attrs={"accept": ".epub,.xml", "data-drop-input": "true"}),
     )
     work_slug = forms.SlugField(max_length=160)
     work_title = forms.CharField(max_length=500)
@@ -22,12 +23,14 @@ class EditionUploadForm(forms.Form):
 
     def clean_source_file(self):
         source = self.cleaned_data["source_file"]
-        if not source.name.lower().endswith(".epub"):
-            raise forms.ValidationError("Only EPUB files are supported.")
+        if not any(
+            source.name.lower().endswith(extension) for extension in SUPPORTED_SOURCE_EXTENSIONS
+        ):
+            raise forms.ValidationError("Only EPUB and TEI XML files are supported.")
         return source
 
     def save(self) -> Edition:
-        return create_epub_edition(**self.cleaned_data)
+        return create_source_edition(**self.cleaned_data)
 
 
 class MultipleFileInput(forms.ClearableFileInput):

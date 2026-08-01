@@ -79,7 +79,7 @@ class Edition(TimestampedModel):
     confidence = models.FloatField(null=True, blank=True)
     source_file = models.FileField(
         upload_to=source_upload_path,
-        validators=[FileExtensionValidator(["epub"])],
+        validators=[FileExtensionValidator(["epub", "xml"])],
         blank=True,
     )
     source_sha256 = models.CharField(max_length=64, blank=True)
@@ -198,7 +198,7 @@ class BlockAlignment(TimestampedModel):
 
 class PipelineRun(TimestampedModel):
     class Stage(models.TextChoices):
-        INGEST = "ingest", "EPUB ingestion"
+        INGEST = "ingest", "Source ingestion"
         SENTENCES = "sentences", "Sentence splitting"
         ALIGN = "align", "Alignment"
         TRANSLATE = "translate", "Translation"
