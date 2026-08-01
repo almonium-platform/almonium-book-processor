@@ -1,0 +1,13 @@
+.git
+.github
+.idea
+.pytest_cache
+.ruff_cache
+.venv
+build
+data
+db.sqlite3
+media
+staticfiles
+**/__pycache__
+*.pyc

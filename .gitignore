@@ -1,3 +1,16 @@
 .venv/
 .idea/
 data/
+build/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.py[cod]
+*.egg-info/
+dist/
+.env
+.env.*
+!.env.template
+media/
+staticfiles/
+db.sqlite3

@@ -1,0 +1,91 @@
+name: Reusable Books Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment_name:
+        required: true
+        type: string
+      image_digest:
+        required: true
+        type: string
+    outputs:
+      deployed_image_digest:
+        value: ${{ jobs.deploy.outputs.deployed_image_digest }}
+    secrets:
+      INFRA_REPO_CHECKOUT_KEY:
+        required: true
+      CLOUD_KEY:
+        required: true
+      CLOUD_KNOWN_HOSTS:
+        required: true
+      ANSIBLE_VAULT_PASSWORD_ALL:
+        required: true
+      ANSIBLE_VAULT_PASSWORD_ALMONIUM_SHARED:
+        required: true
+      ANSIBLE_VAULT_PASSWORD_ALMONIUM_PROD:
+        required: true
+      ANSIBLE_VAULT_PASSWORD_ALMONIUM_STAGING:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.environment_name }}
+    concurrency:
+      group: deploy-almonium-books-${{ inputs.environment_name }}
+      cancel-in-progress: false
+    outputs:
+      deployed_image_digest: ${{ inputs.image_digest }}
+    permissions:
+      packages: read
+    steps:
+      - name: Validate immutable image digest
+        env:
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
+        run: |
+          if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "image_digest must be sha256:<64 lowercase hex characters>" >&2
+            exit 1
+          fi
+
+      - name: Checkout infrastructure repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: almonium-platform/almonium-infra
+          path: almonium-infra
+          ssh-key: ${{ secrets.INFRA_REPO_CHECKOUT_KEY }}
+
+      - name: Prepare vault password files
+        run: |
+          mkdir -p ~/.ansible
+          umask 077
+          printf "%s" "${{ secrets.ANSIBLE_VAULT_PASSWORD_ALL }}" > ~/.ansible/vault-all
+          printf "%s" "${{ secrets.ANSIBLE_VAULT_PASSWORD_ALMONIUM_SHARED }}" > ~/.ansible/vault-almonium-shared
+          if [ "${{ inputs.environment_name }}" = "prod" ]; then
+            printf "%s" "${{ secrets.ANSIBLE_VAULT_PASSWORD_ALMONIUM_PROD }}" > ~/.ansible/vault-almonium-env
+            echo "ALMONIUM_ENV_VAULT_ID=almonium_prod" >> "$GITHUB_ENV"
+          else
+            printf "%s" "${{ secrets.ANSIBLE_VAULT_PASSWORD_ALMONIUM_STAGING }}" > ~/.ansible/vault-almonium-env
+            echo "ALMONIUM_ENV_VAULT_ID=almonium_staging" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run Books deployment playbook
+        uses: dawidd6/action-ansible-playbook@93764e7048f4dd16117d134dadb4b36e8ee73227 # v4
+        with:
+          playbook: playbook-deploy-almonium-books.yaml
+          directory: almonium-infra/ansible
+          key: ${{ secrets.CLOUD_KEY }}
+          known_hosts: ${{ secrets.CLOUD_KNOWN_HOSTS }}
+          options: |
+            -i inventory/hosts.ini
+            --limit almonium
+            --vault-id all@/home/runner/.ansible/vault-all
+            --vault-id almonium_shared@/home/runner/.ansible/vault-almonium-shared
+            --vault-id ${{ env.ALMONIUM_ENV_VAULT_ID }}@/home/runner/.ansible/vault-almonium-env
+            --extra-vars deploy_environment=${{ inputs.environment_name }}
+            --extra-vars deploy_image_digest=${{ inputs.image_digest }}
+            --extra-vars deploy_gh_actor=${{ github.actor }}
+            --extra-vars deploy_gh_token=${{ secrets.GITHUB_TOKEN }}
+

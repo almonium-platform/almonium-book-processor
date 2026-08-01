@@ -1,0 +1,22 @@
+name: Deploy Books to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_digest:
+        description: "Optional immutable image digest to promote or re-deploy"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  run-pipeline:
+    uses: ./.github/workflows/reusable-build-and-deploy.yaml
+    with:
+      environment_name: prod
+      source_branch: master
+      image_digest: ${{ inputs.image_digest }}
+    secrets: inherit

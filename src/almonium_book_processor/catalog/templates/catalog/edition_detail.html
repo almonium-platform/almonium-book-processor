@@ -1,0 +1,18 @@
+{% extends "catalog/base.html" %}
+{% block title %}{{ edition.title }} · Almonium Books{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">{{ edition.work.title }} · {{ edition.language|upper }}</p><h1>{{ edition.title }}</h1><p>{{ edition.author }} · {{ edition.get_edition_type_display }}</p></div>
+  <span class="status status-{{ edition.status }}">{{ edition.get_status_display }}</span>
+</div>
+<section class="metrics">
+  <div><strong>{{ edition.word_count }}</strong><span>words</span></div>
+  <div><strong>{{ edition.chapters.count }}</strong><span>chapters</span></div>
+  <div><strong>{{ edition.blocks.count }}</strong><span>blocks</span></div>
+  <div><strong>{{ edition.warnings.count }}</strong><span>warnings</span></div>
+</section>
+{% if edition.warnings.all %}<section class="panel"><h2>QA warnings</h2>{% for warning in edition.warnings.all %}<div class="warning"><code>{{ warning.code }}</code><span>{{ warning.message }}</span></div>{% endfor %}</section>{% endif %}
+<section class="panel"><h2>Processing history</h2>{% for run in edition.pipeline_runs.all %}<div class="run-row"><span>{{ run.get_stage_display }}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{{ run.created_at }}</span>{% empty %}<p>No processing runs.</p>{% endfor %}</section>
+<section class="panel"><h2>Content preview</h2><p class="muted">First 300 blocks. Full editing is available in the data admin.</p>{% for block in blocks %}<article class="block"><aside>{{ block.block_id }}<br>{{ block.get_block_type_display }}</aside><div>{{ block.text|linebreaksbr|default:"—" }}</div></article>{% empty %}<p>No normalized blocks yet.</p>{% endfor %}</section>
+{% endblock %}
+

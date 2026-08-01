@@ -1,0 +1,26 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Almonium Books{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'catalog/app.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'catalog:dashboard' %}">Almonium Books</a>
+    <nav>
+      <a href="{% url 'catalog:upload' %}">Upload EPUB</a>
+      <a href="{% url 'catalog:import-legacy' %}">Import migrated books</a>
+      <a href="{% url 'admin:index' %}">Data admin</a>
+      <span>{{ request.user.get_username }}</span>
+    </nav>
+  </header>
+  <main class="shell">
+    {% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
+

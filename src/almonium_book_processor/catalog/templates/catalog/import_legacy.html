@@ -1,0 +1,12 @@
+{% extends "catalog/base.html" %}
+{% block title %}Import migrated books · Almonium Books{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">One-time migration</p><h1>Import normalized books</h1></div></div>
+<form method="post" enctype="multipart/form-data" class="panel form-panel">
+  {% csrf_token %}
+  <label class="drop-zone"><strong>Select the JSON artifacts from build/legacy</strong><span>Multiple files are accepted and validated before persistence.</span>{{ form.artifacts }}</label>
+  {{ form.artifacts.errors }}
+  <button class="button" type="submit">Import selected books</button>
+</form>
+{% endblock %}
+

@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "almonium-book-processor"
+version = "0.1.0"
+description = "Admin, API, and processing service for Almonium ebooks"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "Almonium" }]
+dependencies = [
+  "beautifulsoup4>=4.12,<5",
+  "celery>=5.6,<6",
+  "dj-database-url>=2.2,<3",
+  "Django>=5.2,<5.3",
+  "djangorestframework>=3.16,<4",
+  "drf-spectacular>=0.28,<1",
+  "EbookLib>=0.19,<1",
+  "gunicorn>=23,<24",
+  "psycopg[binary]>=3.2,<4",
+  "pydantic>=2.8,<3",
+  "whitenoise>=6.9,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest-django>=4.11,<5",
+  "pytest>=8.2,<9",
+  "ruff>=0.9,<1",
+]
+worker = [
+  "sentence-transformers>=5.1,<6",
+  "spacy>=3.8,<4",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/almonium_book_processor"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+DJANGO_SETTINGS_MODULE = "almonium_book_processor.config.settings"
+testpaths = ["tests"]
+
+[tool.ruff]
+include = ["src/**/*.py", "tests/**/*.py"]
+extend-exclude = ["**/migrations/*.py"]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

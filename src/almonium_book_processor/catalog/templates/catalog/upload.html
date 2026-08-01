@@ -1,0 +1,30 @@
+{% extends "catalog/base.html" %}
+{% block title %}Upload EPUB · Almonium Books{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">New source</p><h1>Upload an EPUB</h1></div></div>
+<form method="post" enctype="multipart/form-data" class="panel form-panel">
+  {% csrf_token %}
+  <label class="drop-zone" data-drop-zone>
+    <strong>Drop an EPUB here</strong>
+    <span>or click to select one</span>
+    {{ form.source_file }}
+    <small data-file-name>No file selected</small>
+  </label>
+  {{ form.source_file.errors }}
+  <div class="form-grid">
+    {% for field in form %}{% if field.name != "source_file" %}<label><span>{{ field.label }}</span>{{ field }}{{ field.errors }}</label>{% endif %}{% endfor %}
+  </div>
+  <button class="button" type="submit">Queue ingestion</button>
+</form>
+<script>
+  const zone = document.querySelector('[data-drop-zone]');
+  const input = document.querySelector('[data-drop-input]');
+  const label = document.querySelector('[data-file-name]');
+  const showName = () => { label.textContent = input.files.length ? input.files[0].name : 'No file selected'; };
+  input.addEventListener('change', showName);
+  for (const event of ['dragenter', 'dragover']) zone.addEventListener(event, e => { e.preventDefault(); zone.classList.add('dragging'); });
+  for (const event of ['dragleave', 'drop']) zone.addEventListener(event, e => { e.preventDefault(); zone.classList.remove('dragging'); });
+  zone.addEventListener('drop', e => { input.files = e.dataTransfer.files; showName(); });
+</script>
+{% endblock %}
+

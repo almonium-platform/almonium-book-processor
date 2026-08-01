@@ -1,0 +1,89 @@
+x-app-environment: &app-environment
+  DEBUG: ${DEBUG:-true}
+  SECRET_KEY: ${SECRET_KEY:-local-development-only}
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:8000}
+  DATABASE_URL: ${DATABASE_URL:-postgresql://almonium_books:almonium_books@postgres:5432/almonium_books}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-amqp://almonium_books:almonium_books@rabbitmq:5672/almonium_books}
+  NLP_EMBEDDING_MODEL: ${NLP_EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
+  HF_HOME: /app/models
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: almonium_books
+      POSTGRES_USER: almonium_books
+      POSTGRES_PASSWORD: almonium_books
+    ports:
+      - "5433:5432"
+    volumes:
+      - books-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U almonium_books -d almonium_books"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: almonium_books
+      RABBITMQ_DEFAULT_PASS: almonium_books
+      RABBITMQ_DEFAULT_VHOST: almonium_books
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - books-rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build: .
+    environment: *app-environment
+    command: >-
+      sh -c "python manage.py migrate --noinput &&
+      gunicorn almonium_book_processor.config.wsgi:application
+      --bind=0.0.0.0:8000 --workers=2 --timeout=120"
+    ports:
+      - "8000:8000"
+    volumes:
+      - books-media:/app/media
+      - books-models:/app/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz/', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  worker:
+    build: .
+    environment: *app-environment
+    command: celery -A almonium_book_processor.config worker --loglevel=INFO --concurrency=1
+    volumes:
+      - books-media:/app/media
+      - books-models:/app/models
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  books-postgres:
+  books-rabbitmq:
+  books-media:
+  books-models:
