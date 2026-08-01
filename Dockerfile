@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.7
 
-FROM python:3.12-slim AS runtime
+ARG DEPENDENCIES_IMAGE=dependencies
+
+FROM python:3.12-slim AS dependencies
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -15,6 +17,10 @@ COPY pyproject.toml ./
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     python -c 'import subprocess, sys, tomllib; project = tomllib.load(open("pyproject.toml", "rb"))["project"]; subprocess.check_call([sys.executable, "-m", "pip", "install", *project["dependencies"], *project["optional-dependencies"]["worker"]])'
+
+FROM ${DEPENDENCIES_IMAGE} AS runtime
+
+WORKDIR /app
 
 COPY README.md ./
 COPY src ./src

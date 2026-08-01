@@ -58,6 +58,35 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Derive immutable dependency image tag
+        id: dependency_image
+        run: |
+          dependency_hash=$(sha256sum pyproject.toml | cut -d ' ' -f 1)
+          echo "ref=ghcr.io/almonium-platform/almonium-book-processor:deps-${dependency_hash}" >> "$GITHUB_OUTPUT"
+
+      - name: Check for dependency image
+        id: dependency_image_exists
+        env:
+          DEPENDENCY_IMAGE: ${{ steps.dependency_image.outputs.ref }}
+        run: |
+          if docker buildx imagetools inspect "$DEPENDENCY_IMAGE" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push ARM64 dependency image
+        if: steps.dependency_image_exists.outputs.exists != 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          target: dependencies
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.dependency_image.outputs.ref }}
+          cache-from: type=gha,scope=almonium-book-processor-dependencies
+          cache-to: type=gha,mode=max,scope=almonium-book-processor-dependencies
+
       - name: Build and push ARM64 image
         id: build_image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
@@ -67,10 +96,9 @@ jobs:
           push: true
           tags: ghcr.io/almonium-platform/almonium-book-processor:${{ inputs.commit_sha }}
           labels: org.opencontainers.image.revision=${{ inputs.commit_sha }}
+          build-args: DEPENDENCIES_IMAGE=${{ steps.dependency_image.outputs.ref }}
           sbom: true
           provenance: mode=max
-          cache-from: type=gha,scope=almonium-book-processor
-          cache-to: type=gha,mode=max,scope=almonium-book-processor
 
       - name: Record built image
         env:
