@@ -19,8 +19,6 @@ on:
         required: true
       CLOUD_KNOWN_HOSTS:
         required: true
-      ANSIBLE_VAULT_PASSWORD_ALL:
-        required: true
       ANSIBLE_VAULT_PASSWORD_ALMONIUM_SHARED:
         required: true
       ANSIBLE_VAULT_PASSWORD_ALMONIUM_PROD:
@@ -61,7 +59,6 @@ jobs:
         run: |
           mkdir -p ~/.ansible
           umask 077
-          printf "%s" "${{ secrets.ANSIBLE_VAULT_PASSWORD_ALL }}" > ~/.ansible/vault-all
           printf "%s" "${{ secrets.ANSIBLE_VAULT_PASSWORD_ALMONIUM_SHARED }}" > ~/.ansible/vault-almonium-shared
           if [ "${{ inputs.environment_name }}" = "prod" ]; then
             printf "%s" "${{ secrets.ANSIBLE_VAULT_PASSWORD_ALMONIUM_PROD }}" > ~/.ansible/vault-almonium-env
@@ -81,11 +78,9 @@ jobs:
           options: |
             -i inventory/hosts.ini
             --limit almonium
-            --vault-id all@/home/runner/.ansible/vault-all
             --vault-id almonium_shared@/home/runner/.ansible/vault-almonium-shared
             --vault-id ${{ env.ALMONIUM_ENV_VAULT_ID }}@/home/runner/.ansible/vault-almonium-env
             --extra-vars deploy_environment=${{ inputs.environment_name }}
             --extra-vars deploy_image_digest=${{ inputs.image_digest }}
             --extra-vars deploy_gh_actor=${{ github.actor }}
             --extra-vars deploy_gh_token=${{ secrets.GITHUB_TOKEN }}
-

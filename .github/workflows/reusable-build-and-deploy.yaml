@@ -19,8 +19,6 @@ on:
         required: true
       CLOUD_KNOWN_HOSTS:
         required: true
-      ANSIBLE_VAULT_PASSWORD_ALL:
-        required: true
       ANSIBLE_VAULT_PASSWORD_ALMONIUM_SHARED:
         required: true
       ANSIBLE_VAULT_PASSWORD_ALMONIUM_PROD:
@@ -78,4 +76,3 @@ jobs:
       environment_name: ${{ inputs.environment_name }}
       image_digest: ${{ needs.resolve-image.outputs.image_digest || needs.build.outputs.image_digest }}
     secrets: inherit
-
