@@ -17,6 +17,6 @@ jobs:
     uses: ./.github/workflows/reusable-build-and-deploy.yaml
     with:
       environment_name: prod
-      source_branch: master
+      source_branch: main
       image_digest: ${{ inputs.image_digest }}
     secrets: inherit

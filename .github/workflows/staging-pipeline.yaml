@@ -2,7 +2,7 @@ name: Deploy Books to Staging
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
     inputs:
       image_digest:
@@ -19,6 +19,6 @@ jobs:
     uses: ./.github/workflows/reusable-build-and-deploy.yaml
     with:
       environment_name: staging
-      source_branch: master
+      source_branch: main
       image_digest: ${{ inputs.image_digest }}
     secrets: inherit
