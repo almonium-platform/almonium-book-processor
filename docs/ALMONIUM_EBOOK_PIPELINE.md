@@ -204,7 +204,7 @@ Three distinct operations, and you should keep them distinct:
 Do not chain all three blindly. A B1 abridged modernised Don Quixote is a
 different book, and you should say so.
 
-**Label everything.** `edition_type`, `source_edition_id`, `cefr_target`,
+**Label everything.** `edition_type`, `source_edition_id`, `cefr_level`,
 `model`, `prompt_version`. Show it in the reader.
 
 ## 8. Handling messy input

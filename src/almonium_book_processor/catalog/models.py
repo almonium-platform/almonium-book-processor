@@ -22,7 +22,8 @@ class Work(TimestampedModel):
     title = models.CharField(max_length=500)
     author = models.CharField(max_length=300)
     original_language = models.CharField(max_length=35)
-    first_published_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    publication_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    cover_url = models.URLField(max_length=1000, blank=True)
 
     class Meta:
         ordering = ["author", "title"]
@@ -37,6 +38,14 @@ def source_upload_path(instance: Edition, filename: str) -> str:
 
 
 class Edition(TimestampedModel):
+    class CEFRLevel(models.TextChoices):
+        A1 = "A1", "A1"
+        A2 = "A2", "A2"
+        B1 = "B1", "B1"
+        B2 = "B2", "B2"
+        C1 = "C1", "C1"
+        C2 = "C2", "C2"
+
     class EditionType(models.TextChoices):
         ORIGINAL = "original", "Original"
         HUMAN_TRANSLATION = "human_translation", "Human translation"
@@ -72,11 +81,15 @@ class Edition(TimestampedModel):
         default=EditionType.ORIGINAL,
     )
     translator = models.CharField(max_length=300, blank=True)
-    cefr_target = models.CharField(max_length=2, blank=True)
-    schema_version = models.PositiveSmallIntegerField(default=2)
+    cefr_level = models.CharField(
+        max_length=2,
+        choices=CEFRLevel.choices,
+        null=True,
+        blank=True,
+    )
+    schema_version = models.PositiveSmallIntegerField(default=3)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     word_count = models.PositiveIntegerField(default=0)
-    confidence = models.FloatField(null=True, blank=True)
     source_file = models.FileField(
         upload_to=source_upload_path,
         validators=[FileExtensionValidator(["epub", "xml"])],

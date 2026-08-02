@@ -16,10 +16,21 @@ class EditionUploadForm(forms.Form):
     work_title = forms.CharField(max_length=500)
     author = forms.CharField(max_length=300)
     original_language = forms.CharField(max_length=35)
+    publication_year = forms.IntegerField(min_value=1, max_value=9999)
+    cover_url = forms.URLField(
+        max_length=1000,
+        required=False,
+        assume_scheme="https",
+        help_text="Optional public-domain cover image URL. A typographic cover is used otherwise.",
+    )
     edition_slug = forms.SlugField(max_length=180)
     edition_title = forms.CharField(max_length=500)
     language = forms.CharField(max_length=35)
     edition_type = forms.ChoiceField(choices=Edition.EditionType.choices)
+    cefr_level = forms.ChoiceField(
+        choices=Edition.CEFRLevel.choices,
+        help_text="Current editorial estimate; AI estimation can replace it later.",
+    )
 
     def clean_source_file(self):
         source = self.cleaned_data["source_file"]

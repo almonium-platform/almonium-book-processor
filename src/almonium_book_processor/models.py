@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class StrictModel(BaseModel):
@@ -70,7 +70,7 @@ class EditionMetadata(StrictModel):
         "original", "human_translation", "machine_translation", "adaptation", "abridgement"
     ] = "original"
     source_edition_slug: str | None = None
-    cefr_target: Literal["A1", "A2", "B1", "B2", "C1", "C2"] | None = None
+    cefr_level: Literal["A1", "A2", "B1", "B2", "C1", "C2"] | None = None
     source: SourceMetadata
 
     @model_validator(mode="after")
@@ -85,13 +85,13 @@ class EditionMetadata(StrictModel):
             and not self.source_edition_slug
         ):
             raise ValueError(f"{self.edition_type} editions require source_edition_slug")
-        if self.edition_type == "adaptation" and not self.cefr_target:
-            raise ValueError("adaptation editions require cefr_target")
+        if self.edition_type == "adaptation" and not self.cefr_level:
+            raise ValueError("adaptation editions require cefr_level")
         return self
 
 
 class ContentBlock(StrictModel):
-    schema_version: Literal[2] = SCHEMA_VERSION
+    schema_version: Literal[3] = SCHEMA_VERSION
     edition_slug: str
     block_id: str = Field(pattern=r"^c\d+\.[a-z]+\d+$")
     chapter: int = Field(ge=0)
@@ -163,7 +163,7 @@ def ingestion_warning_severity(code: str) -> IngestionWarningSeverity:
 
 
 class BookArtifact(StrictModel):
-    schema_version: Literal[2] = SCHEMA_VERSION
+    schema_version: Literal[3] = SCHEMA_VERSION
     processor_version: str = Field(min_length=1)
     edition: EditionMetadata
     blocks: list[ContentBlock]

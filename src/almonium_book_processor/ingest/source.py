@@ -30,7 +30,7 @@ def ingest_source(
     language: str | None = None,
     edition_type: str = "original",
     source_edition_slug: str | None = None,
-    cefr_target: str | None = None,
+    cefr_level: str | None = None,
     expected_chapters: int | None = None,
 ) -> BookArtifact:
     adapter = ingest_epub if source_format(path) == "epub" else ingest_tei
@@ -43,6 +43,6 @@ def ingest_source(
         language=language,
         edition_type=edition_type,
         source_edition_slug=source_edition_slug,
-        cefr_target=cefr_target,
+        cefr_level=cefr_level,
         expected_chapters=expected_chapters,
     )

@@ -34,7 +34,9 @@ def publish_to_almonium(edition: Edition) -> str:
         "editionType": edition.edition_type,
         "sourceEditionSlug": edition.source_edition.slug if edition.source_edition else None,
         "translator": edition.translator or None,
-        "firstPublishedYear": edition.work.first_published_year,
+        "publicationYear": edition.work.publication_year,
+        "coverUrl": edition.work.cover_url or None,
+        "cefrLevel": edition.cefr_level,
         "wordCount": edition.word_count,
     }
     request_body = json.dumps(payload, separators=(",", ":")).encode()

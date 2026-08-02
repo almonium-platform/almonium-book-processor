@@ -72,7 +72,7 @@ def process_source_edition(self, edition_id: str) -> None:
             language=edition.language,
             edition_type=edition.edition_type,
             source_edition_slug=edition.source_edition.slug if edition.source_edition else None,
-            cefr_target=edition.cefr_target or None,
+            cefr_level=edition.cefr_level,
         )
         with transaction.atomic():
             persist_artifact(edition, artifact, run)
@@ -106,10 +106,10 @@ def process_source_edition(self, edition_id: str) -> None:
         temporary_path.unlink(missing_ok=True)
 
 
-def _text_hash(*values: str) -> str:
+def _text_hash(*values: object) -> str:
     digest = hashlib.sha256()
     for value in values:
-        digest.update(value.encode())
+        digest.update(str(value).encode())
         digest.update(b"\0")
     return digest.hexdigest()
 
@@ -119,9 +119,28 @@ def publish_edition(edition_id: str) -> None:
     edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
     if edition.status not in {Edition.Status.READY, Edition.Status.PUBLISHED}:
         raise ValueError("Only ready editions can be published.")
-    input_hash = _text_hash(edition.source_sha256, edition.slug)
+    if edition.cefr_level is None:
+        raise ValueError("A CEFR level is required before publication.")
+    if edition.work.publication_year is None:
+        raise ValueError("A publication year is required before publication.")
+    input_hash = _text_hash(
+        edition.source_sha256,
+        edition.slug,
+        edition.work.slug,
+        edition.title,
+        edition.author,
+        edition.work.original_language,
+        edition.language,
+        edition.edition_type,
+        edition.source_edition.slug if edition.source_edition else None,
+        edition.translator,
+        edition.work.publication_year,
+        edition.work.cover_url,
+        edition.cefr_level,
+        edition.word_count,
+    )
     run, _ = PipelineRun.objects.get_or_create(
-        idempotency_key=f"{edition.id}:{input_hash}:publish:almonium-v1",
+        idempotency_key=f"{edition.id}:{input_hash}:publish:almonium-v2",
         defaults={
             "edition": edition,
             "stage": PipelineRun.Stage.PUBLISH,

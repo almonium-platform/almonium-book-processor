@@ -8,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from ebooklib import epub
 
+from almonium_book_processor.catalog.forms import EditionUploadForm
 from almonium_book_processor.catalog.models import (
     BlockAlignment,
     Chapter,
@@ -53,6 +54,29 @@ def epub_bytes(tmp_path) -> bytes:
     book.spine = ["nav", chapter]
     epub.write_epub(path, book)
     return path.read_bytes()
+
+
+def test_upload_form_collects_reader_metadata(tmp_path) -> None:
+    form = EditionUploadForm(
+        data={
+            "work_slug": "upload-test",
+            "work_title": "Upload Test",
+            "author": "Ada Author",
+            "original_language": "de",
+            "publication_year": 1912,
+            "cover_url": "https://example.test/public-domain-cover.jpg",
+            "edition_slug": "upload-test-de-orig",
+            "edition_title": "Upload Test",
+            "language": "de",
+            "edition_type": Edition.EditionType.ORIGINAL,
+            "cefr_level": Edition.CEFRLevel.B2,
+        },
+        files={"source_file": SimpleUploadedFile("upload.epub", epub_bytes(tmp_path))},
+    )
+
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["publication_year"] == 1912
+    assert form.cleaned_data["cefr_level"] == Edition.CEFRLevel.B2
 
 
 def test_epub_task_persists_normalized_content(tmp_path, settings) -> None:
@@ -292,6 +316,79 @@ def test_public_api_exposes_only_published_editions(client) -> None:
 
     assert response.status_code == 200
     assert [item["slug"] for item in response.json()] == ["public-work-en-orig"]
+
+
+def test_public_parallel_api_exposes_reviewed_alignment(client) -> None:
+    work = Work.objects.create(
+        slug="parallel-work",
+        title="Parallel Work",
+        author="Ada Author",
+        original_language="en",
+        publication_year=1912,
+    )
+    source = Edition.objects.create(
+        slug="parallel-work-en-orig",
+        work=work,
+        title="Parallel Work",
+        author="Ada Author",
+        language="en",
+        status=Edition.Status.PUBLISHED,
+    )
+    target = Edition.objects.create(
+        slug="parallel-work-de-human",
+        work=work,
+        source_edition=source,
+        title="Paralleles Werk",
+        author="Ada Author",
+        language="de",
+        edition_type=Edition.EditionType.HUMAN_TRANSLATION,
+        status=Edition.Status.PUBLISHED,
+    )
+    source_chapter = Chapter.objects.create(edition=source, sequence=1)
+    target_chapter = Chapter.objects.create(edition=target, sequence=1)
+    source_block = ContentBlock.objects.create(
+        edition=source,
+        chapter=source_chapter,
+        block_id="c1.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="Original text.",
+    )
+    target_block = ContentBlock.objects.create(
+        edition=target,
+        chapter=target_chapter,
+        block_id="c1.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="Übersetzter Text.",
+    )
+    BlockAlignment.objects.create(
+        source_edition=source,
+        target_edition=target,
+        source_block=source_block,
+        target_block=target_block,
+        confidence=0.98,
+        strategy="test",
+    )
+
+    response = client.get(
+        "/api/v1/public/editions/parallel-work-de-human/parallel/parallel-work-en-orig/"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "primary_language": "de",
+        "secondary_language": "en",
+        "blocks": [
+            {
+                "chapter": 1,
+                "sequence": 1,
+                "block_type": "paragraph",
+                "primary_text": "Übersetzter Text.",
+                "secondary_text": "Original text.",
+            }
+        ],
+    }
 
 
 def test_offline_sentence_and_alignment_tasks(monkeypatch) -> None:

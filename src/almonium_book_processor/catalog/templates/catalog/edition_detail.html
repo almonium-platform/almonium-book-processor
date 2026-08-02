@@ -2,7 +2,7 @@
 {% block title %}{{ edition.title }} · Almonium Books{% endblock %}
 {% block content %}
 <div class="page-heading">
-  <div><p class="eyebrow">{{ edition.work.title }} · {{ edition.language|upper }}</p><h1>{{ edition.title }}</h1><p>{{ edition.author }} · {{ edition.get_edition_type_display }}</p></div>
+  <div><p class="eyebrow">{{ edition.work.title }} · {{ edition.language|upper }} · {{ edition.cefr_level|default:"Level pending" }}</p><h1>{{ edition.title }}</h1><p>{{ edition.author }} · {{ edition.get_edition_type_display }}</p></div>
   <span class="status status-{{ edition.status }}">{{ edition.get_status_display }}</span>
 </div>
 <section class="metrics">

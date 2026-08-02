@@ -36,8 +36,16 @@ class ChapterInline(admin.TabularInline):
 
 @admin.register(Edition)
 class EditionAdmin(admin.ModelAdmin):
-    list_display = ("title", "language", "edition_type", "status", "word_count", "updated_at")
-    list_filter = ("status", "edition_type", "language")
+    list_display = (
+        "title",
+        "language",
+        "cefr_level",
+        "edition_type",
+        "status",
+        "word_count",
+        "updated_at",
+    )
+    list_filter = ("status", "edition_type", "language", "cefr_level")
     search_fields = ("title", "author", "slug", "work__title")
     readonly_fields = ("source_sha256", "word_count", "created_at", "updated_at")
     autocomplete_fields = ("work", "source_edition")

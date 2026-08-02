@@ -40,7 +40,7 @@ def ingest_epub(
     language: str | None = None,
     edition_type: str = "original",
     source_edition_slug: str | None = None,
-    cefr_target: str | None = None,
+    cefr_level: str | None = None,
     expected_chapters: int | None = None,
 ) -> BookArtifact:
     """Read an EPUB's declared spine order into normalized content blocks."""
@@ -118,7 +118,7 @@ def ingest_epub(
             language=language,
             edition_type=edition_type,
             source_edition_slug=source_edition_slug,
-            cefr_target=cefr_target,
+            cefr_level=cefr_level,
             source=SourceMetadata(
                 format="epub",
                 path=str(source_path),

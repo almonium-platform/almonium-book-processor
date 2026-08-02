@@ -10,7 +10,15 @@ from almonium_book_processor.ingest.source import SUPPORTED_SOURCE_EXTENSIONS
 class WorkSerializer(serializers.ModelSerializer):
     class Meta:
         model = Work
-        fields = ("id", "slug", "title", "author", "original_language", "first_published_year")
+        fields = (
+            "id",
+            "slug",
+            "title",
+            "author",
+            "original_language",
+            "publication_year",
+            "cover_url",
+        )
 
 
 class EditionSerializer(serializers.ModelSerializer):
@@ -28,10 +36,9 @@ class EditionSerializer(serializers.ModelSerializer):
             "language",
             "edition_type",
             "translator",
-            "cefr_target",
+            "cefr_level",
             "status",
             "word_count",
-            "confidence",
             "source_sha256",
             "published_book_id",
             "published_at",
@@ -46,10 +53,13 @@ class EditionUploadSerializer(serializers.Serializer):
     work_title = serializers.CharField(max_length=500)
     author = serializers.CharField(max_length=300)
     original_language = serializers.CharField(max_length=35)
+    publication_year = serializers.IntegerField(min_value=1, max_value=9999)
+    cover_url = serializers.URLField(max_length=1000, required=False, allow_blank=True)
     edition_slug = serializers.SlugField(max_length=180)
     edition_title = serializers.CharField(max_length=500)
     language = serializers.CharField(max_length=35)
     edition_type = serializers.ChoiceField(choices=Edition.EditionType.choices)
+    cefr_level = serializers.ChoiceField(choices=Edition.CEFRLevel.choices)
 
     def validate_source_file(self, source):
         if not any(

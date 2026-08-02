@@ -206,7 +206,7 @@ def ingest_tei(
     language: str | None = None,
     edition_type: str = "original",
     source_edition_slug: str | None = None,
-    cefr_target: str | None = None,
+    cefr_level: str | None = None,
     expected_chapters: int | None = None,
 ) -> BookArtifact:
     """Normalize a TEI P5 document without evaluating external entities."""
@@ -279,7 +279,7 @@ def ingest_tei(
             language=language,
             edition_type=edition_type,
             source_edition_slug=source_edition_slug,
-            cefr_target=cefr_target,
+            cefr_level=cefr_level,
             source=SourceMetadata(
                 format="tei",
                 path=str(source_path),

@@ -39,10 +39,13 @@ def create_source_edition(
     work_title: str,
     author: str,
     original_language: str,
+    publication_year: int,
+    cover_url: str,
     edition_slug: str,
     edition_title: str,
     language: str,
     edition_type: str,
+    cefr_level: str,
     source_file: File,
 ) -> Edition:
     work, _ = Work.objects.get_or_create(
@@ -51,8 +54,17 @@ def create_source_edition(
             "title": work_title,
             "author": author,
             "original_language": original_language,
+            "publication_year": publication_year,
+            "cover_url": cover_url,
         },
     )
+    work.title = work_title
+    work.author = author
+    work.original_language = original_language
+    work.publication_year = publication_year
+    if cover_url:
+        work.cover_url = cover_url
+    work.save()
     edition = Edition.objects.create(
         slug=edition_slug,
         work=work,
@@ -60,6 +72,7 @@ def create_source_edition(
         author=author,
         language=language,
         edition_type=edition_type,
+        cefr_level=cefr_level,
         source_file=source_file,
         status=Edition.Status.QUEUED,
     )
@@ -194,7 +207,7 @@ def _import_legacy_artifact(artifact: BookArtifact) -> Edition:
             "author": metadata.author,
             "language": metadata.language,
             "edition_type": metadata.edition_type,
-            "cefr_target": metadata.cefr_target or "",
+            "cefr_level": metadata.cefr_level,
             "status": Edition.Status.PROCESSING,
             "source_sha256": metadata.source.sha256,
         },
