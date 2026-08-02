@@ -45,6 +45,8 @@ services:
   web:
     build: .
     environment: *app-environment
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: >-
       sh -c "python manage.py migrate --noinput &&
       gunicorn almonium_book_processor.config.wsgi:application
@@ -74,6 +76,8 @@ services:
   worker:
     build: .
     environment: *app-environment
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: celery -A almonium_book_processor.config worker --loglevel=INFO --concurrency=1
     volumes:
       - books-media:/app/media
