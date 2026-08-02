@@ -10,7 +10,9 @@ import re
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from almonium_book_processor.languages import normalize_language_code
 
 SCHEMA_VERSION = 3
 
@@ -65,13 +67,18 @@ class EditionMetadata(StrictModel):
     work_slug: str = Field(min_length=1, max_length=160)
     title: str = Field(min_length=1)
     author: str = Field(min_length=1)
-    language: str = Field(min_length=2, max_length=35)
+    language: str = Field(min_length=2, max_length=2)
     edition_type: Literal[
         "original", "human_translation", "machine_translation", "adaptation", "abridgement"
     ] = "original"
     source_edition_slug: str | None = None
     cefr_level: Literal["A1", "A2", "B1", "B2", "C1", "C2"] | None = None
     source: SourceMetadata
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def normalize_language(cls, value: str) -> str:
+        return normalize_language_code(value)
 
     @model_validator(mode="after")
     def validate_identifiers_and_lineage(self) -> EditionMetadata:

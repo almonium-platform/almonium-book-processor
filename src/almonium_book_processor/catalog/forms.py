@@ -5,6 +5,7 @@ from django import forms
 from almonium_book_processor.catalog.models import Edition
 from almonium_book_processor.catalog.services import create_source_edition
 from almonium_book_processor.ingest.source import SUPPORTED_SOURCE_EXTENSIONS
+from almonium_book_processor.languages import LANGUAGE_CHOICES
 
 
 class EditionUploadForm(forms.Form):
@@ -15,7 +16,10 @@ class EditionUploadForm(forms.Form):
     work_slug = forms.SlugField(max_length=160)
     work_title = forms.CharField(max_length=500)
     author = forms.CharField(max_length=300)
-    original_language = forms.CharField(max_length=35)
+    original_language = forms.ChoiceField(
+        choices=LANGUAGE_CHOICES,
+        help_text="ISO 639-1 language code for the original work.",
+    )
     publication_year = forms.IntegerField(min_value=1, max_value=9999)
     cover_url = forms.URLField(
         max_length=1000,
@@ -25,7 +29,10 @@ class EditionUploadForm(forms.Form):
     )
     edition_slug = forms.SlugField(max_length=180)
     edition_title = forms.CharField(max_length=500)
-    language = forms.CharField(max_length=35)
+    language = forms.ChoiceField(
+        choices=LANGUAGE_CHOICES,
+        help_text="ISO 639-1 language code for this edition.",
+    )
     edition_type = forms.ChoiceField(choices=Edition.EditionType.choices)
     cefr_level = forms.ChoiceField(
         choices=Edition.CEFRLevel.choices,

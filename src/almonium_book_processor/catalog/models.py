@@ -7,6 +7,8 @@ from django.conf import settings
 from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.db import models
 
+from almonium_book_processor.languages import LANGUAGE_CHOICES
+
 
 class TimestampedModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -21,7 +23,7 @@ class Work(TimestampedModel):
     slug = models.SlugField(max_length=160, unique=True)
     title = models.CharField(max_length=500)
     author = models.CharField(max_length=300)
-    original_language = models.CharField(max_length=35)
+    original_language = models.CharField(max_length=35, choices=LANGUAGE_CHOICES)
     publication_year = models.PositiveSmallIntegerField(null=True, blank=True)
     cover_url = models.URLField(max_length=1000, blank=True)
 
@@ -74,7 +76,7 @@ class Edition(TimestampedModel):
     )
     title = models.CharField(max_length=500)
     author = models.CharField(max_length=300)
-    language = models.CharField(max_length=35)
+    language = models.CharField(max_length=35, choices=LANGUAGE_CHOICES)
     edition_type = models.CharField(
         max_length=32,
         choices=EditionType.choices,

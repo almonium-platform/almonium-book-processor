@@ -29,7 +29,10 @@ def _spacy_pipeline(language: str) -> Any:
         except OSError:
             pass
 
-    pipeline = spacy.blank(language if language in {"de", "en", "fr", "uk"} else "xx")
+    try:
+        pipeline = spacy.blank(language)
+    except ValueError:
+        pipeline = spacy.blank("xx")
     pipeline.add_pipe("sentencizer")
     return pipeline
 

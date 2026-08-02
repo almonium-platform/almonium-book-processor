@@ -8,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from ebooklib import epub
 
+from almonium_book_processor.catalog.admin import EditionAdminForm, WorkAdminForm
 from almonium_book_processor.catalog.forms import EditionUploadForm
 from almonium_book_processor.catalog.models import (
     BlockAlignment,
@@ -77,6 +78,33 @@ def test_upload_form_collects_reader_metadata(tmp_path) -> None:
     assert form.is_valid(), form.errors
     assert form.cleaned_data["publication_year"] == 1912
     assert form.cleaned_data["cefr_level"] == Edition.CEFRLevel.B2
+
+
+def test_upload_form_rejects_unknown_language_code(tmp_path) -> None:
+    form = EditionUploadForm(
+        data={
+            "work_slug": "upload-test",
+            "work_title": "Upload Test",
+            "author": "Ada Author",
+            "original_language": "zz",
+            "publication_year": 1912,
+            "edition_slug": "upload-test-en-orig",
+            "edition_title": "Upload Test",
+            "language": "en",
+            "edition_type": Edition.EditionType.ORIGINAL,
+            "cefr_level": Edition.CEFRLevel.B2,
+        },
+        files={"source_file": SimpleUploadedFile("upload.epub", epub_bytes(tmp_path))},
+    )
+
+    assert not form.is_valid()
+    assert "original_language" in form.errors
+
+
+def test_language_inputs_are_explicit_select_controls() -> None:
+    assert EditionUploadForm.base_fields["language"].widget.__class__.__name__ == "Select"
+    assert EditionAdminForm.base_fields["language"].widget.__class__.__name__ == "Select"
+    assert WorkAdminForm.base_fields["original_language"].widget.__class__.__name__ == "Select"
 
 
 def test_epub_task_persists_normalized_content(tmp_path, settings) -> None:

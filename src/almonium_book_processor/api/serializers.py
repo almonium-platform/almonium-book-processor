@@ -5,6 +5,7 @@ from rest_framework import serializers
 from almonium_book_processor.catalog.models import ContentBlock, Edition, PipelineRun, Work
 from almonium_book_processor.catalog.services import create_source_edition
 from almonium_book_processor.ingest.source import SUPPORTED_SOURCE_EXTENSIONS
+from almonium_book_processor.languages import LANGUAGE_CHOICES
 
 
 class WorkSerializer(serializers.ModelSerializer):
@@ -52,12 +53,12 @@ class EditionUploadSerializer(serializers.Serializer):
     work_slug = serializers.SlugField(max_length=160)
     work_title = serializers.CharField(max_length=500)
     author = serializers.CharField(max_length=300)
-    original_language = serializers.CharField(max_length=35)
+    original_language = serializers.ChoiceField(choices=LANGUAGE_CHOICES)
     publication_year = serializers.IntegerField(min_value=1, max_value=9999)
     cover_url = serializers.URLField(max_length=1000, required=False, allow_blank=True)
     edition_slug = serializers.SlugField(max_length=180)
     edition_title = serializers.CharField(max_length=500)
-    language = serializers.CharField(max_length=35)
+    language = serializers.ChoiceField(choices=LANGUAGE_CHOICES)
     edition_type = serializers.ChoiceField(choices=Edition.EditionType.choices)
     cefr_level = serializers.ChoiceField(choices=Edition.CEFRLevel.choices)
 

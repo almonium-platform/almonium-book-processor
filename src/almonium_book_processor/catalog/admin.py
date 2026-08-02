@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 
 from almonium_book_processor.catalog.models import (
@@ -18,10 +19,34 @@ from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
     split_edition_sentences,
 )
+from almonium_book_processor.languages import LANGUAGE_CHOICES
+
+
+class WorkAdminForm(forms.ModelForm):
+    original_language = forms.ChoiceField(
+        choices=LANGUAGE_CHOICES,
+        help_text="Select the ISO 639-1 language code used by the original work.",
+    )
+
+    class Meta:
+        model = Work
+        fields = "__all__"
+
+
+class EditionAdminForm(forms.ModelForm):
+    language = forms.ChoiceField(
+        choices=LANGUAGE_CHOICES,
+        help_text="Select the ISO 639-1 language code for this edition.",
+    )
+
+    class Meta:
+        model = Edition
+        fields = "__all__"
 
 
 @admin.register(Work)
 class WorkAdmin(admin.ModelAdmin):
+    form = WorkAdminForm
     list_display = ("title", "author", "original_language", "updated_at")
     search_fields = ("title", "author", "slug")
     prepopulated_fields = {"slug": ("author", "title")}
@@ -36,6 +61,7 @@ class ChapterInline(admin.TabularInline):
 
 @admin.register(Edition)
 class EditionAdmin(admin.ModelAdmin):
+    form = EditionAdminForm
     list_display = (
         "title",
         "language",

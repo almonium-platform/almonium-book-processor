@@ -52,3 +52,15 @@ def test_machine_derived_edition_requires_lineage() -> None:
             edition_type="machine_translation",
             source=SourceMetadata(format="epub", path="book.epub", sha256="b" * 64),
         )
+
+
+def test_edition_rejects_unknown_language_code() -> None:
+    with pytest.raises(ValidationError):
+        EditionMetadata(
+            edition_slug="spanish-novel",
+            work_slug="spanish-novel",
+            title="A Spanish Novel",
+            author="Ada Author",
+            language="zz",
+            source=SourceMetadata(format="tei", path="book.xml", sha256="c" * 64),
+        )
