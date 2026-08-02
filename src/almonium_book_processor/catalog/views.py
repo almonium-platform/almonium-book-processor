@@ -6,10 +6,11 @@ from django.db import connection
 from django.db.models import Count, Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from almonium_book_processor.catalog.forms import EditionUploadForm, LegacyArtifactImportForm
-from almonium_book_processor.catalog.models import Edition, PipelineRun
-from almonium_book_processor.catalog.services import import_legacy_artifacts
+from almonium_book_processor.catalog.models import Edition, PipelineRun, QAWarning
+from almonium_book_processor.catalog.services import complete_review, import_legacy_artifacts
 
 
 @staff_member_required
@@ -17,7 +18,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     editions = Edition.objects.select_related("work").annotate(
         warning_count=Count(
             "warnings",
-            filter=Q(warnings__resolved_at__isnull=True),
+            filter=Q(warnings__severity__in=[QAWarning.Severity.WARNING, QAWarning.Severity.ERROR]),
             distinct=True,
         ),
         run_count=Count("pipeline_runs", distinct=True),
@@ -58,7 +59,7 @@ def import_legacy(request: HttpRequest) -> HttpResponse:
 def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
     edition = get_object_or_404(
         Edition.objects.select_related("work", "source_edition").prefetch_related(
-            "warnings", "pipeline_runs", "chapters"
+            "warnings", "pipeline_runs", "chapters", "review_decisions__reviewer"
         ),
         id=edition_id,
     )
@@ -68,8 +69,46 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
     return render(
         request,
         "catalog/edition_detail.html",
-        {"edition": edition, "blocks": blocks},
+        {
+            "edition": edition,
+            "blocks": blocks,
+            "actionable_warnings": [
+                warning
+                for warning in edition.warnings.all()
+                if warning.severity != QAWarning.Severity.INFO
+            ],
+            "import_notices": [
+                warning
+                for warning in edition.warnings.all()
+                if warning.severity == QAWarning.Severity.INFO
+            ],
+            "current_review": next(
+                (
+                    decision
+                    for decision in edition.review_decisions.all()
+                    if decision.source_sha256 == edition.source_sha256
+                ),
+                None,
+            ),
+        },
     )
+
+
+@staff_member_required
+@require_POST
+def complete_edition_review(request: HttpRequest, edition_id: str) -> HttpResponse:
+    edition = get_object_or_404(Edition, id=edition_id)
+    try:
+        complete_review(
+            edition=edition,
+            reviewer=request.user,
+            notes=request.POST.get("notes", "").strip(),
+        )
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Review completed. This edition is ready for the next step.")
+    return redirect("catalog:edition-detail", edition_id=edition.id)
 
 
 def health(request: HttpRequest) -> HttpResponse:

@@ -9,10 +9,28 @@
   <div><strong>{{ edition.word_count }}</strong><span>words</span></div>
   <div><strong>{{ edition.chapters.count }}</strong><span>chapters</span></div>
   <div><strong>{{ edition.blocks.count }}</strong><span>blocks</span></div>
-  <div><strong>{{ edition.warnings.count }}</strong><span>warnings</span></div>
+  <div><strong>{{ actionable_warnings|length }}</strong><span>review items</span></div>
 </section>
-{% if edition.warnings.all %}<section class="panel"><h2>QA warnings</h2>{% for warning in edition.warnings.all %}<div class="warning"><code>{{ warning.code }}</code><span>{{ warning.message }}</span></div>{% endfor %}</section>{% endif %}
+{% if edition.status == "review" %}
+<section class="panel review-panel">
+  <p class="eyebrow">Editor decision</p>
+  <h2>Review before continuing</h2>
+  <p>Check the items below and the content preview. Completing review records your decision and marks this edition ready; it does not publish it.</p>
+  <form method="post" action="{% url 'catalog:complete-edition-review' edition.id %}">
+    {% csrf_token %}
+    <label><span>Review notes (optional)</span><textarea name="notes" rows="3" placeholder="For example: checked the missing image; it is decorative."></textarea></label>
+    <button class="button" type="submit">Complete review</button>
+  </form>
+</section>
+{% elif current_review %}
+<section class="panel review-complete">
+  <h2>Review completed</h2>
+  <p>Completed by {{ current_review.reviewer|default:"a staff member" }} on {{ current_review.created_at }} after considering {{ current_review.actionable_warning_count }} review item{{ current_review.actionable_warning_count|pluralize }}.</p>
+  {% if current_review.notes %}<p class="muted">{{ current_review.notes }}</p>{% endif %}
+</section>
+{% endif %}
+{% if actionable_warnings %}<section class="panel"><h2>Review items</h2><p class="muted">These are importer observations, not automatic failures. Decide whether the resulting content is acceptable.</p>{% for warning in actionable_warnings %}<div class="warning warning-{{ warning.severity }}"><code>{{ warning.code }}</code><span>{{ warning.message }}{% if warning.source_ref %} <span class="muted">({{ warning.source_ref }})</span>{% endif %}</span></div>{% endfor %}</section>{% endif %}
+{% if import_notices %}<details class="panel notices"><summary>Import notices ({{ import_notices|length }})</summary><p class="muted">These are retained for traceability but do not require a decision.</p>{% for warning in import_notices %}<div class="warning warning-{{ warning.severity }}"><code>{{ warning.code }}</code><span>{{ warning.message }}{% if warning.source_ref %} <span class="muted">({{ warning.source_ref }})</span>{% endif %}</span></div>{% endfor %}</details>{% endif %}
 <section class="panel"><h2>Processing history</h2>{% for run in edition.pipeline_runs.all %}<div class="run-row"><span>{{ run.get_stage_display }}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{{ run.created_at }}</span>{% empty %}<p>No processing runs.</p>{% endfor %}</section>
-<section class="panel"><h2>Content preview</h2><p class="muted">First 300 blocks. Full editing is available in the data admin.</p>{% for block in blocks %}<article class="block"><aside>{{ block.block_id }}<br>{{ block.get_block_type_display }}</aside><div>{{ block.text|linebreaksbr|default:"—" }}</div></article>{% empty %}<p>No normalized blocks yet.</p>{% endfor %}</section>
+<section class="panel"><h2>Content preview</h2><p class="muted">First 300 blocks. This is the imported book content used to make your review decision.</p>{% for block in blocks %}<article class="block"><aside>{{ block.block_id }}<br>{{ block.get_block_type_display }}</aside><div>{{ block.text|linebreaksbr|default:"—" }}</div></article>{% empty %}<p>No normalized blocks yet.</p>{% endfor %}</section>
 {% endblock %}
-

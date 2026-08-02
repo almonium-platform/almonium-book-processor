@@ -14,9 +14,11 @@ from almonium_book_processor.catalog.models import (
     ContentBlock,
     Edition,
     PipelineRun,
+    QAWarning,
+    ReviewDecision,
     Work,
 )
-from almonium_book_processor.catalog.services import import_legacy_artifact
+from almonium_book_processor.catalog.services import import_legacy_artifact, persist_artifact
 from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
     process_source_edition,
@@ -26,6 +28,7 @@ from almonium_book_processor.models import (
     BlockType,
     BookArtifact,
     EditionMetadata,
+    IngestionWarning,
     SourceMetadata,
 )
 from almonium_book_processor.models import (
@@ -109,6 +112,109 @@ def test_tei_task_persists_normalized_content(tmp_path, settings) -> None:
     assert edition.status == Edition.Status.READY
     assert list(edition.blocks.values_list("text", flat=True)) == ["One", "First paragraph."]
     assert edition.pipeline_runs.get().summary["source_format"] == "tei"
+
+
+def test_informational_import_notice_does_not_require_review() -> None:
+    work = Work.objects.create(
+        slug="notice-work",
+        title="Notice Work",
+        author="Ada Author",
+        original_language="en",
+    )
+    edition = Edition.objects.create(
+        slug="notice-work-en-orig",
+        work=work,
+        title="Notice Work",
+        author="Ada Author",
+        language="en",
+        status=Edition.Status.PROCESSING,
+    )
+    run = PipelineRun.objects.create(
+        edition=edition,
+        stage=PipelineRun.Stage.INGEST,
+        processor_version="test",
+        input_hash="a" * 64,
+        idempotency_key="notice-work",
+    )
+    artifact = BookArtifact(
+        processor_version="test",
+        edition=EditionMetadata(
+            edition_slug=edition.slug,
+            work_slug=work.slug,
+            title=edition.title,
+            author=edition.author,
+            language="en",
+            source=SourceMetadata(format="tei", path="notice.xml", sha256="a" * 64),
+        ),
+        blocks=[
+            ArtifactBlock(
+                edition_slug=edition.slug,
+                block_id="c1.p1",
+                chapter=1,
+                seq=1,
+                type=BlockType.PARAGRAPH,
+                text="Kept text.",
+            )
+        ],
+        warnings=[
+            IngestionWarning(
+                code="empty_block_skipped",
+                message="Skipped empty paragraph element",
+            )
+        ],
+    )
+
+    persist_artifact(edition, artifact, run)
+
+    edition.refresh_from_db()
+    warning = edition.warnings.get()
+    assert edition.status == Edition.Status.READY
+    assert warning.severity == QAWarning.Severity.INFO
+
+
+def test_staff_can_complete_review_from_the_edition_page(client) -> None:
+    staff = get_user_model().objects.create_user(username="reviewer", password="safe-test-password")
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    work = Work.objects.create(
+        slug="review-work",
+        title="Review Work",
+        author="Ada Author",
+        original_language="en",
+    )
+    edition = Edition.objects.create(
+        slug="review-work-en-orig",
+        work=work,
+        title="Review Work",
+        author="Ada Author",
+        language="en",
+        source_sha256="b" * 64,
+        status=Edition.Status.REVIEW,
+    )
+    QAWarning.objects.create(
+        edition=edition,
+        code="image_without_source",
+        severity=QAWarning.Severity.WARNING,
+        message="Skipped image without a src attribute",
+    )
+    client.force_login(staff)
+
+    page = client.get(reverse("catalog:edition-detail", args=[edition.id]))
+    assert page.status_code == 200
+    assert "Complete review" in page.content.decode()
+    response = client.post(
+        reverse("catalog:complete-edition-review", args=[edition.id]),
+        {"notes": "The missing image is decorative."},
+    )
+
+    assert response.status_code == 302
+    edition.refresh_from_db()
+    decision = ReviewDecision.objects.get(edition=edition)
+    assert edition.status == Edition.Status.READY
+    assert decision.reviewer == staff
+    assert decision.source_sha256 == "b" * 64
+    assert decision.actionable_warning_count == 1
+    assert decision.notes == "The missing image is decorative."
 
 
 def test_migrated_json_import_uses_uuid_identity() -> None:

@@ -271,6 +271,34 @@ class QAWarning(TimestampedModel):
         indexes = [models.Index(fields=["edition", "resolved_at"])]
 
 
+class ReviewDecision(TimestampedModel):
+    """An operator's decision that an imported edition is ready to proceed.
+
+    Decisions are tied to the source hash so a later re-import cannot appear to
+    have been reviewed merely because an earlier version was approved.
+    """
+
+    class Decision(models.TextChoices):
+        COMPLETE = "complete", "Review completed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    edition = models.ForeignKey(Edition, related_name="review_decisions", on_delete=models.CASCADE)
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="book_review_decisions",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    decision = models.CharField(max_length=20, choices=Decision.choices, default=Decision.COMPLETE)
+    notes = models.TextField(blank=True)
+    source_sha256 = models.CharField(max_length=64, blank=True)
+    actionable_warning_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class ModelConfiguration(TimestampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=120, unique=True)

@@ -4,6 +4,7 @@ import hashlib
 from collections.abc import Iterable
 from typing import BinaryIO
 
+from django.contrib.auth.models import AbstractBaseUser
 from django.core.files import File
 from django.db import transaction
 
@@ -13,9 +14,14 @@ from almonium_book_processor.catalog.models import (
     Edition,
     PipelineRun,
     QAWarning,
+    ReviewDecision,
     Work,
 )
-from almonium_book_processor.models import BookArtifact
+from almonium_book_processor.models import (
+    BookArtifact,
+    IngestionWarningSeverity,
+    ingestion_warning_severity,
+)
 
 
 def hash_uploaded_file(upload: BinaryIO) -> str:
@@ -105,6 +111,7 @@ def persist_artifact(edition: Edition, artifact: BookArtifact, run: PipelineRun)
                 edition=edition,
                 pipeline_run=run,
                 code=warning.code,
+                severity=ingestion_warning_severity(warning.code),
                 message=warning.message,
                 source_ref=warning.source_ref or "",
             )
@@ -115,7 +122,11 @@ def persist_artifact(edition: Edition, artifact: BookArtifact, run: PipelineRun)
     edition.schema_version = artifact.schema_version
     edition.source_sha256 = artifact.edition.source.sha256
     edition.word_count = sum(len(block.text.split()) for block in artifact.blocks)
-    edition.status = Edition.Status.REVIEW if artifact.warnings else Edition.Status.READY
+    has_actionable_warnings = any(
+        ingestion_warning_severity(warning.code) != IngestionWarningSeverity.INFO
+        for warning in artifact.warnings
+    )
+    edition.status = Edition.Status.REVIEW if has_actionable_warnings else Edition.Status.READY
     edition.save(
         update_fields=[
             "schema_version",
@@ -125,6 +136,28 @@ def persist_artifact(edition: Edition, artifact: BookArtifact, run: PipelineRun)
             "updated_at",
         ]
     )
+
+
+@transaction.atomic
+def complete_review(
+    *, edition: Edition, reviewer: AbstractBaseUser, notes: str = ""
+) -> ReviewDecision:
+    """Record a review decision and let an edition proceed to the ready state."""
+
+    if edition.status != Edition.Status.REVIEW:
+        raise ValueError("Only editions awaiting review can be completed.")
+
+    actionable_warning_count = edition.warnings.exclude(severity=QAWarning.Severity.INFO).count()
+    decision = ReviewDecision.objects.create(
+        edition=edition,
+        reviewer=reviewer,
+        notes=notes,
+        source_sha256=edition.source_sha256,
+        actionable_warning_count=actionable_warning_count,
+    )
+    edition.status = Edition.Status.READY
+    edition.save(update_fields=["status", "updated_at"])
+    return decision
 
 
 def _artifact_from_upload(upload: BinaryIO) -> BookArtifact:

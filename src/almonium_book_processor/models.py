@@ -122,6 +122,46 @@ class IngestionWarning(StrictModel):
     chapter: int | None = Field(default=None, ge=0)
 
 
+class IngestionWarningCode(StrEnum):
+    """Known notices emitted by the EPUB and TEI importers.
+
+    ``IngestionWarning.code`` deliberately remains a string so old normalized
+    artifacts and newer processors can still be imported. This enum is the
+    catalogue maintained by this application for warnings it emits itself.
+    """
+
+    EMPTY_BLOCK_SKIPPED = "empty_block_skipped"
+    IMAGE_WITHOUT_SOURCE = "image_without_source"
+    EMPTY_SPINE_DOCUMENT = "empty_spine_document"
+    EMPTY_TEI_SECTION = "empty_tei_section"
+    UNEXPECTED_CHAPTER_COUNT = "unexpected_chapter_count"
+
+
+class IngestionWarningSeverity(StrEnum):
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+
+
+INGESTION_WARNING_SEVERITIES: dict[str, IngestionWarningSeverity] = {
+    IngestionWarningCode.EMPTY_BLOCK_SKIPPED: IngestionWarningSeverity.INFO,
+    IngestionWarningCode.IMAGE_WITHOUT_SOURCE: IngestionWarningSeverity.WARNING,
+    IngestionWarningCode.EMPTY_SPINE_DOCUMENT: IngestionWarningSeverity.WARNING,
+    IngestionWarningCode.EMPTY_TEI_SECTION: IngestionWarningSeverity.WARNING,
+    IngestionWarningCode.UNEXPECTED_CHAPTER_COUNT: IngestionWarningSeverity.WARNING,
+}
+
+
+def ingestion_warning_severity(code: str) -> IngestionWarningSeverity:
+    """Return a conservative severity for an importer warning code.
+
+    Unknown codes require review: silently treating a new processor warning as
+    informational could hide a lost part of a book.
+    """
+
+    return INGESTION_WARNING_SEVERITIES.get(code, IngestionWarningSeverity.WARNING)
+
+
 class BookArtifact(StrictModel):
     schema_version: Literal[2] = SCHEMA_VERSION
     processor_version: str = Field(min_length=1)

@@ -38,9 +38,12 @@ input, select, textarea { width: 100%; border: 1px solid var(--line); border-rad
 .metrics strong { font: 1.8rem Georgia, serif; }
 .metrics span { color: var(--muted); font-size: .8rem; }
 .warning { display: flex; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid var(--line); }
+.review-panel form { display: grid; gap: .8rem; margin-top: 1rem; }
+.review-panel label { display: grid; gap: .4rem; font-size: .82rem; font-weight: 700; }
+.review-panel .button { justify-self: start; }
+.notices summary { cursor: pointer; font-family: Georgia, serif; font-size: 1.2rem; }
 .block { display: grid; grid-template-columns: 110px 1fr; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--line); line-height: 1.55; }
 .block aside { color: var(--muted); font-size: .72rem; }
 .message { padding: 1rem; border-radius: 10px; margin-bottom: 1rem; background: #e1eee5; }
 .errorlist { color: var(--red); margin: .25rem 0; }
 @media (max-width: 700px) { .topbar { align-items: flex-start; padding-block: 1rem; } .topbar nav { flex-direction: column; align-items: flex-end; gap: .4rem; } .form-grid, .metrics { grid-template-columns: 1fr; } .run-row { grid-template-columns: 1fr; } }
-

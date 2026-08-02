@@ -9,4 +9,9 @@ urlpatterns = [
     path("upload/", views.upload_source, name="upload"),
     path("imports/legacy/", views.import_legacy, name="import-legacy"),
     path("editions/<uuid:edition_id>/", views.edition_detail, name="edition-detail"),
+    path(
+        "editions/<uuid:edition_id>/review/complete/",
+        views.complete_edition_review,
+        name="complete-edition-review",
+    ),
 ]

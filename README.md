@@ -73,6 +73,48 @@ keep it empty or load only representative editions. The databases share the
 existing PostgreSQL server, so this isolation does not mean another database
 server or a second manually maintained catalogue.
 
+## Source and review lifecycle
+
+An uploaded EPUB or TEI XML file is deliberately retained after it has been
+normalised. It is the provenance record for the edition and allows a book to be
+reprocessed with a fixed importer, a new processor version, or a later review
+decision. The database stores the relative file name and SHA-256; the file
+itself is stored under `MEDIA_ROOT/sources/`. In production and staging,
+`../almonium-infra` mounts a persistent host directory into both the web and
+worker containers. There is no source-retention/deletion control in the
+application yet, so a future deletion policy must explicitly cover the source
+file, derivative media, and the audit record together. Do not delete sources
+just because normalisation succeeded.
+
+Edition state is intentionally separate from individual pipeline-run state:
+
+```text
+Draft (reserved) → Queued → Processing → Ready → Published
+                                    ├── Needs review → Ready
+                                    └── Failed
+```
+
+The upload form creates `Queued`; the worker moves it to `Processing`. A clean
+import, or one with informational notices only, becomes `Ready`. An actionable
+importer warning becomes `Needs review`. In the custom edition page, **Complete
+review** records the reviewer, timestamp, optional notes, source hash, and
+warning count, then moves the edition to `Ready`; it never publishes it. A
+failed parse becomes `Failed`. Publication remains a separate, deliberately
+explicit workflow step.
+
+The importer currently emits these codes:
+
+- `empty_block_skipped` — informational; an empty source element had no book
+  text to preserve.
+- `image_without_source`, `empty_spine_document`, `empty_tei_section`, and
+  `unexpected_chapter_count` — review items because content or structure may
+  have been omitted or interpreted incorrectly.
+- An unrecognised future warning code is treated as a review item by default.
+
+Checks such as language detection, unusually short/long chapters, and
+translation/alignment confidence are planned pipeline QA checks; they are not
+implemented by the current source importer.
+
 ## REST resources
 
 - `POST /api/v1/editions/upload/` — staff EPUB or TEI XML upload; returns `202`.

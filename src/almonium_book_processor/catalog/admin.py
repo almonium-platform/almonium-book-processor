@@ -10,6 +10,7 @@ from almonium_book_processor.catalog.models import (
     PipelineRun,
     PromptTemplate,
     QAWarning,
+    ReviewDecision,
     UserErrorReport,
     Work,
 )
@@ -84,6 +85,23 @@ class QAWarningAdmin(admin.ModelAdmin):
     list_display = ("code", "edition", "severity", "resolved_at", "created_at")
     list_filter = ("severity", "code", "resolved_at")
     search_fields = ("message", "edition__title", "source_ref")
+
+
+@admin.register(ReviewDecision)
+class ReviewDecisionAdmin(admin.ModelAdmin):
+    list_display = ("edition", "reviewer", "decision", "actionable_warning_count", "created_at")
+    list_filter = ("decision",)
+    search_fields = ("edition__title", "reviewer__username", "notes")
+    readonly_fields = (
+        "edition",
+        "reviewer",
+        "decision",
+        "notes",
+        "source_sha256",
+        "actionable_warning_count",
+        "created_at",
+        "updated_at",
+    )
 
 
 admin.site.register(ModelConfiguration)
