@@ -29,6 +29,7 @@ def publish_to_almonium(edition: Edition) -> str:
         "workSlug": edition.work.slug,
         "title": edition.title,
         "author": edition.author,
+        "description": edition.work.description,
         "originalLanguage": edition.work.original_language.upper(),
         "language": edition.language.upper(),
         "editionType": edition.edition_type,

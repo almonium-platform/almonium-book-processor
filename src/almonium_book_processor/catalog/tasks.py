@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import tempfile
 import uuid
 from pathlib import Path
@@ -11,6 +12,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from almonium_book_processor import __version__
+from almonium_book_processor.catalog.import_events import send_private_import_event
 from almonium_book_processor.catalog.models import (
     BlockAlignment,
     ContentBlock,
@@ -21,6 +23,8 @@ from almonium_book_processor.catalog.publication import publish_to_almonium
 from almonium_book_processor.catalog.services import persist_artifact
 from almonium_book_processor.ingest.source import ingest_source, source_format
 from almonium_book_processor.processing.nlp import align_embeddings, embed_texts, split_sentences
+
+logger = logging.getLogger(__name__)
 
 
 def _copy_source_to_temporary_file(edition: Edition) -> tuple[Path, str]:
@@ -61,6 +65,11 @@ def process_source_edition(self, edition_id: str) -> None:
     run.progress = 5
     run.error = ""
     run.save(update_fields=["status", "started_at", "progress", "error", "updated_at"])
+    if edition.work.visibility == edition.work.Visibility.PRIVATE:
+        try:
+            send_private_import_event(edition, run)
+        except Exception:
+            logger.exception("Could not report processing state for private import %s", edition.id)
 
     try:
         artifact = ingest_source(
@@ -94,6 +103,13 @@ def process_source_edition(self, edition_id: str) -> None:
                     "updated_at",
                 ]
             )
+            if edition.work.visibility == edition.work.Visibility.PRIVATE:
+                try:
+                    send_private_import_event(edition, run)
+                except Exception:
+                    logger.exception(
+                        "Could not report completion for private import %s", edition.id
+                    )
     except Exception as error:
         edition.status = Edition.Status.FAILED
         edition.save(update_fields=["status", "updated_at"])
@@ -101,6 +117,11 @@ def process_source_edition(self, edition_id: str) -> None:
         run.finished_at = timezone.now()
         run.error = str(error)[:10000]
         run.save(update_fields=["status", "finished_at", "error", "updated_at"])
+        if edition.work.visibility == edition.work.Visibility.PRIVATE:
+            try:
+                send_private_import_event(edition, run)
+            except Exception:
+                logger.exception("Could not report failure for private import %s", edition.id)
         raise
     finally:
         temporary_path.unlink(missing_ok=True)
@@ -117,6 +138,8 @@ def _text_hash(*values: object) -> str:
 @shared_task(acks_late=True)
 def publish_edition(edition_id: str) -> None:
     edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
+    if edition.work.visibility != edition.work.Visibility.PUBLIC:
+        raise ValueError("Private imports cannot be published to the public catalog")
     if edition.status not in {Edition.Status.READY, Edition.Status.PUBLISHED}:
         raise ValueError("Only ready editions can be published.")
     if edition.cefr_level is None:

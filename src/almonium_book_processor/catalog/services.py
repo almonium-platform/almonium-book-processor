@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import uuid
 from collections.abc import Iterable
 from typing import BinaryIO
 
@@ -38,6 +39,7 @@ def create_source_edition(
     work_slug: str,
     work_title: str,
     author: str,
+    description: str,
     original_language: str,
     publication_year: int,
     cover_url: str,
@@ -53,6 +55,7 @@ def create_source_edition(
         defaults={
             "title": work_title,
             "author": author,
+            "description": description,
             "original_language": original_language,
             "publication_year": publication_year,
             "cover_url": cover_url,
@@ -60,6 +63,7 @@ def create_source_edition(
     )
     work.title = work_title
     work.author = author
+    work.description = description
     work.original_language = original_language
     work.publication_year = publication_year
     if cover_url:
@@ -73,6 +77,52 @@ def create_source_edition(
         language=language,
         edition_type=edition_type,
         cefr_level=cefr_level,
+        source_file=source_file,
+        status=Edition.Status.QUEUED,
+    )
+
+    from almonium_book_processor.catalog.tasks import process_source_edition
+
+    transaction.on_commit(lambda: process_source_edition.delay(str(edition.id)))
+    return edition
+
+
+@transaction.atomic
+def create_private_import(
+    *,
+    import_id: uuid.UUID,
+    owner_id: uuid.UUID,
+    title: str,
+    author: str,
+    description: str,
+    language: str,
+    publication_year: int | None,
+    source_file: File,
+) -> Edition:
+    """Create an opaque, user-owned edition without exposing a catalog slug."""
+    existing = Edition.objects.filter(id=import_id, work__owner_id=owner_id).first()
+    if existing:
+        return existing
+
+    private_slug = f"private-{import_id}"
+    work = Work.objects.create(
+        slug=private_slug,
+        title=title,
+        author=author,
+        description=description,
+        original_language=language,
+        publication_year=publication_year,
+        visibility=Work.Visibility.PRIVATE,
+        owner_id=owner_id,
+    )
+    edition = Edition.objects.create(
+        id=import_id,
+        slug=private_slug,
+        work=work,
+        title=title,
+        author=author,
+        language=language,
+        edition_type=Edition.EditionType.ORIGINAL,
         source_file=source_file,
         status=Edition.Status.QUEUED,
     )
@@ -139,7 +189,13 @@ def persist_artifact(edition: Edition, artifact: BookArtifact, run: PipelineRun)
         ingestion_warning_severity(warning.code) != IngestionWarningSeverity.INFO
         for warning in artifact.warnings
     )
-    edition.status = Edition.Status.REVIEW if has_actionable_warnings else Edition.Status.READY
+    edition.status = (
+        Edition.Status.READY
+        if edition.work.visibility == Work.Visibility.PRIVATE
+        else Edition.Status.REVIEW
+        if has_actionable_warnings
+        else Edition.Status.READY
+    )
     edition.save(
         update_fields=[
             "schema_version",

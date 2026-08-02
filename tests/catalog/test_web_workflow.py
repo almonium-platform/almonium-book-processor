@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from io import BytesIO
 
 import pytest
@@ -7,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from ebooklib import epub
+from rest_framework.test import APIClient
 
 from almonium_book_processor.catalog.admin import EditionAdminForm, WorkAdminForm
 from almonium_book_processor.catalog.forms import EditionUploadForm
@@ -105,6 +107,40 @@ def test_language_inputs_are_explicit_select_controls() -> None:
     assert EditionUploadForm.base_fields["language"].widget.__class__.__name__ == "Select"
     assert EditionAdminForm.base_fields["language"].widget.__class__.__name__ == "Select"
     assert WorkAdminForm.base_fields["original_language"].widget.__class__.__name__ == "Select"
+
+
+def test_internal_private_import_is_owner_scoped(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", "test-shared-secret")
+    owner_id = uuid.uuid4()
+    client = APIClient()
+    response = client.post(
+        "/api/v1/internal/imports/",
+        {
+            "import_id": str(uuid.uuid4()),
+            "owner_id": str(owner_id),
+            "title": "Private Test",
+            "author": "Ada Author",
+            "description": "Only this reader can access it.",
+            "language": "de",
+            "publication_year": 1912,
+            "source_file": SimpleUploadedFile("private.epub", epub_bytes(tmp_path)),
+        },
+        format="multipart",
+        HTTP_X_ALMONIUM_BOOKS_TOKEN="test-shared-secret",
+    )
+
+    assert response.status_code == 202
+    edition = Edition.objects.select_related("work").get(id=response.data["id"])
+    assert edition.work.visibility == Work.Visibility.PRIVATE
+    assert edition.work.owner_id == owner_id
+    assert edition.work.description == "Only this reader can access it."
+
+    hidden = client.get(
+        f"/api/v1/internal/imports/{edition.id}/",
+        {"owner_id": str(uuid.uuid4())},
+        HTTP_X_ALMONIUM_BOOKS_TOKEN="test-shared-secret",
+    )
+    assert hidden.status_code == 404
 
 
 def test_epub_task_persists_normalized_content(tmp_path, settings) -> None:
@@ -410,6 +446,7 @@ def test_public_parallel_api_exposes_reviewed_alignment(client) -> None:
         "blocks": [
             {
                 "chapter": 1,
+                "chapter_title": "",
                 "sequence": 1,
                 "block_type": "paragraph",
                 "primary_text": "Übersetzter Text.",

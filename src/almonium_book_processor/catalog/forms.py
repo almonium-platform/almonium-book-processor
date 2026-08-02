@@ -16,6 +16,7 @@ class EditionUploadForm(forms.Form):
     work_slug = forms.SlugField(max_length=160)
     work_title = forms.CharField(max_length=500)
     author = forms.CharField(max_length=300)
+    description = forms.CharField(widget=forms.Textarea, required=False)
     original_language = forms.ChoiceField(
         choices=LANGUAGE_CHOICES,
         help_text="ISO 639-1 language code for the original work.",

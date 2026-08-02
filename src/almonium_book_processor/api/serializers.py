@@ -16,6 +16,7 @@ class WorkSerializer(serializers.ModelSerializer):
             "slug",
             "title",
             "author",
+            "description",
             "original_language",
             "publication_year",
             "cover_url",
@@ -53,6 +54,7 @@ class EditionUploadSerializer(serializers.Serializer):
     work_slug = serializers.SlugField(max_length=160)
     work_title = serializers.CharField(max_length=500)
     author = serializers.CharField(max_length=300)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
     original_language = serializers.ChoiceField(choices=LANGUAGE_CHOICES)
     publication_year = serializers.IntegerField(min_value=1, max_value=9999)
     cover_url = serializers.URLField(max_length=1000, required=False, allow_blank=True)
@@ -71,6 +73,34 @@ class EditionUploadSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         return create_source_edition(**validated_data)
+
+
+class PrivateImportSerializer(serializers.Serializer):
+    import_id = serializers.UUIDField()
+    owner_id = serializers.UUIDField()
+    source_file = serializers.FileField()
+    title = serializers.CharField(max_length=500)
+    author = serializers.CharField(max_length=300)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+    language = serializers.ChoiceField(choices=LANGUAGE_CHOICES)
+    publication_year = serializers.IntegerField(
+        min_value=1,
+        max_value=9999,
+        required=False,
+        allow_null=True,
+    )
+
+    def validate_source_file(self, source):
+        if not any(
+            source.name.lower().endswith(extension) for extension in SUPPORTED_SOURCE_EXTENSIONS
+        ):
+            raise serializers.ValidationError("Only EPUB and TEI XML files are supported.")
+        return source
+
+    def create(self, validated_data):
+        from almonium_book_processor.catalog.services import create_private_import
+
+        return create_private_import(**validated_data)
 
 
 class PipelineRunSerializer(serializers.ModelSerializer):
@@ -96,6 +126,7 @@ class PipelineRunSerializer(serializers.ModelSerializer):
 
 class ContentBlockSerializer(serializers.ModelSerializer):
     chapter = serializers.IntegerField(source="chapter.sequence")
+    chapter_title = serializers.CharField(source="chapter.title")
 
     class Meta:
         model = ContentBlock
@@ -103,6 +134,7 @@ class ContentBlockSerializer(serializers.ModelSerializer):
             "id",
             "block_id",
             "chapter",
+            "chapter_title",
             "sequence",
             "block_type",
             "text",

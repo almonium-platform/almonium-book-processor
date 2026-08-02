@@ -19,13 +19,24 @@ class TimestampedModel(models.Model):
 
 
 class Work(TimestampedModel):
+    class Visibility(models.TextChoices):
+        PUBLIC = "public", "Public catalog"
+        PRIVATE = "private", "Private import"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     slug = models.SlugField(max_length=160, unique=True)
     title = models.CharField(max_length=500)
     author = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
     original_language = models.CharField(max_length=35, choices=LANGUAGE_CHOICES)
     publication_year = models.PositiveSmallIntegerField(null=True, blank=True)
     cover_url = models.URLField(max_length=1000, blank=True)
+    visibility = models.CharField(
+        max_length=10,
+        choices=Visibility.choices,
+        default=Visibility.PUBLIC,
+    )
+    owner_id = models.UUIDField(null=True, blank=True)
 
     class Meta:
         ordering = ["author", "title"]
@@ -106,6 +117,7 @@ class Edition(TimestampedModel):
         indexes = [
             models.Index(fields=["status", "updated_at"]),
             models.Index(fields=["work", "language"]),
+            models.Index(fields=["work", "status"]),
         ]
 
     def __str__(self) -> str:

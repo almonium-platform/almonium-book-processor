@@ -24,9 +24,10 @@ OpenAPI document is available at `/api/schema/`.
 - AI calls sit behind a provider interface. No provider is enabled until its
   credentials and model configuration are supplied.
 
-Internal identifiers are UUIDs. Edition slugs are the human-readable URL
-identifier. Numeric legacy book IDs are discarded rather than represented in
-the new schema.
+Internal identifiers are UUIDs. Public edition slugs are the human-readable URL
+identifier. Private user imports deliberately have no public slug contract and
+are addressed by an opaque UUID through the owning user's Almonium session.
+Numeric legacy book IDs are discarded rather than represented in the new schema.
 
 ## Local development
 
@@ -122,17 +123,28 @@ reader-facing contract and owns the public book UUID, progress, favourites, and
 rendered reader artifact. The processor keeps the normalized edition and the
 source file as its provenance/reprocessing record.
 
+Premium user imports take the reverse route: the Almonium backend enforces the
+subscription allowance and ownership, then sends the EPUB or TEI source to this
+service using the existing books shared secret. Processing is asynchronous.
+Status callbacks update Almonium's owner-scoped projection and produce a ready
+or failed notification; normalized text and the source remain here. Private
+imports skip the staff publication/review gate and can never enter the public
+published-edition endpoints.
+
 ## REST resources
 
 - `POST /api/v1/editions/upload/` — staff EPUB or TEI XML upload; returns `202`.
 - `GET /api/v1/editions/` and `/api/v1/runs/` — staff operations.
 - `GET /api/v1/public/editions/` — published editions only.
 - `GET /api/v1/public/editions/{slug}/blocks/` — normalized public content.
+- `POST /api/v1/internal/imports/` — service-authenticated private EPUB/TEI import.
+- `GET /api/v1/internal/imports/{uuid}/blocks/?owner_id={uuid}` — service-authenticated,
+  owner-scoped private normalized content.
 - `GET /healthz/` — process and database readiness.
 
-The initial staff boundary is Django authentication. SSH is for operations and
-debugging, not application access. Firebase authentication can be added when
-user-owned uploads are exposed; ownership checks must accompany it.
+Staff resources use Django authentication. Private import resources are not a
+client API: only the Almonium backend can call them, and it must supply the owner
+UUID on every read. SSH is for operations and debugging, not application access.
 
 ## Deployment
 
