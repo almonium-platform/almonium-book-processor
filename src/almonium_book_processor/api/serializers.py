@@ -33,6 +33,7 @@ class EditionSerializer(serializers.ModelSerializer):
             "word_count",
             "confidence",
             "source_sha256",
+            "published_book_id",
             "published_at",
             "created_at",
             "updated_at",

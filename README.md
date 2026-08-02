@@ -115,6 +115,13 @@ Checks such as language detection, unusually short/long chapters, and
 translation/alignment confidence are planned pipeline QA checks; they are not
 implemented by the current source importer.
 
+Publication is a separate worker stage. Selecting **Publish to Almonium** from
+a ready edition queues an authenticated hand-off to the product backend; only
+a successful hand-off changes the edition to `Published`. The backend is the
+reader-facing contract and owns the public book UUID, progress, favourites, and
+rendered reader artifact. The processor keeps the normalized edition and the
+source file as its provenance/reprocessing record.
+
 ## REST resources
 
 - `POST /api/v1/editions/upload/` — staff EPUB or TEI XML upload; returns `202`.

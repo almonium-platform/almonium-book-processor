@@ -83,6 +83,7 @@ class Edition(TimestampedModel):
         blank=True,
     )
     source_sha256 = models.CharField(max_length=64, blank=True)
+    published_book_id = models.UUIDField(null=True, blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

@@ -14,4 +14,9 @@ urlpatterns = [
         views.complete_edition_review,
         name="complete-edition-review",
     ),
+    path(
+        "editions/<uuid:edition_id>/publish/",
+        views.publish_edition_to_almonium,
+        name="publish-edition",
+    ),
 ]

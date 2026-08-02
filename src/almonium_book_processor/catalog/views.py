@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 from almonium_book_processor.catalog.forms import EditionUploadForm, LegacyArtifactImportForm
 from almonium_book_processor.catalog.models import Edition, PipelineRun, QAWarning
 from almonium_book_processor.catalog.services import complete_review, import_legacy_artifacts
+from almonium_book_processor.catalog.tasks import publish_edition
 
 
 @staff_member_required
@@ -108,6 +109,21 @@ def complete_edition_review(request: HttpRequest, edition_id: str) -> HttpRespon
         messages.error(request, str(error))
     else:
         messages.success(request, "Review completed. This edition is ready for the next step.")
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def publish_edition_to_almonium(request: HttpRequest, edition_id: str) -> HttpResponse:
+    edition = get_object_or_404(Edition, id=edition_id)
+    if edition.status != Edition.Status.READY:
+        messages.error(request, "Complete review before publishing this edition.")
+    else:
+        publish_edition.delay(str(edition.id))
+        messages.success(
+            request,
+            "Publication queued. It will appear in Almonium after the hand-off succeeds.",
+        )
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
 

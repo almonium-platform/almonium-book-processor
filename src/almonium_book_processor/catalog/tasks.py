@@ -17,6 +17,7 @@ from almonium_book_processor.catalog.models import (
     Edition,
     PipelineRun,
 )
+from almonium_book_processor.catalog.publication import publish_to_almonium
 from almonium_book_processor.catalog.services import persist_artifact
 from almonium_book_processor.ingest.source import ingest_source, source_format
 from almonium_book_processor.processing.nlp import align_embeddings, embed_texts, split_sentences
@@ -111,6 +112,46 @@ def _text_hash(*values: str) -> str:
         digest.update(value.encode())
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+@shared_task(acks_late=True)
+def publish_edition(edition_id: str) -> None:
+    edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
+    if edition.status not in {Edition.Status.READY, Edition.Status.PUBLISHED}:
+        raise ValueError("Only ready editions can be published.")
+    input_hash = _text_hash(edition.source_sha256, edition.slug)
+    run, _ = PipelineRun.objects.get_or_create(
+        idempotency_key=f"{edition.id}:{input_hash}:publish:almonium-v1",
+        defaults={
+            "edition": edition,
+            "stage": PipelineRun.Stage.PUBLISH,
+            "processor_version": __version__,
+            "input_hash": input_hash,
+        },
+    )
+    if run.status == PipelineRun.Status.SUCCEEDED:
+        return
+    run.status = PipelineRun.Status.RUNNING
+    run.started_at = timezone.now()
+    run.error = ""
+    run.save(update_fields=["status", "started_at", "error", "updated_at"])
+    try:
+        book_id = publish_to_almonium(edition)
+        edition.published_book_id = book_id
+        edition.status = Edition.Status.PUBLISHED
+        edition.published_at = timezone.now()
+        edition.save(update_fields=["published_book_id", "status", "published_at", "updated_at"])
+        run.status = PipelineRun.Status.SUCCEEDED
+        run.progress = 100
+        run.finished_at = timezone.now()
+        run.summary = {"almonium_book_id": book_id}
+        run.save(update_fields=["status", "progress", "finished_at", "summary", "updated_at"])
+    except Exception as error:
+        run.status = PipelineRun.Status.FAILED
+        run.finished_at = timezone.now()
+        run.error = str(error)[:10000]
+        run.save(update_fields=["status", "finished_at", "error", "updated_at"])
+        raise
 
 
 @shared_task(acks_late=True)
