@@ -5,6 +5,8 @@ x-app-environment: &app-environment
   CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:8000}
   DATABASE_URL: ${DATABASE_URL:-postgresql://almonium_books:almonium_books@postgres:5432/almonium_books}
   CELERY_BROKER_URL: ${CELERY_BROKER_URL:-amqp://almonium_books:almonium_books@rabbitmq:5672/almonium_books}
+  ALMONIUM_API_URL: ${ALMONIUM_API_URL:-http://host.docker.internal:9998/api/v1}
+  ALMONIUM_BOOKS_PUBLISHER_TOKEN: ${ALMONIUM_BOOKS_PUBLISHER_TOKEN:?ALMONIUM_BOOKS_PUBLISHER_TOKEN must be set}
   NLP_EMBEDDING_MODEL: ${NLP_EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
   HF_HOME: /app/models
 
