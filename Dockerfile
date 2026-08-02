@@ -20,6 +20,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 FROM ${DEPENDENCIES_IMAGE} AS runtime
 
+ENV PYTHONPATH=/app/src
+
 WORKDIR /app
 
 COPY README.md ./
