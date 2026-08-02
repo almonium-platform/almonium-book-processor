@@ -118,6 +118,7 @@ def test_internal_private_import_is_owner_scoped(tmp_path, monkeypatch) -> None:
         {
             "import_id": str(uuid.uuid4()),
             "owner_id": str(owner_id),
+            "owner_label": "private-reader",
             "title": "Private Test",
             "author": "Ada Author",
             "description": "Only this reader can access it.",
@@ -133,6 +134,7 @@ def test_internal_private_import_is_owner_scoped(tmp_path, monkeypatch) -> None:
     edition = Edition.objects.select_related("work").get(id=response.data["id"])
     assert edition.work.visibility == Work.Visibility.PRIVATE
     assert edition.work.owner_id == owner_id
+    assert edition.work.owner_label == "private-reader"
     assert edition.work.description == "Only this reader can access it."
 
     hidden = client.get(
@@ -350,6 +352,110 @@ def test_dashboard_requires_staff_login(client) -> None:
     staff.save(update_fields=["is_staff"])
     client.force_login(staff)
     assert client.get(reverse("catalog:dashboard")).status_code == 200
+
+
+def test_public_catalogue_and_user_imports_are_separate(client) -> None:
+    staff = get_user_model().objects.create_user(username="operator", password="safe-test-password")
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    public_work = Work.objects.create(
+        slug="public-list-work",
+        title="Public List Work",
+        author="Ada Author",
+        original_language="en",
+    )
+    private_work = Work.objects.create(
+        slug="private-list-work",
+        title="Private List Work",
+        author="Private Author",
+        original_language="en",
+        visibility=Work.Visibility.PRIVATE,
+        owner_id=uuid.uuid4(),
+        owner_label="private-reader",
+    )
+    Edition.objects.create(
+        slug="public-list-work-en",
+        work=public_work,
+        title="Public List Work",
+        author="Ada Author",
+        language="en",
+        status=Edition.Status.READY,
+    )
+    private_edition = Edition.objects.create(
+        slug="private-list-work-en",
+        work=private_work,
+        title="Private List Work",
+        author="Private Author",
+        language="en",
+        status=Edition.Status.READY,
+    )
+    client.force_login(staff)
+
+    public_page = client.get(reverse("catalog:dashboard")).content.decode()
+    imports_page = client.get(reverse("catalog:private-imports")).content.decode()
+    detail_page = client.get(
+        reverse("catalog:edition-detail", args=[private_edition.id])
+    ).content.decode()
+
+    assert "Public List Work" in public_page
+    assert "Private List Work" not in public_page
+    assert "Private List Work" in imports_page
+    assert str(private_work.owner_id) in imports_page
+    assert "@private-reader" in imports_page
+    assert "Available" in detail_page
+    assert "Publish to Almonium" not in detail_page
+
+
+def test_staff_can_release_repaired_private_content(
+    client, monkeypatch, django_capture_on_commit_callbacks
+) -> None:
+    staff = get_user_model().objects.create_user(username="repairer", password="safe-test-password")
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    work = Work.objects.create(
+        slug="private-repair-work",
+        title="Private Repair Work",
+        author="Private Author",
+        original_language="en",
+        visibility=Work.Visibility.PRIVATE,
+        owner_id=uuid.uuid4(),
+    )
+    edition = Edition.objects.create(
+        slug="private-repair-work-en",
+        work=work,
+        title="Private Repair Work",
+        author="Private Author",
+        language="en",
+        source_sha256="c" * 64,
+        status=Edition.Status.FAILED,
+    )
+    chapter = Chapter.objects.create(edition=edition, sequence=1, title="One")
+    ContentBlock.objects.create(
+        edition=edition,
+        chapter=chapter,
+        block_id="c1.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="Repaired content.",
+    )
+    queued: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.report_private_import_available.delay",
+        lambda edition_id: queued.append(edition_id),
+    )
+    client.force_login(staff)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.post(
+            reverse("catalog:release-private-import", args=[edition.id]),
+            {"notes": "Checked the repaired paragraph."},
+        )
+
+    assert response.status_code == 302
+    edition.refresh_from_db()
+    assert edition.status == Edition.Status.READY
+    assert edition.review_decisions.get().notes == "Checked the repaired paragraph."
+    assert queued == [str(edition.id)]
 
 
 def test_public_api_exposes_only_published_editions(client) -> None:

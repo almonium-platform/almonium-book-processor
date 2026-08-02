@@ -92,6 +92,7 @@ def create_private_import(
     *,
     import_id: uuid.UUID,
     owner_id: uuid.UUID,
+    owner_label: str,
     title: str,
     author: str,
     description: str,
@@ -114,6 +115,7 @@ def create_private_import(
         publication_year=publication_year,
         visibility=Work.Visibility.PRIVATE,
         owner_id=owner_id,
+        owner_label=owner_label,
     )
     edition = Edition.objects.create(
         id=import_id,
@@ -226,6 +228,39 @@ def complete_review(
     )
     edition.status = Edition.Status.READY
     edition.save(update_fields=["status", "updated_at"])
+    return decision
+
+
+@transaction.atomic
+def release_private_import(
+    *, edition: Edition, reviewer: AbstractBaseUser, notes: str = ""
+) -> ReviewDecision | None:
+    """Release operator-corrected private content to its owner without publication."""
+
+    if edition.work.visibility != Work.Visibility.PRIVATE:
+        raise ValueError("Only private imports can use the owner release workflow.")
+    if not edition.blocks.exists():
+        raise ValueError("This import has no normalized content to release.")
+    if edition.status not in {Edition.Status.FAILED, Edition.Status.REVIEW, Edition.Status.READY}:
+        raise ValueError("Wait for processing to finish before releasing this import.")
+
+    decision = None
+    if edition.status != Edition.Status.READY:
+        decision = ReviewDecision.objects.create(
+            edition=edition,
+            reviewer=reviewer,
+            notes=notes,
+            source_sha256=edition.source_sha256,
+            actionable_warning_count=edition.warnings.exclude(
+                severity=QAWarning.Severity.INFO
+            ).count(),
+        )
+        edition.status = Edition.Status.READY
+        edition.save(update_fields=["status", "updated_at"])
+
+    from almonium_book_processor.catalog.tasks import report_private_import_available
+
+    transaction.on_commit(lambda: report_private_import_available.delay(str(edition.id)))
     return decision
 
 

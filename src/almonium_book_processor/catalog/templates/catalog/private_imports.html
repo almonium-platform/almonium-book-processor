@@ -1,0 +1,38 @@
+{% extends "catalog/base.html" %}
+{% block title %}User imports · Almonium Books{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Private processing support</p>
+    <h1>User imports</h1>
+    <p class="muted">Owner-only EPUB and TEI imports. These are never published to the public catalogue.</p>
+  </div>
+</div>
+
+{% if active_runs %}
+<section class="panel">
+  <h2>Active processing</h2>
+  {% for run in active_runs %}
+    <div class="run-row"><strong>{{ run.edition.title }}</strong><span>Owner {{ run.edition.work.owner_id }}</span><progress value="{{ run.progress }}" max="100"></progress></div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="edition-grid">
+  {% for edition in editions %}
+    <a class="edition-card" href="{% url 'catalog:edition-detail' edition.id %}">
+      <div>
+        {% if edition.status == "ready" %}<span class="status status-ready">Available</span>{% else %}<span class="status status-{{ edition.status }}">{{ edition.get_status_display }}</span>{% endif %}
+        <span class="language">{{ edition.language|upper }}</span>
+      </div>
+      <h2>{{ edition.title }}</h2>
+      <p>{{ edition.author }}</p>
+      <p class="import-owner"><strong>Owner</strong> {% if edition.work.owner_label %}@{{ edition.work.owner_label }} · {% endif %}{{ edition.work.owner_id }}</p>
+      <p class="import-date"><strong>Uploaded</strong> {{ edition.created_at }}</p>
+      <dl><div><dt>Words</dt><dd>{{ edition.word_count }}</dd></div><div><dt>Warnings</dt><dd>{{ edition.warning_count }}</dd></div><div><dt>Runs</dt><dd>{{ edition.run_count }}</dd></div></dl>
+    </a>
+  {% empty %}
+    <div class="empty"><h2>No user imports yet</h2><p>Private uploads will appear here when a premium user submits one in Almonium.</p></div>
+  {% endfor %}
+</section>
+{% endblock %}

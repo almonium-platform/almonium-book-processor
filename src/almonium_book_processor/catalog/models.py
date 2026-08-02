@@ -37,6 +37,7 @@ class Work(TimestampedModel):
         default=Visibility.PUBLIC,
     )
     owner_id = models.UUIDField(null=True, blank=True)
+    owner_label = models.CharField(max_length=150, blank=True)
 
     class Meta:
         ordering = ["author", "title"]

@@ -11,12 +11,15 @@ a { color: inherit; }
 .page-heading h1 { margin: .15rem 0; font-size: clamp(2rem, 5vw, 3.6rem); }
 .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: .72rem; color: var(--accent); font-weight: 700; }
 .button { display: inline-block; border: 0; border-radius: 999px; background: var(--accent); color: white; text-decoration: none; padding: .8rem 1.25rem; cursor: pointer; font-weight: 700; }
+.button-secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.button-row { display: flex; flex-wrap: wrap; gap: .75rem; }
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 1.5rem; margin: 1.25rem 0; box-shadow: 0 12px 32px rgba(61,45,31,.05); }
 .edition-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
 .edition-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 1.4rem; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
 .edition-card:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(61,45,31,.09); }
 .edition-card h2 { min-height: 2.5em; }
 .edition-card p, .muted { color: var(--muted); }
+.edition-card .import-owner, .edition-card .import-date { margin: .4rem 0; font-size: .8rem; overflow-wrap: anywhere; }
 .edition-card dl { display: flex; gap: 1.2rem; margin: 1.2rem 0 0; }
 .edition-card dl div { display: grid; }
 dt { font-size: .7rem; text-transform: uppercase; color: var(--muted); }
@@ -39,8 +42,10 @@ input, select, textarea { width: 100%; border: 1px solid var(--line); border-rad
 .metrics span { color: var(--muted); font-size: .8rem; }
 .warning { display: flex; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid var(--line); }
 .review-panel form { display: grid; gap: .8rem; margin-top: 1rem; }
-.review-panel label { display: grid; gap: .4rem; font-size: .82rem; font-weight: 700; }
+.review-panel label, .release-form label { display: grid; gap: .4rem; font-size: .82rem; font-weight: 700; }
 .review-panel .button { justify-self: start; }
+.release-form { display: grid; gap: .8rem; margin-top: 1.25rem; }
+.release-form .button { justify-self: start; }
 .notices summary { cursor: pointer; font-family: Georgia, serif; font-size: 1.2rem; }
 .block { display: grid; grid-template-columns: 110px 1fr; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--line); line-height: 1.55; }
 .block aside { color: var(--muted); font-size: .72rem; }

@@ -11,6 +11,8 @@
   <header class="topbar">
     <a class="brand" href="{% url 'catalog:dashboard' %}">Almonium Books</a>
     <nav>
+      <a href="{% url 'catalog:dashboard' %}">Public catalogue</a>
+      <a href="{% url 'catalog:private-imports' %}">User imports</a>
       <a href="{% url 'catalog:upload' %}">Upload source</a>
       <a href="{% url 'catalog:import-legacy' %}">Import migrated books</a>
       <a href="{% url 'admin:index' %}" title="Advanced maintenance and configuration">Advanced admin</a>

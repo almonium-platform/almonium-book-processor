@@ -1,8 +1,8 @@
 {% extends "catalog/base.html" %}
-{% block title %}Editions · Almonium Books{% endblock %}
+{% block title %}Public catalogue · Almonium Books{% endblock %}
 {% block content %}
 <div class="page-heading">
-  <div><p class="eyebrow">Catalogue operations</p><h1>Book editions</h1></div>
+  <div><p class="eyebrow">Editorial catalogue</p><h1>Public books</h1><p class="muted">Staff-managed editions that can be published for every reader.</p></div>
   <a class="button" href="{% url 'catalog:upload' %}">Upload source</a>
 </div>
 
@@ -24,7 +24,7 @@
       <dl><div><dt>Words</dt><dd>{{ edition.word_count }}</dd></div><div><dt>Warnings</dt><dd>{{ edition.warning_count }}</dd></div><div><dt>Runs</dt><dd>{{ edition.run_count }}</dd></div></dl>
     </a>
   {% empty %}
-    <div class="empty"><h2>No editions yet</h2><p>Upload an EPUB or TEI XML file, or import the normalized migration artifacts.</p></div>
+    <div class="empty"><h2>No public editions yet</h2><p>Upload an EPUB or TEI XML file, or import the normalized migration artifacts.</p></div>
   {% endfor %}
 </section>
 {% endblock %}

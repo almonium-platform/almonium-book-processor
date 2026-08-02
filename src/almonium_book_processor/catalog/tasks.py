@@ -67,7 +67,7 @@ def process_source_edition(self, edition_id: str) -> None:
     run.save(update_fields=["status", "started_at", "progress", "error", "updated_at"])
     if edition.work.visibility == edition.work.Visibility.PRIVATE:
         try:
-            send_private_import_event(edition, run)
+            send_private_import_event(edition, progress=run.progress)
         except Exception:
             logger.exception("Could not report processing state for private import %s", edition.id)
 
@@ -105,7 +105,7 @@ def process_source_edition(self, edition_id: str) -> None:
             )
             if edition.work.visibility == edition.work.Visibility.PRIVATE:
                 try:
-                    send_private_import_event(edition, run)
+                    send_private_import_event(edition, progress=run.progress)
                 except Exception:
                     logger.exception(
                         "Could not report completion for private import %s", edition.id
@@ -119,7 +119,7 @@ def process_source_edition(self, edition_id: str) -> None:
         run.save(update_fields=["status", "finished_at", "error", "updated_at"])
         if edition.work.visibility == edition.work.Visibility.PRIVATE:
             try:
-                send_private_import_event(edition, run)
+                send_private_import_event(edition, progress=run.progress, error=run.error)
             except Exception:
                 logger.exception("Could not report failure for private import %s", edition.id)
         raise
@@ -194,6 +194,20 @@ def publish_edition(edition_id: str) -> None:
         run.error = str(error)[:10000]
         run.save(update_fields=["status", "finished_at", "error", "updated_at"])
         raise
+
+
+@shared_task(
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 5},
+)
+def report_private_import_available(edition_id: str) -> None:
+    edition = Edition.objects.select_related("work").get(id=edition_id)
+    if edition.work.visibility != edition.work.Visibility.PRIVATE:
+        raise ValueError("Only private imports have owner availability callbacks.")
+    if edition.status != Edition.Status.READY or not edition.blocks.exists():
+        raise ValueError("Only private imports with available content can be released.")
+    send_private_import_event(edition, progress=100)
 
 
 @shared_task(acks_late=True)

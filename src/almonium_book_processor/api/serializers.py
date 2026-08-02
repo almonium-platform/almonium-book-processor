@@ -78,6 +78,9 @@ class EditionUploadSerializer(serializers.Serializer):
 class PrivateImportSerializer(serializers.Serializer):
     import_id = serializers.UUIDField()
     owner_id = serializers.UUIDField()
+    owner_label = serializers.CharField(
+        max_length=150, allow_blank=True, required=False, default=""
+    )
     source_file = serializers.FileField()
     title = serializers.CharField(max_length=500)
     author = serializers.CharField(max_length=300)

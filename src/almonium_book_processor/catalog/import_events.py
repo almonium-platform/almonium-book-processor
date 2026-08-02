@@ -7,10 +7,15 @@ import os
 import time
 from urllib.request import Request, urlopen
 
-from almonium_book_processor.catalog.models import Edition, PipelineRun
+from almonium_book_processor.catalog.models import Edition
 
 
-def send_private_import_event(edition: Edition, run: PipelineRun) -> None:
+def send_private_import_event(
+    edition: Edition,
+    *,
+    progress: int,
+    error: str | None = None,
+) -> None:
     """Report private-import progress; callback delivery must not fail ingestion."""
     api_url = os.getenv("ALMONIUM_API_URL", "").rstrip("/")
     token = os.getenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", "")
@@ -22,9 +27,9 @@ def send_private_import_event(edition: Edition, run: PipelineRun) -> None:
         "ownerId": str(edition.work.owner_id),
         "status": edition.status,
         "title": edition.title,
-        "progress": run.progress,
+        "progress": progress,
         "wordCount": edition.word_count,
-        "error": run.error or None,
+        "error": error or None,
     }
     body = json.dumps(payload, separators=(",", ":")).encode()
     timestamp = str(int(time.time()))
