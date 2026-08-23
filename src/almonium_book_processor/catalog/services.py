@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import uuid
 from collections.abc import Iterable
 from typing import BinaryIO
@@ -9,6 +10,7 @@ from django.contrib.auth.models import AbstractBaseUser
 from django.core.files import File
 from django.db import transaction
 
+from almonium_book_processor.artifact_migrations import migrate_artifact_payload
 from almonium_book_processor.catalog.models import (
     Chapter,
     ContentBlock,
@@ -269,7 +271,7 @@ def release_private_import(
 def _artifact_from_upload(upload: BinaryIO) -> BookArtifact:
     payload = upload.read()
     upload.seek(0)
-    return BookArtifact.model_validate_json(payload)
+    return BookArtifact.model_validate(migrate_artifact_payload(json.loads(payload)))
 
 
 def _import_legacy_artifact(artifact: BookArtifact) -> Edition:
