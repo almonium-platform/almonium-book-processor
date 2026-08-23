@@ -25,7 +25,10 @@ from almonium_book_processor.catalog.models import (
 from almonium_book_processor.catalog.services import import_legacy_artifact, persist_artifact
 from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
+    process_book_pipeline,
+    process_normalized_edition,
     process_source_edition,
+    publish_edition,
     split_edition_sentences,
 )
 from almonium_book_processor.models import (
@@ -122,6 +125,109 @@ def test_upload_form_shows_practical_examples() -> None:
     assert (
         "specific uploaded text/version" in EditionUploadForm.base_fields["edition_title"].help_text
     )
+
+
+def test_derived_upload_requires_source_lineage(tmp_path) -> None:
+    form = EditionUploadForm(
+        data={
+            "work_slug": "upload-test",
+            "work_title": "Upload Test",
+            "author": "Ada Author",
+            "original_language": "de",
+            "publication_year": 1912,
+            "edition_slug": "upload-test-en-human",
+            "edition_title": "Upload Test",
+            "language": "en",
+            "edition_type": Edition.EditionType.HUMAN_TRANSLATION,
+            "cefr_level": Edition.CEFRLevel.B2,
+        },
+        files={"source_file": SimpleUploadedFile("upload.epub", epub_bytes(tmp_path))},
+    )
+
+    assert not form.is_valid()
+    assert "source_edition" in form.errors
+
+
+def test_derived_upload_accepts_source_from_the_same_work(tmp_path) -> None:
+    work = Work.objects.create(
+        slug="upload-test",
+        title="Upload Test",
+        author="Ada Author",
+        original_language="de",
+    )
+    source = Edition.objects.create(
+        slug="upload-test-de-original",
+        work=work,
+        title="Upload Test",
+        author="Ada Author",
+        language="de",
+    )
+    form = EditionUploadForm(
+        data={
+            "work_slug": work.slug,
+            "work_title": work.title,
+            "author": work.author,
+            "original_language": "de",
+            "publication_year": 1912,
+            "edition_slug": "upload-test-en-human",
+            "edition_title": "Upload Test",
+            "language": "en",
+            "edition_type": Edition.EditionType.HUMAN_TRANSLATION,
+            "source_edition": str(source.id),
+            "cefr_level": Edition.CEFRLevel.B2,
+        },
+        files={"source_file": SimpleUploadedFile("upload.epub", epub_bytes(tmp_path))},
+    )
+
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["source_edition"] == source
+
+
+def test_source_upload_queues_the_complete_pipeline(
+    tmp_path, monkeypatch, django_capture_on_commit_callbacks
+) -> None:
+    queued: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.process_book_pipeline.delay",
+        lambda edition_id: queued.append(edition_id),
+    )
+    form = EditionUploadForm(
+        data={
+            "work_slug": "queued-upload",
+            "work_title": "Queued Upload",
+            "author": "Ada Author",
+            "original_language": "de",
+            "publication_year": 1912,
+            "edition_slug": "queued-upload-de-original",
+            "edition_title": "Queued Upload",
+            "language": "de",
+            "edition_type": Edition.EditionType.ORIGINAL,
+            "cefr_level": Edition.CEFRLevel.B2,
+        },
+        files={"source_file": SimpleUploadedFile("upload.epub", epub_bytes(tmp_path))},
+    )
+
+    assert form.is_valid(), form.errors
+    with django_capture_on_commit_callbacks(execute=True):
+        edition = form.save()
+
+    assert queued == [str(edition.id)]
+
+
+def test_complete_pipeline_runs_ingestion_before_local_nlp(monkeypatch) -> None:
+    stages: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.process_source_edition.run",
+        lambda edition_id: stages.append(("ingest", edition_id)),
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.process_normalized_edition.run",
+        lambda edition_id: stages.append(("nlp", edition_id)),
+    )
+
+    process_book_pipeline.run("edition-id")
+
+    assert stages == [("ingest", "edition-id"), ("nlp", "edition-id")]
 
 
 def test_internal_private_import_is_owner_scoped(tmp_path, monkeypatch) -> None:
@@ -641,3 +747,152 @@ def test_offline_sentence_and_alignment_tasks(monkeypatch) -> None:
     assert alignment.source_block == source_block
     assert alignment.target_block == target_block
     assert alignment.confidence == pytest.approx(1.0)
+
+
+def test_normalized_pipeline_groups_split_blocks_and_finishes_ready(monkeypatch) -> None:
+    work = Work.objects.create(
+        slug="split-alignment-work",
+        title="Split Alignment Work",
+        author="Ada Author",
+        original_language="en",
+    )
+    source = Edition.objects.create(
+        slug="split-alignment-work-en",
+        work=work,
+        title="Split Alignment Work",
+        author="Ada Author",
+        language="en",
+        source_sha256="c" * 64,
+        status=Edition.Status.READY,
+    )
+    target = Edition.objects.create(
+        slug="split-alignment-work-fr",
+        work=work,
+        source_edition=source,
+        title="Œuvre divisée",
+        author="Ada Author",
+        language="fr",
+        edition_type=Edition.EditionType.HUMAN_TRANSLATION,
+        source_sha256="d" * 64,
+        status=Edition.Status.READY,
+    )
+    source_chapter = Chapter.objects.create(edition=source, sequence=1)
+    target_chapter = Chapter.objects.create(edition=target, sequence=1)
+    ContentBlock.objects.create(
+        edition=source,
+        chapter=source_chapter,
+        block_id="c1.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="A source paragraph.",
+    )
+    for sequence, text in enumerate(("Première partie.", "Deuxième partie."), start=1):
+        ContentBlock.objects.create(
+            edition=target,
+            chapter=target_chapter,
+            block_id=f"c1.p{sequence}",
+            sequence=sequence,
+            block_type=ContentBlock.BlockType.PARAGRAPH,
+            text=text,
+        )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.split_sentences",
+        lambda text, language: [text],
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.embed_texts",
+        lambda texts: [[1.0, 0.0] for _ in texts],
+    )
+
+    process_normalized_edition.run(str(target.id))
+
+    target.refresh_from_db()
+    alignments = list(BlockAlignment.objects.order_by("target_block__sequence"))
+    assert target.status == Edition.Status.READY
+    assert len(alignments) == 2
+    assert len({alignment.group_id for alignment in alignments}) == 1
+    assert not target.warnings.exists()
+
+
+def test_normalized_pipeline_routes_low_confidence_alignment_to_review(monkeypatch) -> None:
+    work = Work.objects.create(
+        slug="uncertain-work",
+        title="Uncertain Work",
+        author="Ada Author",
+        original_language="en",
+    )
+    source = Edition.objects.create(
+        slug="uncertain-work-en",
+        work=work,
+        title="Uncertain Work",
+        author="Ada Author",
+        language="en",
+        source_sha256="e" * 64,
+    )
+    target = Edition.objects.create(
+        slug="uncertain-work-fr",
+        work=work,
+        source_edition=source,
+        title="Œuvre incertaine",
+        author="Ada Author",
+        language="fr",
+        edition_type=Edition.EditionType.HUMAN_TRANSLATION,
+        source_sha256="f" * 64,
+    )
+    source_chapter = Chapter.objects.create(edition=source, sequence=1)
+    target_chapter = Chapter.objects.create(edition=target, sequence=1)
+    ContentBlock.objects.create(
+        edition=source,
+        chapter=source_chapter,
+        block_id="c1.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="Source text.",
+    )
+    ContentBlock.objects.create(
+        edition=target,
+        chapter=target_chapter,
+        block_id="c1.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="Texte cible.",
+    )
+    vectors = iter(([[1.0, 0.0]], [[0.5, 0.8660254]]))
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.split_sentences",
+        lambda text, language: [text],
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.embed_texts",
+        lambda texts: next(vectors),
+    )
+
+    process_normalized_edition.run(str(target.id))
+
+    target.refresh_from_db()
+    warning = target.warnings.get(code="alignment_low_confidence")
+    assert target.status == Edition.Status.REVIEW
+    assert warning.pipeline_run.stage == PipelineRun.Stage.ALIGN
+
+
+def test_publication_requires_current_cheap_nlp() -> None:
+    work = Work.objects.create(
+        slug="publication-gate-work",
+        title="Publication Gate Work",
+        author="Ada Author",
+        original_language="en",
+        publication_year=1912,
+    )
+    edition = Edition.objects.create(
+        slug="publication-gate-work-en",
+        work=work,
+        title="Publication Gate Work",
+        author="Ada Author",
+        language="en",
+        cefr_level=Edition.CEFRLevel.B2,
+        source_sha256="1" * 64,
+        status=Edition.Status.READY,
+    )
+
+    with pytest.raises(ValueError, match="sentence splitting"):
+        publish_edition.run(str(edition.id))

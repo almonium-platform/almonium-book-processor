@@ -1,6 +1,6 @@
 """Almonium's offline ebook ingestion and normalisation pipeline."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from almonium_book_processor.config.celery import app as celery_app
 from almonium_book_processor.models import (

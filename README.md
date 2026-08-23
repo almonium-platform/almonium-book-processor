@@ -13,8 +13,8 @@ OpenAPI document is available at `/api/schema/`.
 - Django and server-rendered HTML provide the staff-only admin panel.
 - Django REST Framework exposes staff orchestration endpoints and read-only
   public book endpoints.
-- Celery workers ingest EPUB and TEI P5 sources and will own NLP, alignment, translation, and
-  adaptation jobs.
+- Celery workers ingest EPUB and TEI P5 sources, then run local sentence splitting
+  and embedding alignment. They will later own translation and adaptation jobs.
 - PostgreSQL stores normalized works, editions, chapters, blocks, runs,
   warnings, prompts, and model metadata.
 - Uploaded source files are files, not database blobs. Local development uses a Docker
@@ -113,8 +113,9 @@ The importer currently emits these codes:
 - An unrecognised future warning code is treated as a review item by default.
 
 Checks such as language detection, unusually short/long chapters, and
-translation/alignment confidence are planned pipeline QA checks; they are not
-implemented by the current source importer.
+translation confidence are planned pipeline QA checks; they are not implemented
+by the current source importer. Derived-edition alignment does emit coverage and
+low-confidence review items after ingestion.
 
 Publication is a separate worker stage. Selecting **Publish to Almonium** from
 a ready edition queues an authenticated hand-off to the product backend; only
@@ -163,4 +164,5 @@ Never commit `.env`, provider keys, Django secrets, or database credentials.
 
 See [`AGENTS.md`](AGENTS.md) for cross-repository boundaries and
 [`docs/ALMONIUM_EBOOK_PIPELINE.md`](docs/ALMONIUM_EBOOK_PIPELINE.md) for the
-longer processing roadmap.
+longer processing roadmap. [`docs/BACKLOG.md`](docs/BACKLOG.md) tracks the
+audited implementation status and next milestones.

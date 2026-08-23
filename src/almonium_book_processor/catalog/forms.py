@@ -72,6 +72,11 @@ class EditionUploadForm(forms.Form):
         choices=Edition.EditionType.choices,
         help_text="Original for the source text; otherwise choose the kind of derived version.",
     )
+    source_edition = forms.ModelChoiceField(
+        queryset=Edition.objects.filter(work__visibility="public").select_related("work"),
+        required=False,
+        help_text="Required for a translation, adaptation, or abridgement that should be aligned.",
+    )
     cefr_level = forms.ChoiceField(
         choices=Edition.CEFRLevel.choices,
         help_text="Current editorial estimate; AI estimation can replace it later.",
@@ -84,6 +89,21 @@ class EditionUploadForm(forms.Form):
         ):
             raise forms.ValidationError("Only EPUB and TEI XML files are supported.")
         return source
+
+    def clean(self):
+        cleaned_data = super().clean()
+        edition_type = cleaned_data.get("edition_type")
+        source_edition = cleaned_data.get("source_edition")
+        if edition_type and edition_type != Edition.EditionType.ORIGINAL and not source_edition:
+            self.add_error("source_edition", "Select the edition this version derives from.")
+        if edition_type == Edition.EditionType.ORIGINAL and source_edition:
+            self.add_error(
+                "source_edition",
+                "An original edition cannot derive from another edition.",
+            )
+        if source_edition and source_edition.work.slug != cleaned_data.get("work_slug"):
+            self.add_error("source_edition", "The source edition must belong to the same work.")
+        return cleaned_data
 
     def save(self) -> Edition:
         return create_source_edition(**self.cleaned_data)

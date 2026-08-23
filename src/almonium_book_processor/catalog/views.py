@@ -15,7 +15,7 @@ from almonium_book_processor.catalog.services import (
     import_legacy_artifacts,
     release_private_import,
 )
-from almonium_book_processor.catalog.tasks import process_source_edition, publish_edition
+from almonium_book_processor.catalog.tasks import process_book_pipeline, publish_edition
 
 
 def _edition_cards(visibility: str):
@@ -174,7 +174,7 @@ def retry_private_import(request: HttpRequest, edition_id: str) -> HttpResponse:
     elif not edition.source_file:
         messages.error(request, "The original source file is no longer available.")
     else:
-        process_source_edition.delay(str(edition.id))
+        process_book_pipeline.delay(str(edition.id))
         messages.success(request, "Private import reprocessing queued.")
     return redirect("catalog:edition-detail", edition_id=edition.id)
 

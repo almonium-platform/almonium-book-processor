@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "almonium-book-processor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Admin, API, and processing service for Almonium ebooks"
 readme = "README.md"
 requires-python = ">=3.12"

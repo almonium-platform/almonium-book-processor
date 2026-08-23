@@ -62,6 +62,11 @@ class EditionUploadSerializer(serializers.Serializer):
     edition_title = serializers.CharField(max_length=500)
     language = serializers.ChoiceField(choices=LANGUAGE_CHOICES)
     edition_type = serializers.ChoiceField(choices=Edition.EditionType.choices)
+    source_edition_slug = serializers.SlugField(
+        max_length=180,
+        required=False,
+        allow_blank=True,
+    )
     cefr_level = serializers.ChoiceField(choices=Edition.CEFRLevel.choices)
 
     def validate_source_file(self, source):
@@ -70,6 +75,36 @@ class EditionUploadSerializer(serializers.Serializer):
         ):
             raise serializers.ValidationError("Only EPUB and TEI XML files are supported.")
         return source
+
+    def validate(self, attrs):
+        source_slug = attrs.pop("source_edition_slug", "")
+        edition_type = attrs["edition_type"]
+        if edition_type == Edition.EditionType.ORIGINAL:
+            if source_slug:
+                raise serializers.ValidationError(
+                    {"source_edition_slug": "An original edition cannot have a source edition."}
+                )
+            attrs["source_edition"] = None
+            return attrs
+        if not source_slug:
+            raise serializers.ValidationError(
+                {"source_edition_slug": "Derived editions require a source edition."}
+            )
+        try:
+            source_edition = Edition.objects.select_related("work").get(
+                slug=source_slug,
+                work__visibility=Work.Visibility.PUBLIC,
+            )
+        except Edition.DoesNotExist as error:
+            raise serializers.ValidationError(
+                {"source_edition_slug": "Source edition not found."}
+            ) from error
+        if source_edition.work.slug != attrs["work_slug"]:
+            raise serializers.ValidationError(
+                {"source_edition_slug": "The source edition must belong to the same work."}
+            )
+        attrs["source_edition"] = source_edition
+        return attrs
 
     def create(self, validated_data):
         return create_source_edition(**validated_data)

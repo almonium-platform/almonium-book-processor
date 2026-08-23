@@ -18,13 +18,25 @@ from almonium_book_processor.catalog.models import (
     ContentBlock,
     Edition,
     PipelineRun,
+    QAWarning,
+    Work,
 )
 from almonium_book_processor.catalog.publication import publish_to_almonium
 from almonium_book_processor.catalog.services import persist_artifact
 from almonium_book_processor.ingest.source import ingest_source, source_format
-from almonium_book_processor.processing.nlp import align_embeddings, embed_texts, split_sentences
+from almonium_book_processor.processing.nlp import (
+    AlignmentCandidate,
+    align_embeddings,
+    embed_texts,
+    split_sentences,
+)
 
 logger = logging.getLogger(__name__)
+
+ALIGNMENT_CANDIDATE_MIN_CONFIDENCE = 0.45
+ALIGNMENT_REVIEW_CONFIDENCE = 0.72
+ALIGNMENT_MIN_COVERAGE = 0.90
+ALIGNMENT_WARNING_CODES = {"alignment_incomplete", "alignment_low_confidence"}
 
 
 def _copy_source_to_temporary_file(edition: Edition) -> tuple[Path, str]:
@@ -103,13 +115,6 @@ def process_source_edition(self, edition_id: str) -> None:
                     "updated_at",
                 ]
             )
-            if edition.work.visibility == edition.work.Visibility.PRIVATE:
-                try:
-                    send_private_import_event(edition, progress=run.progress)
-                except Exception:
-                    logger.exception(
-                        "Could not report completion for private import %s", edition.id
-                    )
     except Exception as error:
         edition.status = Edition.Status.FAILED
         edition.save(update_fields=["status", "updated_at"])
@@ -135,6 +140,64 @@ def _text_hash(*values: object) -> str:
     return digest.hexdigest()
 
 
+def _finish_normalized_pipeline(edition: Edition) -> None:
+    edition.refresh_from_db()
+    has_review_items = edition.warnings.exclude(severity=QAWarning.Severity.INFO).exists()
+    edition.status = (
+        Edition.Status.READY
+        if edition.work.visibility == Work.Visibility.PRIVATE
+        else Edition.Status.REVIEW
+        if has_review_items
+        else Edition.Status.READY
+    )
+    edition.save(update_fields=["status", "updated_at"])
+
+
+@shared_task(bind=True, acks_late=True)
+def process_book_pipeline(self, edition_id: str) -> None:
+    """Ingest a source and continue through the credential-free NLP stages."""
+
+    try:
+        process_source_edition.run(edition_id)
+        process_normalized_edition.run(edition_id)
+    except Exception:
+        logger.exception("Book pipeline failed for edition %s", edition_id)
+        raise
+
+
+@shared_task(bind=True, acks_late=True)
+def process_normalized_edition(self, edition_id: str) -> None:
+    """Split sentences, align derived editions, and apply cheap QA gates."""
+
+    edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
+    edition.status = Edition.Status.PROCESSING
+    edition.save(update_fields=["status", "updated_at"])
+    try:
+        if edition.source_edition_id:
+            if not edition.source_edition.blocks.exists():
+                raise ValueError("The source edition has no normalized blocks to align")
+            split_edition_sentences.run(str(edition.source_edition_id))
+        split_edition_sentences.run(edition_id)
+        if edition.source_edition_id:
+            align_edition_to_source.run(edition_id)
+        _finish_normalized_pipeline(edition)
+        edition.refresh_from_db()
+        if edition.work.visibility == Work.Visibility.PRIVATE:
+            try:
+                send_private_import_event(edition, progress=100)
+            except Exception:
+                logger.exception("Could not report completion for private import %s", edition.id)
+    except Exception as error:
+        edition.status = Edition.Status.FAILED
+        edition.save(update_fields=["status", "updated_at"])
+        if edition.work.visibility == Work.Visibility.PRIVATE:
+            try:
+                send_private_import_event(edition, progress=0, error=str(error)[:10000])
+            except Exception:
+                logger.exception("Could not report NLP failure for private import %s", edition.id)
+        raise
+
+
 @shared_task(acks_late=True)
 def publish_edition(edition_id: str) -> None:
     edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
@@ -146,6 +209,26 @@ def publish_edition(edition_id: str) -> None:
         raise ValueError("A CEFR level is required before publication.")
     if edition.work.publication_year is None:
         raise ValueError("A publication year is required before publication.")
+    spacy_model = settings.NLP_SPACY_MODELS.get(edition.language, "blank")
+    sentence_input_hash = _text_hash(edition.source_sha256, edition.language, spacy_model)
+    if not edition.pipeline_runs.filter(
+        stage=PipelineRun.Stage.SENTENCES,
+        status=PipelineRun.Status.SUCCEEDED,
+        input_hash=sentence_input_hash,
+    ).exists():
+        raise ValueError("Current sentence splitting must succeed before publication.")
+    if edition.source_edition_id:
+        alignment_input_hash = _text_hash(
+            edition.source_edition.source_sha256,
+            edition.source_sha256,
+            settings.NLP_EMBEDDING_MODEL,
+        )
+        if not edition.pipeline_runs.filter(
+            stage=PipelineRun.Stage.ALIGN,
+            status=PipelineRun.Status.SUCCEEDED,
+            input_hash=alignment_input_hash,
+        ).exists():
+            raise ValueError("Current source alignment must succeed before publication.")
     input_hash = _text_hash(
         edition.source_sha256,
         edition.slug,
@@ -299,29 +382,107 @@ def align_edition_to_source(edition_id: str) -> None:
     try:
         source_blocks = list(source_edition.blocks.exclude(text=""))
         target_blocks = list(edition.blocks.exclude(text=""))
-        source_vectors = embed_texts([block.text for block in source_blocks])
-        target_vectors = embed_texts([block.text for block in target_blocks])
-        candidates = align_embeddings(source_vectors, target_vectors)
+        source_vectors = (
+            embed_texts([block.text for block in source_blocks]) if source_blocks else []
+        )
+        target_vectors = (
+            embed_texts([block.text for block in target_blocks]) if target_blocks else []
+        )
+        source_by_chapter: dict[int, list[int]] = {}
+        target_by_chapter: dict[int, list[int]] = {}
+        for index, block in enumerate(source_blocks):
+            source_by_chapter.setdefault(block.chapter.sequence, []).append(index)
+        for index, block in enumerate(target_blocks):
+            target_by_chapter.setdefault(block.chapter.sequence, []).append(index)
+        common_chapters = sorted(source_by_chapter.keys() & target_by_chapter.keys())
+        candidates: list[AlignmentCandidate] = []
+        for chapter in common_chapters:
+            source_indices = source_by_chapter[chapter]
+            target_indices = target_by_chapter[chapter]
+            chapter_candidates = align_embeddings(
+                [source_vectors[index] for index in source_indices],
+                [target_vectors[index] for index in target_indices],
+                source_lengths=[len(source_blocks[index].text) for index in source_indices],
+                target_lengths=[len(target_blocks[index].text) for index in target_indices],
+                minimum_confidence=ALIGNMENT_CANDIDATE_MIN_CONFIDENCE,
+            )
+            candidates.extend(
+                AlignmentCandidate(
+                    source_indices=tuple(
+                        source_indices[index] for index in candidate.source_indices
+                    ),
+                    target_indices=tuple(
+                        target_indices[index] for index in candidate.target_indices
+                    ),
+                    confidence=candidate.confidence,
+                )
+                for candidate in chapter_candidates
+            )
+        matched_source_indices = {
+            index for candidate in candidates for index in candidate.source_indices
+        }
+        matched_target_indices = {
+            index for candidate in candidates for index in candidate.target_indices
+        }
+        source_coverage = len(matched_source_indices) / len(source_blocks) if source_blocks else 0.0
+        target_coverage = len(matched_target_indices) / len(target_blocks) if target_blocks else 0.0
+        low_confidence = [
+            candidate
+            for candidate in candidates
+            if candidate.confidence < ALIGNMENT_REVIEW_CONFIDENCE
+        ]
         with transaction.atomic():
             BlockAlignment.objects.filter(
                 source_edition=source_edition,
                 target_edition=edition,
             ).delete()
-            BlockAlignment.objects.bulk_create(
-                [
-                    BlockAlignment(
-                        source_edition=source_edition,
-                        target_edition=edition,
-                        source_block=source_blocks[candidate.source_index],
-                        target_block=target_blocks[candidate.target_index],
-                        group_id=uuid.uuid4(),
-                        confidence=candidate.confidence,
-                        strategy="multilingual-embedding-monotonic-v1",
+            edition.warnings.filter(code__in=ALIGNMENT_WARNING_CODES).delete()
+            alignment_rows = []
+            for candidate in candidates:
+                group_id = uuid.uuid4()
+                for source_index in candidate.source_indices:
+                    for target_index in candidate.target_indices:
+                        alignment_rows.append(
+                            BlockAlignment(
+                                source_edition=source_edition,
+                                target_edition=edition,
+                                source_block=source_blocks[source_index],
+                                target_block=target_blocks[target_index],
+                                group_id=group_id,
+                                confidence=candidate.confidence,
+                                strategy="multilingual-embedding-monotonic-v2",
+                            )
+                        )
+            BlockAlignment.objects.bulk_create(alignment_rows, batch_size=1000)
+            warnings = [
+                QAWarning(
+                    edition=edition,
+                    pipeline_run=run,
+                    block=target_blocks[candidate.target_index],
+                    code="alignment_low_confidence",
+                    severity=QAWarning.Severity.WARNING,
+                    message=(
+                        "Automatic alignment confidence is "
+                        f"{candidate.confidence:.1%}; review this alignment group."
+                    ),
+                    source_ref=target_blocks[candidate.target_index].source_ref,
+                )
+                for candidate in low_confidence
+            ]
+            if source_coverage < ALIGNMENT_MIN_COVERAGE or target_coverage < ALIGNMENT_MIN_COVERAGE:
+                warnings.append(
+                    QAWarning(
+                        edition=edition,
+                        pipeline_run=run,
+                        code="alignment_incomplete",
+                        severity=QAWarning.Severity.WARNING,
+                        message=(
+                            f"Automatic alignment covered {source_coverage:.1%} of source blocks "
+                            f"and {target_coverage:.1%} of target blocks."
+                        ),
                     )
-                    for candidate in candidates
-                ],
-                batch_size=1000,
-            )
+                )
+            QAWarning.objects.bulk_create(warnings, batch_size=1000)
         run.status = PipelineRun.Status.SUCCEEDED
         run.progress = 100
         run.finished_at = timezone.now()
@@ -333,7 +494,14 @@ def align_edition_to_source(edition_id: str) -> None:
         run.summary = {
             "source_blocks": len(source_blocks),
             "target_blocks": len(target_blocks),
-            "aligned_pairs": len(candidates),
+            "common_chapters": len(common_chapters),
+            "source_only_chapters": len(source_by_chapter.keys() - target_by_chapter.keys()),
+            "target_only_chapters": len(target_by_chapter.keys() - source_by_chapter.keys()),
+            "alignment_groups": len(candidates),
+            "alignment_rows": len(alignment_rows),
+            "source_coverage": source_coverage,
+            "target_coverage": target_coverage,
+            "low_confidence_groups": len(low_confidence),
             "embedding_model": settings.NLP_EMBEDDING_MODEL,
         }
         run.save(

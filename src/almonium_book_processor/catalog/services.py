@@ -47,6 +47,7 @@ def create_source_edition(
     edition_title: str,
     language: str,
     edition_type: str,
+    source_edition: Edition | None,
     cefr_level: str,
     source_file: File,
 ) -> Edition:
@@ -76,14 +77,15 @@ def create_source_edition(
         author=author,
         language=language,
         edition_type=edition_type,
+        source_edition=source_edition,
         cefr_level=cefr_level,
         source_file=source_file,
         status=Edition.Status.QUEUED,
     )
 
-    from almonium_book_processor.catalog.tasks import process_source_edition
+    from almonium_book_processor.catalog.tasks import process_book_pipeline
 
-    transaction.on_commit(lambda: process_source_edition.delay(str(edition.id)))
+    transaction.on_commit(lambda: process_book_pipeline.delay(str(edition.id)))
     return edition
 
 
@@ -129,9 +131,9 @@ def create_private_import(
         status=Edition.Status.QUEUED,
     )
 
-    from almonium_book_processor.catalog.tasks import process_source_edition
+    from almonium_book_processor.catalog.tasks import process_book_pipeline
 
-    transaction.on_commit(lambda: process_source_edition.delay(str(edition.id)))
+    transaction.on_commit(lambda: process_book_pipeline.delay(str(edition.id)))
     return edition
 
 
@@ -328,7 +330,11 @@ def _import_legacy_artifact(artifact: BookArtifact) -> Edition:
 
 @transaction.atomic
 def import_legacy_artifact(upload: BinaryIO) -> Edition:
-    return _import_legacy_artifact(_artifact_from_upload(upload))
+    edition = _import_legacy_artifact(_artifact_from_upload(upload))
+    from almonium_book_processor.catalog.tasks import process_normalized_edition
+
+    transaction.on_commit(lambda: process_normalized_edition.delay(str(edition.id)))
+    return edition
 
 
 @transaction.atomic
@@ -348,4 +354,10 @@ def import_legacy_artifacts(uploads: Iterable[BinaryIO]) -> list[Edition]:
             )
             if edition.source_edition_id:
                 edition.save(update_fields=["source_edition", "updated_at"])
+    from almonium_book_processor.catalog.tasks import process_normalized_edition
+
+    for edition in editions:
+        transaction.on_commit(
+            lambda edition_id=str(edition.id): process_normalized_edition.delay(edition_id)
+        )
     return editions
