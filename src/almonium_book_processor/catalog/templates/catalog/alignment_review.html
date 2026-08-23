@@ -1,0 +1,108 @@
+{% extends "catalog/base.html" %}
+{% block title %}Alignment review · {{ edition.title }}{% endblock %}
+{% block content %}
+<div class="page-heading alignment-heading">
+  <div>
+    <p class="eyebrow">{{ edition.source_edition.language|upper }} → {{ edition.language|upper }} alignment review</p>
+    <h1>{{ edition.title }}</h1>
+    <p class="muted">Compare automatic groups, repair pairings, correct target text, and resolve QA findings before approval.</p>
+  </div>
+  <div class="button-row">
+    <a class="button button-secondary" href="{% url 'catalog:edition-detail' edition.id %}">Edition overview</a>
+    <span class="status {% if unresolved_warning_count %}status-failed{% else %}status-ready{% endif %}">{{ unresolved_warning_count }} unresolved</span>
+  </div>
+</div>
+
+{% if chapter_numbers %}
+<nav class="chapter-nav" aria-label="Chapters">
+  {% for number in chapter_numbers %}<a class="{% if number == chapter %}current{% endif %}" href="?chapter={{ number }}">{{ number }}</a>{% endfor %}
+</nav>
+
+{% if global_warnings %}
+<section class="panel warning-summary">
+  <h2>Edition-level review items</h2>
+  {% for warning in global_warnings %}
+  <div class="warning">
+    <div><code>{{ warning.code }}</code><p>{{ warning.message }}</p></div>
+    <form method="post" action="{% url 'catalog:resolve-warning' edition.id warning.id %}">
+      {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}">
+      <button class="button button-secondary" type="submit">Acknowledge</button>
+    </form>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="review-toolbar panel">
+  <div><p class="eyebrow">Chapter {{ chapter }}</p><h2>Manual pairing</h2><p class="muted">Select one or more blocks on each side. Existing groups touching those blocks are replaced; unselected leftovers become visibly unmatched.</p></div>
+  <form method="post" action="{% url 'catalog:repair-alignment' edition.id %}" class="repair-form">
+    {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}">
+    <label><span>{{ edition.source_edition.language|upper }} source blocks</span>
+      <select name="source_blocks" multiple size="8" required>
+        {% for block in source_blocks %}<option value="{{ block.id }}">{{ block.block_id }} · {{ block.text|truncatechars:90 }}</option>{% endfor %}
+      </select>
+    </label>
+    <label><span>{{ edition.language|upper }} target blocks</span>
+      <select name="target_blocks" multiple size="8" required>
+        {% for block in target_blocks %}<option value="{{ block.id }}">{{ block.block_id }} · {{ block.text|truncatechars:90 }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="repair-notes"><span>Audit note</span><input name="notes" placeholder="Why this pairing is correct" required></label>
+    <button class="button" type="submit">Save manual group</button>
+  </form>
+</section>
+
+{% if unmatched_source or unmatched_target %}
+<section class="panel unmatched-panel">
+  <p class="eyebrow">Coverage gaps</p><h2>Unmatched blocks</h2>
+  <div class="alignment-columns">
+    <div><h3>{{ edition.source_edition.language|upper }} source</h3>{% for block in unmatched_source %}<article class="review-block unmatched"><code>{{ block.block_id }}</code><p>{{ block.text|linebreaksbr|default:"—" }}</p></article>{% empty %}<p class="muted">No unmatched source blocks.</p>{% endfor %}</div>
+    <div><h3>{{ edition.language|upper }} target</h3>{% for block in unmatched_target %}<article class="review-block unmatched"><code>{{ block.block_id }}</code><p>{{ block.text|linebreaksbr|default:"—" }}</p></article>{% empty %}<p class="muted">No unmatched target blocks.</p>{% endfor %}</div>
+  </div>
+</section>
+{% endif %}
+
+<section class="alignment-list">
+  <div class="section-heading">
+    <div><p class="eyebrow">Chapter {{ chapter }}</p><h2>Aligned groups</h2><p class="muted">{{ chapter_warning_count }} unresolved chapter item{{ chapter_warning_count|pluralize }}</p></div>
+    {% if alignment_groups %}<form method="post" action="{% url 'catalog:accept-alignment-chapter' edition.id %}" class="chapter-accept-form">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input name="notes" placeholder="Chapter review note" required><button class="button button-secondary" type="submit">Accept chapter groups</button></form>{% endif %}
+  </div>
+  {% for group in alignment_groups %}
+  <article class="alignment-group confidence-{{ group.confidence_class }} {% if group.review %}reviewed{% endif %}">
+    <header>
+      <div><span class="confidence">{{ group.confidence_percent }}%</span><code>{{ group.strategy }}</code></div>
+      {% if group.review %}<span class="status status-ready">{{ group.review.get_decision_display }} by {{ group.review.reviewer|default:"staff" }}</span>{% else %}<span class="status">Unreviewed</span>{% endif %}
+    </header>
+    <div class="alignment-columns">
+      <div>
+        <h3>{{ edition.source_edition.language|upper }} source</h3>
+        {% for block in group.sources %}<article class="review-block"><code>{{ block.block_id }}</code><p>{{ block.text|linebreaksbr|default:"—" }}</p></article>{% endfor %}
+      </div>
+      <div>
+        <h3>{{ edition.language|upper }} target</h3>
+        {% for block in group.targets %}
+        <article class="review-block target-block">
+          <code>{{ block.block_id }}</code><p>{{ block.text|linebreaksbr|default:"—" }}</p>
+          <details><summary>Edit target text</summary><form method="post" action="{% url 'catalog:edit-alignment-target' edition.id block.id %}">
+            {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}">
+            <textarea name="text" rows="6" required>{{ block.text }}</textarea>
+            <input name="notes" placeholder="Reason for correction" required>
+            <button class="button button-secondary" type="submit">Save correction</button>
+          </form></details>
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+    {% if group.warnings %}<div class="group-warnings">{% for warning in group.warnings %}<div class="warning"><div><code>{{ warning.code }}</code><span>{{ warning.message }}</span></div><form method="post" action="{% url 'catalog:resolve-warning' edition.id warning.id %}">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><button class="button button-secondary" type="submit">Resolve</button></form></div>{% endfor %}</div>{% endif %}
+    {% if not group.review %}<form method="post" action="{% url 'catalog:accept-alignment-group' edition.id group.id %}" class="accept-form">
+      {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}">
+      <input name="notes" placeholder="Optional review note">
+      <button class="button" type="submit">Accept group</button>
+    </form>{% endif %}
+  </article>
+  {% empty %}<div class="panel"><p>No automatic groups exist in this chapter. Use manual pairing above.</p></div>{% endfor %}
+</section>
+
+{% if recent_revisions %}<section class="panel"><h2>Recent text corrections</h2>{% for revision in recent_revisions %}<details class="revision"><summary>{{ revision.stable_block_id }} · {{ revision.editor|default:"staff" }} · {{ revision.created_at }}</summary><p><strong>Before:</strong> {{ revision.previous_text }}</p><p><strong>After:</strong> {{ revision.revised_text }}</p><p class="muted">{{ revision.notes }}</p></details>{% endfor %}</section>{% endif %}
+{% else %}<section class="panel"><h2>No chapters available</h2></section>{% endif %}
+{% endblock %}

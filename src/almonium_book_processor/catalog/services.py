@@ -9,11 +9,16 @@ from typing import BinaryIO
 from django.contrib.auth.models import AbstractBaseUser
 from django.core.files import File
 from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
 
 from almonium_book_processor.artifact_migrations import migrate_artifact_payload
 from almonium_book_processor.catalog.models import (
+    AlignmentGroupReview,
+    BlockAlignment,
     Chapter,
     ContentBlock,
+    ContentBlockRevision,
     Edition,
     PipelineRun,
     QAWarning,
@@ -222,6 +227,12 @@ def complete_review(
     if edition.status != Edition.Status.REVIEW:
         raise ValueError("Only editions awaiting review can be completed.")
 
+    unresolved_warnings = edition.warnings.exclude(severity=QAWarning.Severity.INFO).filter(
+        resolved_at=None
+    )
+    if unresolved_warnings.exists():
+        raise ValueError("Resolve every review item before completing review.")
+
     actionable_warning_count = edition.warnings.exclude(severity=QAWarning.Severity.INFO).count()
     decision = ReviewDecision.objects.create(
         edition=edition,
@@ -233,6 +244,205 @@ def complete_review(
     edition.status = Edition.Status.READY
     edition.save(update_fields=["status", "updated_at"])
     return decision
+
+
+@transaction.atomic
+def review_alignment_group(
+    *, edition: Edition, group_id: uuid.UUID, reviewer: AbstractBaseUser, notes: str = ""
+) -> AlignmentGroupReview:
+    alignments = list(
+        BlockAlignment.objects.filter(target_edition=edition, group_id=group_id).select_related(
+            "source_block", "target_block"
+        )
+    )
+    if not alignments:
+        raise ValueError("This alignment group no longer exists.")
+    source_ids = sorted({str(alignment.source_block_id) for alignment in alignments})
+    target_ids = sorted({str(alignment.target_block_id) for alignment in alignments})
+    review, _ = AlignmentGroupReview.objects.update_or_create(
+        target_edition=edition,
+        group_id=group_id,
+        defaults={
+            "reviewer": reviewer,
+            "decision": AlignmentGroupReview.Decision.ACCEPTED,
+            "source_block_ids": source_ids,
+            "target_block_ids": target_ids,
+            "notes": notes,
+        },
+    )
+    edition.warnings.filter(
+        code="alignment_low_confidence",
+        block_id__in=target_ids,
+        resolved_at=None,
+    ).update(resolved_at=timezone.now(), resolved_by=reviewer)
+    return review
+
+
+@transaction.atomic
+def review_alignment_chapter(
+    *,
+    edition: Edition,
+    chapter: int,
+    reviewer: AbstractBaseUser,
+    notes: str,
+) -> int:
+    if not notes:
+        raise ValueError("Add an audit note before accepting a chapter.")
+    group_ids = list(
+        BlockAlignment.objects.filter(
+            target_edition=edition,
+            target_block__chapter__sequence=chapter,
+        )
+        .values_list("group_id", flat=True)
+        .distinct()
+    )
+    if not group_ids:
+        raise ValueError("This chapter has no alignment groups to accept.")
+    for group_id in group_ids:
+        review_alignment_group(
+            edition=edition,
+            group_id=group_id,
+            reviewer=reviewer,
+            notes=notes,
+        )
+    return len(group_ids)
+
+
+@transaction.atomic
+def repair_alignment_group(
+    *,
+    edition: Edition,
+    source_block_ids: list[uuid.UUID],
+    target_block_ids: list[uuid.UUID],
+    reviewer: AbstractBaseUser,
+    notes: str = "",
+) -> AlignmentGroupReview:
+    if edition.source_edition_id is None:
+        raise ValueError("This edition has no source edition to align.")
+    if not source_block_ids or not target_block_ids:
+        raise ValueError("Select at least one source block and one target block.")
+
+    source_blocks = list(
+        ContentBlock.objects.filter(
+            id__in=source_block_ids,
+            edition_id=edition.source_edition_id,
+        ).select_related("chapter")
+    )
+    target_blocks = list(
+        ContentBlock.objects.filter(id__in=target_block_ids, edition=edition).select_related(
+            "chapter"
+        )
+    )
+    if len(source_blocks) != len(set(source_block_ids)):
+        raise ValueError("One or more selected source blocks are invalid.")
+    if len(target_blocks) != len(set(target_block_ids)):
+        raise ValueError("One or more selected target blocks are invalid.")
+    chapters = {
+        *(block.chapter.sequence for block in source_blocks),
+        *(block.chapter.sequence for block in target_blocks),
+    }
+    if len(chapters) != 1:
+        raise ValueError("Manual alignment blocks must belong to the same chapter.")
+
+    affected_group_ids = (
+        BlockAlignment.objects.filter(target_edition=edition)
+        .filter(Q(source_block_id__in=source_block_ids) | Q(target_block_id__in=target_block_ids))
+        .values_list("group_id", flat=True)
+    )
+    BlockAlignment.objects.filter(
+        target_edition=edition,
+        group_id__in=list(affected_group_ids),
+    ).delete()
+
+    group_id = uuid.uuid4()
+    BlockAlignment.objects.bulk_create(
+        [
+            BlockAlignment(
+                source_edition_id=edition.source_edition_id,
+                target_edition=edition,
+                source_block=source_block,
+                target_block=target_block,
+                group_id=group_id,
+                confidence=1.0,
+                strategy="human-reviewed-v1",
+            )
+            for source_block in source_blocks
+            for target_block in target_blocks
+        ]
+    )
+    review = AlignmentGroupReview.objects.create(
+        target_edition=edition,
+        group_id=group_id,
+        reviewer=reviewer,
+        decision=AlignmentGroupReview.Decision.REPAIRED,
+        source_block_ids=sorted(str(block.id) for block in source_blocks),
+        target_block_ids=sorted(str(block.id) for block in target_blocks),
+        notes=notes,
+    )
+    edition.warnings.filter(
+        code="alignment_low_confidence",
+        block__in=target_blocks,
+        resolved_at=None,
+    ).update(resolved_at=timezone.now(), resolved_by=reviewer)
+    return review
+
+
+@transaction.atomic
+def revise_target_block(
+    *,
+    edition: Edition,
+    block_id: uuid.UUID,
+    revised_text: str,
+    editor: AbstractBaseUser,
+    notes: str = "",
+) -> ContentBlockRevision:
+    block = ContentBlock.objects.select_for_update().filter(id=block_id, edition=edition).first()
+    if block is None:
+        raise ValueError("The target block does not belong to this edition.")
+    revised_text = revised_text.strip()
+    if not revised_text and block.block_type not in {
+        ContentBlock.BlockType.IMAGE,
+        ContentBlock.BlockType.SEPARATOR,
+    }:
+        raise ValueError("Text blocks cannot be empty.")
+    if revised_text == block.text:
+        raise ValueError("The revised text is unchanged.")
+
+    revision = ContentBlockRevision.objects.create(
+        edition=edition,
+        block=block,
+        stable_block_id=block.block_id,
+        editor=editor,
+        previous_text=block.text,
+        revised_text=revised_text,
+        notes=notes,
+    )
+    block.text = revised_text
+    block.sentences = []
+    block.save(update_fields=["text", "sentences", "updated_at"])
+    edition.word_count = sum(
+        len(text.split()) for text in edition.blocks.values_list("text", flat=True)
+    )
+    edition.save(update_fields=["word_count", "updated_at"])
+
+    from almonium_book_processor.catalog.tasks import split_edition_sentences
+
+    transaction.on_commit(lambda: split_edition_sentences.delay(str(edition.id)))
+    return revision
+
+
+@transaction.atomic
+def resolve_review_warning(
+    *, edition: Edition, warning_id: uuid.UUID, reviewer: AbstractBaseUser
+) -> QAWarning:
+    warning = edition.warnings.select_for_update().filter(id=warning_id).first()
+    if warning is None:
+        raise ValueError("This review item does not belong to the edition.")
+    if warning.resolved_at is None:
+        warning.resolved_at = timezone.now()
+        warning.resolved_by = reviewer
+        warning.save(update_fields=["resolved_at", "resolved_by", "updated_at"])
+    return warning
 
 
 @transaction.atomic

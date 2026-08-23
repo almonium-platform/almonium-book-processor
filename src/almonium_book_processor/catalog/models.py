@@ -225,6 +225,70 @@ class BlockAlignment(TimestampedModel):
         indexes = [models.Index(fields=["source_edition", "target_edition", "confidence"])]
 
 
+class AlignmentGroupReview(TimestampedModel):
+    class Decision(models.TextChoices):
+        ACCEPTED = "accepted", "Accepted"
+        REPAIRED = "repaired", "Manually repaired"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    target_edition = models.ForeignKey(
+        Edition,
+        related_name="alignment_group_reviews",
+        on_delete=models.CASCADE,
+    )
+    group_id = models.UUIDField()
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="alignment_group_reviews",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    decision = models.CharField(max_length=20, choices=Decision.choices)
+    source_block_ids = models.JSONField(default=list)
+    target_block_ids = models.JSONField(default=list)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["target_edition", "group_id"],
+                name="catalog_alignment_review_edition_group_unique",
+            )
+        ]
+
+
+class ContentBlockRevision(TimestampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    edition = models.ForeignKey(
+        Edition,
+        related_name="block_revisions",
+        on_delete=models.CASCADE,
+    )
+    block = models.ForeignKey(
+        ContentBlock,
+        related_name="revisions",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    stable_block_id = models.CharField(max_length=80)
+    editor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="book_block_revisions",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    previous_text = models.TextField()
+    revised_text = models.TextField()
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class PipelineRun(TimestampedModel):
     class Stage(models.TextChoices):
         INGEST = "ingest", "Source ingestion"

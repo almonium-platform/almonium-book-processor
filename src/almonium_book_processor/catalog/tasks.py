@@ -140,9 +140,17 @@ def _text_hash(*values: object) -> str:
     return digest.hexdigest()
 
 
+def _edition_content_hash(edition: Edition) -> str:
+    return _text_hash(
+        *edition.blocks.order_by("chapter__sequence", "sequence").values_list("block_id", "text")
+    )
+
+
 def _finish_normalized_pipeline(edition: Edition) -> None:
     edition.refresh_from_db()
-    has_review_items = edition.warnings.exclude(severity=QAWarning.Severity.INFO).exists()
+    has_review_items = (
+        edition.warnings.exclude(severity=QAWarning.Severity.INFO).filter(resolved_at=None).exists()
+    )
     edition.status = (
         Edition.Status.READY
         if edition.work.visibility == Work.Visibility.PRIVATE
@@ -210,11 +218,21 @@ def publish_edition(edition_id: str) -> None:
     if edition.work.publication_year is None:
         raise ValueError("A publication year is required before publication.")
     spacy_model = settings.NLP_SPACY_MODELS.get(edition.language, "blank")
-    sentence_input_hash = _text_hash(edition.source_sha256, edition.language, spacy_model)
+    sentence_input_hash = _text_hash(
+        edition.source_sha256,
+        edition.language,
+        spacy_model,
+        _edition_content_hash(edition),
+    )
+    valid_sentence_hashes = [sentence_input_hash]
+    if not edition.block_revisions.exists():
+        valid_sentence_hashes.append(
+            _text_hash(edition.source_sha256, edition.language, spacy_model)
+        )
     if not edition.pipeline_runs.filter(
         stage=PipelineRun.Stage.SENTENCES,
         status=PipelineRun.Status.SUCCEEDED,
-        input_hash=sentence_input_hash,
+        input_hash__in=valid_sentence_hashes,
     ).exists():
         raise ValueError("Current sentence splitting must succeed before publication.")
     if edition.source_edition_id:
@@ -297,7 +315,12 @@ def report_private_import_available(edition_id: str) -> None:
 def split_edition_sentences(edition_id: str) -> None:
     edition = Edition.objects.get(id=edition_id)
     spacy_model = settings.NLP_SPACY_MODELS.get(edition.language, "blank")
-    input_hash = _text_hash(edition.source_sha256, edition.language, spacy_model)
+    input_hash = _text_hash(
+        edition.source_sha256,
+        edition.language,
+        spacy_model,
+        _edition_content_hash(edition),
+    )
     run, _ = PipelineRun.objects.get_or_create(
         idempotency_key=f"{edition.id}:{input_hash}:sentences:{__version__}",
         defaults={

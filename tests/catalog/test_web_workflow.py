@@ -14,9 +14,11 @@ from rest_framework.test import APIClient
 from almonium_book_processor.catalog.admin import EditionAdminForm, WorkAdminForm
 from almonium_book_processor.catalog.forms import EditionUploadForm
 from almonium_book_processor.catalog.models import (
+    AlignmentGroupReview,
     BlockAlignment,
     Chapter,
     ContentBlock,
+    ContentBlockRevision,
     Edition,
     PipelineRun,
     QAWarning,
@@ -413,7 +415,16 @@ def test_staff_can_complete_review_from_the_edition_page(client) -> None:
 
     page = client.get(reverse("catalog:edition-detail", args=[edition.id]))
     assert page.status_code == 200
-    assert "Complete review" in page.content.decode()
+    assert "Resolve the 1 remaining review item" in page.content.decode()
+    blocked_response = client.post(
+        reverse("catalog:complete-edition-review", args=[edition.id]),
+        {"notes": "The missing image is decorative."},
+    )
+    edition.refresh_from_db()
+    assert blocked_response.status_code == 302
+    assert edition.status == Edition.Status.REVIEW
+
+    client.post(reverse("catalog:resolve-warning", args=[edition.id, edition.warnings.get().id]))
     response = client.post(
         reverse("catalog:complete-edition-review", args=[edition.id]),
         {"notes": "The missing image is decorative."},
@@ -427,6 +438,206 @@ def test_staff_can_complete_review_from_the_edition_page(client) -> None:
     assert decision.source_sha256 == "b" * 64
     assert decision.actionable_warning_count == 1
     assert decision.notes == "The missing image is decorative."
+
+
+def alignment_review_records() -> tuple:
+    work = Work.objects.create(
+        slug="alignment-review-work",
+        title="Alignment Review Work",
+        author="Ada Author",
+        original_language="en",
+    )
+    source = Edition.objects.create(
+        slug="alignment-review-work-en",
+        work=work,
+        title="Alignment Review Work",
+        author="Ada Author",
+        language="en",
+        source_sha256="1" * 64,
+        status=Edition.Status.READY,
+    )
+    target = Edition.objects.create(
+        slug="alignment-review-work-fr",
+        work=work,
+        source_edition=source,
+        title="Œuvre à réviser",
+        author="Ada Author",
+        language="fr",
+        edition_type=Edition.EditionType.HUMAN_TRANSLATION,
+        source_sha256="2" * 64,
+        status=Edition.Status.REVIEW,
+    )
+    source_chapter = Chapter.objects.create(edition=source, sequence=1, title="One")
+    target_chapter = Chapter.objects.create(edition=target, sequence=1, title="Un")
+    source_blocks = [
+        ContentBlock.objects.create(
+            edition=source,
+            chapter=source_chapter,
+            block_id=f"c1.p{sequence}",
+            sequence=sequence,
+            block_type=ContentBlock.BlockType.PARAGRAPH,
+            text=text,
+        )
+        for sequence, text in enumerate(("First source.", "Second source."), start=1)
+    ]
+    target_blocks = [
+        ContentBlock.objects.create(
+            edition=target,
+            chapter=target_chapter,
+            block_id=f"c1.p{sequence}",
+            sequence=sequence,
+            block_type=ContentBlock.BlockType.PARAGRAPH,
+            text=text,
+            sentences=[{"id": f"c1.p{sequence}.s1", "start": 0, "end": len(text)}],
+        )
+        for sequence, text in enumerate(("Première cible.", "Deuxième cible."), start=1)
+    ]
+    group_id = uuid.uuid4()
+    BlockAlignment.objects.create(
+        source_edition=source,
+        target_edition=target,
+        source_block=source_blocks[0],
+        target_block=target_blocks[0],
+        group_id=group_id,
+        confidence=0.61,
+        strategy="multilingual-embedding-monotonic-v2",
+    )
+    warning = QAWarning.objects.create(
+        edition=target,
+        block=target_blocks[0],
+        code="alignment_low_confidence",
+        severity=QAWarning.Severity.WARNING,
+        message="Review this alignment group.",
+    )
+    return target, source_blocks, target_blocks, group_id, warning
+
+
+def test_alignment_review_shows_pairs_gaps_and_accepts_group(client) -> None:
+    target, _, _, group_id, warning = alignment_review_records()
+    staff = get_user_model().objects.create_user(username="aligner", password="safe-password")
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    client.force_login(staff)
+
+    page = client.get(reverse("catalog:alignment-review", args=[target.id]))
+
+    content = page.content.decode()
+    assert page.status_code == 200
+    assert "First source." in content
+    assert "Première cible." in content
+    assert "Second source." in content
+    assert "Deuxième cible." in content
+    assert "61%" in content
+    assert "Unmatched blocks" in content
+
+    response = client.post(
+        reverse("catalog:accept-alignment-group", args=[target.id, group_id]),
+        {"chapter": "1", "notes": "Meaning and paragraph boundaries match."},
+    )
+
+    assert response.status_code == 302
+    warning.refresh_from_db()
+    review = AlignmentGroupReview.objects.get(target_edition=target, group_id=group_id)
+    assert warning.resolved_by == staff
+    assert review.decision == AlignmentGroupReview.Decision.ACCEPTED
+    assert review.notes == "Meaning and paragraph boundaries match."
+
+
+def test_alignment_review_can_accept_a_chapter(client) -> None:
+    target, _, _, group_id, warning = alignment_review_records()
+    staff = get_user_model().objects.create_user(
+        username="chapter-reviewer", password="safe-password"
+    )
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    client.force_login(staff)
+
+    response = client.post(
+        reverse("catalog:accept-alignment-chapter", args=[target.id]),
+        {"chapter": "1", "notes": "Compared every visible group in this chapter."},
+    )
+
+    assert response.status_code == 302
+    warning.refresh_from_db()
+    review = AlignmentGroupReview.objects.get(target_edition=target, group_id=group_id)
+    assert warning.resolved_at is not None
+    assert review.reviewer == staff
+    assert review.notes == "Compared every visible group in this chapter."
+
+
+def test_alignment_review_can_replace_groups_with_manual_pairing(client) -> None:
+    target, source_blocks, target_blocks, _, _ = alignment_review_records()
+    BlockAlignment.objects.create(
+        source_edition=target.source_edition,
+        target_edition=target,
+        source_block=source_blocks[1],
+        target_block=target_blocks[1],
+        group_id=uuid.uuid4(),
+        confidence=0.8,
+        strategy="multilingual-embedding-monotonic-v2",
+    )
+    staff = get_user_model().objects.create_user(username="repairer", password="safe-password")
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    client.force_login(staff)
+
+    response = client.post(
+        reverse("catalog:repair-alignment", args=[target.id]),
+        {
+            "chapter": "1",
+            "source_blocks": [str(block.id) for block in source_blocks],
+            "target_blocks": [str(target_blocks[0].id)],
+            "notes": "Two source paragraphs map to one French paragraph.",
+        },
+    )
+
+    assert response.status_code == 302
+    alignments = list(BlockAlignment.objects.filter(target_edition=target))
+    assert len(alignments) == 2
+    assert {alignment.source_block for alignment in alignments} == set(source_blocks)
+    assert {alignment.target_block for alignment in alignments} == {target_blocks[0]}
+    assert {alignment.strategy for alignment in alignments} == {"human-reviewed-v1"}
+    review = AlignmentGroupReview.objects.get(target_edition=target)
+    assert review.decision == AlignmentGroupReview.Decision.REPAIRED
+
+
+def test_alignment_review_edits_target_text_with_audit(
+    client, monkeypatch, django_capture_on_commit_callbacks
+) -> None:
+    target, _, target_blocks, _, _ = alignment_review_records()
+    target.word_count = 4
+    target.save(update_fields=["word_count"])
+    staff = get_user_model().objects.create_user(username="editor", password="safe-password")
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    queued: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.split_edition_sentences.delay",
+        lambda edition_id: queued.append(edition_id),
+    )
+    client.force_login(staff)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.post(
+            reverse("catalog:edit-alignment-target", args=[target.id, target_blocks[0].id]),
+            {
+                "chapter": "1",
+                "text": "Première cible corrigée.",
+                "notes": "Corrected the translation punctuation.",
+            },
+        )
+
+    assert response.status_code == 302
+    target_blocks[0].refresh_from_db()
+    target.refresh_from_db()
+    revision = ContentBlockRevision.objects.get(edition=target)
+    assert target_blocks[0].text == "Première cible corrigée."
+    assert target_blocks[0].sentences == []
+    assert revision.previous_text == "Première cible."
+    assert revision.revised_text == "Première cible corrigée."
+    assert revision.editor == staff
+    assert target.word_count == 5
+    assert queued == [str(target.id)]
 
 
 def test_schema_one_json_import_migrates_and_uses_uuid_identity() -> None:

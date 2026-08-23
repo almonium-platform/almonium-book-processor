@@ -43,6 +43,37 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .metrics strong { font: 1.8rem Georgia, serif; }
 .metrics span { color: var(--muted); font-size: .8rem; }
 .warning { display: flex; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid var(--line); }
+.warning { justify-content: space-between; align-items: center; }
+.warning p { margin: .35rem 0 0; }
+.chapter-nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1rem 0 1.5rem; }
+.chapter-nav a { min-width: 2.2rem; padding: .45rem .65rem; border: 1px solid var(--line); border-radius: 8px; background: var(--card); text-align: center; text-decoration: none; }
+.chapter-nav a.current { background: var(--accent); border-color: var(--accent); color: white; }
+.alignment-heading .button-row { align-items: center; justify-content: flex-end; }
+.review-toolbar h2, .section-heading h2, .alignment-group h3 { margin-top: .2rem; }
+.repair-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: end; }
+.repair-form label { display: grid; gap: .4rem; font-size: .82rem; font-weight: 700; }
+.repair-form select { min-height: 12rem; }
+.repair-notes { grid-column: 1 / -1; }
+.section-heading { display: flex; align-items: end; justify-content: space-between; }
+.chapter-accept-form { display: flex; gap: .6rem; align-items: center; }
+.alignment-group { background: var(--card); border: 1px solid var(--line); border-left: 7px solid var(--red); border-radius: 14px; padding: 1.2rem; margin: 1rem 0; box-shadow: 0 10px 25px rgba(61,45,31,.04); }
+.alignment-group.confidence-medium { border-left-color: #b18236; }
+.alignment-group.confidence-high, .alignment-group.reviewed { border-left-color: var(--green); }
+.alignment-group > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.alignment-group > header div { display: flex; align-items: center; gap: .7rem; }
+.confidence { font: 1.35rem Georgia, serif; }
+.alignment-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.review-block { background: white; border: 1px solid var(--line); border-radius: 10px; padding: 1rem; margin: .6rem 0; line-height: 1.55; }
+.review-block p { white-space: normal; }
+.review-block.unmatched { background: #fff3df; border-style: dashed; }
+.review-block details { border-top: 1px solid var(--line); padding-top: .7rem; margin-top: .7rem; }
+.review-block summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+.review-block details form, .accept-form { display: grid; gap: .6rem; margin-top: .7rem; }
+.review-block details .button, .accept-form .button { justify-self: start; }
+.accept-form { grid-template-columns: minmax(220px, 1fr) auto; align-items: center; border-top: 1px solid var(--line); padding-top: 1rem; }
+.group-warnings { background: #fff3df; border-radius: 9px; padding: 0 .8rem; margin-top: 1rem; }
+.revision { border-bottom: 1px solid var(--line); padding: .7rem 0; }
+.revision summary { cursor: pointer; font-weight: 700; }
 .review-panel form { display: grid; gap: .8rem; margin-top: 1rem; }
 .review-panel label, .release-form label { display: grid; gap: .4rem; font-size: .82rem; font-weight: 700; }
 .review-panel .button { justify-self: start; }
@@ -53,4 +84,4 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .block aside { color: var(--muted); font-size: .72rem; }
 .message { padding: 1rem; border-radius: 10px; margin-bottom: 1rem; background: #e1eee5; }
 .errorlist { color: var(--red); margin: .25rem 0; }
-@media (max-width: 700px) { .topbar { align-items: flex-start; padding-block: 1rem; } .topbar nav { flex-direction: column; align-items: flex-end; gap: .4rem; } .form-grid, .metrics { grid-template-columns: 1fr; } .run-row { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .topbar { align-items: flex-start; padding-block: 1rem; } .topbar nav { flex-direction: column; align-items: flex-end; gap: .4rem; } .form-grid, .metrics, .repair-form, .alignment-columns { grid-template-columns: 1fr; } .repair-notes { grid-column: auto; } .run-row { grid-template-columns: 1fr; } .alignment-group > header, .section-heading { align-items: flex-start; flex-direction: column; } .accept-form { grid-template-columns: 1fr; } .chapter-accept-form { align-items: stretch; flex-direction: column; width: 100%; } }

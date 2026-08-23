@@ -39,16 +39,16 @@ paid adjudication queue.
 
 ## Next: alignment review workflow
 
-- [ ] Side-by-side chapter review with alignment confidence highlighting.
-- [ ] Display unmatched source and target blocks rather than silently omitting them.
-- [ ] Allow an operator to merge, split, and re-pair alignment groups.
-- [ ] Allow inline correction of derived-edition text with an audit record.
-- [ ] Resolve individual QA warnings and distinguish automatic from reviewed groups.
+- [x] Side-by-side chapter review with alignment confidence highlighting.
+- [x] Display unmatched source and target blocks rather than silently omitting them.
+- [x] Allow an operator to merge, split, and re-pair alignment groups.
+- [x] Allow inline correction of derived-edition text with an audit record.
+- [x] Resolve individual QA warnings and distinguish automatic from reviewed groups.
 - [ ] Add language, chapter-size, paragraph-count, and boilerplate QA gates.
-- [ ] Prevent review completion while required error-severity checks remain unresolved.
+- [x] Prevent review completion while actionable checks remain unresolved.
 
-The existing edition page, Django data admin, warning inbox, and review decision
-record are foundations, not the completed alignment-review UI.
+The alignment workspace supports chapter review and auditable corrections. The
+remaining deterministic QA gates should be added before AI adjudication.
 
 ## Then: AI for exceptional cases
 

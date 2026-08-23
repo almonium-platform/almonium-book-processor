@@ -3,9 +3,11 @@ from django.contrib import admin
 
 from almonium_book_processor.catalog.models import (
     AIRun,
+    AlignmentGroupReview,
     BlockAlignment,
     Chapter,
     ContentBlock,
+    ContentBlockRevision,
     Edition,
     ModelConfiguration,
     PipelineRun,
@@ -143,3 +145,5 @@ admin.site.register(PromptTemplate)
 admin.site.register(AIRun)
 admin.site.register(UserErrorReport)
 admin.site.register(BlockAlignment)
+admin.site.register(AlignmentGroupReview)
+admin.site.register(ContentBlockRevision)
