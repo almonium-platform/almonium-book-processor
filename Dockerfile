@@ -34,7 +34,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     SECRET_KEY=build-only-secret-key-not-used-at-runtime \
     ALLOWED_HOSTS=localhost \
     python manage.py collectstatic --noinput && \
-    mkdir -p /app/media && \
+    mkdir -p /app/media /app/models && \
     chown -R app:app /app
 
 USER app

@@ -75,6 +75,13 @@ services:
       timeout: 5s
       retries: 20
 
+  model-cache-init:
+    build: .
+    user: root
+    command: ["chown", "-R", "app:app", "/app/models"]
+    volumes:
+      - books-models:/app/models
+
   worker:
     build: .
     environment: *app-environment
@@ -87,6 +94,8 @@ services:
     depends_on:
       web:
         condition: service_healthy
+      model-cache-init:
+        condition: service_completed_successfully
 
 volumes:
   books-postgres:

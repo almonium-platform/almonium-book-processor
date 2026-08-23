@@ -15,7 +15,11 @@ from almonium_book_processor.catalog.services import (
     import_legacy_artifacts,
     release_private_import,
 )
-from almonium_book_processor.catalog.tasks import process_book_pipeline, publish_edition
+from almonium_book_processor.catalog.tasks import (
+    process_book_pipeline,
+    process_normalized_edition,
+    publish_edition,
+)
 
 
 def _edition_cards(visibility: str):
@@ -165,17 +169,18 @@ def publish_edition_to_almonium(request: HttpRequest, edition_id: str) -> HttpRe
 
 @staff_member_required
 @require_POST
-def retry_private_import(request: HttpRequest, edition_id: str) -> HttpResponse:
+def retry_failed_edition(request: HttpRequest, edition_id: str) -> HttpResponse:
     edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
-    if edition.work.visibility != Work.Visibility.PRIVATE:
-        messages.error(request, "Only private imports can use this retry action.")
-    elif edition.status != Edition.Status.FAILED:
-        messages.error(request, "Only failed imports can be retried.")
-    elif not edition.source_file:
-        messages.error(request, "The original source file is no longer available.")
-    else:
+    if edition.status != Edition.Status.FAILED:
+        messages.error(request, "Only failed editions can be retried.")
+    elif edition.source_file:
         process_book_pipeline.delay(str(edition.id))
-        messages.success(request, "Private import reprocessing queued.")
+        messages.success(request, "Source reprocessing queued.")
+    elif edition.blocks.exists():
+        process_normalized_edition.delay(str(edition.id))
+        messages.success(request, "Normalized content reprocessing queued.")
+    else:
+        messages.error(request, "No source file or normalized content is available to retry.")
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
 

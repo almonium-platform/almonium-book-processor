@@ -21,9 +21,9 @@ urlpatterns = [
         name="publish-edition",
     ),
     path(
-        "editions/<uuid:edition_id>/retry-private/",
-        views.retry_private_import,
-        name="retry-private-import",
+        "editions/<uuid:edition_id>/retry/",
+        views.retry_failed_edition,
+        name="retry-edition",
     ),
     path(
         "editions/<uuid:edition_id>/release-private/",

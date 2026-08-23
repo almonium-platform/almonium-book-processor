@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import uuid
 from io import BytesIO
 
@@ -428,7 +429,7 @@ def test_staff_can_complete_review_from_the_edition_page(client) -> None:
     assert decision.notes == "The missing image is decorative."
 
 
-def test_migrated_json_import_uses_uuid_identity() -> None:
+def test_schema_one_json_import_migrates_and_uses_uuid_identity() -> None:
     artifact = BookArtifact(
         processor_version="0.1.0",
         edition=EditionMetadata(
@@ -454,7 +455,14 @@ def test_migrated_json_import_uses_uuid_identity() -> None:
             )
         ],
     )
-    upload = BytesIO(artifact.model_dump_json().encode())
+    payload = artifact.model_dump(mode="json")
+    payload["schema_version"] = 1
+    payload["edition"]["edition_id"] = payload["edition"].pop("edition_slug")
+    payload["edition"]["work_id"] = payload["edition"].pop("work_slug")
+    for block in payload["blocks"]:
+        block["schema_version"] = 1
+        block["edition_id"] = block.pop("edition_slug")
+    upload = BytesIO(json.dumps(payload).encode())
 
     edition = import_legacy_artifact(upload)
 
@@ -576,6 +584,50 @@ def test_staff_can_release_repaired_private_content(
     edition.refresh_from_db()
     assert edition.status == Edition.Status.READY
     assert edition.review_decisions.get().notes == "Checked the repaired paragraph."
+    assert queued == [str(edition.id)]
+
+
+def test_staff_can_retry_failed_legacy_edition(client, monkeypatch) -> None:
+    staff = get_user_model().objects.create_user(username="retryer", password="safe-password")
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    work = Work.objects.create(
+        slug="retry-work",
+        title="Retry Work",
+        author="Retry Author",
+        original_language="en",
+    )
+    edition = Edition.objects.create(
+        slug="retry-work-fr",
+        work=work,
+        title="Retry Work",
+        author="Retry Author",
+        language="fr",
+        source_sha256="d" * 64,
+        status=Edition.Status.FAILED,
+    )
+    chapter = Chapter.objects.create(edition=edition, sequence=1, title="One")
+    ContentBlock.objects.create(
+        edition=edition,
+        chapter=chapter,
+        block_id="c1.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="Contenu normalisé.",
+    )
+    queued: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.process_normalized_edition.delay",
+        lambda edition_id: queued.append(edition_id),
+    )
+    client.force_login(staff)
+
+    detail = client.get(reverse("catalog:edition-detail", args=[edition.id]))
+    response = client.post(reverse("catalog:retry-edition", args=[edition.id]))
+
+    assert detail.status_code == 200
+    assert "Retry processing" in detail.content.decode()
+    assert response.status_code == 302
     assert queued == [str(edition.id)]
 
 

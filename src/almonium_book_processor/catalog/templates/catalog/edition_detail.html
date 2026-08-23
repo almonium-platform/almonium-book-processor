@@ -34,6 +34,23 @@
   {% if current_review.notes %}<p class="muted">{{ current_review.notes }}</p>{% endif %}
 </section>
 {% endif %}
+{% if edition.status == "failed" %}
+<section class="panel recovery-panel">
+  <p class="eyebrow">Operator recovery</p>
+  <h2>Retry failed processing</h2>
+  <p>Retry after correcting the worker, importer, or source problem. Existing normalized content is reused when the original source file is unavailable.</p>
+  <div class="button-row">
+    <form method="post" action="{% url 'catalog:retry-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit">Retry processing</button></form>
+  </div>
+  {% if is_private and has_blocks %}
+  <form class="release-form" method="post" action="{% url 'catalog:release-private-import' edition.id %}">
+    {% csrf_token %}
+    <label><span>Repair notes</span><textarea name="notes" rows="3" placeholder="What was checked or corrected?"></textarea></label>
+    <button class="button button-secondary" type="submit">Make repaired content available</button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
 {% if is_private %}
   {% if edition.status == "ready" %}
     <section class="panel review-complete">
@@ -41,14 +58,11 @@
       <p>The normalized text is already available in the owner's private reader. This is not a public publication.</p>
       <form method="post" action="{% url 'catalog:release-private-import' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Resend availability update</button></form>
     </section>
-  {% elif edition.status == "failed" or edition.status == "review" %}
+  {% elif edition.status == "review" %}
     <section class="panel recovery-panel">
       <p class="eyebrow">Operator recovery</p>
       <h2>Repair this private import</h2>
-      <p>Retry after fixing the importer or source. If you repaired the normalized blocks manually, release that content directly to the owner.</p>
-      {% if edition.status == "failed" %}<div class="button-row">
-        <form method="post" action="{% url 'catalog:retry-private-import' edition.id %}">{% csrf_token %}<button class="button" type="submit">Retry processing</button></form>
-      </div>{% endif %}
+      <p>If you repaired the normalized blocks manually, release that content directly to the owner.</p>
       {% if has_blocks %}
       <form class="release-form" method="post" action="{% url 'catalog:release-private-import' edition.id %}">
         {% csrf_token %}
