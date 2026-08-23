@@ -85,6 +85,27 @@ def _mean_vector(vectors: list[list[float]]) -> list[float]:
     return [sum(values) / len(vectors) for values in zip(*vectors, strict=True)]
 
 
+def aggregate_embeddings(
+    vectors: list[list[float]],
+    groups: list[list[int]],
+) -> list[list[float]]:
+    """Aggregate normalized block embeddings into normalized group embeddings.
+
+    Chapter alignment uses this to compare chapter semantics before block-level
+    alignment.  Normalising the means keeps cosine scores comparable even when
+    chapters contain different numbers of blocks.
+    """
+
+    aggregates: list[list[float]] = []
+    for indices in groups:
+        if not indices:
+            raise ValueError("Embedding groups cannot be empty")
+        mean = _mean_vector([vectors[index] for index in indices])
+        norm = math.sqrt(sum(value * value for value in mean))
+        aggregates.append([value / norm for value in mean] if norm else mean)
+    return aggregates
+
+
 def _alignment_confidence(
     source: list[list[float]],
     target: list[list[float]],

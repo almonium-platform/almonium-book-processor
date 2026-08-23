@@ -1,8 +1,11 @@
 # syntax=docker/dockerfile:1.7
 
 ARG DEPENDENCIES_IMAGE=dependencies
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
 
 FROM python:3.12-slim AS dependencies
+
+ARG TORCH_INDEX_URL
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -16,7 +19,7 @@ RUN groupadd --system --gid 10001 app && \
 COPY pyproject.toml ./
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python -c 'import subprocess, sys, tomllib; project = tomllib.load(open("pyproject.toml", "rb"))["project"]; subprocess.check_call([sys.executable, "-m", "pip", "install", *project["dependencies"], *project["optional-dependencies"]["worker"]])'
+    python -c 'import os, subprocess, sys, tomllib; project = tomllib.load(open("pyproject.toml", "rb"))["project"]; subprocess.check_call([sys.executable, "-m", "pip", "install", "--index-url", os.environ["TORCH_INDEX_URL"], "torch>=2.1"]); subprocess.check_call([sys.executable, "-m", "pip", "install", *project["dependencies"], *project["optional-dependencies"]["worker"]])'
 
 FROM ${DEPENDENCIES_IMAGE} AS runtime
 

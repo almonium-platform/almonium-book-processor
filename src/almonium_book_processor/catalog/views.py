@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import connection
@@ -15,6 +16,7 @@ from almonium_book_processor.catalog.forms import EditionUploadForm, LegacyArtif
 from almonium_book_processor.catalog.models import (
     AlignmentGroupReview,
     BlockAlignment,
+    ChapterAlignment,
     Edition,
     PipelineRun,
     QAWarning,
@@ -31,6 +33,7 @@ from almonium_book_processor.catalog.services import (
     revise_target_block,
 )
 from almonium_book_processor.catalog.tasks import (
+    prepare_ai_alignment,
     process_book_pipeline,
     process_normalized_edition,
     publish_edition,
@@ -156,15 +159,18 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
         id=edition_id,
         source_edition__isnull=False,
     )
-    chapter_numbers = sorted(
-        set(edition.chapters.values_list("sequence", flat=True))
-        | set(edition.source_edition.chapters.values_list("sequence", flat=True))
-    )
+    chapter_numbers = list(edition.chapters.order_by("sequence").values_list("sequence", flat=True))
     if not chapter_numbers:
         return render(
             request,
             "catalog/alignment_review.html",
-            {"edition": edition, "chapter_numbers": [], "alignment_groups": []},
+            {
+                "edition": edition,
+                "chapter_numbers": [],
+                "alignment_groups": [],
+                "recent_ai_runs": edition.ai_runs.select_related("model_configuration")[:5],
+                "ai_enabled": bool(settings.OPENAI_API_KEY),
+            },
         )
     try:
         chapter = int(request.GET.get("chapter", chapter_numbers[0]))
@@ -173,8 +179,19 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
     if chapter not in chapter_numbers:
         chapter = chapter_numbers[0]
 
+    chapter_mappings = list(
+        ChapterAlignment.objects.filter(
+            target_edition=edition,
+            target_chapter__sequence=chapter,
+        ).select_related("source_chapter", "target_chapter")
+    )
+    source_chapter_numbers = sorted(
+        {mapping.source_chapter.sequence for mapping in chapter_mappings}
+    ) or [chapter]
     source_blocks = list(
-        edition.source_edition.blocks.filter(chapter__sequence=chapter).order_by("sequence")
+        edition.source_edition.blocks.filter(chapter__sequence__in=source_chapter_numbers).order_by(
+            "chapter__sequence", "sequence"
+        )
     )
     target_blocks = list(edition.blocks.filter(chapter__sequence=chapter).order_by("sequence"))
     alignments = list(
@@ -252,6 +269,8 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
             "edition": edition,
             "chapter": chapter,
             "chapter_numbers": chapter_numbers,
+            "chapter_mappings": chapter_mappings,
+            "source_chapter_numbers": source_chapter_numbers,
             "alignment_groups": alignment_groups,
             "source_blocks": source_blocks,
             "target_blocks": target_blocks,
@@ -267,6 +286,10 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
             "recent_revisions": edition.block_revisions.filter(
                 block__chapter__sequence=chapter
             ).select_related("editor")[:10],
+            "recent_ai_runs": edition.ai_runs.select_related(
+                "model_configuration", "prompt_template"
+            )[:5],
+            "ai_enabled": bool(settings.OPENAI_API_KEY),
         },
     )
 
@@ -274,6 +297,22 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
 def _review_redirect(edition_id: str, chapter: str) -> HttpResponse:
     url = f"{reverse('catalog:alignment-review', args=[edition_id])}?chapter={chapter}"
     return redirect(url)
+
+
+@staff_member_required
+@require_POST
+def queue_ai_alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
+    edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
+    if not settings.OPENAI_API_KEY:
+        messages.error(request, "OPENAI_API_KEY is not configured for this service.")
+    else:
+        prepare_ai_alignment.delay(str(edition.id))
+        messages.success(
+            request,
+            "Hierarchical alignment and OpenAI Batch review queued. "
+            "The Batch window is up to 24 hours.",
+        )
+    return _review_redirect(str(edition.id), request.POST.get("chapter", "1"))
 
 
 @staff_member_required

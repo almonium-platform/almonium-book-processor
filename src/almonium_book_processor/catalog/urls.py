@@ -16,6 +16,11 @@ urlpatterns = [
         name="alignment-review",
     ),
     path(
+        "editions/<uuid:edition_id>/alignment-review/ai/queue/",
+        views.queue_ai_alignment_review,
+        name="queue-ai-alignment-review",
+    ),
+    path(
         "editions/<uuid:edition_id>/alignment-review/groups/<uuid:group_id>/accept/",
         views.accept_alignment_group,
         name="accept-alignment-group",

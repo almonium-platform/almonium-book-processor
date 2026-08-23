@@ -17,6 +17,7 @@ from almonium_book_processor.catalog.models import (
     AlignmentGroupReview,
     BlockAlignment,
     Chapter,
+    ChapterAlignment,
     ContentBlock,
     ContentBlockRevision,
     Edition,
@@ -1010,6 +1011,76 @@ def test_offline_sentence_and_alignment_tasks(monkeypatch) -> None:
     assert alignment.source_block == source_block
     assert alignment.target_block == target_block
     assert alignment.confidence == pytest.approx(1.0)
+
+
+def test_alignment_maps_merged_chapters_before_aligning_blocks(monkeypatch) -> None:
+    work = Work.objects.create(
+        slug="merged-chapter-work",
+        title="Merged Chapter Work",
+        author="Ada Author",
+        original_language="en",
+    )
+    source = Edition.objects.create(
+        slug="merged-chapter-work-en",
+        work=work,
+        title=work.title,
+        author=work.author,
+        language="en",
+        source_sha256="7" * 64,
+    )
+    target = Edition.objects.create(
+        slug="merged-chapter-work-fr",
+        work=work,
+        source_edition=source,
+        title=work.title,
+        author=work.author,
+        language="fr",
+        edition_type=Edition.EditionType.HUMAN_TRANSLATION,
+        source_sha256="8" * 64,
+    )
+    for sequence in range(1, 4):
+        chapter = Chapter.objects.create(edition=source, sequence=sequence)
+        ContentBlock.objects.create(
+            edition=source,
+            chapter=chapter,
+            block_id=f"c{sequence}.p1",
+            sequence=1,
+            block_type=ContentBlock.BlockType.PARAGRAPH,
+            text=f"Source chapter {sequence}.",
+        )
+    for sequence in range(1, 3):
+        chapter = Chapter.objects.create(edition=target, sequence=sequence)
+        ContentBlock.objects.create(
+            edition=target,
+            chapter=chapter,
+            block_id=f"c{sequence}.p1",
+            sequence=1,
+            block_type=ContentBlock.BlockType.PARAGRAPH,
+            text=f"Target chapter {sequence}.",
+        )
+    vectors = iter(
+        (
+            [[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]],
+            [[2**-0.5, 2**-0.5], [-1.0, 0.0]],
+        )
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.embed_texts",
+        lambda texts: next(vectors),
+    )
+
+    align_edition_to_source.run(str(target.id))
+
+    chapter_pairs = set(
+        ChapterAlignment.objects.values_list("source_chapter__sequence", "target_chapter__sequence")
+    )
+    assert chapter_pairs == {(1, 1), (2, 1), (3, 2)}
+    first_target_sources = set(
+        BlockAlignment.objects.filter(target_block__chapter__sequence=1).values_list(
+            "source_block__chapter__sequence", flat=True
+        )
+    )
+    assert first_target_sources == {1, 2}
 
 
 def test_normalized_pipeline_groups_split_blocks_and_finishes_ready(monkeypatch) -> None:

@@ -32,6 +32,7 @@ dev = [
   "ruff>=0.9,<1",
 ]
 worker = [
+  "openai>=2.8,<3",
   "sentence-transformers>=5.1,<6",
   "spacy>=3.8,<4",
 ]

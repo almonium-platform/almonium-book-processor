@@ -6,6 +6,7 @@ from almonium_book_processor.catalog.models import (
     AlignmentGroupReview,
     BlockAlignment,
     Chapter,
+    ChapterAlignment,
     ContentBlock,
     ContentBlockRevision,
     Edition,
@@ -145,5 +146,6 @@ admin.site.register(PromptTemplate)
 admin.site.register(AIRun)
 admin.site.register(UserErrorReport)
 admin.site.register(BlockAlignment)
+admin.site.register(ChapterAlignment)
 admin.site.register(AlignmentGroupReview)
 admin.site.register(ContentBlockRevision)

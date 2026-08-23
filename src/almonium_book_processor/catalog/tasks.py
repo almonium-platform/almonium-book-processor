@@ -15,6 +15,7 @@ from almonium_book_processor import __version__
 from almonium_book_processor.catalog.import_events import send_private_import_event
 from almonium_book_processor.catalog.models import (
     BlockAlignment,
+    ChapterAlignment,
     ContentBlock,
     Edition,
     PipelineRun,
@@ -26,6 +27,7 @@ from almonium_book_processor.catalog.services import persist_artifact
 from almonium_book_processor.ingest.source import ingest_source, source_format
 from almonium_book_processor.processing.nlp import (
     AlignmentCandidate,
+    aggregate_embeddings,
     align_embeddings,
     embed_texts,
     split_sentences,
@@ -34,9 +36,16 @@ from almonium_book_processor.processing.nlp import (
 logger = logging.getLogger(__name__)
 
 ALIGNMENT_CANDIDATE_MIN_CONFIDENCE = 0.45
+CHAPTER_ALIGNMENT_MIN_CONFIDENCE = 0.32
 ALIGNMENT_REVIEW_CONFIDENCE = 0.72
 ALIGNMENT_MIN_COVERAGE = 0.90
-ALIGNMENT_WARNING_CODES = {"alignment_incomplete", "alignment_low_confidence"}
+ALIGNMENT_WARNING_CODES = {
+    "alignment_ai_uncertain",
+    "alignment_chapter_low_confidence",
+    "alignment_incomplete",
+    "alignment_low_confidence",
+}
+ALIGNMENT_PROCESSOR_VERSION = f"{__version__}:hierarchical-v1"
 
 
 def _copy_source_to_temporary_file(edition: Edition) -> tuple[Path, str]:
@@ -387,11 +396,11 @@ def align_edition_to_source(edition_id: str) -> None:
         settings.NLP_EMBEDDING_MODEL,
     )
     run, _ = PipelineRun.objects.get_or_create(
-        idempotency_key=f"{edition.id}:{input_hash}:align:{__version__}",
+        idempotency_key=f"{edition.id}:{input_hash}:align:{ALIGNMENT_PROCESSOR_VERSION}",
         defaults={
             "edition": edition,
             "stage": PipelineRun.Stage.ALIGN,
-            "processor_version": __version__,
+            "processor_version": ALIGNMENT_PROCESSOR_VERSION,
             "input_hash": input_hash,
         },
     )
@@ -400,36 +409,71 @@ def align_edition_to_source(edition_id: str) -> None:
 
     run.status = PipelineRun.Status.RUNNING
     run.started_at = timezone.now()
+    run.progress = 5
     run.error = ""
-    run.save(update_fields=["status", "started_at", "error", "updated_at"])
+    run.save(update_fields=["status", "started_at", "progress", "error", "updated_at"])
     try:
-        source_blocks = list(source_edition.blocks.exclude(text=""))
-        target_blocks = list(edition.blocks.exclude(text=""))
+        source_blocks = list(source_edition.blocks.select_related("chapter").exclude(text=""))
+        target_blocks = list(edition.blocks.select_related("chapter").exclude(text=""))
         source_vectors = (
             embed_texts([block.text for block in source_blocks]) if source_blocks else []
         )
+        run.progress = 35
+        run.save(update_fields=["progress", "updated_at"])
         target_vectors = (
             embed_texts([block.text for block in target_blocks]) if target_blocks else []
         )
+        run.progress = 65
+        run.save(update_fields=["progress", "updated_at"])
         source_by_chapter: dict[int, list[int]] = {}
         target_by_chapter: dict[int, list[int]] = {}
         for index, block in enumerate(source_blocks):
             source_by_chapter.setdefault(block.chapter.sequence, []).append(index)
         for index, block in enumerate(target_blocks):
             target_by_chapter.setdefault(block.chapter.sequence, []).append(index)
-        common_chapters = sorted(source_by_chapter.keys() & target_by_chapter.keys())
+        source_chapter_numbers = sorted(source_by_chapter)
+        target_chapter_numbers = sorted(target_by_chapter)
+        source_chapter_groups = [source_by_chapter[number] for number in source_chapter_numbers]
+        target_chapter_groups = [target_by_chapter[number] for number in target_chapter_numbers]
+        chapter_alignment_candidates = align_embeddings(
+            aggregate_embeddings(source_vectors, source_chapter_groups),
+            aggregate_embeddings(target_vectors, target_chapter_groups),
+            source_lengths=[
+                sum(len(source_blocks[index].text) for index in indices)
+                for indices in source_chapter_groups
+            ],
+            target_lengths=[
+                sum(len(target_blocks[index].text) for index in indices)
+                for indices in target_chapter_groups
+            ],
+            minimum_confidence=CHAPTER_ALIGNMENT_MIN_CONFIDENCE,
+            skip_penalty=0.08,
+        )
+        run.progress = 75
+        run.save(update_fields=["progress", "updated_at"])
         candidates: list[AlignmentCandidate] = []
-        for chapter in common_chapters:
-            source_indices = source_by_chapter[chapter]
-            target_indices = target_by_chapter[chapter]
-            chapter_candidates = align_embeddings(
+        block_candidates_by_chapter_group: list[
+            tuple[AlignmentCandidate, list[AlignmentCandidate]]
+        ] = []
+        for chapter_candidate in chapter_alignment_candidates:
+            source_indices = [
+                block_index
+                for chapter_index in chapter_candidate.source_indices
+                for block_index in source_chapter_groups[chapter_index]
+            ]
+            target_indices = [
+                block_index
+                for chapter_index in chapter_candidate.target_indices
+                for block_index in target_chapter_groups[chapter_index]
+            ]
+            local_candidates = align_embeddings(
                 [source_vectors[index] for index in source_indices],
                 [target_vectors[index] for index in target_indices],
                 source_lengths=[len(source_blocks[index].text) for index in source_indices],
                 target_lengths=[len(target_blocks[index].text) for index in target_indices],
                 minimum_confidence=ALIGNMENT_CANDIDATE_MIN_CONFIDENCE,
             )
-            candidates.extend(
+            global_candidates = [
                 AlignmentCandidate(
                     source_indices=tuple(
                         source_indices[index] for index in candidate.source_indices
@@ -439,8 +483,10 @@ def align_edition_to_source(edition_id: str) -> None:
                     ),
                     confidence=candidate.confidence,
                 )
-                for candidate in chapter_candidates
-            )
+                for candidate in local_candidates
+            ]
+            candidates.extend(global_candidates)
+            block_candidates_by_chapter_group.append((chapter_candidate, global_candidates))
         matched_source_indices = {
             index for candidate in candidates for index in candidate.source_indices
         }
@@ -455,11 +501,52 @@ def align_edition_to_source(edition_id: str) -> None:
             if candidate.confidence < ALIGNMENT_REVIEW_CONFIDENCE
         ]
         with transaction.atomic():
+            run.progress = 85
+            run.save(update_fields=["progress", "updated_at"])
             BlockAlignment.objects.filter(
                 source_edition=source_edition,
                 target_edition=edition,
             ).delete()
+            ChapterAlignment.objects.filter(
+                source_edition=source_edition,
+                target_edition=edition,
+            ).delete()
             edition.warnings.filter(code__in=ALIGNMENT_WARNING_CODES).delete()
+            chapter_alignment_rows = []
+            chapter_mapping_summary = []
+            for chapter_candidate, _ in block_candidates_by_chapter_group:
+                group_id = uuid.uuid4()
+                mapped_source_numbers = [
+                    source_chapter_numbers[index] for index in chapter_candidate.source_indices
+                ]
+                mapped_target_numbers = [
+                    target_chapter_numbers[index] for index in chapter_candidate.target_indices
+                ]
+                chapter_mapping_summary.append(
+                    {
+                        "source_chapters": mapped_source_numbers,
+                        "target_chapters": mapped_target_numbers,
+                        "confidence": chapter_candidate.confidence,
+                    }
+                )
+                for source_number in mapped_source_numbers:
+                    for target_number in mapped_target_numbers:
+                        chapter_alignment_rows.append(
+                            ChapterAlignment(
+                                source_edition=source_edition,
+                                target_edition=edition,
+                                source_chapter=source_blocks[
+                                    source_by_chapter[source_number][0]
+                                ].chapter,
+                                target_chapter=target_blocks[
+                                    target_by_chapter[target_number][0]
+                                ].chapter,
+                                group_id=group_id,
+                                confidence=chapter_candidate.confidence,
+                                strategy="multilingual-embedding-monotonic-chapters-v1",
+                            )
+                        )
+            ChapterAlignment.objects.bulk_create(chapter_alignment_rows, batch_size=500)
             alignment_rows = []
             for candidate in candidates:
                 group_id = uuid.uuid4()
@@ -492,6 +579,31 @@ def align_edition_to_source(edition_id: str) -> None:
                 )
                 for candidate in low_confidence
             ]
+            warnings.extend(
+                QAWarning(
+                    edition=edition,
+                    pipeline_run=run,
+                    code="alignment_chapter_low_confidence",
+                    severity=QAWarning.Severity.WARNING,
+                    message=(
+                        "Chapter correspondence confidence is "
+                        f"{chapter_candidate.confidence:.1%} for source chapters "
+                        + ", ".join(
+                            str(source_chapter_numbers[index])
+                            for index in chapter_candidate.source_indices
+                        )
+                        + " "
+                        "and target chapters "
+                        + ", ".join(
+                            str(target_chapter_numbers[index])
+                            for index in chapter_candidate.target_indices
+                        )
+                        + "."
+                    ),
+                )
+                for chapter_candidate in chapter_alignment_candidates
+                if chapter_candidate.confidence < ALIGNMENT_REVIEW_CONFIDENCE
+            )
             if source_coverage < ALIGNMENT_MIN_COVERAGE or target_coverage < ALIGNMENT_MIN_COVERAGE:
                 warnings.append(
                     QAWarning(
@@ -517,9 +629,8 @@ def align_edition_to_source(edition_id: str) -> None:
         run.summary = {
             "source_blocks": len(source_blocks),
             "target_blocks": len(target_blocks),
-            "common_chapters": len(common_chapters),
-            "source_only_chapters": len(source_by_chapter.keys() - target_by_chapter.keys()),
-            "target_only_chapters": len(target_by_chapter.keys() - source_by_chapter.keys()),
+            "chapter_groups": len(chapter_alignment_candidates),
+            "chapter_mappings": chapter_mapping_summary,
             "alignment_groups": len(candidates),
             "alignment_rows": len(alignment_rows),
             "source_coverage": source_coverage,
@@ -543,3 +654,67 @@ def align_edition_to_source(edition_id: str) -> None:
         run.error = str(error)[:10000]
         run.save(update_fields=["status", "finished_at", "error", "updated_at"])
         raise
+
+
+@shared_task(acks_late=True)
+def prepare_ai_alignment(edition_id: str) -> str:
+    """Refresh hierarchical candidates and submit autonomous AI review."""
+
+    from almonium_book_processor.catalog.ai_alignment import submit_alignment_batch
+
+    align_edition_to_source.run(edition_id)
+    ai_run = submit_alignment_batch(edition_id, tier="primary")
+    if ai_run.status == ai_run.Status.SUBMITTED:
+        poll_ai_alignment_batch.apply_async(
+            args=[str(ai_run.id)], countdown=settings.OPENAI_BATCH_POLL_SECONDS
+        )
+    return str(ai_run.id)
+
+
+@shared_task(bind=True, acks_late=True, max_retries=1500)
+def poll_ai_alignment_batch(self, ai_run_id: str) -> None:
+    from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
+    from almonium_book_processor.catalog.ai_alignment import (
+        complete_alignment_batch,
+        submit_alignment_batch,
+    )
+    from almonium_book_processor.catalog.models import AIRun
+
+    ai_run = AIRun.objects.select_related("model_configuration").get(id=ai_run_id)
+    if ai_run.status in {AIRun.Status.SUCCEEDED, AIRun.Status.FAILED}:
+        return
+    try:
+        provider = OpenAIBatchProvider()
+        batch = provider.retrieve(ai_run.provider_request_id)
+        ai_run.response_payload = {
+            **ai_run.response_payload,
+            "batch_status": batch.status,
+            "request_counts": batch.request_counts.model_dump() if batch.request_counts else {},
+        }
+        ai_run.save(update_fields=["response_payload", "updated_at"])
+        if batch.status == "completed":
+            uncertain_group_ids = complete_alignment_batch(
+                ai_run, provider.output_lines(batch.output_file_id)
+            )
+            if ai_run.request_payload["tier"] == "primary" and uncertain_group_ids:
+                escalation = submit_alignment_batch(
+                    str(ai_run.edition_id),
+                    tier="escalation",
+                    group_ids=uncertain_group_ids,
+                )
+                if escalation.status == AIRun.Status.SUBMITTED:
+                    poll_ai_alignment_batch.apply_async(
+                        args=[str(escalation.id)], countdown=settings.OPENAI_BATCH_POLL_SECONDS
+                    )
+            return
+        if batch.status in {"failed", "expired", "cancelled"}:
+            raise RuntimeError(f"OpenAI Batch ended with status {batch.status}")
+    except Exception as error:
+        if getattr(error, "status_code", None) in {429, 500, 502, 503, 504}:
+            raise self.retry(countdown=settings.OPENAI_BATCH_POLL_SECONDS, exc=error) from error
+        ai_run.status = AIRun.Status.FAILED
+        ai_run.error = str(error)[:10000]
+        ai_run.finished_at = timezone.now()
+        ai_run.save(update_fields=["status", "error", "finished_at", "updated_at"])
+        raise
+    raise self.retry(countdown=settings.OPENAI_BATCH_POLL_SECONDS)

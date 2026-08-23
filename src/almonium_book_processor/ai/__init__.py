@@ -1,4 +1,4 @@
-"""Provider-neutral AI contracts; concrete providers are configured at deployment time."""
+"""Provider-neutral AI contracts and validated alignment adapters."""
 
 from almonium_book_processor.ai.providers import AIProvider, AIRequest, AIResponse
 

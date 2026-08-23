@@ -17,6 +17,7 @@ from almonium_book_processor.catalog.models import (
     AlignmentGroupReview,
     BlockAlignment,
     Chapter,
+    ChapterAlignment,
     ContentBlock,
     ContentBlockRevision,
     Edition,
@@ -337,12 +338,24 @@ def repair_alignment_group(
         raise ValueError("One or more selected source blocks are invalid.")
     if len(target_blocks) != len(set(target_block_ids)):
         raise ValueError("One or more selected target blocks are invalid.")
-    chapters = {
-        *(block.chapter.sequence for block in source_blocks),
-        *(block.chapter.sequence for block in target_blocks),
-    }
-    if len(chapters) != 1:
-        raise ValueError("Manual alignment blocks must belong to the same chapter.")
+    target_chapters = {block.chapter_id for block in target_blocks}
+    if len(target_chapters) != 1:
+        raise ValueError("Manual target blocks must belong to one chapter.")
+    allowed_source_chapters = set(
+        ChapterAlignment.objects.filter(
+            target_edition=edition,
+            target_chapter_id__in=target_chapters,
+        ).values_list("source_chapter_id", flat=True)
+    )
+    if not allowed_source_chapters:
+        target_sequence = target_blocks[0].chapter.sequence
+        allowed_source_chapters = set(
+            edition.source_edition.chapters.filter(sequence=target_sequence).values_list(
+                "id", flat=True
+            )
+        )
+    if any(block.chapter_id not in allowed_source_chapters for block in source_blocks):
+        raise ValueError("Source blocks must belong to chapters mapped to the target chapter.")
 
     affected_group_ids = (
         BlockAlignment.objects.filter(target_edition=edition)

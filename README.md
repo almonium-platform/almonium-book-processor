@@ -13,16 +13,18 @@ OpenAPI document is available at `/api/schema/`.
 - Django and server-rendered HTML provide the staff-only admin panel.
 - Django REST Framework exposes staff orchestration endpoints and read-only
   public book endpoints.
-- Celery workers ingest EPUB and TEI P5 sources, then run local sentence splitting
-  and embedding alignment. They will later own translation and adaptation jobs.
+- Celery workers ingest EPUB and TEI P5 sources, then run local sentence splitting,
+  hierarchical embedding alignment, and optional OpenAI Batch adjudication. They
+  will later own translation and adaptation jobs.
 - PostgreSQL stores normalized works, editions, chapters, blocks, runs,
   warnings, prompts, and model metadata.
 - Uploaded source files are files, not database blobs. Local development uses a Docker
   volume; deployment uses an environment-specific persistent host directory.
 - spaCy provides local sentence segmentation. Sentence Transformers provides
   multilingual embeddings used by the monotonic alignment candidate builder.
-- AI calls sit behind a provider interface. No provider is enabled until its
-  credentials and model configuration are supplied.
+- AI calls sit behind a provider interface. Alignment uses a project-scoped
+  `OPENAI_API_KEY`, GPT-5.6 Luna for the primary Batch pass, and GPT-5.6 Terra
+  only for automatic escalation of uncertain chapter windows.
 
 Internal identifiers are UUIDs. Public edition slugs are the human-readable URL
 identifier. Private user imports deliberately have no public slug contract and
@@ -116,6 +118,22 @@ Checks such as language detection, unusually short/long chapters, and
 translation confidence are planned pipeline QA checks; they are not implemented
 by the current source importer. Derived-edition alignment does emit coverage and
 low-confidence review items after ingestion.
+
+Alignment is hierarchical. The worker first aligns complete chapter sequences
+with local multilingual embeddings, allowing 1:1, 1:2, 2:1, and missing chapter
+relationships; it then aligns blocks inside those mapped windows. It does not
+assume that chapter numbers match between editions. The default local model is
+`paraphrase-multilingual-MiniLM-L12-v2`. It remains configurable through
+`NLP_EMBEDDING_MODEL`; larger free models such as LaBSE should be adopted only
+after a corpus benchmark justifies their higher memory and latency.
+
+Staff can start **Run autonomous AI review** from an edition's alignment review
+page. The worker refreshes local candidates, submits one structured request per
+chapter group through the OpenAI Batch API, records the versioned prompt, model,
+validated output, token usage, estimated cost, and provider batch ID, and marks
+confident groups as AI-reviewed. Luna uncertainty is automatically submitted to
+Terra; only Terra uncertainty remains as a human review warning. Batch processing
+has a completion window of up to 24 hours.
 
 Publication is a separate worker stage. Selecting **Publish to Almonium** from
 a ready edition queues an authenticated hand-off to the product backend; only

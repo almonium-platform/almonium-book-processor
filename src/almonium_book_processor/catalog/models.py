@@ -225,10 +225,55 @@ class BlockAlignment(TimestampedModel):
         indexes = [models.Index(fields=["source_edition", "target_edition", "confidence"])]
 
 
+class ChapterAlignment(TimestampedModel):
+    """A persisted many-to-many chapter correspondence group."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source_edition = models.ForeignKey(
+        Edition,
+        related_name="source_chapter_alignments",
+        on_delete=models.CASCADE,
+    )
+    target_edition = models.ForeignKey(
+        Edition,
+        related_name="target_chapter_alignments",
+        on_delete=models.CASCADE,
+    )
+    source_chapter = models.ForeignKey(
+        Chapter,
+        related_name="outgoing_alignments",
+        on_delete=models.CASCADE,
+    )
+    target_chapter = models.ForeignKey(
+        Chapter,
+        related_name="incoming_alignments",
+        on_delete=models.CASCADE,
+    )
+    group_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    confidence = models.FloatField()
+    strategy = models.CharField(max_length=80)
+
+    class Meta:
+        ordering = ["target_edition", "target_chapter__sequence", "source_chapter__sequence"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "source_edition",
+                    "target_edition",
+                    "source_chapter",
+                    "target_chapter",
+                ],
+                name="catalog_alignment_chapter_pair_unique",
+            )
+        ]
+        indexes = [models.Index(fields=["source_edition", "target_edition", "confidence"])]
+
+
 class AlignmentGroupReview(TimestampedModel):
     class Decision(models.TextChoices):
         ACCEPTED = "accepted", "Accepted"
         REPAIRED = "repaired", "Manually repaired"
+        AI_ACCEPTED = "ai_accepted", "AI accepted"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     target_edition = models.ForeignKey(
@@ -446,14 +491,20 @@ class AIRun(TimestampedModel):
     )
     model_configuration = models.ForeignKey(ModelConfiguration, on_delete=models.PROTECT)
     prompt_template = models.ForeignKey(PromptTemplate, on_delete=models.PROTECT)
+    idempotency_key = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    input_hash = models.CharField(max_length=64, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED)
     provider_request_id = models.CharField(max_length=255, blank=True)
     input_tokens = models.PositiveIntegerField(default=0)
+    cached_input_tokens = models.PositiveIntegerField(default=0)
     output_tokens = models.PositiveIntegerField(default=0)
+    reasoning_tokens = models.PositiveIntegerField(default=0)
     estimated_cost_usd = models.DecimalField(max_digits=12, decimal_places=6, null=True, blank=True)
     request_payload = models.JSONField(default=dict)
     response_payload = models.JSONField(default=dict)
     error = models.TextField(blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

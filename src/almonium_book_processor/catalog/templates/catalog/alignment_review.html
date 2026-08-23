@@ -8,10 +8,18 @@
     <p class="muted">Compare automatic groups, repair pairings, correct target text, and resolve QA findings before approval.</p>
   </div>
   <div class="button-row">
+    <form method="post" action="{% url 'catalog:queue-ai-alignment-review' edition.id %}">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter|default:1 }}"><button class="button" type="submit" {% if not ai_enabled %}disabled title="OPENAI_API_KEY is not configured"{% endif %}>Run autonomous AI review</button></form>
     <a class="button button-secondary" href="{% url 'catalog:edition-detail' edition.id %}">Edition overview</a>
     <span class="status {% if unresolved_warning_count %}status-failed{% else %}status-ready{% endif %}">{{ unresolved_warning_count }} unresolved</span>
   </div>
 </div>
+
+{% if recent_ai_runs %}
+<section class="panel">
+  <p class="eyebrow">AI processing</p>
+  {% for run in recent_ai_runs %}<div class="run-row"><span>{{ run.model_configuration.model }}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{% if run.estimated_cost_usd is not None %}${{ run.estimated_cost_usd }} · {% endif %}{{ run.input_tokens }} in / {{ run.output_tokens }} out{% if run.error %} · {{ run.error|truncatechars:160 }}{% endif %}</span></div>{% endfor %}
+</section>
+{% endif %}
 
 {% if chapter_numbers %}
 <nav class="chapter-nav" aria-label="Chapters">
@@ -34,7 +42,7 @@
 {% endif %}
 
 <section class="review-toolbar panel">
-  <div><p class="eyebrow">Chapter {{ chapter }}</p><h2>Manual pairing</h2><p class="muted">Select one or more blocks on each side. Existing groups touching those blocks are replaced; unselected leftovers become visibly unmatched.</p></div>
+  <div><p class="eyebrow">Target chapter {{ chapter }} · source chapter{{ source_chapter_numbers|length|pluralize }} {{ source_chapter_numbers|join:", " }}</p><h2>Manual pairing</h2><p class="muted">Select one or more blocks on each side. Existing groups touching those blocks are replaced; unselected leftovers become visibly unmatched.</p></div>
   <form method="post" action="{% url 'catalog:repair-alignment' edition.id %}" class="repair-form">
     {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}">
     <label><span>{{ edition.source_edition.language|upper }} source blocks</span>
