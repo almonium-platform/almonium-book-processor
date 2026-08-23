@@ -13,28 +13,65 @@ class EditionUploadForm(forms.Form):
         validators=[],
         widget=forms.ClearableFileInput(attrs={"accept": ".epub,.xml", "data-drop-input": "true"}),
     )
-    work_slug = forms.SlugField(max_length=160)
-    work_title = forms.CharField(max_length=500)
-    author = forms.CharField(max_length=300)
-    description = forms.CharField(widget=forms.Textarea, required=False)
+    work_slug = forms.SlugField(
+        max_length=160,
+        help_text="The stable slug for the work itself, for example pride-and-prejudice.",
+        widget=forms.TextInput(attrs={"placeholder": "pride-and-prejudice"}),
+    )
+    work_title = forms.CharField(
+        max_length=500,
+        help_text="Work = the underlying literary work, for example Pride and Prejudice.",
+        widget=forms.TextInput(attrs={"placeholder": "Pride and Prejudice"}),
+    )
+    author = forms.CharField(
+        max_length=300,
+        widget=forms.TextInput(attrs={"placeholder": "Jane Austen"}),
+    )
+    description = forms.CharField(
+        widget=forms.Textarea(
+            attrs={"placeholder": "A novel about Elizabeth Bennet and Mr Darcy."}
+        ),
+        required=False,
+    )
     original_language = forms.ChoiceField(
         choices=LANGUAGE_CHOICES,
-        help_text="ISO 639-1 language code for the original work.",
+        help_text="Language of the original work, for example English (en).",
     )
-    publication_year = forms.IntegerField(min_value=1, max_value=9999)
+    publication_year = forms.IntegerField(
+        min_value=1,
+        max_value=9999,
+        help_text="Year the original work was first published, for example 1813.",
+        widget=forms.NumberInput(attrs={"placeholder": "1813"}),
+    )
     cover_url = forms.URLField(
         max_length=1000,
         required=False,
         assume_scheme="https",
-        help_text="Optional public-domain cover image URL. A typographic cover is used otherwise.",
+        help_text="Optional public-domain cover URL; a typographic cover is used otherwise.",
+        widget=forms.URLInput(
+            attrs={"placeholder": "https://example.org/pride-and-prejudice-cover.jpg"}
+        ),
     )
-    edition_slug = forms.SlugField(max_length=180)
-    edition_title = forms.CharField(max_length=500)
+    edition_slug = forms.SlugField(
+        max_length=180,
+        help_text=(
+            "Unique slug for this uploaded version, for example pride-and-prejudice-en-original."
+        ),
+        widget=forms.TextInput(attrs={"placeholder": "pride-and-prejudice-en-original"}),
+    )
+    edition_title = forms.CharField(
+        max_length=500,
+        help_text="Edition = this specific uploaded text/version; usually Pride and Prejudice.",
+        widget=forms.TextInput(attrs={"placeholder": "Pride and Prejudice"}),
+    )
     language = forms.ChoiceField(
         choices=LANGUAGE_CHOICES,
-        help_text="ISO 639-1 language code for this edition.",
+        help_text="Language of this uploaded edition, for example English (en).",
     )
-    edition_type = forms.ChoiceField(choices=Edition.EditionType.choices)
+    edition_type = forms.ChoiceField(
+        choices=Edition.EditionType.choices,
+        help_text="Original for the source text; otherwise choose the kind of derived version.",
+    )
     cefr_level = forms.ChoiceField(
         choices=Edition.CEFRLevel.choices,
         help_text="Current editorial estimate; AI estimation can replace it later.",

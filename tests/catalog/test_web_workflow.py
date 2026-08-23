@@ -109,6 +109,21 @@ def test_language_inputs_are_explicit_select_controls() -> None:
     assert WorkAdminForm.base_fields["original_language"].widget.__class__.__name__ == "Select"
 
 
+def test_upload_form_shows_practical_examples() -> None:
+    assert (
+        EditionUploadForm.base_fields["work_slug"].widget.attrs["placeholder"]
+        == "pride-and-prejudice"
+    )
+    assert (
+        EditionUploadForm.base_fields["edition_slug"].widget.attrs["placeholder"]
+        == "pride-and-prejudice-en-original"
+    )
+    assert "underlying literary work" in EditionUploadForm.base_fields["work_title"].help_text
+    assert (
+        "specific uploaded text/version" in EditionUploadForm.base_fields["edition_title"].help_text
+    )
+
+
 def test_internal_private_import_is_owner_scoped(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", "test-shared-secret")
     owner_id = uuid.uuid4()

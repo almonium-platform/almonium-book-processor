@@ -6,13 +6,14 @@
   {% csrf_token %}
   <label class="drop-zone" data-drop-zone>
     <strong>Drop an EPUB or TEI XML file here</strong>
-    <span>ELTeC TEI P5 documents are supported</span>
+    <span>For example: pride-and-prejudice.epub</span>
+    <small>ELTeC TEI P5 documents are supported too</small>
     {{ form.source_file }}
     <small data-file-name>No file selected</small>
   </label>
   {{ form.source_file.errors }}
   <div class="form-grid">
-    {% for field in form %}{% if field.name != "source_file" %}<label><span>{{ field.label }}</span>{{ field }}{{ field.errors }}</label>{% endif %}{% endfor %}
+    {% for field in form %}{% if field.name != "source_file" %}<label><span>{{ field.label }}</span>{{ field }}{% if field.help_text %}<small class="field-help">{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>{% endif %}{% endfor %}
   </div>
   <button class="button" type="submit">Queue ingestion</button>
 </form>
