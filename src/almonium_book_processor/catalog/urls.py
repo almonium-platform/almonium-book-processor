@@ -21,6 +21,11 @@ urlpatterns = [
         name="queue-ai-alignment-review",
     ),
     path(
+        "editions/<uuid:edition_id>/alignment-review/ai/confirm-safe/",
+        views.confirm_ai_safe_alignments,
+        name="confirm-ai-safe-alignments",
+    ),
+    path(
         "editions/<uuid:edition_id>/alignment-review/groups/<uuid:group_id>/accept/",
         views.accept_alignment_group,
         name="accept-alignment-group",

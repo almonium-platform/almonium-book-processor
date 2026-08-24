@@ -48,6 +48,13 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .chapter-nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1rem 0 1.5rem; }
 .chapter-nav a { min-width: 2.2rem; padding: .45rem .65rem; border: 1px solid var(--line); border-radius: 8px; background: var(--card); text-align: center; text-decoration: none; }
 .chapter-nav a.current { background: var(--accent); border-color: var(--accent); color: white; }
+.chapter-nav a small { display: inline-grid; place-content: center; min-width: 1.25rem; margin-left: .25rem; padding: .08rem .25rem; border-radius: 999px; background: #f6dfdc; color: var(--red); font-weight: 700; }
+.chapter-nav a.current small { background: white; }
+.review-guide summary { cursor: pointer; font: 1.3rem Georgia, serif; }
+.review-guide li { margin: .65rem 0; line-height: 1.5; }
+.review-actions { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+.review-actions p { margin: .25rem 0; }
+.chapter-nav-help { margin-bottom: -.5rem; }
 .alignment-heading .button-row { align-items: center; justify-content: flex-end; }
 .review-toolbar h2, .section-heading h2, .alignment-group h3 { margin-top: .2rem; }
 .repair-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: end; }

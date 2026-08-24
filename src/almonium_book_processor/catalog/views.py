@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections import defaultdict
 
 from django.conf import settings
 from django.contrib import messages
@@ -24,6 +25,7 @@ from almonium_book_processor.catalog.models import (
 )
 from almonium_book_processor.catalog.services import (
     complete_review,
+    confirm_ai_alignment_groups,
     import_legacy_artifacts,
     release_private_import,
     repair_alignment_group,
@@ -172,12 +174,77 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
                 "ai_enabled": bool(settings.OPENAI_API_KEY),
             },
         )
+    unresolved_warnings = list(
+        edition.warnings.filter(resolved_at=None)
+        .exclude(severity=QAWarning.Severity.INFO)
+        .select_related("block__chapter")
+    )
+    all_chapter_mappings = list(
+        ChapterAlignment.objects.filter(target_edition=edition).select_related(
+            "source_chapter", "target_chapter"
+        )
+    )
+    target_chapters_by_group: dict[uuid.UUID, set[int]] = defaultdict(set)
+    target_chapters_by_source: dict[uuid.UUID, set[int]] = defaultdict(set)
+    for mapping in all_chapter_mappings:
+        target_chapters_by_group[mapping.group_id].add(mapping.target_chapter.sequence)
+        target_chapters_by_source[mapping.source_chapter_id].add(mapping.target_chapter.sequence)
+
+    warnings_by_chapter: dict[int, list[QAWarning]] = defaultdict(list)
+    edition_level_warnings = []
+    for warning in unresolved_warnings:
+        if warning.block_id and warning.block and warning.block.chapter:
+            warnings_by_chapter[warning.block.chapter.sequence].append(warning)
+            continue
+        if warning.source_ref.startswith("chapter-group:"):
+            try:
+                group_id = uuid.UUID(warning.source_ref.removeprefix("chapter-group:"))
+            except ValueError:
+                pass
+            else:
+                for target_chapter in target_chapters_by_group.get(group_id, set()):
+                    warnings_by_chapter[target_chapter].append(warning)
+                continue
+        edition_level_warnings.append(warning)
+
+    aligned_source_ids = set(
+        BlockAlignment.objects.filter(target_edition=edition).values_list(
+            "source_block_id", flat=True
+        )
+    )
+    aligned_target_ids = set(
+        BlockAlignment.objects.filter(target_edition=edition).values_list(
+            "target_block_id", flat=True
+        )
+    )
+    unmatched_source_blocks = edition.source_edition.blocks.exclude(id__in=aligned_source_ids)
+    unmatched_target_blocks = edition.blocks.exclude(id__in=aligned_target_ids).select_related(
+        "chapter"
+    )
+    coverage_gaps_by_chapter: dict[int, int] = defaultdict(int)
+    for block in unmatched_source_blocks.select_related("chapter"):
+        if block.chapter_id:
+            for target_chapter in target_chapters_by_source.get(block.chapter_id, set()):
+                warnings_by_chapter[target_chapter]
+                coverage_gaps_by_chapter[target_chapter] += 1
+    for block in unmatched_target_blocks:
+        if block.chapter:
+            warnings_by_chapter[block.chapter.sequence]
+            coverage_gaps_by_chapter[block.chapter.sequence] += 1
+
+    issue_chapter_numbers = [number for number in chapter_numbers if number in warnings_by_chapter]
+    view_filter = request.GET.get("filter", "")
+    visible_chapter_numbers = (
+        issue_chapter_numbers
+        if view_filter == "issues" and issue_chapter_numbers
+        else chapter_numbers
+    )
     try:
-        chapter = int(request.GET.get("chapter", chapter_numbers[0]))
+        chapter = int(request.GET.get("chapter", visible_chapter_numbers[0]))
     except (TypeError, ValueError):
-        chapter = chapter_numbers[0]
-    if chapter not in chapter_numbers:
-        chapter = chapter_numbers[0]
+        chapter = visible_chapter_numbers[0]
+    if chapter not in visible_chapter_numbers:
+        chapter = visible_chapter_numbers[0]
 
     chapter_mappings = list(
         ChapterAlignment.objects.filter(
@@ -223,22 +290,15 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
             group_id__in=grouped,
         ).select_related("reviewer")
     }
-    unresolved_warnings = list(
-        edition.warnings.filter(resolved_at=None).exclude(severity=QAWarning.Severity.INFO)
-    )
     warnings_by_block: dict[uuid.UUID, list[QAWarning]] = {}
     for warning in unresolved_warnings:
         if warning.block_id:
             warnings_by_block.setdefault(warning.block_id, []).append(warning)
 
     alignment_groups = []
-    aligned_source_ids: set[uuid.UUID] = set()
-    aligned_target_ids: set[uuid.UUID] = set()
     for group in grouped.values():
         sources = sorted(group["sources"].values(), key=lambda block: block.sequence)
         targets = sorted(group["targets"].values(), key=lambda block: block.sequence)
-        aligned_source_ids.update(block.id for block in sources)
-        aligned_target_ids.update(block.id for block in targets)
         confidence = group["confidence"]
         alignment_groups.append(
             {
@@ -256,11 +316,54 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
             }
         )
     alignment_groups.sort(key=lambda group: min(block.sequence for block in group["targets"]))
-    chapter_target_ids = {block.id for block in target_blocks}
-    global_warnings = [warning for warning in unresolved_warnings if warning.block_id is None]
-    chapter_warning_count = sum(
-        warning.block_id in chapter_target_ids for warning in unresolved_warnings
+    chapter_level_warnings = [
+        warning for warning in warnings_by_chapter.get(chapter, []) if warning.block_id is None
+    ]
+    chapter_warning_count = len(warnings_by_chapter.get(chapter, []))
+    if view_filter == "issues":
+        if chapter_level_warnings:
+            alignment_groups = [group for group in alignment_groups if not group["review"]]
+        else:
+            alignment_groups = [group for group in alignment_groups if group["warnings"]]
+
+    current_group_ids = (
+        BlockAlignment.objects.filter(target_edition=edition)
+        .values_list("group_id", flat=True)
+        .distinct()
     )
+    reviews_for_current_groups = AlignmentGroupReview.objects.filter(
+        target_edition=edition,
+        group_id__in=current_group_ids,
+    )
+    total_group_count = current_group_ids.count()
+    ai_approved_count = reviews_for_current_groups.filter(
+        decision=AlignmentGroupReview.Decision.AI_ACCEPTED
+    ).count()
+    staff_approved_count = reviews_for_current_groups.exclude(
+        decision=AlignmentGroupReview.Decision.AI_ACCEPTED
+    ).count()
+    pending_group_count = total_group_count - ai_approved_count - staff_approved_count
+    ai_run_summaries = []
+    for run in edition.ai_runs.select_related("model_configuration", "prompt_template")[:5]:
+        uncertain_count = len(run.response_payload.get("uncertain_chapter_group_ids", []))
+        tier = run.request_payload.get("tier")
+        ai_run_summaries.append(
+            {
+                "run": run,
+                "display_status": (
+                    "Completed" if run.status == run.Status.SUCCEEDED else run.get_status_display()
+                ),
+                "outcome": (
+                    f"{uncertain_count} sent to the stronger model"
+                    if uncertain_count and tier == "primary"
+                    else f"{uncertain_count} chapter groups still need review"
+                    if uncertain_count
+                    else "all submitted chapter groups accepted"
+                    if run.status == run.Status.SUCCEEDED
+                    else ""
+                ),
+            }
+        )
 
     return render(
         request,
@@ -268,7 +371,19 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
         {
             "edition": edition,
             "chapter": chapter,
-            "chapter_numbers": chapter_numbers,
+            "chapter_numbers": visible_chapter_numbers,
+            "all_chapter_count": len(chapter_numbers),
+            "chapter_nav": [
+                {
+                    "number": number,
+                    "issue_count": (
+                        len(warnings_by_chapter.get(number, [])) + coverage_gaps_by_chapter[number]
+                    ),
+                }
+                for number in visible_chapter_numbers
+            ],
+            "view_filter": view_filter,
+            "issue_chapter_count": len(issue_chapter_numbers),
             "chapter_mappings": chapter_mappings,
             "source_chapter_numbers": source_chapter_numbers,
             "alignment_groups": alignment_groups,
@@ -280,22 +395,29 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
             "unmatched_target": [
                 block for block in target_blocks if block.id not in aligned_target_ids
             ],
-            "global_warnings": global_warnings,
+            "global_warnings": edition_level_warnings,
+            "chapter_level_warnings": chapter_level_warnings,
             "chapter_warning_count": chapter_warning_count,
             "unresolved_warning_count": len(unresolved_warnings),
+            "total_group_count": total_group_count,
+            "ai_approved_count": ai_approved_count,
+            "staff_approved_count": staff_approved_count,
+            "pending_group_count": pending_group_count,
+            "unmatched_source_count": unmatched_source_blocks.count(),
+            "unmatched_target_count": unmatched_target_blocks.count(),
             "recent_revisions": edition.block_revisions.filter(
                 block__chapter__sequence=chapter
             ).select_related("editor")[:10],
-            "recent_ai_runs": edition.ai_runs.select_related(
-                "model_configuration", "prompt_template"
-            )[:5],
+            "ai_run_summaries": ai_run_summaries,
             "ai_enabled": bool(settings.OPENAI_API_KEY),
         },
     )
 
 
-def _review_redirect(edition_id: str, chapter: str) -> HttpResponse:
+def _review_redirect(edition_id: str, chapter: str, view_filter: str = "") -> HttpResponse:
     url = f"{reverse('catalog:alignment-review', args=[edition_id])}?chapter={chapter}"
+    if view_filter == "issues":
+        url += "&filter=issues"
     return redirect(url)
 
 
@@ -312,7 +434,23 @@ def queue_ai_alignment_review(request: HttpRequest, edition_id: str) -> HttpResp
             "Hierarchical alignment and OpenAI Batch review queued. "
             "The Batch window is up to 24 hours.",
         )
-    return _review_redirect(str(edition.id), request.POST.get("chapter", "1"))
+    return _review_redirect(
+        str(edition.id), request.POST.get("chapter", "1"), request.POST.get("filter", "")
+    )
+
+
+@staff_member_required
+@require_POST
+def confirm_ai_safe_alignments(request: HttpRequest, edition_id: str) -> HttpResponse:
+    edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
+    confirmed_count = confirm_ai_alignment_groups(edition=edition, reviewer=request.user)
+    if confirmed_count:
+        messages.success(request, f"Confirmed {confirmed_count} AI-approved alignment groups.")
+    else:
+        messages.info(request, "There are no unconfirmed AI-approved groups.")
+    return _review_redirect(
+        str(edition.id), request.POST.get("chapter", "1"), request.POST.get("filter", "")
+    )
 
 
 @staff_member_required
@@ -330,7 +468,9 @@ def accept_alignment_group(request: HttpRequest, edition_id: str, group_id: uuid
         messages.error(request, str(error))
     else:
         messages.success(request, "Alignment group accepted and its warnings resolved.")
-    return _review_redirect(str(edition.id), request.POST.get("chapter", "1"))
+    return _review_redirect(
+        str(edition.id), request.POST.get("chapter", "1"), request.POST.get("filter", "")
+    )
 
 
 @staff_member_required
@@ -349,7 +489,7 @@ def accept_alignment_chapter(request: HttpRequest, edition_id: str):
         messages.error(request, str(error))
     else:
         messages.success(request, f"Accepted {accepted_count} alignment groups in chapter.")
-    return _review_redirect(str(edition.id), chapter)
+    return _review_redirect(str(edition.id), chapter, request.POST.get("filter", ""))
 
 
 @staff_member_required
@@ -368,7 +508,9 @@ def repair_alignment(request: HttpRequest, edition_id: str):
         messages.error(request, str(error))
     else:
         messages.success(request, "Manual alignment saved with an audit record.")
-    return _review_redirect(str(edition.id), request.POST.get("chapter", "1"))
+    return _review_redirect(
+        str(edition.id), request.POST.get("chapter", "1"), request.POST.get("filter", "")
+    )
 
 
 @staff_member_required
@@ -387,7 +529,9 @@ def edit_alignment_target(request: HttpRequest, edition_id: str, block_id: uuid.
         messages.error(request, str(error))
     else:
         messages.success(request, "Target text updated; sentence splitting was queued.")
-    return _review_redirect(str(edition.id), request.POST.get("chapter", "1"))
+    return _review_redirect(
+        str(edition.id), request.POST.get("chapter", "1"), request.POST.get("filter", "")
+    )
 
 
 @staff_member_required
@@ -401,7 +545,11 @@ def resolve_warning(request: HttpRequest, edition_id: str, warning_id: uuid.UUID
     else:
         messages.success(request, "Review item resolved.")
     if edition.source_edition_id:
-        return _review_redirect(str(edition.id), request.POST.get("chapter", "1"))
+        return _review_redirect(
+            str(edition.id),
+            request.POST.get("chapter", "1"),
+            request.POST.get("filter", ""),
+        )
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
 

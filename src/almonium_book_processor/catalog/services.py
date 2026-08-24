@@ -310,6 +310,34 @@ def review_alignment_chapter(
 
 
 @transaction.atomic
+def confirm_ai_alignment_groups(*, edition: Edition, reviewer: AbstractBaseUser) -> int:
+    """Add one staff audit decision to every still-current AI-approved group."""
+
+    current_group_ids = BlockAlignment.objects.filter(target_edition=edition).values_list(
+        "group_id", flat=True
+    )
+    reviews = list(
+        AlignmentGroupReview.objects.filter(
+            target_edition=edition,
+            group_id__in=current_group_ids,
+            decision=AlignmentGroupReview.Decision.AI_ACCEPTED,
+        )
+    )
+    now = timezone.now()
+    for review in reviews:
+        review.decision = AlignmentGroupReview.Decision.ACCEPTED
+        review.reviewer = reviewer
+        review.notes = f"{review.notes}\nBulk-confirmed from the AI-safe set.".strip()
+        review.updated_at = now
+    AlignmentGroupReview.objects.bulk_update(
+        reviews,
+        ["decision", "reviewer", "notes", "updated_at"],
+        batch_size=500,
+    )
+    return len(reviews)
+
+
+@transaction.atomic
 def repair_alignment_group(
     *,
     edition: Edition,

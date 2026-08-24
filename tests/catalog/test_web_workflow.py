@@ -566,6 +566,98 @@ def test_alignment_review_can_accept_a_chapter(client) -> None:
     assert review.notes == "Compared every visible group in this chapter."
 
 
+def test_alignment_review_explains_status_filters_issues_and_bulk_confirms_ai(client) -> None:
+    target, source_blocks, target_blocks, group_id, _ = alignment_review_records()
+    Chapter.objects.create(edition=target, sequence=2, title="Deux")
+    AlignmentGroupReview.objects.create(
+        target_edition=target,
+        group_id=group_id,
+        decision=AlignmentGroupReview.Decision.AI_ACCEPTED,
+        source_block_ids=[str(source_blocks[0].id)],
+        target_block_ids=[str(target_blocks[0].id)],
+        notes="gpt-test: safe semantic match",
+    )
+    staff = get_user_model().objects.create_user(username="bulk-reviewer", password="safe-password")
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    client.force_login(staff)
+
+    page = client.get(
+        reverse("catalog:alignment-review", args=[target.id]),
+        {"filter": "issues", "chapter": 2},
+    )
+
+    content = page.content.decode()
+    assert page.context["chapter"] == 1
+    assert page.context["chapter_numbers"] == [1]
+    assert "How this review works" in content
+    assert "The numbered buttons are the 2 chapters" in content
+    assert "Confirm all 1 AI-approved groups" in content
+
+    response = client.post(
+        reverse("catalog:confirm-ai-safe-alignments", args=[target.id]),
+        {"chapter": "1", "filter": "issues"},
+    )
+
+    assert response.status_code == 302
+    assert response.url.endswith("?chapter=1&filter=issues")
+    review = AlignmentGroupReview.objects.get(target_edition=target, group_id=group_id)
+    assert review.decision == AlignmentGroupReview.Decision.ACCEPTED
+    assert review.reviewer == staff
+    assert "Bulk-confirmed" in review.notes
+
+
+def test_merged_chapter_coverage_does_not_report_cross_chapter_pair_as_gap(client) -> None:
+    target, source_blocks, _, _, _ = alignment_review_records()
+    source_chapter = source_blocks[0].chapter
+    first_target_chapter = target.chapters.get(sequence=1)
+    second_target_chapter = Chapter.objects.create(edition=target, sequence=2, title="Deux")
+    second_target_block = ContentBlock.objects.create(
+        edition=target,
+        chapter=second_target_chapter,
+        block_id="c2.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="Suite française.",
+    )
+    mapping_group_id = uuid.uuid4()
+    ChapterAlignment.objects.bulk_create(
+        [
+            ChapterAlignment(
+                source_edition=target.source_edition,
+                target_edition=target,
+                source_chapter=source_chapter,
+                target_chapter=target_chapter,
+                group_id=mapping_group_id,
+                confidence=0.9,
+                strategy="test",
+            )
+            for target_chapter in (first_target_chapter, second_target_chapter)
+        ]
+    )
+    BlockAlignment.objects.create(
+        source_edition=target.source_edition,
+        target_edition=target,
+        source_block=source_blocks[1],
+        target_block=second_target_block,
+        confidence=0.9,
+        strategy="test",
+    )
+    staff = get_user_model().objects.create_user(
+        username="merged-reviewer", password="safe-password"
+    )
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    client.force_login(staff)
+
+    page = client.get(
+        reverse("catalog:alignment-review", args=[target.id]),
+        {"chapter": 2},
+    )
+
+    assert page.context["unmatched_source"] == []
+
+
 def test_alignment_review_can_replace_groups_with_manual_pairing(client) -> None:
     target, source_blocks, target_blocks, _, _ = alignment_review_records()
     BlockAlignment.objects.create(

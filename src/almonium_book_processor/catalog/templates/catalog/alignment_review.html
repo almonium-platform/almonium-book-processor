@@ -8,22 +8,51 @@
     <p class="muted">Compare automatic groups, repair pairings, correct target text, and resolve QA findings before approval.</p>
   </div>
   <div class="button-row">
-    <form method="post" action="{% url 'catalog:queue-ai-alignment-review' edition.id %}">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter|default:1 }}"><button class="button" type="submit" {% if not ai_enabled %}disabled title="OPENAI_API_KEY is not configured"{% endif %}>Run autonomous AI review</button></form>
+    <form method="post" action="{% url 'catalog:queue-ai-alignment-review' edition.id %}">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter|default:1 }}"><input type="hidden" name="filter" value="{{ view_filter }}"><button class="button" type="submit" {% if not ai_enabled %}disabled title="OPENAI_API_KEY is not configured"{% endif %}>Run autonomous AI review</button></form>
     <a class="button button-secondary" href="{% url 'catalog:edition-detail' edition.id %}">Edition overview</a>
     <span class="status {% if unresolved_warning_count %}status-failed{% else %}status-ready{% endif %}">{{ unresolved_warning_count }} unresolved</span>
   </div>
 </div>
 
-{% if recent_ai_runs %}
+{% if ai_run_summaries %}
 <section class="panel">
   <p class="eyebrow">AI processing</p>
-  {% for run in recent_ai_runs %}<div class="run-row"><span>{{ run.model_configuration.model }}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{% if run.estimated_cost_usd is not None %}${{ run.estimated_cost_usd }} · {% endif %}{{ run.input_tokens }} in / {{ run.output_tokens }} out{% if run.error %} · {{ run.error|truncatechars:160 }}{% endif %}</span></div>{% endfor %}
+  {% for summary in ai_run_summaries %}{% with run=summary.run %}<div class="run-row"><span>{{ run.model_configuration.model }}</span><span class="status status-{{ run.status }}">{{ summary.display_status }}</span><span>{% if run.estimated_cost_usd is not None %}${{ run.estimated_cost_usd }} · {% endif %}{{ run.input_tokens }} in / {{ run.output_tokens }} out{% if summary.outcome %} · {{ summary.outcome }}{% endif %}{% if run.error %} · {{ run.error|truncatechars:160 }}{% endif %}</span></div>{% endwith %}{% endfor %}
 </section>
 {% endif %}
 
 {% if chapter_numbers %}
+<details class="panel review-guide" open>
+  <summary>How this review works</summary>
+  <ol>
+    <li>The numbered buttons are the {{ all_chapter_count }} chapters in the <strong>{{ edition.language|upper }} target edition</strong>, not alignment points. A source chapter may map to several target chapters or vice versa.</li>
+    <li><strong>AI approved</strong> groups already passed semantic and structural checks; you do not need to click every one. “Completed” above only means the provider job finished. Any chapters it could not settle remain explicitly pending.</li>
+    <li>Use <strong>Only chapters with issues</strong>. Inspect those chapters, repair a genuinely wrong pairing, or use <strong>Accept chapter groups</strong> once for the whole visible chapter.</li>
+    <li>Coverage gaps are blocks with no pairing anywhere in the complete mapped chapter group. A heading can legitimately be unmatched, but an unmatched paragraph deserves inspection.</li>
+  </ol>
+</details>
+
+<section class="metrics review-metrics" aria-label="Alignment review status">
+  <div><strong>{{ total_group_count }}</strong><span>Total alignment groups</span></div>
+  <div><strong>{{ ai_approved_count }}</strong><span>AI approved</span></div>
+  <div><strong>{{ staff_approved_count }}</strong><span>Staff confirmed/repaired</span></div>
+  <div><strong>{{ pending_group_count }}</strong><span>Pending in issue chapters</span></div>
+</section>
+
+<section class="panel review-actions">
+  <div>
+    <p class="eyebrow">Focus</p>
+    <p>{{ unresolved_warning_count }} unresolved warnings plus {{ unmatched_source_count|add:unmatched_target_count }} coverage gaps across {{ issue_chapter_count }} target chapter{{ issue_chapter_count|pluralize }} · {{ unmatched_source_count }} source and {{ unmatched_target_count }} target blocks unmatched book-wide.</p>
+  </div>
+  <div class="button-row">
+    {% if view_filter == "issues" %}<a class="button button-secondary" href="?chapter={{ chapter }}">Show all {{ all_chapter_count }} chapters</a>{% else %}<a class="button button-secondary" href="?filter=issues">Only chapters with issues</a>{% endif %}
+    {% if ai_approved_count %}<form method="post" action="{% url 'catalog:confirm-ai-safe-alignments' edition.id %}">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input type="hidden" name="filter" value="{{ view_filter }}"><button class="button" type="submit">Confirm all {{ ai_approved_count }} AI-approved groups</button></form>{% endif %}
+  </div>
+</section>
+
+<p class="muted chapter-nav-help">Target chapters{% if view_filter == "issues" %} with unresolved warnings or coverage gaps{% endif %}. A badge is the number of warnings plus gaps in that chapter.</p>
 <nav class="chapter-nav" aria-label="Chapters">
-  {% for number in chapter_numbers %}<a class="{% if number == chapter %}current{% endif %}" href="?chapter={{ number }}">{{ number }}</a>{% endfor %}
+  {% for item in chapter_nav %}<a class="{% if item.number == chapter %}current{% endif %}" href="?chapter={{ item.number }}{% if view_filter == 'issues' %}&amp;filter=issues{% endif %}">{{ item.number }}{% if item.issue_count %}<small>{{ item.issue_count }}</small>{% endif %}</a>{% endfor %}
 </nav>
 
 {% if global_warnings %}
@@ -33,9 +62,21 @@
   <div class="warning">
     <div><code>{{ warning.code }}</code><p>{{ warning.message }}</p></div>
     <form method="post" action="{% url 'catalog:resolve-warning' edition.id warning.id %}">
-      {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}">
+      {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input type="hidden" name="filter" value="{{ view_filter }}">
       <button class="button button-secondary" type="submit">Acknowledge</button>
     </form>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if chapter_level_warnings %}
+<section class="panel warning-summary">
+  <h2>Chapter-level AI findings</h2>
+  {% for warning in chapter_level_warnings %}
+  <div class="warning">
+    <div><code>{{ warning.code }}</code><p>{{ warning.message }}</p></div>
+    <form method="post" action="{% url 'catalog:resolve-warning' edition.id warning.id %}">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input type="hidden" name="filter" value="{{ view_filter }}"><button class="button button-secondary" type="submit">Acknowledge</button></form>
   </div>
   {% endfor %}
 </section>
@@ -44,7 +85,7 @@
 <section class="review-toolbar panel">
   <div><p class="eyebrow">Target chapter {{ chapter }} · source chapter{{ source_chapter_numbers|length|pluralize }} {{ source_chapter_numbers|join:", " }}</p><h2>Manual pairing</h2><p class="muted">Select one or more blocks on each side. Existing groups touching those blocks are replaced; unselected leftovers become visibly unmatched.</p></div>
   <form method="post" action="{% url 'catalog:repair-alignment' edition.id %}" class="repair-form">
-    {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}">
+    {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input type="hidden" name="filter" value="{{ view_filter }}">
     <label><span>{{ edition.source_edition.language|upper }} source blocks</span>
       <select name="source_blocks" multiple size="8" required>
         {% for block in source_blocks %}<option value="{{ block.id }}">{{ block.block_id }} · {{ block.text|truncatechars:90 }}</option>{% endfor %}
@@ -73,7 +114,7 @@
 <section class="alignment-list">
   <div class="section-heading">
     <div><p class="eyebrow">Chapter {{ chapter }}</p><h2>Aligned groups</h2><p class="muted">{{ chapter_warning_count }} unresolved chapter item{{ chapter_warning_count|pluralize }}</p></div>
-    {% if alignment_groups %}<form method="post" action="{% url 'catalog:accept-alignment-chapter' edition.id %}" class="chapter-accept-form">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input name="notes" placeholder="Chapter review note" required><button class="button button-secondary" type="submit">Accept chapter groups</button></form>{% endif %}
+    {% if alignment_groups %}<form method="post" action="{% url 'catalog:accept-alignment-chapter' edition.id %}" class="chapter-accept-form">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input type="hidden" name="filter" value="{{ view_filter }}"><input name="notes" placeholder="Chapter review note" required><button class="button button-secondary" type="submit">Accept chapter groups</button></form>{% endif %}
   </div>
   {% for group in alignment_groups %}
   <article class="alignment-group confidence-{{ group.confidence_class }} {% if group.review %}reviewed{% endif %}">
@@ -92,7 +133,7 @@
         <article class="review-block target-block">
           <code>{{ block.block_id }}</code><p>{{ block.text|linebreaksbr|default:"—" }}</p>
           <details><summary>Edit target text</summary><form method="post" action="{% url 'catalog:edit-alignment-target' edition.id block.id %}">
-            {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}">
+            {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input type="hidden" name="filter" value="{{ view_filter }}">
             <textarea name="text" rows="6" required>{{ block.text }}</textarea>
             <input name="notes" placeholder="Reason for correction" required>
             <button class="button button-secondary" type="submit">Save correction</button>
@@ -101,9 +142,9 @@
         {% endfor %}
       </div>
     </div>
-    {% if group.warnings %}<div class="group-warnings">{% for warning in group.warnings %}<div class="warning"><div><code>{{ warning.code }}</code><span>{{ warning.message }}</span></div><form method="post" action="{% url 'catalog:resolve-warning' edition.id warning.id %}">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><button class="button button-secondary" type="submit">Resolve</button></form></div>{% endfor %}</div>{% endif %}
+    {% if group.warnings %}<div class="group-warnings">{% for warning in group.warnings %}<div class="warning"><div><code>{{ warning.code }}</code><span>{{ warning.message }}</span></div><form method="post" action="{% url 'catalog:resolve-warning' edition.id warning.id %}">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input type="hidden" name="filter" value="{{ view_filter }}"><button class="button button-secondary" type="submit">Resolve</button></form></div>{% endfor %}</div>{% endif %}
     {% if not group.review %}<form method="post" action="{% url 'catalog:accept-alignment-group' edition.id group.id %}" class="accept-form">
-      {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}">
+      {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input type="hidden" name="filter" value="{{ view_filter }}">
       <input name="notes" placeholder="Optional review note">
       <button class="button" type="submit">Accept group</button>
     </form>{% endif %}
