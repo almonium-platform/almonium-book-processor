@@ -429,6 +429,134 @@ def repair_alignment_group(
 
 
 @transaction.atomic
+def translate_coverage_gap(
+    *,
+    edition: Edition,
+    source_block_id: uuid.UUID,
+    target_chapter_sequence: int,
+    translated_text: str,
+    editor: AbstractBaseUser,
+    notes: str = "",
+) -> ContentBlock:
+    """Create and align a manually translated target block for a source-only gap."""
+
+    if edition.source_edition_id is None:
+        raise ValueError("This edition has no source edition to translate from.")
+    translated_text = translated_text.strip()
+    if not translated_text:
+        raise ValueError("Enter the translated text.")
+
+    source_block = (
+        ContentBlock.objects.select_for_update()
+        .select_related("chapter")
+        .filter(id=source_block_id, edition_id=edition.source_edition_id)
+        .first()
+    )
+    if source_block is None:
+        raise ValueError("The source block does not belong to this edition's source.")
+    if BlockAlignment.objects.filter(
+        target_edition=edition,
+        source_block=source_block,
+    ).exists():
+        raise ValueError("This source block is already aligned and is no longer a coverage gap.")
+
+    target_chapter = edition.chapters.filter(sequence=target_chapter_sequence).first()
+    if target_chapter is None:
+        raise ValueError("The selected target chapter does not belong to this edition.")
+    mapped_source_chapter_ids = set(
+        ChapterAlignment.objects.filter(
+            target_edition=edition,
+            target_chapter=target_chapter,
+        ).values_list("source_chapter_id", flat=True)
+    )
+    if not mapped_source_chapter_ids:
+        mapped_source_chapter_ids = set(
+            edition.source_edition.chapters.filter(sequence=target_chapter.sequence).values_list(
+                "id", flat=True
+            )
+        )
+    if source_block.chapter_id not in mapped_source_chapter_ids:
+        raise ValueError("The source block is not mapped to the selected target chapter.")
+
+    target_blocks = list(
+        ContentBlock.objects.select_for_update().filter(chapter=target_chapter).order_by("sequence")
+    )
+    neighboring_alignments = BlockAlignment.objects.filter(
+        target_edition=edition,
+        source_block__chapter_id=source_block.chapter_id,
+        target_block__chapter=target_chapter,
+    ).select_related("source_block", "target_block")
+    preceding_sequences = [
+        alignment.target_block.sequence
+        for alignment in neighboring_alignments
+        if alignment.source_block.sequence < source_block.sequence
+    ]
+    following_sequences = [
+        alignment.target_block.sequence
+        for alignment in neighboring_alignments
+        if alignment.source_block.sequence > source_block.sequence
+    ]
+    if preceding_sequences:
+        insertion_sequence = max(preceding_sequences) + 1
+    elif following_sequences:
+        insertion_sequence = min(following_sequences)
+    else:
+        insertion_sequence = len(target_blocks) + 1
+
+    blocks_to_shift = [block for block in target_blocks if block.sequence >= insertion_sequence]
+    temporary_sequence = max((block.sequence for block in target_blocks), default=0) + 1
+    for index, block in enumerate(blocks_to_shift):
+        ContentBlock.objects.filter(id=block.id).update(sequence=temporary_sequence + index)
+    for block in blocks_to_shift:
+        ContentBlock.objects.filter(id=block.id).update(sequence=block.sequence + 1)
+
+    target_block = ContentBlock.objects.create(
+        edition=edition,
+        chapter=target_chapter,
+        block_id=f"manual.{uuid.uuid4().hex}",
+        sequence=insertion_sequence,
+        block_type=source_block.block_type,
+        text=translated_text,
+        sentences=[],
+        source_ref=f"manual-translation:{source_block.id}",
+        attributes={
+            "manual_translation": {
+                "source_block_id": str(source_block.id),
+                "editor_id": str(editor.pk),
+            }
+        },
+    )
+    group_id = uuid.uuid4()
+    BlockAlignment.objects.create(
+        source_edition_id=edition.source_edition_id,
+        target_edition=edition,
+        source_block=source_block,
+        target_block=target_block,
+        group_id=group_id,
+        confidence=1.0,
+        strategy="human-translation-v1",
+    )
+    AlignmentGroupReview.objects.create(
+        target_edition=edition,
+        group_id=group_id,
+        reviewer=editor,
+        decision=AlignmentGroupReview.Decision.REPAIRED,
+        source_block_ids=[str(source_block.id)],
+        target_block_ids=[str(target_block.id)],
+        notes=notes or "Manually translated a source-only coverage gap.",
+    )
+    edition.word_count = sum(
+        len(text.split()) for text in edition.blocks.values_list("text", flat=True)
+    )
+    edition.save(update_fields=["word_count", "updated_at"])
+
+    from almonium_book_processor.catalog.tasks import split_edition_sentences
+
+    transaction.on_commit(lambda: split_edition_sentences.delay(str(edition.id)))
+    return target_block
+
+
+@transaction.atomic
 def revise_target_block(
     *,
     edition: Edition,

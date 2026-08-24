@@ -33,6 +33,7 @@ from almonium_book_processor.catalog.services import (
     review_alignment_chapter,
     review_alignment_group,
     revise_target_block,
+    translate_coverage_gap,
 )
 from almonium_book_processor.catalog.tasks import (
     prepare_ai_alignment,
@@ -511,6 +512,27 @@ def repair_alignment(request: HttpRequest, edition_id: str):
     return _review_redirect(
         str(edition.id), request.POST.get("chapter", "1"), request.POST.get("filter", "")
     )
+
+
+@staff_member_required
+@require_POST
+def translate_alignment_gap(request: HttpRequest, edition_id: str, source_block_id: uuid.UUID):
+    edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
+    chapter = request.POST.get("chapter", "1")
+    try:
+        translate_coverage_gap(
+            edition=edition,
+            source_block_id=source_block_id,
+            target_chapter_sequence=int(chapter),
+            translated_text=request.POST.get("text", ""),
+            editor=request.user,
+            notes=request.POST.get("notes", "").strip(),
+        )
+    except (TypeError, ValueError) as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Translation added and the coverage gap was aligned.")
+    return _review_redirect(str(edition.id), chapter, request.POST.get("filter", ""))
 
 
 @staff_member_required

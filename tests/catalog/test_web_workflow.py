@@ -530,6 +530,7 @@ def test_alignment_review_shows_pairs_gaps_and_accepts_group(client) -> None:
     assert "Deuxième cible." in content
     assert "61%" in content
     assert "Unmatched blocks" in content
+    assert "Translate manually" in content
 
     response = client.post(
         reverse("catalog:accept-alignment-group", args=[target.id, group_id]),
@@ -542,6 +543,85 @@ def test_alignment_review_shows_pairs_gaps_and_accepts_group(client) -> None:
     assert warning.resolved_by == staff
     assert review.decision == AlignmentGroupReview.Decision.ACCEPTED
     assert review.notes == "Meaning and paragraph boundaries match."
+
+
+def test_alignment_review_can_manually_translate_a_source_gap(
+    client, monkeypatch, django_capture_on_commit_callbacks
+) -> None:
+    target, source_blocks, target_blocks, _, _ = alignment_review_records()
+    target.word_count = 4
+    target.save(update_fields=["word_count"])
+    staff = get_user_model().objects.create_user(
+        username="gap-translator", password="safe-password"
+    )
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    queued: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.split_edition_sentences.delay",
+        lambda edition_id: queued.append(edition_id),
+    )
+    client.force_login(staff)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.post(
+            reverse(
+                "catalog:translate-alignment-gap",
+                args=[target.id, source_blocks[1].id],
+            ),
+            {
+                "chapter": "1",
+                "text": "Deuxième source traduite.",
+                "notes": "Filled the missing paragraph.",
+            },
+        )
+
+    assert response.status_code == 302
+    translated = target.blocks.get(source_ref=f"manual-translation:{source_blocks[1].id}")
+    assert translated.text == "Deuxième source traduite."
+    assert translated.sequence == 2
+    target_blocks[1].refresh_from_db()
+    assert target_blocks[1].sequence == 3
+    assert translated.block_type == source_blocks[1].block_type
+    alignment = BlockAlignment.objects.get(
+        target_edition=target,
+        source_block=source_blocks[1],
+    )
+    assert alignment.target_block == translated
+    assert alignment.strategy == "human-translation-v1"
+    review = AlignmentGroupReview.objects.get(target_edition=target, group_id=alignment.group_id)
+    assert review.reviewer == staff
+    assert review.notes == "Filled the missing paragraph."
+    target.refresh_from_db()
+    assert target.word_count == 7
+    assert queued == [str(target.id)]
+
+    page = client.get(reverse("catalog:alignment-review", args=[target.id]))
+    assert source_blocks[1] not in page.context["unmatched_source"]
+    assert translated not in page.context["unmatched_target"]
+
+
+def test_manual_gap_translation_rejects_an_already_aligned_source(client) -> None:
+    target, source_blocks, _, _, _ = alignment_review_records()
+    staff = get_user_model().objects.create_user(
+        username="gap-race-reviewer", password="safe-password"
+    )
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    client.force_login(staff)
+
+    response = client.post(
+        reverse(
+            "catalog:translate-alignment-gap",
+            args=[target.id, source_blocks[0].id],
+        ),
+        {"chapter": "1", "text": "Duplicate translation."},
+        follow=True,
+    )
+
+    assert response.status_code == 200
+    assert "already aligned" in response.content.decode()
+    assert not target.blocks.filter(text="Duplicate translation.").exists()
 
 
 def test_alignment_review_can_accept_a_chapter(client) -> None:

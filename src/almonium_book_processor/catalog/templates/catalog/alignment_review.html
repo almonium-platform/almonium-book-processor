@@ -105,7 +105,12 @@
 <section class="panel unmatched-panel">
   <p class="eyebrow">Coverage gaps</p><h2>Unmatched blocks</h2>
   <div class="alignment-columns">
-    <div><h3>{{ edition.source_edition.language|upper }} source</h3>{% for block in unmatched_source %}<article class="review-block unmatched"><code>{{ block.block_id }}</code><p>{{ block.text|linebreaksbr|default:"—" }}</p></article>{% empty %}<p class="muted">No unmatched source blocks.</p>{% endfor %}</div>
+    <div><h3>{{ edition.source_edition.language|upper }} source</h3>{% for block in unmatched_source %}<article class="review-block unmatched"><code>{{ block.block_id }}</code><p>{{ block.text|linebreaksbr|default:"—" }}</p>{% if block.text %}<details><summary class="button button-secondary">Translate manually</summary><form method="post" action="{% url 'catalog:translate-alignment-gap' edition.id block.id %}">
+      {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input type="hidden" name="filter" value="{{ view_filter }}">
+      <textarea name="text" rows="6" placeholder="Enter the {{ edition.language|upper }} translation" required></textarea>
+      <input name="notes" placeholder="Optional audit note">
+      <button class="button" type="submit">Add translation</button>
+    </form></details>{% endif %}</article>{% empty %}<p class="muted">No unmatched source blocks.</p>{% endfor %}</div>
     <div><h3>{{ edition.language|upper }} target</h3>{% for block in unmatched_target %}<article class="review-block unmatched"><code>{{ block.block_id }}</code><p>{{ block.text|linebreaksbr|default:"—" }}</p></article>{% empty %}<p class="muted">No unmatched target blocks.</p>{% endfor %}</div>
   </div>
 </section>

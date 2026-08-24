@@ -41,6 +41,11 @@ urlpatterns = [
         name="repair-alignment",
     ),
     path(
+        "editions/<uuid:edition_id>/alignment-review/gaps/<uuid:source_block_id>/translate/",
+        views.translate_alignment_gap,
+        name="translate-alignment-gap",
+    ),
+    path(
         "editions/<uuid:edition_id>/alignment-review/blocks/<uuid:block_id>/edit/",
         views.edit_alignment_target,
         name="edit-alignment-target",
