@@ -340,6 +340,7 @@ class PipelineRun(TimestampedModel):
         SENTENCES = "sentences", "Sentence splitting"
         ALIGN = "align", "Alignment"
         LEXICAL = "lexical", "Lexical analysis"
+        SOURCE_QA = "source_qa", "Source text QA"
         TRANSLATE = "translate", "Translation"
         ADAPT = "adapt", "Level adaptation"
         PUBLISH = "publish", "Publication"
@@ -396,6 +397,7 @@ class EditionArtifact(TimestampedModel):
     input_hash = models.CharField(max_length=64)
     processor_version = models.CharField(max_length=80)
     payload = models.JSONField(default=dict)
+    is_current = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -409,6 +411,88 @@ class EditionArtifact(TimestampedModel):
             models.Index(
                 fields=["edition", "kind", "created_at"],
                 name="catalog_art_edition_kind_idx",
+            )
+        ]
+
+
+class TextQualityFinding(TimestampedModel):
+    """One reviewable source-text anomaly; it never mutates text autonomously."""
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        APPLIED = "applied", "Correction applied"
+        DISMISSED = "dismissed", "Dismissed"
+        SUPERSEDED = "superseded", "Superseded by a text revision"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    edition = models.ForeignKey(
+        Edition,
+        related_name="text_quality_findings",
+        on_delete=models.CASCADE,
+    )
+    pipeline_run = models.ForeignKey(
+        PipelineRun,
+        related_name="text_quality_findings",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    artifact = models.ForeignKey(
+        EditionArtifact,
+        related_name="text_quality_findings",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    block = models.ForeignKey(
+        ContentBlock,
+        related_name="text_quality_findings",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    stable_block_id = models.CharField(max_length=80, blank=True)
+    input_hash = models.CharField(max_length=64)
+    fingerprint = models.CharField(max_length=64)
+    code = models.CharField(max_length=100)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
+    start_offset = models.PositiveIntegerField(null=True, blank=True)
+    end_offset = models.PositiveIntegerField(null=True, blank=True)
+    original_text = models.TextField(blank=True)
+    suggested_text = models.TextField(blank=True)
+    confidence = models.FloatField()
+    message = models.TextField()
+    evidence = models.JSONField(default=dict, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="reviewed_text_quality_findings",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def can_apply(self) -> bool:
+        return (
+            self.status == self.Status.OPEN
+            and self.block_id is not None
+            and self.start_offset is not None
+            and self.end_offset is not None
+        )
+
+    class Meta:
+        ordering = ["status", "-confidence", "created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["edition", "input_hash", "fingerprint"],
+                name="catalog_text_finding_input_fingerprint_unique",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["edition", "status", "created_at"],
+                name="catalog_text_ed_status_idx",
             )
         ]
 

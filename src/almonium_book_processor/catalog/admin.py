@@ -16,12 +16,14 @@ from almonium_book_processor.catalog.models import (
     PromptTemplate,
     QAWarning,
     ReviewDecision,
+    TextQualityFinding,
     UserErrorReport,
     Work,
 )
 from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
     analyze_edition_lexicon,
+    analyze_edition_source_quality,
     split_edition_sentences,
 )
 from almonium_book_processor.languages import LANGUAGE_CHOICES
@@ -84,6 +86,7 @@ class EditionAdmin(admin.ModelAdmin):
     actions = (
         "queue_sentence_splitting",
         "queue_lexical_analysis",
+        "queue_source_quality_scan",
         "queue_source_alignment",
     )
 
@@ -96,6 +99,11 @@ class EditionAdmin(admin.ModelAdmin):
     def queue_lexical_analysis(self, request, queryset):
         for edition_id in queryset.values_list("id", flat=True):
             analyze_edition_lexicon.delay(str(edition_id))
+
+    @admin.action(description="Queue source-text QA scan")
+    def queue_source_quality_scan(self, request, queryset):
+        for edition_id in queryset.values_list("id", flat=True):
+            analyze_edition_source_quality.delay(str(edition_id))
 
     @admin.action(description="Queue alignment to source edition")
     def queue_source_alignment(self, request, queryset):
@@ -161,3 +169,4 @@ admin.site.register(ChapterAlignment)
 admin.site.register(AlignmentGroupReview)
 admin.site.register(ContentBlockRevision)
 admin.site.register(EditionArtifact)
+admin.site.register(TextQualityFinding)

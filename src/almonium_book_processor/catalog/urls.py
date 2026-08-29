@@ -11,6 +11,26 @@ urlpatterns = [
     path("imports/legacy/", views.import_legacy, name="import-legacy"),
     path("editions/<uuid:edition_id>/", views.edition_detail, name="edition-detail"),
     path(
+        "editions/<uuid:edition_id>/lexical/queue/",
+        views.queue_lexical_analysis,
+        name="queue-lexical-analysis",
+    ),
+    path(
+        "editions/<uuid:edition_id>/source-qa/queue/",
+        views.queue_source_quality_scan,
+        name="queue-source-quality-scan",
+    ),
+    path(
+        "editions/<uuid:edition_id>/source-qa/<uuid:finding_id>/apply/",
+        views.apply_source_quality_finding,
+        name="apply-source-quality-finding",
+    ),
+    path(
+        "editions/<uuid:edition_id>/source-qa/<uuid:finding_id>/dismiss/",
+        views.dismiss_source_quality_finding,
+        name="dismiss-source-quality-finding",
+    ),
+    path(
         "editions/<uuid:edition_id>/alignment-review/",
         views.alignment_review,
         name="alignment-review",

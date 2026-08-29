@@ -68,12 +68,19 @@ remaining deterministic QA gates should be added before AI adjudication.
   novel; adjust recurrence and frequency bounds from real output.
 - [ ] Publish lexical artifacts through an explicit backend contract and render
   the useful-word SEO page server-side.
-- [ ] Add deterministic source QA for boilerplate, language mismatch, malformed
-  Unicode, repeated blocks, broken hyphenation, and probable split/joined words.
+- [x] Add conservative deterministic source QA for Gutenberg boilerplate,
+  malformed Unicode, repeated blocks, broken line hyphenation, and probable
+  split words.
+- [x] Show findings for originals and derived editions; allow staff to edit and
+  apply a suggested replacement or dismiss it without changing the text.
+- [ ] Add chapter-size and per-chapter language-mismatch findings after choosing
+  a reliable offline detector and calibrating front-matter exceptions.
 - [ ] Add AI adjudication for flagged source windows only. It proposes findings;
   an operator approves every text mutation through `ContentBlockRevision`.
-- [ ] Invalidate dependent sentence, alignment, lexical, difficulty, and generated
-  artifacts after an approved source revision.
+- [x] Mark current edition artifacts stale after an approved source revision and
+  regenerate sentence, lexical, and source-QA results.
+- [ ] Define whether a text-only correction should recompute embedding alignment
+  or retain reviewed stable-block correspondence with refreshed provenance.
 
 ## Then: AI for exceptional cases
 

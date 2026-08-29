@@ -24,6 +24,7 @@ from almonium_book_processor.catalog.models import (
     PipelineRun,
     QAWarning,
     ReviewDecision,
+    TextQualityFinding,
     Work,
 )
 from almonium_book_processor.models import (
@@ -593,11 +594,89 @@ def revise_target_block(
         len(text.split()) for text in edition.blocks.values_list("text", flat=True)
     )
     edition.save(update_fields=["word_count", "updated_at"])
+    edition.artifacts.filter(is_current=True).update(is_current=False)
+    edition.text_quality_findings.filter(status=TextQualityFinding.Status.OPEN).update(
+        status=TextQualityFinding.Status.SUPERSEDED
+    )
 
-    from almonium_book_processor.catalog.tasks import split_edition_sentences
+    from almonium_book_processor.catalog.tasks import refresh_edition_after_revision
 
-    transaction.on_commit(lambda: split_edition_sentences.delay(str(edition.id)))
+    transaction.on_commit(lambda: refresh_edition_after_revision.delay(str(edition.id)))
     return revision
+
+
+@transaction.atomic
+def apply_text_quality_finding(
+    *,
+    edition: Edition,
+    finding_id: uuid.UUID,
+    replacement: str,
+    reviewer: AbstractBaseUser,
+    notes: str = "",
+) -> ContentBlockRevision:
+    finding = (
+        TextQualityFinding.objects.select_for_update()
+        .select_related("block")
+        .filter(id=finding_id, edition=edition)
+        .first()
+    )
+    if finding is None:
+        raise ValueError("This source-text finding does not belong to the edition.")
+    if finding.status != TextQualityFinding.Status.OPEN:
+        raise ValueError("This source-text finding is no longer open.")
+    if finding.block is None or finding.start_offset is None or finding.end_offset is None:
+        raise ValueError("This finding requires manual block inspection rather than inline repair.")
+    current = finding.block.text[finding.start_offset : finding.end_offset]
+    if current != finding.original_text:
+        raise ValueError("The block changed after this finding was generated; run source QA again.")
+    revised_text = (
+        finding.block.text[: finding.start_offset]
+        + replacement
+        + finding.block.text[finding.end_offset :]
+    )
+    revision = revise_target_block(
+        edition=edition,
+        block_id=finding.block_id,
+        revised_text=revised_text,
+        editor=reviewer,
+        notes=notes or f"Applied source-QA finding {finding.code}.",
+    )
+    finding.status = TextQualityFinding.Status.APPLIED
+    finding.suggested_text = replacement
+    finding.reviewed_by = reviewer
+    finding.reviewed_at = timezone.now()
+    finding.save(
+        update_fields=[
+            "status",
+            "suggested_text",
+            "reviewed_by",
+            "reviewed_at",
+            "updated_at",
+        ]
+    )
+    return revision
+
+
+@transaction.atomic
+def dismiss_text_quality_finding(
+    *, edition: Edition, finding_id: uuid.UUID, reviewer: AbstractBaseUser
+) -> TextQualityFinding:
+    finding = (
+        TextQualityFinding.objects.select_for_update()
+        .filter(
+            id=finding_id,
+            edition=edition,
+        )
+        .first()
+    )
+    if finding is None:
+        raise ValueError("This source-text finding does not belong to the edition.")
+    if finding.status == TextQualityFinding.Status.OPEN:
+        finding.status = TextQualityFinding.Status.DISMISSED
+        finding.reviewed_by = reviewer
+        finding.reviewed_at = timezone.now()
+        finding.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+    return finding
 
 
 @transaction.atomic

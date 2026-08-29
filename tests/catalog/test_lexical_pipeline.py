@@ -129,7 +129,7 @@ def test_lexical_task_creates_new_artifact_versions_after_text_changes(monkeypat
     assert edition.pipeline_runs.filter(stage=PipelineRun.Stage.LEXICAL).count() == 2
 
 
-def test_standalone_original_becomes_ready_and_queues_lexical_enrichment(monkeypatch) -> None:
+def test_standalone_original_becomes_ready_and_queues_enrichment(monkeypatch) -> None:
     edition = _edition()
     queued = []
     monkeypatch.setattr(
@@ -138,18 +138,23 @@ def test_standalone_original_becomes_ready_and_queues_lexical_enrichment(monkeyp
     )
     monkeypatch.setattr(
         "almonium_book_processor.catalog.tasks.analyze_edition_lexicon.delay",
-        queued.append,
+        lambda edition_id: queued.append(("lexical", edition_id)),
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.analyze_edition_source_quality.delay",
+        lambda edition_id: queued.append(("source_qa", edition_id)),
     )
 
     process_normalized_edition.run(str(edition.id))
 
     edition.refresh_from_db()
     assert edition.status == Edition.Status.READY
-    assert queued == [str(edition.id)]
+    assert queued == [("lexical", str(edition.id)), ("source_qa", str(edition.id))]
 
 
 def test_lexical_queue_failure_does_not_block_standalone_original(monkeypatch) -> None:
     edition = _edition()
+    queued = []
     monkeypatch.setattr(
         "almonium_book_processor.catalog.tasks.split_sentences",
         lambda text, language: [text],
@@ -162,11 +167,16 @@ def test_lexical_queue_failure_does_not_block_standalone_original(monkeypatch) -
         "almonium_book_processor.catalog.tasks.analyze_edition_lexicon.delay",
         fail_to_queue,
     )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.analyze_edition_source_quality.delay",
+        queued.append,
+    )
 
     process_normalized_edition.run(str(edition.id))
 
     edition.refresh_from_db()
     assert edition.status == Edition.Status.READY
+    assert queued == [str(edition.id)]
 
 
 def test_edition_page_displays_useful_words_artifact(client) -> None:

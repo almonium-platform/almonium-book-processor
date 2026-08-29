@@ -111,6 +111,13 @@ derives versioned lexical artifacts, including a book-level profile and up to
 50 useful recurring words with frequency and source evidence. Enrichment runs
 are observable but do not block a sound original from becoming available.
 
+For any existing or newly uploaded edition, the edition page exposes **Run
+lexical analysis** and **Scan source text**. New uploads queue both automatically;
+existing editions can be backfilled with the same buttons. Source-QA findings
+show their block and evidence. Staff can edit and apply a replacement, producing
+an auditable block revision, or dismiss the finding. No scanner mutates book
+text autonomously.
+
 The importer currently emits these codes:
 
 - `empty_block_skipped` — informational; an empty source element had no book

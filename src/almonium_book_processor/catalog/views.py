@@ -21,11 +21,14 @@ from almonium_book_processor.catalog.models import (
     Edition,
     PipelineRun,
     QAWarning,
+    TextQualityFinding,
     Work,
 )
 from almonium_book_processor.catalog.services import (
+    apply_text_quality_finding,
     complete_review,
     confirm_ai_alignment_groups,
+    dismiss_text_quality_finding,
     import_legacy_artifacts,
     release_private_import,
     repair_alignment_group,
@@ -36,6 +39,8 @@ from almonium_book_processor.catalog.services import (
     translate_coverage_gap,
 )
 from almonium_book_processor.catalog.tasks import (
+    analyze_edition_lexicon,
+    analyze_edition_source_quality,
     prepare_ai_alignment,
     process_book_pipeline,
     process_normalized_edition,
@@ -123,6 +128,8 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
             "chapters",
             "review_decisions__reviewer",
             "artifacts",
+            "text_quality_findings__block",
+            "block_revisions__editor",
         ),
         id=edition_id,
     )
@@ -155,10 +162,77 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
                 ),
                 None,
             ),
-            "lexical_profile": edition.artifacts.filter(kind="lexical_profile").first(),
-            "useful_words": edition.artifacts.filter(kind="useful_words").first(),
+            "lexical_profile": edition.artifacts.filter(
+                kind="lexical_profile", is_current=True
+            ).first(),
+            "useful_words": edition.artifacts.filter(kind="useful_words", is_current=True).first(),
+            "source_qa_artifact": edition.artifacts.filter(
+                kind="source_qa", is_current=True
+            ).first(),
+            "text_quality_findings": edition.text_quality_findings.filter(
+                status=TextQualityFinding.Status.OPEN
+            ),
+            "recent_revisions": edition.block_revisions.all()[:10],
         },
     )
+
+
+@staff_member_required
+@require_POST
+def queue_lexical_analysis(request: HttpRequest, edition_id: str) -> HttpResponse:
+    edition = get_object_or_404(Edition, id=edition_id)
+    analyze_edition_lexicon.delay(str(edition.id))
+    messages.success(request, "Lexical analysis queued.")
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def queue_source_quality_scan(request: HttpRequest, edition_id: str) -> HttpResponse:
+    edition = get_object_or_404(Edition, id=edition_id)
+    analyze_edition_source_quality.delay(str(edition.id))
+    messages.success(request, "Source-text QA scan queued.")
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def apply_source_quality_finding(
+    request: HttpRequest, edition_id: str, finding_id: uuid.UUID
+) -> HttpResponse:
+    edition = get_object_or_404(Edition, id=edition_id)
+    try:
+        apply_text_quality_finding(
+            edition=edition,
+            finding_id=finding_id,
+            replacement=request.POST.get("replacement", ""),
+            reviewer=request.user,
+            notes=request.POST.get("notes", "").strip(),
+        )
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Correction applied with an audit revision; refresh queued.")
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def dismiss_source_quality_finding(
+    request: HttpRequest, edition_id: str, finding_id: uuid.UUID
+) -> HttpResponse:
+    edition = get_object_or_404(Edition, id=edition_id)
+    try:
+        dismiss_text_quality_finding(
+            edition=edition,
+            finding_id=finding_id,
+            reviewer=request.user,
+        )
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Source-text finding dismissed.")
+    return redirect("catalog:edition-detail", edition_id=edition.id)
 
 
 @staff_member_required

@@ -785,7 +785,7 @@ def test_alignment_review_edits_target_text_with_audit(
     staff.save(update_fields=["is_staff"])
     queued: list[str] = []
     monkeypatch.setattr(
-        "almonium_book_processor.catalog.tasks.split_edition_sentences.delay",
+        "almonium_book_processor.catalog.tasks.refresh_edition_after_revision.delay",
         lambda edition_id: queued.append(edition_id),
     )
     client.force_login(staff)
@@ -1260,6 +1260,10 @@ def test_normalized_pipeline_groups_split_blocks_and_finishes_ready(monkeypatch)
         "almonium_book_processor.catalog.tasks.analyze_edition_lexicon.delay",
         lambda edition_id: None,
     )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.analyze_edition_source_quality.delay",
+        lambda edition_id: None,
+    )
     work = Work.objects.create(
         slug="split-alignment-work",
         title="Split Alignment Work",
@@ -1327,6 +1331,10 @@ def test_normalized_pipeline_groups_split_blocks_and_finishes_ready(monkeypatch)
 def test_normalized_pipeline_routes_low_confidence_alignment_to_review(monkeypatch) -> None:
     monkeypatch.setattr(
         "almonium_book_processor.catalog.tasks.analyze_edition_lexicon.delay",
+        lambda edition_id: None,
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.analyze_edition_source_quality.delay",
         lambda edition_id: None,
     )
     work = Work.objects.create(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata
 import json
 import logging
 import tempfile
@@ -22,6 +23,7 @@ from almonium_book_processor.catalog.models import (
     EditionArtifact,
     PipelineRun,
     QAWarning,
+    TextQualityFinding,
     Work,
 )
 from almonium_book_processor.catalog.publication import publish_to_almonium
@@ -40,6 +42,12 @@ from almonium_book_processor.processing.nlp import (
     align_embeddings,
     embed_texts,
     split_sentences,
+)
+from almonium_book_processor.processing.source_qa import (
+    SOURCE_QA_PROCESSOR_VERSION,
+    SOURCE_QA_SCHEMA_VERSION,
+    SourceQABlock,
+    analyze_source_quality,
 )
 
 logger = logging.getLogger(__name__)
@@ -207,10 +215,14 @@ def process_normalized_edition(self, edition_id: str) -> None:
         if edition.source_edition_id:
             align_edition_to_source.run(edition_id)
         _finish_normalized_pipeline(edition)
-        try:
-            analyze_edition_lexicon.delay(edition_id)
-        except Exception:
-            logger.exception("Could not queue lexical enrichment for edition %s", edition.id)
+        for task, label in (
+            (analyze_edition_lexicon, "lexical enrichment"),
+            (analyze_edition_source_quality, "source-text QA"),
+        ):
+            try:
+                task.delay(edition_id)
+            except Exception:
+                logger.exception("Could not queue %s for edition %s", label, edition.id)
         edition.refresh_from_db()
         if edition.work.visibility == Work.Visibility.PRIVATE:
             try:
@@ -431,6 +443,15 @@ def analyze_edition_lexicon(edition_id: str) -> None:
         ).values_list("kind", flat=True)
     )
     if run.status == PipelineRun.Status.SUCCEEDED and existing_kinds == expected_kinds:
+        with transaction.atomic():
+            edition.artifacts.filter(kind__in=expected_kinds, is_current=True).update(
+                is_current=False
+            )
+            edition.artifacts.filter(
+                input_hash=input_hash,
+                processor_version=LEXICAL_PROCESSOR_VERSION,
+                kind__in=expected_kinds,
+            ).update(is_current=True)
         return
 
     run.status = PipelineRun.Status.RUNNING
@@ -451,6 +472,9 @@ def analyze_edition_lexicon(edition_id: str) -> None:
         ]
         profile, useful_words = analyze_lexicon(blocks, edition.language)
         with transaction.atomic():
+            edition.artifacts.filter(kind__in=expected_kinds, is_current=True).update(
+                is_current=False
+            )
             for kind, payload in (
                 (EditionArtifact.Kind.LEXICAL_PROFILE, profile),
                 (EditionArtifact.Kind.USEFUL_WORDS, useful_words),
@@ -464,6 +488,7 @@ def analyze_edition_lexicon(edition_id: str) -> None:
                         "pipeline_run": run,
                         "schema_version": LEXICAL_SCHEMA_VERSION,
                         "payload": payload,
+                        "is_current": True,
                     },
                 )
             run.status = PipelineRun.Status.SUCCEEDED
@@ -490,6 +515,156 @@ def analyze_edition_lexicon(edition_id: str) -> None:
         run.error = str(error)[:10000]
         run.save(update_fields=["status", "finished_at", "error", "updated_at"])
         raise
+
+
+@shared_task(acks_late=True)
+def analyze_edition_source_quality(edition_id: str) -> None:
+    """Persist conservative source-text findings without editing content."""
+
+    edition = Edition.objects.get(id=edition_id)
+    content_hash = _edition_content_hash(edition)
+    wordfreq_version = importlib.metadata.version("wordfreq")
+    input_hash = _text_hash(
+        content_hash,
+        edition.language,
+        wordfreq_version,
+        SOURCE_QA_PROCESSOR_VERSION,
+    )
+    idempotency_key = f"{edition.id}:{input_hash}:source-qa:{SOURCE_QA_PROCESSOR_VERSION}"
+    run, _ = PipelineRun.objects.get_or_create(
+        idempotency_key=idempotency_key,
+        defaults={
+            "edition": edition,
+            "stage": PipelineRun.Stage.SOURCE_QA,
+            "processor_version": SOURCE_QA_PROCESSOR_VERSION,
+            "input_hash": input_hash,
+        },
+    )
+    existing_artifact = edition.artifacts.filter(
+        kind=EditionArtifact.Kind.SOURCE_QA,
+        input_hash=input_hash,
+        processor_version=SOURCE_QA_PROCESSOR_VERSION,
+    ).first()
+    if run.status == PipelineRun.Status.SUCCEEDED and existing_artifact:
+        with transaction.atomic():
+            edition.artifacts.filter(
+                kind=EditionArtifact.Kind.SOURCE_QA,
+                is_current=True,
+            ).update(is_current=False)
+            existing_artifact.is_current = True
+            existing_artifact.save(update_fields=["is_current", "updated_at"])
+            edition.text_quality_findings.filter(status=TextQualityFinding.Status.OPEN).exclude(
+                input_hash=input_hash
+            ).update(status=TextQualityFinding.Status.SUPERSEDED)
+        return
+
+    run.status = PipelineRun.Status.RUNNING
+    run.started_at = timezone.now()
+    run.progress = 10
+    run.error = ""
+    run.save(update_fields=["status", "started_at", "progress", "error", "updated_at"])
+    try:
+        blocks = [
+            SourceQABlock(
+                id=str(block.id),
+                block_id=block.block_id,
+                chapter=block.chapter.sequence,
+                text=block.text,
+            )
+            for block in edition.blocks.exclude(text="")
+            .select_related("chapter")
+            .order_by("chapter__sequence", "sequence")
+        ]
+        findings = analyze_source_quality(blocks, edition.language)
+        payload = {
+            "schema_version": SOURCE_QA_SCHEMA_VERSION,
+            "language": edition.language,
+            "processor_version": SOURCE_QA_PROCESSOR_VERSION,
+            "wordfreq_version": wordfreq_version,
+            "finding_count": len(findings),
+            "findings": [finding.payload() for finding in findings],
+        }
+        with transaction.atomic():
+            edition.artifacts.filter(
+                kind=EditionArtifact.Kind.SOURCE_QA,
+                is_current=True,
+            ).update(is_current=False)
+            artifact, _ = EditionArtifact.objects.update_or_create(
+                edition=edition,
+                kind=EditionArtifact.Kind.SOURCE_QA,
+                input_hash=input_hash,
+                processor_version=SOURCE_QA_PROCESSOR_VERSION,
+                defaults={
+                    "pipeline_run": run,
+                    "schema_version": SOURCE_QA_SCHEMA_VERSION,
+                    "payload": payload,
+                    "is_current": True,
+                },
+            )
+            edition.text_quality_findings.filter(status=TextQualityFinding.Status.OPEN).exclude(
+                input_hash=input_hash
+            ).update(status=TextQualityFinding.Status.SUPERSEDED)
+            blocks_by_id = {block.id: block for block in edition.blocks.all()}
+            for finding in findings:
+                TextQualityFinding.objects.update_or_create(
+                    edition=edition,
+                    input_hash=input_hash,
+                    fingerprint=finding.fingerprint(),
+                    defaults={
+                        "pipeline_run": run,
+                        "artifact": artifact,
+                        "block": blocks_by_id.get(uuid.UUID(finding.block_id))
+                        if finding.block_id
+                        else None,
+                        "stable_block_id": finding.stable_block_id,
+                        "code": finding.code,
+                        "start_offset": finding.start_offset,
+                        "end_offset": finding.end_offset,
+                        "original_text": finding.original_text,
+                        "suggested_text": finding.suggested_text,
+                        "confidence": finding.confidence,
+                        "message": finding.message,
+                        "evidence": finding.evidence,
+                    },
+                )
+            run.status = PipelineRun.Status.SUCCEEDED
+            run.progress = 100
+            run.finished_at = timezone.now()
+            run.summary = {
+                "blocks": len(blocks),
+                "findings": len(findings),
+                "wordfreq_version": wordfreq_version,
+            }
+            run.save(
+                update_fields=[
+                    "status",
+                    "progress",
+                    "finished_at",
+                    "summary",
+                    "updated_at",
+                ]
+            )
+    except Exception as error:
+        run.status = PipelineRun.Status.FAILED
+        run.finished_at = timezone.now()
+        run.error = str(error)[:10000]
+        run.save(update_fields=["status", "finished_at", "error", "updated_at"])
+        raise
+
+
+@shared_task(acks_late=True)
+def refresh_edition_after_revision(edition_id: str) -> None:
+    """Rebuild text-dependent local artifacts after a human correction."""
+
+    split_edition_sentences.run(edition_id)
+    for task, label in (
+        (analyze_edition_lexicon, "lexical analysis"),
+        (analyze_edition_source_quality, "source-text QA"),
+    ):
+        try:
+            task.run(edition_id)
+        except Exception:
+            logger.exception("Could not refresh %s for edition %s", label, edition_id)
 
 
 @shared_task(acks_late=True)

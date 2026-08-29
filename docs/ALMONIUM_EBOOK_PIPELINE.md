@@ -290,6 +290,28 @@ are useful as internal samples and confidence evidence, not necessarily as a
 reader-facing level badge. Persist the final editorial book level separately
 from the computed estimate so an operator can override it.
 
+### 8.2 Autonomous source scanning, human text mutation
+
+Every normalized edition can be scanned independently, including an original
+with no translations. The deterministic first pass records reviewable findings
+for Gutenberg boilerplate, malformed Unicode, duplicate blocks, broken line
+hyphenation, and conservative probable split-word cases. Findings are a
+versioned `source_qa` artifact plus individually reviewable database records;
+they do not make a readable edition unavailable.
+
+The scanner never edits text. Staff may adjust the proposed replacement and
+apply it, which creates a `ContentBlockRevision`, or dismiss the finding. A
+revision marks every current edition artifact stale and queues fresh sentence,
+lexical, and source-QA processing. Other open findings from the previous text
+version become superseded because their character offsets can no longer be
+trusted.
+
+Split-word detection must remain deliberately conservative. General frequency
+alone cannot distinguish a damaged word from valid phrases such as “in deed”
+or German separable constructions. The current rule requires frequency
+evidence plus a short uncommon fragment; ambiguous cases belong in later AI
+adjudication, not in a larger deterministic warning pile.
+
 ## 9. The admin panel: yes, build it
 
 Not overthinking. You will spend more time fixing books than writing pipeline
