@@ -10,6 +10,7 @@ from almonium_book_processor.catalog.models import (
     ContentBlock,
     ContentBlockRevision,
     Edition,
+    EditionArtifact,
     ModelConfiguration,
     PipelineRun,
     PromptTemplate,
@@ -20,6 +21,7 @@ from almonium_book_processor.catalog.models import (
 )
 from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
+    analyze_edition_lexicon,
     split_edition_sentences,
 )
 from almonium_book_processor.languages import LANGUAGE_CHOICES
@@ -79,12 +81,21 @@ class EditionAdmin(admin.ModelAdmin):
     readonly_fields = ("source_sha256", "word_count", "created_at", "updated_at")
     autocomplete_fields = ("work", "source_edition")
     inlines = (ChapterInline,)
-    actions = ("queue_sentence_splitting", "queue_source_alignment")
+    actions = (
+        "queue_sentence_splitting",
+        "queue_lexical_analysis",
+        "queue_source_alignment",
+    )
 
     @admin.action(description="Queue sentence splitting")
     def queue_sentence_splitting(self, request, queryset):
         for edition_id in queryset.values_list("id", flat=True):
             split_edition_sentences.delay(str(edition_id))
+
+    @admin.action(description="Queue lexical analysis")
+    def queue_lexical_analysis(self, request, queryset):
+        for edition_id in queryset.values_list("id", flat=True):
+            analyze_edition_lexicon.delay(str(edition_id))
 
     @admin.action(description="Queue alignment to source edition")
     def queue_source_alignment(self, request, queryset):
@@ -149,3 +160,4 @@ admin.site.register(BlockAlignment)
 admin.site.register(ChapterAlignment)
 admin.site.register(AlignmentGroupReview)
 admin.site.register(ContentBlockRevision)
+admin.site.register(EditionArtifact)

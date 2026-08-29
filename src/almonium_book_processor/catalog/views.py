@@ -118,7 +118,11 @@ def import_legacy(request: HttpRequest) -> HttpResponse:
 def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
     edition = get_object_or_404(
         Edition.objects.select_related("work", "source_edition").prefetch_related(
-            "warnings", "pipeline_runs", "chapters", "review_decisions__reviewer"
+            "warnings",
+            "pipeline_runs",
+            "chapters",
+            "review_decisions__reviewer",
+            "artifacts",
         ),
         id=edition_id,
     )
@@ -151,6 +155,8 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
                 ),
                 None,
             ),
+            "lexical_profile": edition.artifacts.filter(kind="lexical_profile").first(),
+            "useful_words": edition.artifacts.filter(kind="useful_words").first(),
         },
     )
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import tempfile
 import uuid
@@ -18,6 +19,7 @@ from almonium_book_processor.catalog.models import (
     ChapterAlignment,
     ContentBlock,
     Edition,
+    EditionArtifact,
     PipelineRun,
     QAWarning,
     Work,
@@ -25,6 +27,13 @@ from almonium_book_processor.catalog.models import (
 from almonium_book_processor.catalog.publication import publish_to_almonium
 from almonium_book_processor.catalog.services import persist_artifact
 from almonium_book_processor.ingest.source import ingest_source, source_format
+from almonium_book_processor.processing.lexical import (
+    LEXICAL_PROCESSOR_VERSION,
+    LEXICAL_SCHEMA_VERSION,
+    LexicalBlock,
+    analyze_lexicon,
+    lexical_runtime_signature,
+)
 from almonium_book_processor.processing.nlp import (
     AlignmentCandidate,
     aggregate_embeddings,
@@ -198,6 +207,10 @@ def process_normalized_edition(self, edition_id: str) -> None:
         if edition.source_edition_id:
             align_edition_to_source.run(edition_id)
         _finish_normalized_pipeline(edition)
+        try:
+            analyze_edition_lexicon.delay(edition_id)
+        except Exception:
+            logger.exception("Could not queue lexical enrichment for edition %s", edition.id)
         edition.refresh_from_db()
         if edition.work.visibility == Work.Visibility.PRIVATE:
             try:
@@ -375,6 +388,102 @@ def split_edition_sentences(edition_id: str) -> None:
             "spacy_model": spacy_model,
         }
         run.save(update_fields=["status", "progress", "finished_at", "summary", "updated_at"])
+    except Exception as error:
+        run.status = PipelineRun.Status.FAILED
+        run.finished_at = timezone.now()
+        run.error = str(error)[:10000]
+        run.save(update_fields=["status", "finished_at", "error", "updated_at"])
+        raise
+
+
+@shared_task(acks_late=True)
+def analyze_edition_lexicon(edition_id: str) -> None:
+    """Persist non-blocking lexical artifacts for any normalized edition."""
+
+    edition = Edition.objects.get(id=edition_id)
+    content_hash = _edition_content_hash(edition)
+    runtime_signature = lexical_runtime_signature(edition.language)
+    input_hash = _text_hash(
+        content_hash,
+        edition.language,
+        json.dumps(runtime_signature, sort_keys=True),
+        LEXICAL_PROCESSOR_VERSION,
+    )
+    idempotency_key = f"{edition.id}:{input_hash}:lexical:{LEXICAL_PROCESSOR_VERSION}"
+    run, _ = PipelineRun.objects.get_or_create(
+        idempotency_key=idempotency_key,
+        defaults={
+            "edition": edition,
+            "stage": PipelineRun.Stage.LEXICAL,
+            "processor_version": LEXICAL_PROCESSOR_VERSION,
+            "input_hash": input_hash,
+        },
+    )
+    expected_kinds = {
+        EditionArtifact.Kind.LEXICAL_PROFILE,
+        EditionArtifact.Kind.USEFUL_WORDS,
+    }
+    existing_kinds = set(
+        edition.artifacts.filter(
+            input_hash=input_hash,
+            processor_version=LEXICAL_PROCESSOR_VERSION,
+            kind__in=expected_kinds,
+        ).values_list("kind", flat=True)
+    )
+    if run.status == PipelineRun.Status.SUCCEEDED and existing_kinds == expected_kinds:
+        return
+
+    run.status = PipelineRun.Status.RUNNING
+    run.started_at = timezone.now()
+    run.progress = 10
+    run.error = ""
+    run.save(update_fields=["status", "started_at", "progress", "error", "updated_at"])
+    try:
+        blocks = [
+            LexicalBlock(
+                block_id=block.block_id,
+                chapter=block.chapter.sequence,
+                text=block.text,
+            )
+            for block in edition.blocks.exclude(text="")
+            .select_related("chapter")
+            .order_by("chapter__sequence", "sequence")
+        ]
+        profile, useful_words = analyze_lexicon(blocks, edition.language)
+        with transaction.atomic():
+            for kind, payload in (
+                (EditionArtifact.Kind.LEXICAL_PROFILE, profile),
+                (EditionArtifact.Kind.USEFUL_WORDS, useful_words),
+            ):
+                EditionArtifact.objects.update_or_create(
+                    edition=edition,
+                    kind=kind,
+                    input_hash=input_hash,
+                    processor_version=LEXICAL_PROCESSOR_VERSION,
+                    defaults={
+                        "pipeline_run": run,
+                        "schema_version": LEXICAL_SCHEMA_VERSION,
+                        "payload": payload,
+                    },
+                )
+            run.status = PipelineRun.Status.SUCCEEDED
+            run.progress = 100
+            run.finished_at = timezone.now()
+            run.summary = {
+                "total_tokens": profile["total_tokens"],
+                "distinct_lemmas": profile["distinct_lemmas"],
+                "useful_words": len(useful_words["words"]),
+                "runtime": runtime_signature,
+            }
+            run.save(
+                update_fields=[
+                    "status",
+                    "progress",
+                    "finished_at",
+                    "summary",
+                    "updated_at",
+                ]
+            )
     except Exception as error:
         run.status = PipelineRun.Status.FAILED
         run.finished_at = timezone.now()

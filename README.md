@@ -105,6 +105,12 @@ warning count, then moves the edition to `Ready`; it never publishes it. A
 failed parse becomes `Failed`. Publication remains a separate, deliberately
 explicit workflow step.
 
+An original edition is a complete readable state. It does not require another
+language edition or alignment. After normalization, the worker independently
+derives versioned lexical artifacts, including a book-level profile and up to
+50 useful recurring words with frequency and source evidence. Enrichment runs
+are observable but do not block a sound original from becoming available.
+
 The importer currently emits these codes:
 
 - `empty_block_skipped` — informational; an empty source element had no book

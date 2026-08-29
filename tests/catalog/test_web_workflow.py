@@ -1256,6 +1256,10 @@ def test_alignment_maps_merged_chapters_before_aligning_blocks(monkeypatch) -> N
 
 
 def test_normalized_pipeline_groups_split_blocks_and_finishes_ready(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.analyze_edition_lexicon.delay",
+        lambda edition_id: None,
+    )
     work = Work.objects.create(
         slug="split-alignment-work",
         title="Split Alignment Work",
@@ -1321,6 +1325,10 @@ def test_normalized_pipeline_groups_split_blocks_and_finishes_ready(monkeypatch)
 
 
 def test_normalized_pipeline_routes_low_confidence_alignment_to_review(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.analyze_edition_lexicon.delay",
+        lambda edition_id: None,
+    )
     work = Work.objects.create(
         slug="uncertain-work",
         title="Uncertain Work",

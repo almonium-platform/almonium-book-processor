@@ -14,6 +14,11 @@ Celery, records importer warnings and review decisions, supports owner-scoped
 private imports, and publishes reviewed public metadata to the Almonium backend.
 The sixteen normalized legacy artifacts remain available in `build/legacy/`.
 
+A normalized original is independently readable and publishable. Translations,
+adaptations, alignment, lexical data, source polishing, summaries, and quizzes
+are downstream editions or non-blocking versioned artifacts, never prerequisites
+for the original to be a valid book.
+
 Staging is deployed with a web process and worker. Production routing has not
 yet been activated. The public staging catalogue is empty until editions are
 reviewed and deliberately published.
@@ -50,20 +55,40 @@ paid adjudication queue.
 The alignment workspace supports chapter review and auditable corrections. The
 remaining deterministic QA gates should be added before AI adjudication.
 
+## Now: lexical enrichment and original-text quality
+
+- [x] Persist generic versioned `EditionArtifact` results independently of book
+  readability and publication state.
+- [x] Build a deterministic lexical profile from normalized blocks with spaCy
+  tokenization, model or `simplemma` fallback lemmatization, and `wordfreq` Zipf
+  frequency.
+- [x] Produce “50 useful words from this book” with counts, chapter dispersion,
+  frequency provenance, and source occurrences.
+- [ ] Calibrate the useful-word ranking on at least one English and one German
+  novel; adjust recurrence and frequency bounds from real output.
+- [ ] Publish lexical artifacts through an explicit backend contract and render
+  the useful-word SEO page server-side.
+- [ ] Add deterministic source QA for boilerplate, language mismatch, malformed
+  Unicode, repeated blocks, broken hyphenation, and probable split/joined words.
+- [ ] Add AI adjudication for flagged source windows only. It proposes findings;
+  an operator approves every text mutation through `ContentBlockRevision`.
+- [ ] Invalidate dependent sentence, alignment, lexical, difficulty, and generated
+  artifacts after an approved source revision.
+
 ## Then: AI for exceptional cases
 
-- [ ] Implement an OpenAI adapter behind `AIProvider`.
-- [ ] Validate every structured response and retry only safe transient failures.
-- [ ] Send only low-confidence alignment windows for AI adjudication.
-- [ ] Persist provider request IDs, model and prompt versions, token usage, cost,
+- [x] Implement an OpenAI Batch adapter behind a provider boundary.
+- [x] Validate every structured response and retry only safe transient failures.
+- [ ] Add explicit local-only, issues-only, and full-audit alignment modes; use
+  issues-only after full-book calibration establishes reliable thresholds.
+- [x] Persist provider request IDs, model and prompt versions, token usage, cost,
   validated output, and failures in `AIRun`.
-- [ ] Keep a fake provider for all automated tests; CI must never make paid calls.
-- [ ] Require human review when AI adjudication remains uncertain.
+- [x] Keep paid providers out of automated tests; CI never makes paid calls.
+- [x] Escalate primary-model uncertainty and leave stronger-model uncertainty as
+  an explicit human review warning.
 
-No AI credential is required for the deterministic NLP milestone. Deployment
-already has a place to inject `OPENAI_API_KEY`, but application code must not
-use it until the adapter, validation, audit trail, budget controls, and a named
-pilot are ready.
+No AI credential is required for deterministic NLP or lexical analysis. Paid
+alignment remains an explicit staff action and records its audit and cost data.
 
 ## Later: generated editions
 

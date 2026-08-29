@@ -339,6 +339,7 @@ class PipelineRun(TimestampedModel):
         INGEST = "ingest", "Source ingestion"
         SENTENCES = "sentences", "Sentence splitting"
         ALIGN = "align", "Alignment"
+        LEXICAL = "lexical", "Lexical analysis"
         TRANSLATE = "translate", "Translation"
         ADAPT = "adapt", "Level adaptation"
         PUBLISH = "publish", "Publication"
@@ -367,6 +368,49 @@ class PipelineRun(TimestampedModel):
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["status", "created_at"])]
+
+
+class EditionArtifact(TimestampedModel):
+    """A reusable, versioned result derived from one normalized edition."""
+
+    class Kind(models.TextChoices):
+        LEXICAL_PROFILE = "lexical_profile", "Lexical profile"
+        USEFUL_WORDS = "useful_words", "Useful words"
+        SOURCE_QA = "source_qa", "Source text QA"
+        DIFFICULTY = "difficulty", "Difficulty assessment"
+        DESCRIPTION = "description", "Generated description"
+        CHAPTER_SUMMARY = "chapter_summary", "Chapter summary"
+        QUIZ = "quiz", "Quiz"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    edition = models.ForeignKey(Edition, related_name="artifacts", on_delete=models.CASCADE)
+    pipeline_run = models.ForeignKey(
+        PipelineRun,
+        related_name="artifacts",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    kind = models.CharField(max_length=40, choices=Kind.choices)
+    schema_version = models.PositiveSmallIntegerField(default=1)
+    input_hash = models.CharField(max_length=64)
+    processor_version = models.CharField(max_length=80)
+    payload = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["edition", "kind", "input_hash", "processor_version"],
+                name="catalog_artifact_edition_kind_input_processor_unique",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["edition", "kind", "created_at"],
+                name="catalog_art_edition_kind_idx",
+            )
+        ]
 
 
 class QAWarning(TimestampedModel):

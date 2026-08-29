@@ -92,6 +92,41 @@ Why this matters: alignment, translation, adaptation, TTS timing, and word
 lookup all need stable block and sentence IDs. Cosmetic HTML classes cannot
 carry that. Version the schema from day one (`schema_version: 1`).
 
+### 3.1 A standalone original is a complete product state
+
+An original edition does not wait for a translation, adaptation, alignment, or
+AI job before it becomes useful. Once ingestion, normalization, sentence
+splitting, and blocking QA gates succeed, it can be read and published on its
+own. Everything else is an independently versioned derivative or enrichment:
+
+```text
+original EPUB/TEI -> normalized readable edition -> ready/published
+                                      |-> lexical profile + useful words
+                                      |-> source-text QA findings -> human revisions
+                                      |-> description / summaries / quizzes
+                                      |-> translated or adapted editions -> alignment
+```
+
+Enrichment failures must remain visible in their own pipeline runs, but must
+not change a sound normalized original to `failed` or make the reader wait.
+Translations and adaptations point back to the original through explicit
+edition lineage; they are not fields that gradually fill in on the original.
+
+### 3.2 Derived artifacts, not one universal AI response
+
+Each reusable result has one purpose, schema, input hash, processor/model
+version, and (for AI work) prompt version. A batch may operationally submit
+several jobs together, but alignment, source QA, descriptions, summaries, and
+quizzes remain separate artifacts. This lets one artifact be retried or
+upgraded without invalidating unrelated work.
+
+Deterministic stages consume normalized text directly. AI stages should
+normally consume the smallest sufficient input: suspicious source-QA windows,
+one alignment window, chapter text for a chapter summary, or previously stored
+chapter summaries for a book description. Sending full text twice is justified
+only when two genuinely book-wide tasks each need it, not merely because Batch
+makes that convenient.
+
 ## 4. The alignment graph, and the granularity you asked about
 
 You are right that the canonical-group approach constrains granularity, and
@@ -231,6 +266,29 @@ Concrete checks worth having:
 `(source_hash, stage, processor_version, model, prompt_version)`. Rerunning a
 stage with the same inputs is a no-op. This is what lets you fix one prompt and
 reprocess only what it touched.
+
+### 8.1 Lexical profile and “50 useful words from this book”
+
+Lexical analysis belongs in this Python worker because it already owns the
+normalized book text and offline NLP dependencies. The first version is fully
+deterministic: tokenize with spaCy, use its model lemmatizer or `simplemma` as
+the model-free fallback, obtain general-language Zipf frequency from
+`wordfreq`, and persist two small artifacts:
+
+- `lexical_profile`: aggregate token, lemma, and frequency-band statistics;
+- `useful_words`: up to 50 ranked lemmas with counts, chapter dispersion,
+  general frequency, and evidence-bearing source occurrences.
+
+“Useful” deliberately does not mean the 50 lowest-frequency strings. Exclude
+stop words, proper names, one-off forms, and extremely obscure candidates;
+reward words that recur across the book while remaining less common in general
+language. The product backend may publish and render the artifact, but it must
+not re-tokenize the book or own a second frequency algorithm.
+
+This profile can later support a book-level CEFR estimate. Chapter measurements
+are useful as internal samples and confidence evidence, not necessarily as a
+reader-facing level badge. Persist the final editorial book level separately
+from the computed estimate so an operator can override it.
 
 ## 9. The admin panel: yes, build it
 
