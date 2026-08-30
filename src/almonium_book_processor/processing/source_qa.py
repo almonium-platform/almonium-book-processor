@@ -8,10 +8,14 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 SOURCE_QA_SCHEMA_VERSION = 1
-SOURCE_QA_PROCESSOR_VERSION = "source-qa-v1"
+SOURCE_QA_PROCESSOR_VERSION = "source-qa-v2"
 
 WORD_PAIR = re.compile(
     r"(?=(\b(?P<left>[^\W\d_]{2,})[ \t]+(?P<right>[^\W\d_]{2,})\b))",
+    re.UNICODE,
+)
+DETACHED_INITIAL = re.compile(
+    r"^(?:[\"'\u2018\u201c])?(?P<left>[^\W\d_])[ \t]+(?P<right>[^\W\d_]{2,})\b",
     re.UNICODE,
 )
 BROKEN_HYPHEN = re.compile(
@@ -81,6 +85,7 @@ def _join_finding(
     *,
     code: str,
     minimum_gain: float,
+    minimum_combined_frequency: float = 3.0,
 ) -> SourceQAFinding | None:
     left, right = match.group("left"), match.group("right")
     combined = left + right
@@ -93,7 +98,7 @@ def _join_finding(
         zipf for value, zipf in ((left, left_zipf), (right, right_zipf)) if len(value) <= 3
     ]
     if (
-        combined_zipf < 3.0
+        combined_zipf < minimum_combined_frequency
         or gain < minimum_gain
         or (
             code == "probable_split_word"
@@ -182,6 +187,22 @@ def analyze_source_quality(
             )
             if finding:
                 findings.append(finding)
+        detached_initial = DETACHED_INITIAL.match(block.text)
+        if detached_initial:
+            left = detached_initial.group("left")
+            right = detached_initial.group("right")
+            if left.isupper() and right.islower():
+                finding = _join_finding(
+                    block,
+                    detached_initial,
+                    language,
+                    frequency_lookup,
+                    code="detached_initial",
+                    minimum_gain=0.5,
+                    minimum_combined_frequency=2.0,
+                )
+                if finding:
+                    findings.append(finding)
         for match in WORD_PAIR.finditer(block.text):
             finding = _join_finding(
                 block,
