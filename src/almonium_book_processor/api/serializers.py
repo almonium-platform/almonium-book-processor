@@ -25,6 +25,10 @@ class WorkSerializer(serializers.ModelSerializer):
 
 class EditionSerializer(serializers.ModelSerializer):
     work = WorkSerializer(read_only=True)
+    # Clients need this to offer (or withhold) side-by-side reading: only
+    # canonical and parallel editions share canonical block groups.
+    supports_parallel_reading = serializers.BooleanField(read_only=True)
+    machine_generated = serializers.BooleanField(source="is_machine_generated", read_only=True)
 
     class Meta:
         model = Edition
@@ -37,6 +41,9 @@ class EditionSerializer(serializers.ModelSerializer):
             "author",
             "language",
             "edition_type",
+            "parallel_role",
+            "supports_parallel_reading",
+            "machine_generated",
             "translator",
             "cefr_level",
             "status",

@@ -67,6 +67,13 @@ class Edition(TimestampedModel):
         ADAPTATION = "adaptation", "Level adaptation"
         ABRIDGEMENT = "abridgement", "Abridgement"
 
+    class ParallelRole(models.TextChoices):
+        """How this edition participates in the work's canonical block tree."""
+
+        CANONICAL = "canonical", "Canonical original"
+        PARALLEL = "parallel", "Parallel edition"
+        STANDALONE = "standalone", "Standalone edition"
+
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         QUEUED = "queued", "Queued"
@@ -101,6 +108,16 @@ class Edition(TimestampedModel):
         null=True,
         blank=True,
     )
+    parallel_role = models.CharField(
+        max_length=12,
+        choices=ParallelRole.choices,
+        default=ParallelRole.CANONICAL,
+        help_text=(
+            "Canonical editions root the block tree. Parallel editions are generated "
+            "block-for-block from the canonical text and can be read side by side. "
+            "Standalone editions are read on their own and are never block-synchronised."
+        ),
+    )
     schema_version = models.PositiveSmallIntegerField(default=3)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     word_count = models.PositiveIntegerField(default=0)
@@ -121,8 +138,50 @@ class Edition(TimestampedModel):
             models.Index(fields=["work", "status"]),
         ]
 
+    def save(self, *args, **kwargs):
+        # Only an original can root the tree. Correct the default rather than
+        # trusting every creation path to pass the right role.
+        if (
+            self.edition_type != self.EditionType.ORIGINAL
+            and self.parallel_role == self.ParallelRole.CANONICAL
+        ):
+            self.parallel_role = (
+                self.ParallelRole.PARALLEL
+                if self.edition_type == self.EditionType.MACHINE_TRANSLATION
+                else self.ParallelRole.STANDALONE
+            )
+        super().save(*args, **kwargs)
+
     def __str__(self) -> str:
         return f"{self.title} [{self.language}]"
+
+    @property
+    def is_canonical(self) -> bool:
+        return self.parallel_role == self.ParallelRole.CANONICAL
+
+    @property
+    def supports_parallel_reading(self) -> bool:
+        """True when this edition shares canonical block groups with its tree."""
+
+        return self.parallel_role in {self.ParallelRole.CANONICAL, self.ParallelRole.PARALLEL}
+
+    @property
+    def requires_inferred_alignment(self) -> bool:
+        """True when block correspondence has to be guessed rather than inherited.
+
+        A canonical or generated parallel edition shares block groups with its
+        tree, so its correspondence is exact by construction and inference would
+        only replace certainty with a confidence score.
+        """
+
+        return self.source_edition_id is not None and not self.supports_parallel_reading
+
+    @property
+    def is_machine_generated(self) -> bool:
+        return self.edition_type in {
+            self.EditionType.MACHINE_TRANSLATION,
+            self.EditionType.ADAPTATION,
+        }
 
 
 class Chapter(TimestampedModel):
@@ -182,7 +241,10 @@ class ContentBlock(TimestampedModel):
                 name="catalog_block_chapter_sequence_unique",
             ),
         ]
-        indexes = [models.Index(fields=["edition", "align_group"])]
+        indexes = [
+            models.Index(fields=["edition", "align_group"]),
+            models.Index(fields=["align_group"], name="catalog_block_align_group_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.edition.slug}:{self.block_id}"
