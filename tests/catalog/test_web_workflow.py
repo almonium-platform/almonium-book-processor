@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import uuid
-from io import BytesIO
+from io import BytesIO, StringIO
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.urls import reverse
 from ebooklib import epub
 from rest_framework.test import APIClient
@@ -33,6 +34,7 @@ from almonium_book_processor.catalog.tasks import (
     process_normalized_edition,
     process_source_edition,
     publish_edition,
+    refresh_edition_after_revision,
     split_edition_sentences,
 )
 from almonium_book_processor.models import (
@@ -869,6 +871,191 @@ def test_alignment_review_edits_target_text_with_audit(
     assert revision.editor == staff
     assert target.word_count == 5
     assert queued == [str(target.id)]
+
+
+def reader_records() -> tuple:
+    """A generated parallel edition: no alignment rows, so no alignment queue."""
+
+    work = Work.objects.create(
+        slug="reader-work",
+        title="Reader Work",
+        author="Mary Author",
+        original_language="en",
+    )
+    source = Edition.objects.create(
+        slug="reader-work-en",
+        work=work,
+        title="Reader Work",
+        author="Mary Author",
+        language="en",
+        source_sha256="3" * 64,
+        parallel_role=Edition.ParallelRole.CANONICAL,
+        status=Edition.Status.READY,
+    )
+    edition = Edition.objects.create(
+        slug="reader-work-uk",
+        work=work,
+        source_edition=source,
+        title="Reader Work",
+        author="Mary Author",
+        language="uk",
+        edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        source_sha256="4" * 64,
+        status=Edition.Status.READY,
+        word_count=6,
+    )
+    blocks = []
+    for chapter_sequence, texts in ((1, ("Перший блок.",)), (11, ("Заголовок", "Тоєї ночі."))):
+        chapter = Chapter.objects.create(
+            edition=edition, sequence=chapter_sequence, title=f"Розділ {chapter_sequence}"
+        )
+        for sequence, text in enumerate(texts, start=1):
+            blocks.append(
+                ContentBlock.objects.create(
+                    edition=edition,
+                    chapter=chapter,
+                    block_id=f"c{chapter_sequence}.p{sequence}",
+                    sequence=sequence,
+                    block_type=ContentBlock.BlockType.PARAGRAPH,
+                    text=text,
+                    sentences=[{"id": f"c{chapter_sequence}.p{sequence}.s1"}],
+                )
+            )
+    return edition, blocks
+
+
+def reader_staff(client, username: str):
+    staff = get_user_model().objects.create_user(username=username, password="safe-password")
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    client.force_login(staff)
+    return staff
+
+
+def test_generated_parallel_edition_never_infers_alignment(monkeypatch) -> None:
+    edition, blocks = reader_records()
+    embedded: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.embed_texts",
+        lambda texts: embedded.extend(texts) or [[0.0] for _ in texts],
+    )
+
+    assert edition.parallel_role == Edition.ParallelRole.PARALLEL
+    assert not edition.requires_inferred_alignment
+
+    align_edition_to_source.run(str(edition.id))
+
+    assert embedded == []
+    assert not BlockAlignment.objects.filter(target_edition=edition).exists()
+    assert not PipelineRun.objects.filter(edition=edition, stage=PipelineRun.Stage.ALIGN).exists()
+
+
+def test_standalone_edition_still_infers_alignment() -> None:
+    target, _, _, _, _ = alignment_review_records()
+
+    assert target.parallel_role == Edition.ParallelRole.STANDALONE
+    assert target.requires_inferred_alignment
+
+
+def test_revision_refresh_skips_alignment_for_a_parallel_edition(client, monkeypatch) -> None:
+    edition, blocks = reader_records()
+    aligned: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.align_edition_to_source.run",
+        lambda edition_id: aligned.append(edition_id),
+    )
+    for name in (
+        "split_edition_sentences",
+        "analyze_edition_lexicon",
+        "analyze_edition_source_quality",
+    ):
+        monkeypatch.setattr(
+            f"almonium_book_processor.catalog.tasks.{name}.run", lambda edition_id: None
+        )
+
+    refresh_edition_after_revision.run(str(edition.id))
+    assert aligned == []
+
+    # Editing the canonical original refreshes its derived editions, but only
+    # the ones whose correspondence is actually inferred.
+    refresh_edition_after_revision.run(str(edition.source_edition.id))
+    assert aligned == []
+
+
+def test_clear_inferred_alignment_reports_then_deletes() -> None:
+    edition, blocks = reader_records()
+    source = edition.source_edition
+    source_chapter = Chapter.objects.create(edition=source, sequence=11, title="Eleven")
+    source_block = ContentBlock.objects.create(
+        edition=source,
+        chapter=source_chapter,
+        block_id="c11.p2",
+        sequence=2,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="That night.",
+    )
+    run = PipelineRun.objects.create(
+        edition=edition,
+        stage=PipelineRun.Stage.ALIGN,
+        status=PipelineRun.Status.SUCCEEDED,
+        idempotency_key="stale-align",
+        input_hash="0" * 64,
+        processor_version="align-v1",
+    )
+    BlockAlignment.objects.create(
+        source_edition=source,
+        target_edition=edition,
+        source_block=source_block,
+        target_block=blocks[2],
+        confidence=0.62,
+        strategy="multilingual-embedding-monotonic-v2",
+    )
+    QAWarning.objects.create(
+        edition=edition,
+        pipeline_run=run,
+        block=blocks[2],
+        code="alignment_low_confidence",
+        severity=QAWarning.Severity.WARNING,
+        message="Automatic alignment confidence is 62.0%.",
+    )
+    kept = QAWarning.objects.create(
+        edition=edition,
+        code="import_notice",
+        severity=QAWarning.Severity.INFO,
+        message="Unrelated warning.",
+    )
+
+    report = StringIO()
+    call_command("clear_inferred_alignment", "--edition", str(edition.id), stdout=report)
+
+    assert "Would delete" in report.getvalue()
+    assert BlockAlignment.objects.filter(target_edition=edition).count() == 1
+
+    applied = StringIO()
+    call_command(
+        "clear_inferred_alignment", "--edition", str(edition.id), "--apply", stdout=applied
+    )
+
+    assert "Deleted 3 inferred alignment rows." in applied.getvalue()
+    assert not BlockAlignment.objects.filter(target_edition=edition).exists()
+    assert not PipelineRun.objects.filter(edition=edition, stage=PipelineRun.Stage.ALIGN).exists()
+    assert not QAWarning.objects.filter(code="alignment_low_confidence").exists()
+    assert QAWarning.objects.filter(id=kept.id).exists()
+    # The text and its inherited identity are untouched.
+    blocks[2].refresh_from_db()
+    assert blocks[2].block_id == "c11.p2"
+    assert blocks[2].text == "Тоєї ночі."
+
+
+def test_clear_inferred_alignment_leaves_a_standalone_edition_alone() -> None:
+    target, _, _, _, _ = alignment_review_records()
+
+    output = StringIO()
+    call_command("clear_inferred_alignment", "--edition", target.slug, stdout=output)
+
+    assert "should not have" in output.getvalue()
+    assert BlockAlignment.objects.filter(target_edition=target).count() == 1
 
 
 def test_schema_one_json_import_migrates_and_uses_uuid_identity() -> None:

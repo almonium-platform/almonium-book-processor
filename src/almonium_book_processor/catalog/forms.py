@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django import forms
 
+from almonium_book_processor.catalog.ai_translation import REGISTER_CHOICES
 from almonium_book_processor.catalog.models import Edition
 from almonium_book_processor.catalog.services import create_source_edition
 from almonium_book_processor.ingest.source import SUPPORTED_SOURCE_EXTENSIONS
@@ -125,3 +126,54 @@ class LegacyArtifactImportForm(forms.Form):
     artifacts = MultipleFileField(
         widget=MultipleFileInput(attrs={"accept": ".json", "data-drop-input": "true"})
     )
+
+
+class ParallelTranslationForm(forms.Form):
+    """Request a generated parallel edition from a canonical original."""
+
+    target_language = forms.ChoiceField(
+        choices=LANGUAGE_CHOICES,
+        label="Translate into",
+        help_text="A new parallel edition is created; the original is never modified.",
+    )
+    register = forms.ChoiceField(
+        choices=REGISTER_CHOICES,
+        initial="period-faithful",
+        label="Literary register",
+    )
+    tier = forms.ChoiceField(
+        choices=(
+            ("quality", "Quality — best literary register (recommended)"),
+            ("draft", "Draft — cheaper, for a throwaway sample"),
+        ),
+        initial="quality",
+        label="Model tier",
+    )
+    mode = forms.ChoiceField(
+        choices=(
+            ("direct", "Direct — finishes in minutes, full price (recommended)"),
+            ("batch", "Batch — half price, up to 24 hours"),
+        ),
+        initial="direct",
+        label="Execution",
+        help_text=(
+            "Both produce identical text and the same block-for-block alignment. "
+            "Batch halves the cost but depends on the provider's Batch service."
+        ),
+    )
+
+    def __init__(self, *args, source_edition: Edition | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.source_edition = source_edition
+        if source_edition is not None:
+            self.fields["target_language"].choices = [
+                (code, label) for code, label in LANGUAGE_CHOICES if code != source_edition.language
+            ]
+
+    def clean_target_language(self) -> str:
+        language = self.cleaned_data["target_language"]
+        if self.source_edition is None:
+            return language
+        if language == self.source_edition.language:
+            raise forms.ValidationError("Choose a language other than the original.")
+        return language

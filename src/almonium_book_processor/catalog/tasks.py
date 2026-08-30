@@ -16,6 +16,7 @@ from django.utils import timezone
 from almonium_book_processor import __version__
 from almonium_book_processor.catalog.import_events import send_private_import_event
 from almonium_book_processor.catalog.models import (
+    AIRun,
     BlockAlignment,
     ChapterAlignment,
     ContentBlock,
@@ -672,9 +673,16 @@ def refresh_edition_after_revision(edition_id: str) -> None:
         except Exception:
             logger.exception("Could not refresh %s for edition %s", label, edition_id)
 
+    # Only re-infer alignment where correspondence is genuinely unknown. A
+    # canonical or generated parallel edition inherits its block groups, so
+    # inference there would overwrite exact identity with a confidence score.
     edition = Edition.objects.select_related("source_edition").get(id=edition_id)
-    alignment_edition_ids = list(edition.derived_editions.values_list("id", flat=True))
-    if edition.source_edition_id:
+    alignment_edition_ids = [
+        derived.id
+        for derived in edition.derived_editions.select_related("source_edition")
+        if derived.requires_inferred_alignment
+    ]
+    if edition.requires_inferred_alignment:
         alignment_edition_ids.append(edition.id)
     for target_edition_id in alignment_edition_ids:
         try:
@@ -692,6 +700,13 @@ def align_edition_to_source(edition_id: str) -> None:
     edition = Edition.objects.select_related("source_edition").get(id=edition_id)
     if edition.source_edition is None:
         raise ValueError("A source edition is required for alignment")
+    if not edition.requires_inferred_alignment:
+        # Every caller funnels through here, so the role check lives here too.
+        logger.info(
+            "Skipping inferred alignment for edition %s: it is aligned by construction",
+            edition_id,
+        )
+        return
 
     source_edition = edition.source_edition
     input_hash = _alignment_input_hash(source_edition, edition)
@@ -1018,3 +1033,77 @@ def poll_ai_alignment_batch(self, ai_run_id: str) -> None:
         ai_run.save(update_fields=["status", "error", "finished_at", "updated_at"])
         raise
     raise self.retry(countdown=settings.OPENAI_BATCH_POLL_SECONDS)
+
+
+@shared_task(acks_late=True)
+def prepare_translation(edition_id: str, *, tier: str = "quality") -> str:
+    """Submit the Batch translation that fills a parallel edition."""
+
+    from almonium_book_processor.catalog.ai_translation import submit_translation_batch
+
+    ai_run = submit_translation_batch(edition_id, tier=tier)
+    if ai_run.status == AIRun.Status.SUBMITTED:
+        poll_translation_batch.apply_async(
+            args=[str(ai_run.id)], countdown=settings.OPENAI_BATCH_POLL_SECONDS
+        )
+    return str(ai_run.id)
+
+
+@shared_task(bind=True, acks_late=True, max_retries=1500)
+def poll_translation_batch(self, ai_run_id: str) -> None:
+    from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
+    from almonium_book_processor.catalog.ai_translation import complete_translation_batch
+
+    ai_run = AIRun.objects.select_related("model_configuration").get(id=ai_run_id)
+    if ai_run.status in {AIRun.Status.SUCCEEDED, AIRun.Status.FAILED}:
+        return
+    try:
+        provider = OpenAIBatchProvider()
+        batch = provider.retrieve(ai_run.provider_request_id)
+        ai_run.response_payload = {
+            **ai_run.response_payload,
+            "batch_status": batch.status,
+            "request_counts": batch.request_counts.model_dump() if batch.request_counts else {},
+        }
+        ai_run.save(update_fields=["response_payload", "updated_at"])
+        if batch.status == "completed":
+            complete_translation_batch(ai_run, provider.output_lines(batch.output_file_id))
+            # A parallel edition is aligned by construction, so it only needs the
+            # same enrichment any normalized edition gets.
+            split_edition_sentences.delay(str(ai_run.edition_id))
+            analyze_edition_lexicon.delay(str(ai_run.edition_id))
+            analyze_edition_source_quality.delay(str(ai_run.edition_id))
+            return
+        if batch.status in {"failed", "expired", "cancelled"}:
+            raise RuntimeError(f"OpenAI Batch ended with status {batch.status}")
+    except Exception as error:
+        if getattr(error, "status_code", None) in {429, 500, 502, 503, 504}:
+            raise self.retry(countdown=settings.OPENAI_BATCH_POLL_SECONDS, exc=error) from error
+        ai_run.status = AIRun.Status.FAILED
+        ai_run.error = str(error)[:10000]
+        ai_run.finished_at = timezone.now()
+        ai_run.save(update_fields=["status", "error", "finished_at", "updated_at"])
+        Edition.objects.filter(id=ai_run.edition_id).update(
+            status=Edition.Status.FAILED, updated_at=timezone.now()
+        )
+        raise
+    raise self.retry(countdown=settings.OPENAI_BATCH_POLL_SECONDS)
+
+
+@shared_task(acks_late=True)
+def translate_edition_inline(edition_id: str, tier: str = "quality") -> str:
+    """Translate with direct Responses calls instead of the Batch API."""
+
+    from almonium_book_processor.catalog.ai_translation import run_translation_inline
+
+    try:
+        ai_run = run_translation_inline(edition_id, tier=tier)
+    except Exception:
+        Edition.objects.filter(id=edition_id, status=Edition.Status.PROCESSING).update(
+            status=Edition.Status.FAILED, updated_at=timezone.now()
+        )
+        raise
+    split_edition_sentences.delay(edition_id)
+    analyze_edition_lexicon.delay(edition_id)
+    analyze_edition_source_quality.delay(edition_id)
+    return str(ai_run.id)

@@ -16,8 +16,76 @@
   <div><strong>{{ edition.blocks.count }}</strong><span>blocks</span></div>
   <div><strong>{{ actionable_warnings|length }}</strong><span>review items</span></div>
 </section>
-{% if has_blocks %}<div class="button-row"><form method="post" action="{% url 'catalog:queue-lexical-analysis' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Run lexical analysis</button></form><form method="post" action="{% url 'catalog:queue-source-quality-scan' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Scan source text</button></form></div>{% endif %}
-{% if edition.source_edition %}<div class="button-row"><a class="button" href="{% url 'catalog:alignment-review' edition.id %}">Review aligned blocks</a><form method="post" action="{% url 'catalog:queue-source-alignment' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Rebuild alignment</button></form></div>{% endif %}
+{% if not is_private %}
+<section class="panel role-panel role-{{ edition.parallel_role }}">
+  <p class="eyebrow">Role in this work</p>
+  <h2>{{ edition.get_parallel_role_display }}</h2>
+  {% if edition.parallel_role == "canonical" %}
+    <p>This is the original text and the root of the parallel tree. Every generated edition copies its block groups, so all languages stay synchronised through this edition.</p>
+  {% elif edition.parallel_role == "parallel" %}
+    <p>Generated block-for-block from <a href="{% url 'catalog:edition-detail' edition.source_edition.id %}">{{ edition.source_edition.title }} ({{ edition.source_edition.language|upper }})</a>. It shares that edition's block groups, so it is <strong>aligned by construction</strong> — there is no alignment step to run and no alignment queue to review.</p>
+    <p class="muted">Disclose this as a machine translation in the reader. Translator field: {{ edition.translator|default:"AI" }}.</p>
+  {% else %}
+    <p>An independently sourced edition. It is complete and readable on its own, but it is <strong>not</strong> block-synchronised with the original, so it is not offered for parallel reading.</p>
+    {% if edition.source_edition %}<p class="muted">Lineage recorded from {{ edition.source_edition.title }} ({{ edition.source_edition.language|upper }}) for provenance only.</p>{% endif %}
+  {% endif %}
+  {% if parallel_editions %}
+  <div class="tree-siblings">
+    <h3>Others in the parallel tree</h3>
+    <ul>{% for sibling in parallel_editions %}<li><a href="{% url 'catalog:edition-detail' sibling.id %}">{{ sibling.language|upper }}</a> · {{ sibling.get_parallel_role_display }} · <span class="status status-{{ sibling.status }}">{{ sibling.get_status_display }}</span></li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if translation_form %}
+<details class="panel collapsible-panel translation-panel">
+  <summary><span class="summary-title">Generate a parallel edition</span><span class="summary-meta">Adds a language to the tree</span></summary>
+  <p class="muted">The translator returns one block for every source block and echoes its identifier, so the new edition inherits this edition's canonical block groups. That is what makes side-by-side reading exact. Submitted through the Batch API; results can take up to 24 hours.</p>
+  <form method="post" action="{% url 'catalog:queue-parallel-translation' edition.id %}">
+    {% csrf_token %}
+    {% for field in translation_form %}
+      <label><span>{{ field.label }}</span>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}</label>
+    {% endfor %}
+    <button class="button" type="submit">Generate translation</button>
+  </form>
+</details>
+{% endif %}
+
+{% if has_blocks %}
+<section class="panel enrichment-panel">
+  <p class="eyebrow">Enrichment</p>
+  <h2>Derived data for this edition</h2>
+  <p class="muted">Both are independent, versioned artifacts. Neither blocks reading or publication, and neither changes book text on its own.</p>
+  <div class="action-list">
+    <div class="action-row">
+      <div>
+        <strong>Scan source text</strong>
+        <p class="muted">Reads this edition's own text and flags Gutenberg boilerplate, malformed Unicode, duplicated blocks, broken hyphenation, and detached drop-cap initials. It only <em>proposes</em> corrections — you approve each one, and every applied change is recorded as an auditable revision.</p>
+      </div>
+      <form method="post" action="{% url 'catalog:queue-source-quality-scan' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Scan</button></form>
+    </div>
+    <div class="action-row">
+      <div>
+        <strong>Run lexical analysis</strong>
+        <p class="muted">Builds the word profile and the ranked “50 useful words from this book” list, with counts, chapter spread, and source evidence. Feeds the reader and the public word page.</p>
+      </div>
+      <form method="post" action="{% url 'catalog:queue-lexical-analysis' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Analyse</button></form>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if has_inferred_alignment or inferred_alignment_available %}
+<details class="panel collapsible-panel alignment-panel">
+  <summary><span class="summary-title">Inferred alignment</span><span class="summary-meta">{% if has_inferred_alignment %}Built{% else %}Not built{% endif %}</span></summary>
+  <p class="muted">For two independently imported texts only. Embeddings guess which blocks correspond, then optional AI adjudication resolves what they could not. Expect a residual human-review queue — this is the expensive path, and it is why generated parallel editions exist. Keep it for scanned or user-uploaded pairs.</p>
+  <div class="button-row">
+    {% if has_inferred_alignment %}<a class="button" href="{% url 'catalog:alignment-review' edition.id %}">Open alignment workspace</a>{% endif %}
+    {% if inferred_alignment_available %}<form method="post" action="{% url 'catalog:queue-source-alignment' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">{% if has_inferred_alignment %}Rebuild{% else %}Build{% endif %} inferred alignment</button></form>{% endif %}
+  </div>
+</details>
+{% endif %}
 {% if edition.status == "review" and not is_private %}
 <section class="panel review-panel">
   <p class="eyebrow">Editor decision</p>
@@ -42,7 +110,11 @@
 <section class="panel recovery-panel">
   <p class="eyebrow">Operator recovery</p>
   <h2>Retry failed processing</h2>
+  {% if edition.parallel_role == "parallel" and not has_blocks %}
+  <p>This translation did not produce a usable edition, so no partial text was stored. Retrying resubmits the whole book to the Batch API on the same tier and register as the failed attempt. The canonical original is untouched.</p>
+  {% else %}
   <p>Retry after correcting the worker, importer, or source problem. Existing normalized content is reused when the original source file is unavailable.</p>
+  {% endif %}
   <div class="button-row">
     <form method="post" action="{% url 'catalog:retry-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit">Retry processing</button></form>
   </div>

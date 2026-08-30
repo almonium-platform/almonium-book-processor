@@ -46,6 +46,11 @@ urlpatterns = [
         name="queue-source-alignment",
     ),
     path(
+        "editions/<uuid:edition_id>/translate/queue/",
+        views.queue_parallel_translation,
+        name="queue-parallel-translation",
+    ),
+    path(
         "editions/<uuid:edition_id>/alignment-review/ai/queue/",
         views.queue_ai_alignment_review,
         name="queue-ai-alignment-review",

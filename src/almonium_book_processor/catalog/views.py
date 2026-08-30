@@ -11,9 +11,19 @@ from django.db.models import Count, Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from almonium_book_processor.catalog.forms import EditionUploadForm, LegacyArtifactImportForm
+from almonium_book_processor.catalog.ai_translation import (
+    create_parallel_translation,
+    last_translation_mode,
+    last_translation_tier,
+)
+from almonium_book_processor.catalog.forms import (
+    EditionUploadForm,
+    LegacyArtifactImportForm,
+    ParallelTranslationForm,
+)
 from almonium_book_processor.catalog.models import (
     AlignmentGroupReview,
     BlockAlignment,
@@ -45,9 +55,11 @@ from almonium_book_processor.catalog.tasks import (
     analyze_edition_lexicon,
     analyze_edition_source_quality,
     prepare_ai_alignment,
+    prepare_translation,
     process_book_pipeline,
     process_normalized_edition,
     publish_edition,
+    translate_edition_inline,
 )
 
 
@@ -145,6 +157,20 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
     text_quality_findings = edition.text_quality_findings.filter(
         status=TextQualityFinding.Status.OPEN
     )
+    tree_root = edition if edition.is_canonical else edition.source_edition
+    parallel_editions = (
+        Edition.objects.filter(
+            work=edition.work,
+            parallel_role__in=[
+                Edition.ParallelRole.CANONICAL,
+                Edition.ParallelRole.PARALLEL,
+            ],
+        )
+        .exclude(id=edition.id)
+        .order_by("parallel_role", "language")
+        if tree_root is not None
+        else Edition.objects.none()
+    )
     return render(
         request,
         "catalog/edition_detail.html",
@@ -189,6 +215,20 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
                 end_offset__isnull=False,
             ).count(),
             "recent_revisions": edition.block_revisions.all()[:10],
+            "translation_form": (
+                ParallelTranslationForm(source_edition=edition)
+                if edition.is_canonical and edition.blocks.exists()
+                else None
+            ),
+            "parallel_editions": parallel_editions,
+            "inferred_alignment_available": (
+                edition.parallel_role == Edition.ParallelRole.STANDALONE
+                and edition.source_edition is not None
+            ),
+            "has_inferred_alignment": (
+                edition.source_edition is not None
+                and BlockAlignment.objects.filter(target_edition=edition).exists()
+            ),
         },
     )
 
@@ -234,9 +274,56 @@ def approve_detached_initials(request: HttpRequest, edition_id: str) -> HttpResp
 @staff_member_required
 @require_POST
 def queue_source_alignment(request: HttpRequest, edition_id: str) -> HttpResponse:
+    """Infer alignment between two independently imported texts.
+
+    Generated parallel editions never need this: they inherit canonical block
+    groups at translation time. It stays available for imported pairs.
+    """
+
     edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
+    if not edition.requires_inferred_alignment:
+        messages.error(
+            request,
+            "This edition is aligned by construction. Inferred alignment applies only to "
+            "standalone editions imported from a separate source.",
+        )
+        return redirect("catalog:edition-detail", edition_id=edition.id)
     align_edition_to_source.delay(str(edition.id))
-    messages.success(request, "Alignment rebuild queued.")
+    messages.success(request, "Inferred alignment queued.")
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def queue_parallel_translation(request: HttpRequest, edition_id: str) -> HttpResponse:
+    """Generate a block-for-block parallel edition from a canonical original."""
+
+    source = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
+    form = ParallelTranslationForm(request.POST, source_edition=source)
+    if not form.is_valid():
+        messages.error(request, "; ".join(form.errors.get("__all__", ["Check the form."])))
+        return redirect("catalog:edition-detail", edition_id=source.id)
+    try:
+        edition = create_parallel_translation(
+            source_edition=source,
+            target_language=form.cleaned_data["target_language"],
+            register=form.cleaned_data["register"],
+            tier=form.cleaned_data["tier"],
+        )
+    except ValueError as error:
+        messages.error(request, str(error))
+        return redirect("catalog:edition-detail", edition_id=source.id)
+    tier = form.cleaned_data["tier"]
+    if form.cleaned_data["mode"] == "batch":
+        prepare_translation.delay(str(edition.id), tier=tier)
+        note = "Batch results can take up to 24 hours; the edition fills in when they arrive."
+    else:
+        translate_edition_inline.delay(str(edition.id), tier)
+        note = "Running directly; this usually finishes in a few minutes."
+    messages.success(
+        request,
+        f"Queued a {edition.get_language_display()} parallel translation. {note}",
+    )
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
 
@@ -746,6 +833,22 @@ def retry_failed_edition(request: HttpRequest, edition_id: str) -> HttpResponse:
     elif edition.blocks.exists():
         process_normalized_edition.delay(str(edition.id))
         messages.success(request, "Normalized content reprocessing queued.")
+    elif (
+        edition.parallel_role == Edition.ParallelRole.PARALLEL
+        and edition.source_edition is not None
+    ):
+        # A parallel edition has no source file of its own; it is rebuilt by
+        # translating its canonical source again.
+        tier = last_translation_tier(edition)
+        mode = last_translation_mode(edition)
+        Edition.objects.filter(id=edition.id).update(
+            status=Edition.Status.PROCESSING, updated_at=timezone.now()
+        )
+        if mode == "batch":
+            prepare_translation.delay(str(edition.id), tier=tier)
+        else:
+            translate_edition_inline.delay(str(edition.id), tier)
+        messages.success(request, f"Translation resubmitted on the {tier} tier ({mode}).")
     else:
         messages.error(request, "No source file or normalized content is available to retry.")
     return redirect("catalog:edition-detail", edition_id=edition.id)

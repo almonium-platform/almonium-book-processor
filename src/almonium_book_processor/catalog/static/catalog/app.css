@@ -56,6 +56,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .review-actions p { margin: .25rem 0; }
 .chapter-nav-help { margin-bottom: -.5rem; }
 .alignment-heading .button-row { align-items: center; justify-content: flex-end; }
+.edition-actions { align-items: center; margin: 1.5rem 0; }
 .review-toolbar h2, .section-heading h2, .alignment-group h3 { margin-top: .2rem; }
 .repair-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: end; }
 .repair-form label { display: grid; gap: .4rem; font-size: .82rem; font-weight: 700; }
@@ -98,3 +99,25 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .message { padding: 1rem; border-radius: 10px; margin-bottom: 1rem; background: #e1eee5; }
 .errorlist { color: var(--red); margin: .25rem 0; }
 @media (max-width: 700px) { .topbar { align-items: flex-start; padding-block: 1rem; } .topbar nav { flex-direction: column; align-items: flex-end; gap: .4rem; } .form-grid, .metrics, .repair-form, .alignment-columns { grid-template-columns: 1fr; } .repair-notes { grid-column: auto; } .run-row { grid-template-columns: 1fr; } .alignment-group > header, .section-heading { align-items: flex-start; flex-direction: column; } .accept-form { grid-template-columns: 1fr; } .chapter-accept-form { align-items: stretch; flex-direction: column; width: 100%; } }
+
+/* Parallel-tree role, translation request, and grouped enrichment actions */
+.role-panel h2 { margin: .2rem 0 .6rem; }
+.role-panel p { margin: .4rem 0; line-height: 1.5; }
+.role-canonical { border-left: 4px solid var(--accent); }
+.role-parallel { border-left: 4px solid var(--green); }
+.role-standalone { border-left: 4px solid var(--line); }
+.role-badge { display: inline-block; border-radius: 999px; padding: .2rem .55rem; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; background: #e9e1d4; color: var(--muted); }
+.role-badge.role-badge-canonical { background: #f0e2d6; color: var(--accent); }
+.role-badge.role-badge-parallel { background: #e1eee5; color: var(--green); }
+.tree-siblings { margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--line); }
+.tree-siblings h3 { margin: 0 0 .5rem; font-size: .95rem; }
+.tree-siblings ul { margin: 0; padding-left: 1.1rem; }
+.tree-siblings li { margin: .3rem 0; }
+.translation-panel label { display: grid; gap: .35rem; margin: .9rem 0; font-size: .82rem; font-weight: 700; max-width: 34rem; }
+.translation-panel label small { font-weight: 400; line-height: 1.35; }
+.action-list { display: grid; gap: 1rem; margin-top: 1rem; }
+.action-row { display: flex; gap: 1.5rem; justify-content: space-between; align-items: start; padding-top: 1rem; border-top: 1px solid var(--line); }
+.action-row p { margin: .3rem 0 0; font-size: .85rem; line-height: 1.45; }
+.action-row form { flex: none; }
+@media (max-width: 720px) { .action-row { flex-direction: column; gap: .8rem; } }
+

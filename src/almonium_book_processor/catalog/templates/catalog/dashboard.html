@@ -21,6 +21,7 @@
       <div><span class="status status-{{ edition.status }}">{{ edition.get_status_display }}</span><span class="language">{{ edition.language|upper }}</span></div>
       <h2>{{ edition.title }}</h2>
       <p>{{ edition.author }} · {{ edition.get_edition_type_display }}</p>
+      <p><span class="role-badge role-badge-{{ edition.parallel_role }}">{% if edition.parallel_role == "standalone" %}Standalone{% else %}Parallel reading{% endif %}</span></p>
       <dl><div><dt>Words</dt><dd>{{ edition.word_count }}</dd></div><div><dt>Warnings</dt><dd>{{ edition.warning_count }}</dd></div><div><dt>Runs</dt><dd>{{ edition.run_count }}</dd></div></dl>
     </a>
   {% empty %}

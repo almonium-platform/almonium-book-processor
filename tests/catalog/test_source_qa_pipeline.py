@@ -434,6 +434,6 @@ def test_staff_can_queue_alignment_rebuild_from_edition_page(client, monkeypatch
     page = client.get(reverse("catalog:edition-detail", args=[target.id]))
     response = client.post(reverse("catalog:queue-source-alignment", args=[target.id]))
 
-    assert "Rebuild alignment" in page.content.decode()
+    assert "Build inferred alignment" in page.content.decode()
     assert response.status_code == 302
     assert queued == [str(target.id)]

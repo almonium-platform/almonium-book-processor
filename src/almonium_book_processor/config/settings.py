@@ -140,6 +140,10 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_ALIGNMENT_PRIMARY_MODEL = os.getenv("OPENAI_ALIGNMENT_PRIMARY_MODEL", "gpt-5.6-luna")
 OPENAI_ALIGNMENT_ESCALATION_MODEL = os.getenv("OPENAI_ALIGNMENT_ESCALATION_MODEL", "gpt-5.6-terra")
 OPENAI_ALIGNMENT_CONFIDENCE = float(os.getenv("OPENAI_ALIGNMENT_CONFIDENCE", "0.80"))
+# Translation is the product text a learner reads, so it defaults to the stronger
+# tier: the whole-book difference is under a dollar at Batch prices.
+OPENAI_TRANSLATION_QUALITY_MODEL = os.getenv("OPENAI_TRANSLATION_QUALITY_MODEL", "gpt-5.6-terra")
+OPENAI_TRANSLATION_DRAFT_MODEL = os.getenv("OPENAI_TRANSLATION_DRAFT_MODEL", "gpt-5.6-luna")
 OPENAI_BATCH_POLL_SECONDS = int(os.getenv("OPENAI_BATCH_POLL_SECONDS", "60"))
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
