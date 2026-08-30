@@ -33,6 +33,8 @@ from almonium_book_processor.models import (
     ingestion_warning_severity,
 )
 
+BULK_DETACHED_INITIAL_MIN_CONFIDENCE = 0.9
+
 
 def hash_uploaded_file(upload: BinaryIO) -> str:
     digest = hashlib.sha256()
@@ -557,18 +559,14 @@ def translate_coverage_gap(
     return target_block
 
 
-@transaction.atomic
-def revise_target_block(
+def _record_block_revision(
     *,
     edition: Edition,
-    block_id: uuid.UUID,
+    block: ContentBlock,
     revised_text: str,
     editor: AbstractBaseUser,
     notes: str = "",
 ) -> ContentBlockRevision:
-    block = ContentBlock.objects.select_for_update().filter(id=block_id, edition=edition).first()
-    if block is None:
-        raise ValueError("The target block does not belong to this edition.")
     revised_text = revised_text.strip()
     if not revised_text and block.block_type not in {
         ContentBlock.BlockType.IMAGE,
@@ -590,18 +588,45 @@ def revise_target_block(
     block.text = revised_text
     block.sentences = []
     block.save(update_fields=["text", "sentences", "updated_at"])
+    return revision
+
+
+def _finish_text_revision(edition: Edition, changed_block_ids: set[uuid.UUID]) -> None:
     edition.word_count = sum(
         len(text.split()) for text in edition.blocks.values_list("text", flat=True)
     )
     edition.save(update_fields=["word_count", "updated_at"])
     edition.artifacts.filter(is_current=True).update(is_current=False)
-    edition.text_quality_findings.filter(status=TextQualityFinding.Status.OPEN).update(
-        status=TextQualityFinding.Status.SUPERSEDED
-    )
+    edition.text_quality_findings.filter(
+        status=TextQualityFinding.Status.OPEN,
+        block_id__in=changed_block_ids,
+    ).update(status=TextQualityFinding.Status.SUPERSEDED)
 
     from almonium_book_processor.catalog.tasks import refresh_edition_after_revision
 
     transaction.on_commit(lambda: refresh_edition_after_revision.delay(str(edition.id)))
+
+
+@transaction.atomic
+def revise_target_block(
+    *,
+    edition: Edition,
+    block_id: uuid.UUID,
+    revised_text: str,
+    editor: AbstractBaseUser,
+    notes: str = "",
+) -> ContentBlockRevision:
+    block = ContentBlock.objects.select_for_update().filter(id=block_id, edition=edition).first()
+    if block is None:
+        raise ValueError("The target block does not belong to this edition.")
+    revision = _record_block_revision(
+        edition=edition,
+        block=block,
+        revised_text=revised_text,
+        editor=editor,
+        notes=notes,
+    )
+    _finish_text_revision(edition, {block.id})
     return revision
 
 
@@ -615,7 +640,7 @@ def apply_text_quality_finding(
     notes: str = "",
 ) -> ContentBlockRevision:
     finding = (
-        TextQualityFinding.objects.select_for_update()
+        TextQualityFinding.objects.select_for_update(of=("self",))
         .select_related("block")
         .filter(id=finding_id, edition=edition)
         .first()
@@ -655,6 +680,76 @@ def apply_text_quality_finding(
         ]
     )
     return revision
+
+
+@transaction.atomic
+def apply_high_confidence_detached_initials(
+    *, edition: Edition, reviewer: AbstractBaseUser
+) -> list[ContentBlockRevision]:
+    findings = list(
+        TextQualityFinding.objects.select_for_update(of=("self",))
+        .filter(
+            edition=edition,
+            status=TextQualityFinding.Status.OPEN,
+            code="detached_initial",
+            confidence__gte=BULK_DETACHED_INITIAL_MIN_CONFIDENCE,
+            block__isnull=False,
+            start_offset__isnull=False,
+            end_offset__isnull=False,
+        )
+        .order_by("stable_block_id")
+    )
+    if not findings:
+        raise ValueError("There are no high-confidence detached initials to approve.")
+
+    block_ids = [finding.block_id for finding in findings]
+    if len(block_ids) != len(set(block_ids)):
+        raise ValueError("Multiple detached-initial findings target the same block; rescan first.")
+    blocks = {
+        block.id: block
+        for block in ContentBlock.objects.select_for_update().filter(
+            edition=edition,
+            id__in=block_ids,
+        )
+    }
+    for finding in findings:
+        block = blocks.get(finding.block_id)
+        if block is None:
+            raise ValueError("A detached-initial finding no longer has a current block.")
+        current = block.text[finding.start_offset : finding.end_offset]
+        if current != finding.original_text:
+            raise ValueError("The text changed after this scan; run source QA again.")
+        if not finding.suggested_text:
+            raise ValueError("A detached-initial finding has no proposed replacement.")
+
+    reviewed_at = timezone.now()
+    revisions = []
+    for finding in findings:
+        block = blocks[finding.block_id]
+        revised_text = (
+            block.text[: finding.start_offset]
+            + finding.suggested_text
+            + block.text[finding.end_offset :]
+        )
+        revisions.append(
+            _record_block_revision(
+                edition=edition,
+                block=block,
+                revised_text=revised_text,
+                editor=reviewer,
+                notes=(
+                    "Bulk-approved high-confidence detached initial "
+                    f"{finding.original_text!r} → {finding.suggested_text!r}."
+                ),
+            )
+        )
+        finding.status = TextQualityFinding.Status.APPLIED
+        finding.reviewed_by = reviewer
+        finding.reviewed_at = reviewed_at
+        finding.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+
+    _finish_text_revision(edition, set(block_ids))
+    return revisions
 
 
 @transaction.atomic

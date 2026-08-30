@@ -21,6 +21,11 @@ urlpatterns = [
         name="queue-source-quality-scan",
     ),
     path(
+        "editions/<uuid:edition_id>/source-qa/detached-initials/approve/",
+        views.approve_detached_initials,
+        name="approve-detached-initials",
+    ),
+    path(
         "editions/<uuid:edition_id>/source-qa/<uuid:finding_id>/apply/",
         views.apply_source_quality_finding,
         name="apply-source-quality-finding",
@@ -34,6 +39,11 @@ urlpatterns = [
         "editions/<uuid:edition_id>/alignment-review/",
         views.alignment_review,
         name="alignment-review",
+    ),
+    path(
+        "editions/<uuid:edition_id>/alignment/queue/",
+        views.queue_source_alignment,
+        name="queue-source-alignment",
     ),
     path(
         "editions/<uuid:edition_id>/alignment-review/ai/queue/",

@@ -25,6 +25,8 @@ from almonium_book_processor.catalog.models import (
     Work,
 )
 from almonium_book_processor.catalog.services import (
+    BULK_DETACHED_INITIAL_MIN_CONFIDENCE,
+    apply_high_confidence_detached_initials,
     apply_text_quality_finding,
     complete_review,
     confirm_ai_alignment_groups,
@@ -39,6 +41,7 @@ from almonium_book_processor.catalog.services import (
     translate_coverage_gap,
 )
 from almonium_book_processor.catalog.tasks import (
+    align_edition_to_source,
     analyze_edition_lexicon,
     analyze_edition_source_quality,
     prepare_ai_alignment,
@@ -136,6 +139,11 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
     blocks = edition.blocks.select_related("chapter").order_by("chapter__sequence", "sequence")[
         :300
     ]
+    source_qa_artifacts = edition.artifacts.filter(kind="source_qa")
+    source_qa_artifact = source_qa_artifacts.filter(is_current=True).first()
+    text_quality_findings = edition.text_quality_findings.filter(
+        status=TextQualityFinding.Status.OPEN
+    )
     return render(
         request,
         "catalog/edition_detail.html",
@@ -166,12 +174,16 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
                 kind="lexical_profile", is_current=True
             ).first(),
             "useful_words": edition.artifacts.filter(kind="useful_words", is_current=True).first(),
-            "source_qa_artifact": edition.artifacts.filter(
-                kind="source_qa", is_current=True
-            ).first(),
-            "text_quality_findings": edition.text_quality_findings.filter(
-                status=TextQualityFinding.Status.OPEN
-            ),
+            "source_qa_artifact": source_qa_artifact,
+            "has_source_qa_history": source_qa_artifacts.exists(),
+            "text_quality_findings": text_quality_findings,
+            "bulk_detached_initial_count": text_quality_findings.filter(
+                code="detached_initial",
+                confidence__gte=BULK_DETACHED_INITIAL_MIN_CONFIDENCE,
+                block__isnull=False,
+                start_offset__isnull=False,
+                end_offset__isnull=False,
+            ).count(),
             "recent_revisions": edition.block_revisions.all()[:10],
         },
     )
@@ -192,6 +204,35 @@ def queue_source_quality_scan(request: HttpRequest, edition_id: str) -> HttpResp
     edition = get_object_or_404(Edition, id=edition_id)
     analyze_edition_source_quality.delay(str(edition.id))
     messages.success(request, "Source-text QA scan queued.")
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def approve_detached_initials(request: HttpRequest, edition_id: str) -> HttpResponse:
+    edition = get_object_or_404(Edition, id=edition_id)
+    try:
+        revisions = apply_high_confidence_detached_initials(
+            edition=edition,
+            reviewer=request.user,
+        )
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request,
+            f"Applied {len(revisions)} detached-initial corrections with audit revisions; "
+            "derived data refresh queued.",
+        )
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def queue_source_alignment(request: HttpRequest, edition_id: str) -> HttpResponse:
+    edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
+    align_edition_to_source.delay(str(edition.id))
+    messages.success(request, "Alignment rebuild queued.")
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
 

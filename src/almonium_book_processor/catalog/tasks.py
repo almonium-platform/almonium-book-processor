@@ -172,6 +172,16 @@ def _edition_content_hash(edition: Edition) -> str:
     )
 
 
+def _alignment_input_hash(source_edition: Edition, target_edition: Edition) -> str:
+    return _text_hash(
+        source_edition.source_sha256,
+        _edition_content_hash(source_edition),
+        target_edition.source_sha256,
+        _edition_content_hash(target_edition),
+        settings.NLP_EMBEDDING_MODEL,
+    )
+
+
 def _finish_normalized_pipeline(edition: Edition) -> None:
     edition.refresh_from_db()
     has_review_items = (
@@ -270,11 +280,7 @@ def publish_edition(edition_id: str) -> None:
     ).exists():
         raise ValueError("Current sentence splitting must succeed before publication.")
     if edition.source_edition_id:
-        alignment_input_hash = _text_hash(
-            edition.source_edition.source_sha256,
-            edition.source_sha256,
-            settings.NLP_EMBEDDING_MODEL,
-        )
+        alignment_input_hash = _alignment_input_hash(edition.source_edition, edition)
         if not edition.pipeline_runs.filter(
             stage=PipelineRun.Stage.ALIGN,
             status=PipelineRun.Status.SUCCEEDED,
@@ -666,6 +672,20 @@ def refresh_edition_after_revision(edition_id: str) -> None:
         except Exception:
             logger.exception("Could not refresh %s for edition %s", label, edition_id)
 
+    edition = Edition.objects.select_related("source_edition").get(id=edition_id)
+    alignment_edition_ids = list(edition.derived_editions.values_list("id", flat=True))
+    if edition.source_edition_id:
+        alignment_edition_ids.append(edition.id)
+    for target_edition_id in alignment_edition_ids:
+        try:
+            align_edition_to_source.run(str(target_edition_id))
+        except Exception:
+            logger.exception(
+                "Could not refresh alignment for edition %s after revision to %s",
+                target_edition_id,
+                edition_id,
+            )
+
 
 @shared_task(acks_late=True)
 def align_edition_to_source(edition_id: str) -> None:
@@ -674,11 +694,7 @@ def align_edition_to_source(edition_id: str) -> None:
         raise ValueError("A source edition is required for alignment")
 
     source_edition = edition.source_edition
-    input_hash = _text_hash(
-        source_edition.source_sha256,
-        edition.source_sha256,
-        settings.NLP_EMBEDDING_MODEL,
-    )
+    input_hash = _alignment_input_hash(source_edition, edition)
     run, _ = PipelineRun.objects.get_or_create(
         idempotency_key=f"{edition.id}:{input_hash}:align:{ALIGNMENT_PROCESSOR_VERSION}",
         defaults={
