@@ -139,6 +139,7 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
     blocks = edition.blocks.select_related("chapter").order_by("chapter__sequence", "sequence")[
         :300
     ]
+    pipeline_runs = list(edition.pipeline_runs.all())
     source_qa_artifacts = edition.artifacts.filter(kind="source_qa")
     source_qa_artifact = source_qa_artifacts.filter(is_current=True).first()
     text_quality_findings = edition.text_quality_findings.filter(
@@ -152,6 +153,9 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
             "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
             "has_blocks": edition.blocks.exists(),
             "blocks": blocks,
+            "pipeline_run_count": len(pipeline_runs),
+            "recent_pipeline_runs": pipeline_runs[:3],
+            "older_pipeline_runs": pipeline_runs[3:],
             "actionable_warnings": [
                 warning
                 for warning in edition.warnings.all()

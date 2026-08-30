@@ -87,6 +87,12 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .release-form { display: grid; gap: .8rem; margin-top: 1.25rem; }
 .release-form .button { justify-self: start; }
 .notices summary { cursor: pointer; font-family: Georgia, serif; font-size: 1.2rem; }
+.collapsible-panel > summary { cursor: pointer; display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.collapsible-panel > summary .summary-title { font: 1.5rem Georgia, serif; }
+.collapsible-panel > summary .summary-meta { color: var(--muted); font-size: .82rem; text-align: right; }
+.collapsible-panel[open] > summary { margin-bottom: 1rem; }
+.history-older { margin-top: .8rem; border-top: 1px solid var(--line); padding-top: .8rem; }
+.history-older summary { cursor: pointer; color: var(--accent); font-size: .85rem; font-weight: 700; }
 .block { display: grid; grid-template-columns: 110px 1fr; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--line); line-height: 1.55; }
 .block aside { color: var(--muted); font-size: .72rem; }
 .message { padding: 1rem; border-radius: 10px; margin-bottom: 1rem; background: #e1eee5; }

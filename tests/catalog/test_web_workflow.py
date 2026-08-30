@@ -441,6 +441,64 @@ def test_staff_can_complete_review_from_the_edition_page(client) -> None:
     assert decision.notes == "The missing image is decorative."
 
 
+def test_edition_detail_collapses_long_sections_and_limits_processing_history(client) -> None:
+    staff = get_user_model().objects.create_user(
+        username="detail-page-editor", password="safe-test-password"
+    )
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    work = Work.objects.create(
+        slug="detail-page-work",
+        title="Detail Page Work",
+        author="Ada Author",
+        original_language="en",
+    )
+    edition = Edition.objects.create(
+        slug="detail-page-work-en-orig",
+        work=work,
+        title=work.title,
+        author=work.author,
+        language="en",
+        source_sha256="e" * 64,
+        status=Edition.Status.REVIEW,
+    )
+    chapter = Chapter.objects.create(edition=edition, sequence=1)
+    ContentBlock.objects.create(
+        edition=edition,
+        chapter=chapter,
+        block_id="c1.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="A normalized paragraph.",
+    )
+    QAWarning.objects.create(
+        edition=edition,
+        code="source_issue",
+        severity=QAWarning.Severity.WARNING,
+        message="Inspect this source issue.",
+    )
+    for sequence in range(5):
+        PipelineRun.objects.create(
+            edition=edition,
+            stage=PipelineRun.Stage.INGEST,
+            processor_version="test",
+            input_hash=f"{sequence + 1:064d}",
+            idempotency_key=f"detail-page-run-{sequence}",
+        )
+
+    client.force_login(staff)
+    response = client.get(reverse("catalog:edition-detail", args=[edition.id]))
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert '<details class="panel collapsible-panel review-items">' in content
+    assert '<details class="panel collapsible-panel content-preview">' in content
+    assert "Showing latest 3 of 5" in content
+    assert "Show 2 older runs" in content
+    assert content.index("Processing history") < content.index("Review items")
+    assert content.index("Processing history") < content.index("Content preview")
+
+
 def alignment_review_records() -> tuple:
     work = Work.objects.create(
         slug="alignment-review-work",
