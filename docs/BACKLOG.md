@@ -1,6 +1,6 @@
 # Almonium Book Processor backlog
 
-**Last reviewed:** 2026-08-23
+**Last reviewed:** 2026-08-30
 
 This backlog records the gap between the executable service and the longer
 pipeline roadmap. The order is deliberate: make deterministic local processing
@@ -32,15 +32,75 @@ reviewed and deliberately published.
 - [x] Monotonic 1:1, 1:2, and 2:1 block alignment with a length prior.
 - [x] Alignment coverage and low-confidence warnings.
 - [x] Prevent publication when current sentence splitting or alignment is absent.
-- [ ] Run and record a real calibration on Frankenstein EN-FR.
+- [x] Run and record a real calibration on Frankenstein EN-FR. **Result (2026-08-23
+  run, recorded 2026-08-30):** 815/815 source blocks and 807/813 target blocks
+  aligned, 766 groups (676 1:1, 90 two-block), mean confidence 0.825, 51 pairs
+  below 0.65, 444 groups AI-accepted, 66 human-review warnings (8.6%), total AI
+  cost $0.667. Chapter mapping was correct throughout, including the 2:1 merge of
+  English chapters 7-8 onto French chapter 7 and the 1:2 split at chapter 30.
+- [x] Diagnose the residual 8.6%. It is **not** translator digression. The two
+  printings divide chapters differently (24 numbered English chapters against 23
+  plus `SUITE, PAR WALTON`), and the low-confidence pairs cluster in the letters
+  and opening chapters where block segmentation of salutations and signatures
+  differs. From English chapter 10 onward every chapter scores 0.80-0.87.
 - [ ] Run and record a harder calibration on Remarque DE-EN.
 - [ ] Tune confidence and coverage thresholds from those results.
-- [ ] Decide whether canonical groups remain paragraph-level with nested sentence
-  alignment or whether sentence groups become first-class database rows.
+- [x] Decide whether canonical groups remain paragraph-level with nested sentence
+  alignment or whether sentence groups become first-class database rows. **Decided:
+  neither is inferred for generated editions.** See "Parallel tree" below.
 
-The first production-scale run should happen without AI. It establishes how
-much content the deterministic path handles and gives an honest size for the
-paid adjudication queue.
+Inferred alignment is no longer on the critical path. It is retained for pairs of
+independently imported texts (scans, user uploads, a licensed modern translation)
+and is offered only on standalone editions.
+
+## Decided: the parallel tree is built by translation, not inference
+
+Measured on Frankenstein: adjudicating an existing human translation cost $0.667,
+while translating the same book costs roughly $0.10 (draft tier) to $1.00 (quality
+tier) at Batch prices. Generating the translation therefore costs about the same
+or less, and it removes the review queue entirely because the model echoes each
+stable block id and the generated edition inherits the source block's
+`align_group`. Alignment becomes a join, not a pipeline stage, and a new language
+is one Batch job with no alignment step.
+
+- [x] Add `Edition.parallel_role`: `canonical` roots the tree, `parallel` is
+  generated block-for-block and aligned by construction, `standalone` is readable
+  on its own and never block-synchronised.
+- [x] Seed `ContentBlock.align_group` on every canonical edition and copy it into
+  generated editions. This is the layer-1 canonical group from the pipeline doc.
+- [x] Add the Batch translation pipeline with per-chapter requests, strict
+  structural validation, and length/confidence QA gates. A partially translated
+  book is refused rather than materialized.
+- [x] Expose `parallel_role` and `supports_parallel_reading` through the edition
+  API so clients can filter for side-by-side reading.
+- [x] Translate Frankenstein end to end and review the finished edition. Done into
+  Ukrainian on 2026-08-30: 30 chapters, 815/815 blocks, 63,656 words, status `ready`
+  with zero QA warnings, whole-book length ratio 0.917, no empty blocks, no block-type
+  mismatches, no sentence-count changes, and no block below 0.80 confidence. All 815
+  blocks pair with the English canonical through a plain `align_group` join.
+- [x] Add a direct (non-Batch) execution mode. The provider's Batch service began
+  rejecting every input file on 2026-08-30 with "Cannot find file ... or organization
+  does not have access to it" — reproduced with a single-line batch on both
+  `/v1/responses` and `/v1/chat/completions`, with files that upload cleanly, report
+  `processed`, and download fine with the same key. Batches succeeded on 2026-08-23,
+  so this is an account or platform regression, not a payload problem. Direct mode
+  runs the identical requests through the Responses API with the same validation and
+  QA gates, forfeiting the 50% Batch discount: $2.06 instead of ~$1.03 per book.
+- [ ] Re-test Batch once the provider resolves file access, then make it the default
+  again for cost.
+- [ ] Fix the one-off `Тоєї` (should be `Тієї`) in the Ukrainian creation scene
+  through the block-revision workflow; 44 other occurrences use the correct form.
+- [ ] Decide the reader-facing labels with the product client, keeping reading mode
+  (parallel vs standalone) separate from provenance (human vs AI, disclosed).
+
+**Model choice (blind chapter comparison, English chapter V into French, 2026-08-30):**
+all of `gpt-5.6-sol`, `gpt-5.6-luna`, and `gpt-5.6-terra` returned 28/28 blocks in
+order with correct French guillemets and a 1.09-1.11 length ratio. Sol was rejected
+for anachronistic register (`bougie` for a period candle) and a repeated adverb the
+source did not repeat, while also emitting the most tokens. Terra reads best
+(`crépitait` for "pattered") and is the default; Luna is close and stays available
+as the draft tier. The whole-book difference is under a dollar, so the choice is
+made on register, not price.
 
 ## Next: alignment review workflow
 
@@ -99,8 +159,8 @@ alignment remains an explicit staff action and records its audit and cost data.
 
 ## Later: generated editions
 
-- [ ] Select two or three candidate models and translate one representative
-  chapter blind before choosing a default.
+- [x] Select two or three candidate models and translate one representative
+  chapter blind before choosing a default. Terra is the default; see above.
 - [ ] Translate one book into Ukrainian with explicit register and disclosure.
 - [ ] Add translation length, sentence-count, truncation, and structural QA.
 - [ ] Pilot one CEFR adaptation after translation quality is accepted.
