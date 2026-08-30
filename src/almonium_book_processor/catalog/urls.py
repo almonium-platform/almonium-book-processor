@@ -10,6 +10,12 @@ urlpatterns = [
     path("upload/", views.upload_source, name="upload"),
     path("imports/legacy/", views.import_legacy, name="import-legacy"),
     path("editions/<uuid:edition_id>/", views.edition_detail, name="edition-detail"),
+    path("editions/<uuid:edition_id>/reader/", views.edition_reader, name="edition-reader"),
+    path(
+        "editions/<uuid:edition_id>/blocks/<uuid:block_id>/edit/",
+        views.edit_block_text,
+        name="edit-block-text",
+    ),
     path(
         "editions/<uuid:edition_id>/lexical/queue/",
         views.queue_lexical_analysis,

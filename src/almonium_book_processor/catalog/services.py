@@ -608,7 +608,7 @@ def _finish_text_revision(edition: Edition, changed_block_ids: set[uuid.UUID]) -
 
 
 @transaction.atomic
-def revise_target_block(
+def revise_block_text(
     *,
     edition: Edition,
     block_id: uuid.UUID,
@@ -659,7 +659,7 @@ def apply_text_quality_finding(
         + replacement
         + finding.block.text[finding.end_offset :]
     )
-    revision = revise_target_block(
+    revision = revise_block_text(
         edition=edition,
         block_id=finding.block_id,
         revised_text=revised_text,

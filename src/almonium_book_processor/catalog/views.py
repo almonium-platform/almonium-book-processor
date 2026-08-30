@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
+from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib import messages
@@ -28,6 +29,7 @@ from almonium_book_processor.catalog.models import (
     AlignmentGroupReview,
     BlockAlignment,
     ChapterAlignment,
+    ContentBlock,
     Edition,
     PipelineRun,
     QAWarning,
@@ -47,7 +49,7 @@ from almonium_book_processor.catalog.services import (
     resolve_review_warning,
     review_alignment_chapter,
     review_alignment_group,
-    revise_target_block,
+    revise_block_text,
     translate_coverage_gap,
 )
 from almonium_book_processor.catalog.tasks import (
@@ -230,6 +232,219 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
                 and BlockAlignment.objects.filter(target_edition=edition).exists()
             ),
         },
+    )
+
+
+READER_SEARCH_LIMIT = 200
+
+
+def _reader_redirect(
+    edition_id: str, chapter: str, query: str = "", block_id: str = "", parallel: str = ""
+) -> HttpResponse:
+    url = f"{reverse('catalog:edition-reader', args=[edition_id])}?chapter={chapter}"
+    if query:
+        url += f"&q={quote(query)}"
+    if parallel:
+        url += f"&parallel={quote(parallel)}"
+    if block_id:
+        url += f"#block-{block_id}"
+    return redirect(url)
+
+
+def _parallel_options(edition: Edition) -> list[Edition]:
+    """Editions that share this edition's canonical block groups."""
+
+    if not edition.supports_parallel_reading:
+        return []
+    return list(
+        Edition.objects.filter(
+            work=edition.work,
+            parallel_role__in=[Edition.ParallelRole.CANONICAL, Edition.ParallelRole.PARALLEL],
+        )
+        .exclude(id=edition.id)
+        .order_by("parallel_role", "language")
+    )
+
+
+def _parallel_rows(
+    blocks: list[ContentBlock], parallel_edition: Edition | None, chapter: int | None
+) -> tuple[list[dict], int]:
+    """Pair each block with its counterpart through the canonical align group.
+
+    Correspondence in a generated edition is inherited rather than inferred, so
+    a block that fails to pair is a defect in the translation and not a
+    low-confidence guess. Every such case gets its own row, including blocks the
+    other edition has and this one does not, so nothing can be scrolled past.
+    """
+
+    if parallel_edition is None:
+        return [{"block": block, "counterparts": [], "status": "paired"} for block in blocks], 0
+
+    other = parallel_edition.language.upper()
+    groups = {block.align_group for block in blocks if block.align_group}
+    counterparts: dict[uuid.UUID, list[ContentBlock]] = defaultdict(list)
+    for block in parallel_edition.blocks.select_related("chapter").filter(align_group__in=groups):
+        counterparts[block.align_group].append(block)
+
+    rows: list[dict] = []
+    for block in blocks:
+        matched = counterparts.get(block.align_group, []) if block.align_group else []
+        if not block.align_group:
+            status, label = "ungrouped", "No group"
+            note = (
+                "This block carries no canonical group, so it can never pair. "
+                "The canonical edition needs its groups re-seeded."
+            )
+        elif not matched:
+            status, label = "missing", f"Missing in {other}"
+            note = f"No block in the {other} edition carries this group."
+        elif len(matched) > 1:
+            status, label = "duplicate", f"Duplicated in {other}"
+            note = f"{len(matched)} blocks in the {other} edition claim this group."
+        else:
+            status, label, note = "paired", "", ""
+        rows.append(
+            {
+                "block": block,
+                "counterparts": matched,
+                "status": status,
+                "label": label,
+                "note": note,
+            }
+        )
+
+    # Blocks the other edition has here and this one does not. Only meaningful
+    # while reading a single chapter; search results have no chapter frame.
+    if chapter is not None:
+        for block in parallel_edition.blocks.select_related("chapter").filter(
+            chapter__sequence=chapter
+        ):
+            if block.align_group and block.align_group in groups:
+                continue
+            rows.append(
+                {
+                    "block": None,
+                    "counterparts": [block],
+                    "status": "extra",
+                    "label": f"Extra in {other}",
+                    "note": (
+                        f"The {other} edition has this block in chapter {chapter} but no block "
+                        "here carries its group."
+                    ),
+                }
+            )
+
+    return rows, sum(1 for row in rows if row["status"] != "paired")
+
+
+@staff_member_required
+def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
+    """Read the whole normalized text of any edition and correct blocks in place.
+
+    This is deliberately independent of alignment: a generated parallel edition
+    has no alignment queue, and polishing the text is a prerequisite for
+    alignment rather than a part of it.
+    """
+
+    edition = get_object_or_404(
+        Edition.objects.select_related("work", "source_edition"), id=edition_id
+    )
+    chapters = list(edition.chapters.order_by("sequence"))
+    query = request.GET.get("q", "").strip()
+
+    if query:
+        blocks = list(
+            edition.blocks.select_related("chapter")
+            .filter(Q(block_id__icontains=query) | Q(text__icontains=query))
+            .order_by("chapter__sequence", "sequence")[:READER_SEARCH_LIMIT]
+        )
+        match_count = (
+            edition.blocks.filter(Q(block_id__icontains=query) | Q(text__icontains=query))
+            .order_by()
+            .count()
+        )
+        chapter = blocks[0].chapter.sequence if blocks else None
+    else:
+        chapter_numbers = [item.sequence for item in chapters]
+        try:
+            requested = int(request.GET.get("chapter", ""))
+        except ValueError:
+            requested = None
+        chapter = requested if requested in chapter_numbers else next(iter(chapter_numbers), None)
+        blocks = (
+            list(
+                edition.blocks.select_related("chapter")
+                .filter(chapter__sequence=chapter)
+                .order_by("sequence")
+            )
+            if chapter is not None
+            else []
+        )
+        match_count = len(blocks)
+
+    parallel_options = _parallel_options(edition)
+    requested_parallel = request.GET.get("parallel", "").strip()
+    parallel_edition = next(
+        (option for option in parallel_options if str(option.id) == requested_parallel), None
+    )
+    rows, gap_count = _parallel_rows(blocks, parallel_edition, None if query else chapter)
+
+    positions = {item.sequence: index for index, item in enumerate(chapters)}
+    current_index = positions.get(chapter)
+    return render(
+        request,
+        "catalog/reader.html",
+        {
+            "edition": edition,
+            "chapters": chapters,
+            "chapter": chapter,
+            "current_chapter": chapters[current_index] if current_index is not None else None,
+            "previous_chapter": (
+                chapters[current_index - 1] if current_index else None  # index 0 has no previous
+            ),
+            "next_chapter": (
+                chapters[current_index + 1]
+                if current_index is not None and current_index + 1 < len(chapters)
+                else None
+            ),
+            "blocks": blocks,
+            "rows": rows,
+            "parallel_options": parallel_options,
+            "parallel_edition": parallel_edition,
+            "parallel_param": f"&parallel={parallel_edition.id}" if parallel_edition else "",
+            "gap_count": gap_count,
+            "query": query,
+            "match_count": match_count,
+            "truncated": bool(query) and match_count > len(blocks),
+            "search_limit": READER_SEARCH_LIMIT,
+            "block_count": edition.blocks.count(),
+            "recent_revisions": edition.block_revisions.select_related("editor")[:10],
+        },
+    )
+
+
+@staff_member_required
+@require_POST
+def edit_block_text(request: HttpRequest, edition_id: str, block_id: uuid.UUID) -> HttpResponse:
+    edition = get_object_or_404(Edition, id=edition_id)
+    try:
+        revise_block_text(
+            edition=edition,
+            block_id=block_id,
+            revised_text=request.POST.get("text", ""),
+            editor=request.user,
+            notes=request.POST.get("notes", "").strip(),
+        )
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Block text updated; derived data was queued for a refresh.")
+    return _reader_redirect(
+        str(edition.id),
+        request.POST.get("chapter", ""),
+        request.POST.get("q", ""),
+        str(block_id),
+        request.POST.get("parallel", ""),
     )
 
 
@@ -752,7 +967,7 @@ def translate_alignment_gap(request: HttpRequest, edition_id: str, source_block_
 def edit_alignment_target(request: HttpRequest, edition_id: str, block_id: uuid.UUID):
     edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
     try:
-        revise_target_block(
+        revise_block_text(
             edition=edition,
             block_id=block_id,
             revised_text=request.POST.get("text", ""),

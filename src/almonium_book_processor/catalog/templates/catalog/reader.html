@@ -1,0 +1,116 @@
+{% extends "catalog/base.html" %}
+{% block title %}Reader · {{ edition.title }}{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">{{ edition.language|upper }} · {{ edition.get_edition_type_display }} · {{ block_count }} block{{ block_count|pluralize }}</p>
+    <h1>{{ edition.title }}</h1>
+    <p class="muted">The complete normalized text. Correct any block in place — each save records an auditable revision, clears that block's sentences, and queues a refresh of derived data. This is independent of alignment.</p>
+  </div>
+  <div class="button-row">
+    <a class="button button-secondary" href="{% url 'catalog:edition-detail' edition.id %}">Edition overview</a>
+  </div>
+</div>
+
+<form class="panel reader-search" method="get" action="">
+  <label>
+    <span>Find a block by id or text</span>
+    <input name="q" value="{{ query }}" placeholder="c11.p2, or a phrase from the paragraph">
+  </label>
+  {% if parallel_edition %}<input type="hidden" name="parallel" value="{{ parallel_edition.id }}">{% endif %}
+  <div class="button-row">
+    <button class="button" type="submit">Search</button>
+    {% if query %}<a class="button button-secondary" href="?chapter={{ chapter|default:1 }}{{ parallel_param }}">Back to chapters</a>{% endif %}
+  </div>
+</form>
+
+{% if parallel_options %}
+<nav class="panel parallel-picker" aria-label="Parallel comparison">
+  <p class="eyebrow">Compare against</p>
+  <div class="parallel-picker-options">
+    <a class="{% if not parallel_edition %}current{% endif %}" href="?{% if query %}q={{ query|urlencode }}{% else %}chapter={{ chapter|default:1 }}{% endif %}">Off</a>
+    {% for option in parallel_options %}
+    <a class="{% if parallel_edition.id == option.id %}current{% endif %}" href="?{% if query %}q={{ query|urlencode }}{% else %}chapter={{ chapter|default:1 }}{% endif %}&parallel={{ option.id }}">{{ option.language|upper }}</a>
+    {% endfor %}
+  </div>
+  {% if parallel_edition %}
+  <p class="muted">Blocks pair through the canonical group they inherit, so correspondence here is exact rather than inferred. Anything that fails to pair is a defect in the generated text, and every one is shown as its own row.</p>
+  <p class="{% if gap_count %}gap-summary gap-summary-bad{% else %}gap-summary gap-summary-clean{% endif %}">
+    {% if gap_count %}{{ gap_count }} unpaired row{{ gap_count|pluralize }} {% if query %}in these results{% else %}in this chapter{% endif %}.{% else %}Every block {% if query %}in these results pairs{% else %}in this chapter pairs{% endif %} one to one.{% endif %}
+  </p>
+  {% else %}
+  <p class="muted">Pick a language to read this edition side by side with it and check the pairing block by block.</p>
+  {% endif %}
+</nav>
+{% endif %}
+
+{% if chapters %}
+{% if query %}
+<p class="muted chapter-nav-help">{{ match_count }} block{{ match_count|pluralize }} match “{{ query }}”{% if truncated %} · showing the first {{ search_limit }}{% endif %}.</p>
+{% else %}
+<p class="muted chapter-nav-help">Chapters in this edition.</p>
+<nav class="chapter-nav" aria-label="Chapters">
+  {% for item in chapters %}<a class="{% if item.sequence == chapter %}current{% endif %}" href="?chapter={{ item.sequence }}{{ parallel_param }}" title="{{ item.title|default:'Untitled' }}">{{ item.sequence }}</a>{% endfor %}
+</nav>
+{% endif %}
+
+<section class="panel reader-body">
+  {% if not query %}
+  <div class="section-heading">
+    <div><p class="eyebrow">Chapter {{ chapter }}</p><h2>{{ current_chapter.title|default:"Untitled chapter" }}</h2><p class="muted">{{ blocks|length }} block{{ blocks|length|pluralize }}</p></div>
+    <div class="button-row">
+      {% if previous_chapter %}<a class="button button-secondary" href="?chapter={{ previous_chapter.sequence }}{{ parallel_param }}">← Chapter {{ previous_chapter.sequence }}</a>{% endif %}
+      {% if next_chapter %}<a class="button button-secondary" href="?chapter={{ next_chapter.sequence }}{{ parallel_param }}">Chapter {{ next_chapter.sequence }} →</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% for row in rows %}
+  <article class="block reader-block{% if parallel_edition %} reader-parallel{% endif %}{% if row.status != 'paired' %} reader-gap reader-gap-{{ row.status }}{% endif %}"{% if row.block %} id="block-{{ row.block.id }}"{% endif %}>
+    <aside>
+      {% if row.block %}<code>{{ row.block.block_id }}</code><br>{{ row.block.get_block_type_display }}{% if query %}<br>Chapter {{ row.block.chapter.sequence }}{% endif %}{% else %}<code>—</code>{% endif %}
+      {% if row.label %}<br><span class="gap-flag">{{ row.label }}</span>{% endif %}
+    </aside>
+    <div class="reader-columns">
+      <div class="reader-column">
+        {% if parallel_edition %}<p class="column-lang">{{ edition.language|upper }}</p>{% endif %}
+        {% if row.block %}
+        <p>{{ row.block.text|linebreaksbr|default:"—" }}</p>
+        <details><summary>Edit this block</summary><form method="post" action="{% url 'catalog:edit-block-text' edition.id row.block.id %}">
+          {% csrf_token %}<input type="hidden" name="chapter" value="{{ row.block.chapter.sequence }}"><input type="hidden" name="q" value="{{ query }}">
+          {% if parallel_edition %}<input type="hidden" name="parallel" value="{{ parallel_edition.id }}">{% endif %}
+          <textarea name="text" rows="8" required>{{ row.block.text }}</textarea>
+          <input name="notes" placeholder="Reason for correction" required>
+          <button class="button button-secondary" type="submit">Save correction</button>
+        </form></details>
+        {% else %}
+        <p class="gap-note">{{ row.note }}</p>
+        {% endif %}
+      </div>
+      {% if parallel_edition %}
+      <div class="reader-column">
+        <p class="column-lang">{{ parallel_edition.language|upper }}</p>
+        {% for counterpart in row.counterparts %}
+        <p>{{ counterpart.text|linebreaksbr|default:"—" }}</p>
+        <p class="counterpart-meta"><code>{{ counterpart.block_id }}</code> · chapter {{ counterpart.chapter.sequence }} · <a href="{% url 'catalog:edition-reader' parallel_edition.id %}?chapter={{ counterpart.chapter.sequence }}&parallel={{ edition.id }}#block-{{ counterpart.id }}">edit there</a></p>
+        {% empty %}
+        <p class="gap-note">{{ row.note }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </article>
+  {% empty %}
+  <p>{% if query %}No block matches that id or phrase.{% else %}This chapter has no blocks.{% endif %}</p>
+  {% endfor %}
+
+  {% if not query and next_chapter %}
+  <div class="button-row reader-footer-nav"><a class="button" href="?chapter={{ next_chapter.sequence }}{{ parallel_param }}">Continue to chapter {{ next_chapter.sequence }} →</a></div>
+  {% endif %}
+</section>
+{% else %}
+<section class="panel"><h2>No chapters available</h2><p class="muted">This edition has not been normalized into chapters yet.</p></section>
+{% endif %}
+
+{% if recent_revisions %}<section class="panel"><h2>Recent text corrections</h2>{% for revision in recent_revisions %}<details class="revision"><summary>{{ revision.stable_block_id }} · {{ revision.editor|default:"staff" }} · {{ revision.created_at }}</summary><p><strong>Before:</strong> {{ revision.previous_text }}</p><p><strong>After:</strong> {{ revision.revised_text }}</p><p class="muted">{{ revision.notes }}</p></details>{% endfor %}</section>{% endif %}
+{% endblock %}

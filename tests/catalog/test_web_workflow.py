@@ -933,6 +933,337 @@ def reader_staff(client, username: str):
     return staff
 
 
+def test_reader_serves_a_chapter_of_an_edition_without_alignment(client) -> None:
+    edition, blocks = reader_records()
+    reader_staff(client, "reader")
+
+    assert not BlockAlignment.objects.filter(target_edition=edition).exists()
+
+    page = client.get(reverse("catalog:edition-reader", args=[edition.id]), {"chapter": 11})
+
+    content = page.content.decode()
+    assert page.status_code == 200
+    assert page.context["chapter"] == 11
+    assert page.context["blocks"] == blocks[1:]
+    assert "Тоєї ночі." in content
+    assert "Перший блок." not in content
+    assert reverse("catalog:edit-block-text", args=[edition.id, blocks[2].id]) in content
+
+
+def test_reader_defaults_to_the_first_chapter_and_ignores_an_unknown_one(client) -> None:
+    edition, blocks = reader_records()
+    reader_staff(client, "reader-default")
+
+    for query in ({}, {"chapter": "404"}, {"chapter": "not-a-number"}):
+        page = client.get(reverse("catalog:edition-reader", args=[edition.id]), query)
+        assert page.context["chapter"] == 1
+        assert page.context["blocks"] == blocks[:1]
+
+
+def test_reader_finds_a_block_by_id_or_phrase_across_chapters(client) -> None:
+    edition, blocks = reader_records()
+    reader_staff(client, "reader-search")
+
+    by_id = client.get(reverse("catalog:edition-reader", args=[edition.id]), {"q": "c11.p2"})
+    assert by_id.context["blocks"] == [blocks[2]]
+    assert by_id.context["match_count"] == 1
+
+    by_phrase = client.get(reverse("catalog:edition-reader", args=[edition.id]), {"q": "Тоєї"})
+    assert by_phrase.context["blocks"] == [blocks[2]]
+
+
+def test_reader_corrects_a_block_with_audit_and_refresh(
+    client, monkeypatch, django_capture_on_commit_callbacks
+) -> None:
+    edition, blocks = reader_records()
+    block = blocks[2]
+    staff = reader_staff(client, "reader-editor")
+    queued: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.refresh_edition_after_revision.delay",
+        lambda edition_id: queued.append(edition_id),
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.post(
+            reverse("catalog:edit-block-text", args=[edition.id, block.id]),
+            {"chapter": "11", "text": "Тієї ночі.", "notes": "Fixed a typo."},
+        )
+
+    block.refresh_from_db()
+    edition.refresh_from_db()
+    revision = ContentBlockRevision.objects.get(edition=edition, block=block)
+    assert response.status_code == 302
+    assert f"#block-{block.id}" in response["Location"]
+    assert block.text == "Тієї ночі."
+    assert block.sentences == []
+    assert revision.previous_text == "Тоєї ночі."
+    assert revision.editor == staff
+    assert revision.notes == "Fixed a typo."
+    assert edition.word_count == 5  # recomputed from the stale 6 stored on the fixture
+    assert queued == [str(edition.id)]
+
+
+def test_reader_rejects_a_block_from_another_edition(client) -> None:
+    edition, _ = reader_records()
+    reader_staff(client, "reader-guard")
+    foreign_block = ContentBlock.objects.create(
+        edition=edition.source_edition,
+        chapter=Chapter.objects.create(edition=edition.source_edition, sequence=1, title="One"),
+        block_id="c1.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="That night.",
+    )
+
+    response = client.post(
+        reverse("catalog:edit-block-text", args=[edition.id, foreign_block.id]),
+        {"chapter": "1", "text": "Changed.", "notes": "Should not apply."},
+    )
+
+    foreign_block.refresh_from_db()
+    assert response.status_code == 302
+    assert foreign_block.text == "That night."
+    assert not ContentBlockRevision.objects.exists()
+
+
+def test_edition_detail_links_to_the_reader(client) -> None:
+    edition, _ = reader_records()
+    reader_staff(client, "reader-link")
+
+    page = client.get(reverse("catalog:edition-detail", args=[edition.id]))
+
+    assert reverse("catalog:edition-reader", args=[edition.id]) in page.content.decode()
+
+
+def parallel_records() -> tuple:
+    """A canonical edition and the parallel edition generated from it.
+
+    Chapter 1 deliberately carries one of every pairing outcome so the reader is
+    exercised against defects and not only against a clean book.
+    """
+
+    work = Work.objects.create(
+        slug="parallel-work",
+        title="Parallel Work",
+        author="Mary Author",
+        original_language="en",
+    )
+    canonical = Edition.objects.create(
+        slug="parallel-work-en",
+        work=work,
+        title="Parallel Work",
+        author="Mary Author",
+        language="en",
+        source_sha256="5" * 64,
+        parallel_role=Edition.ParallelRole.CANONICAL,
+        status=Edition.Status.READY,
+    )
+    parallel = Edition.objects.create(
+        slug="parallel-work-uk",
+        work=work,
+        source_edition=canonical,
+        title="Parallel Work",
+        author="Mary Author",
+        language="uk",
+        edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        source_sha256="6" * 64,
+        status=Edition.Status.READY,
+    )
+    groups = {name: uuid.uuid4() for name in ("a", "b", "c", "orphan")}
+
+    def seed(edition, specs):
+        chapter = Chapter.objects.create(edition=edition, sequence=1, title="One")
+        return [
+            ContentBlock.objects.create(
+                edition=edition,
+                chapter=chapter,
+                block_id=f"c1.p{sequence}",
+                sequence=sequence,
+                block_type=ContentBlock.BlockType.PARAGRAPH,
+                text=text_value,
+                align_group=group,
+            )
+            for sequence, (text_value, group) in enumerate(specs, start=1)
+        ]
+
+    source_blocks = seed(
+        canonical,
+        [
+            ("First block.", groups["a"]),
+            ("Second block.", groups["b"]),
+            ("Third block.", groups["c"]),
+        ],
+    )
+    target_blocks = seed(
+        parallel,
+        [
+            ("Перший блок.", groups["a"]),
+            ("Другий блок.", None),
+            ("Зайвий блок.", groups["orphan"]),
+        ],
+    )
+    return canonical, parallel, source_blocks, target_blocks
+
+
+def test_parallel_reader_pairs_blocks_through_the_inherited_group(client) -> None:
+    canonical, parallel, source_blocks, target_blocks = parallel_records()
+    reader_staff(client, "parallel-reader")
+
+    page = client.get(
+        reverse("catalog:edition-reader", args=[parallel.id]),
+        {"chapter": 1, "parallel": str(canonical.id)},
+    )
+
+    rows = page.context["rows"]
+    assert page.context["parallel_edition"] == canonical
+    assert [row["status"] for row in rows] == [
+        "paired",
+        "ungrouped",
+        "missing",
+        "extra",
+        "extra",
+    ]
+    assert rows[0]["counterparts"] == [source_blocks[0]]
+    assert rows[1]["block"] == target_blocks[1]
+    assert rows[1]["counterparts"] == []
+    assert rows[2]["block"] == target_blocks[2]
+    assert [row["counterparts"] for row in rows[3:]] == [[source_blocks[1]], [source_blocks[2]]]
+    assert [row["block"] for row in rows[3:]] == [None, None]
+    assert page.context["gap_count"] == 4
+
+    content = page.content.decode()
+    assert "First block." in content and "Перший блок." in content
+    assert "Missing in EN" in content and "Extra in EN" in content and "No group" in content
+
+
+def test_parallel_reader_flags_a_group_claimed_by_two_blocks(client) -> None:
+    canonical, parallel, source_blocks, _ = parallel_records()
+    reader_staff(client, "parallel-duplicate")
+    ContentBlock.objects.create(
+        edition=canonical,
+        chapter=source_blocks[0].chapter,
+        block_id="c1.p4",
+        sequence=4,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="First block, again.",
+        align_group=source_blocks[0].align_group,
+    )
+
+    page = client.get(
+        reverse("catalog:edition-reader", args=[parallel.id]),
+        {"chapter": 1, "parallel": str(canonical.id)},
+    )
+
+    rows = page.context["rows"]
+    assert rows[0]["status"] == "duplicate"
+    assert len(rows[0]["counterparts"]) == 2
+    assert "Duplicated in EN" in page.content.decode()
+
+
+def test_parallel_reader_reads_the_canonical_edition_against_its_translation(client) -> None:
+    canonical, parallel, source_blocks, target_blocks = parallel_records()
+    reader_staff(client, "parallel-canonical")
+
+    page = client.get(
+        reverse("catalog:edition-reader", args=[canonical.id]),
+        {"chapter": 1, "parallel": str(parallel.id)},
+    )
+
+    rows = page.context["rows"]
+    assert [row["status"] for row in rows] == ["paired", "missing", "missing", "extra", "extra"]
+    assert rows[0]["counterparts"] == [target_blocks[0]]
+    # The ungrouped and orphaned target blocks both surface from this side too.
+    assert [row["counterparts"][0] for row in rows[3:]] == [target_blocks[1], target_blocks[2]]
+
+
+def test_parallel_reader_offers_only_editions_that_share_the_block_tree(client) -> None:
+    canonical, parallel, _, _ = parallel_records()
+    reader_staff(client, "parallel-options")
+    standalone = Edition.objects.create(
+        slug="parallel-work-fr",
+        work=canonical.work,
+        source_edition=canonical,
+        title="Parallel Work",
+        author="Mary Author",
+        language="fr",
+        edition_type=Edition.EditionType.HUMAN_TRANSLATION,
+        source_sha256="7" * 64,
+    )
+
+    page = client.get(reverse("catalog:edition-reader", args=[parallel.id]), {"chapter": 1})
+
+    assert standalone.parallel_role == Edition.ParallelRole.STANDALONE
+    assert list(page.context["parallel_options"]) == [canonical]
+    assert page.context["parallel_edition"] is None
+    assert page.context["gap_count"] == 0
+
+
+def test_parallel_reader_ignores_an_unknown_comparison_edition(client) -> None:
+    canonical, parallel, _, _ = parallel_records()
+    reader_staff(client, "parallel-unknown")
+
+    for value in (str(uuid.uuid4()), "not-a-uuid", str(parallel.id)):
+        page = client.get(
+            reverse("catalog:edition-reader", args=[parallel.id]),
+            {"chapter": 1, "parallel": value},
+        )
+        assert page.context["parallel_edition"] is None
+        assert [row["status"] for row in page.context["rows"]] == ["paired"] * 3
+    assert canonical.id != parallel.id
+
+
+def test_parallel_reader_search_pairs_matches_without_inventing_extras(client) -> None:
+    canonical, parallel, source_blocks, _ = parallel_records()
+    reader_staff(client, "parallel-search")
+
+    page = client.get(
+        reverse("catalog:edition-reader", args=[parallel.id]),
+        {"q": "Перший", "parallel": str(canonical.id)},
+    )
+
+    rows = page.context["rows"]
+    assert [row["status"] for row in rows] == ["paired"]
+    assert rows[0]["counterparts"] == [source_blocks[0]]
+    assert page.context["gap_count"] == 0
+
+
+def test_parallel_reader_correction_returns_to_the_side_by_side_view(
+    client, monkeypatch, django_capture_on_commit_callbacks
+) -> None:
+    canonical, parallel, _, target_blocks = parallel_records()
+    reader_staff(client, "parallel-editor")
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.refresh_edition_after_revision.delay",
+        lambda edition_id: None,
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.post(
+            reverse("catalog:edit-block-text", args=[parallel.id, target_blocks[0].id]),
+            {
+                "chapter": "1",
+                "parallel": str(canonical.id),
+                "text": "Перший блок виправлено.",
+                "notes": "Typo.",
+            },
+        )
+
+    assert f"parallel={canonical.id}" in response["Location"]
+    assert f"#block-{target_blocks[0].id}" in response["Location"]
+
+
+def test_edition_detail_links_to_the_parallel_reader(client) -> None:
+    canonical, parallel, _, _ = parallel_records()
+    reader_staff(client, "parallel-link")
+
+    page = client.get(reverse("catalog:edition-detail", args=[parallel.id]))
+
+    reader_url = reverse("catalog:edition-reader", args=[parallel.id])
+    assert f"{reader_url}?parallel={canonical.id}" in page.content.decode()
+
+
 def test_generated_parallel_edition_never_infers_alignment(monkeypatch) -> None:
     edition, blocks = reader_records()
     embedded: list[str] = []
