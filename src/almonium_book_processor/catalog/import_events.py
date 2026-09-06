@@ -7,6 +7,7 @@ import os
 import time
 from urllib.request import Request, urlopen
 
+from almonium_book_processor.catalog.metadata import metadata_payload
 from almonium_book_processor.catalog.models import Edition
 
 
@@ -30,6 +31,7 @@ def send_private_import_event(
         "progress": progress,
         "wordCount": edition.word_count,
         "error": error or None,
+        "metadata": _camel_case(metadata_payload(edition)),
     }
     body = json.dumps(payload, separators=(",", ":")).encode()
     timestamp = str(int(time.time()))
@@ -50,3 +52,11 @@ def send_private_import_event(
     )
     with urlopen(request, timeout=10):  # noqa: S310 - configured service endpoint
         pass
+
+
+def _camel_case(payload: dict[str, object]) -> dict[str, object]:
+    def camel(name: str) -> str:
+        head, *rest = name.split("_")
+        return head + "".join(part.capitalize() for part in rest)
+
+    return {camel(key): value for key, value in payload.items()}

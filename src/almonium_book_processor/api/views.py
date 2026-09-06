@@ -16,8 +16,10 @@ from almonium_book_processor.api.serializers import (
     EditionSerializer,
     EditionUploadSerializer,
     PipelineRunSerializer,
+    PrivateImportMetadataSerializer,
     PrivateImportSerializer,
 )
+from almonium_book_processor.catalog.metadata import confirm_metadata, metadata_payload
 from almonium_book_processor.catalog.models import BlockAlignment, Edition, PipelineRun, Work
 from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
@@ -100,6 +102,21 @@ class PrivateImportDetailView(APIView):
         return Response(_private_import_payload(edition))
 
 
+class PrivateImportMetadataView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [InternalBooksPermission]
+
+    def put(self, request, import_id):
+        edition = _private_import(import_id, request.query_params.get("owner_id"))
+        serializer = PrivateImportMetadataSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        fields = dict(serializer.validated_data)
+        clear_year = "publication_year" in fields and fields["publication_year"] is None
+        confirm_metadata(edition, **fields, clear_publication_year=clear_year)
+        edition.refresh_from_db()
+        return Response(_private_import_payload(edition))
+
+
 class PrivateImportBlocksView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [InternalBooksPermission]
@@ -141,6 +158,7 @@ def _private_import_payload(edition):
         "progress": latest_run.progress if latest_run else 0,
         "error": latest_run.error if latest_run else "",
         "word_count": edition.word_count,
+        "metadata": metadata_payload(edition),
         "created_at": edition.created_at,
         "updated_at": edition.updated_at,
     }

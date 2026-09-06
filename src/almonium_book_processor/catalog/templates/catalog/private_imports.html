@@ -25,8 +25,8 @@
         {% if edition.status == "ready" %}<span class="status status-ready">Available</span>{% else %}<span class="status status-{{ edition.status }}">{{ edition.get_status_display }}</span>{% endif %}
         <span class="language">{{ edition.language|upper }}</span>
       </div>
-      <h2>{{ edition.title }}</h2>
-      <p>{{ edition.author }}</p>
+      <h2>{{ edition.title|default:"Untitled upload" }}</h2>
+      <p>{{ edition.author|default:"Author pending" }}</p>
       <p class="import-owner"><strong>Owner</strong> {% if edition.work.owner_label %}@{{ edition.work.owner_label }} · {% endif %}{{ edition.work.owner_id }}</p>
       <p class="import-date"><strong>Uploaded</strong> {{ edition.created_at }}</p>
       <dl><div><dt>Words</dt><dd>{{ edition.word_count }}</dd></div><div><dt>Warnings</dt><dd>{{ edition.warning_count }}</dd></div><div><dt>Runs</dt><dd>{{ edition.run_count }}</dd></div></dl>

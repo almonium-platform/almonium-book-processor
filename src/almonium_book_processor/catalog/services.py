@@ -106,17 +106,23 @@ def create_private_import(
     import_id: uuid.UUID,
     owner_id: uuid.UUID,
     owner_label: str,
-    title: str,
-    author: str,
-    description: str,
-    language: str,
-    publication_year: int | None,
     source_file: File,
+    title: str = "",
+    author: str = "",
+    description: str = "",
+    language: str = "",
+    publication_year: int | None = None,
 ) -> Edition:
-    """Create an opaque, user-owned edition without exposing a catalog slug."""
+    """Create an opaque, user-owned edition without exposing a catalog slug.
+
+    Bibliographic fields are optional: whatever the owner leaves blank is read
+    from the file header after ingestion and refined by the metadata stage.
+    """
     existing = Edition.objects.filter(id=import_id, work__owner_id=owner_id).first()
     if existing:
         return existing
+
+    from almonium_book_processor.catalog.metadata import initial_provenance
 
     private_slug = f"private-{import_id}"
     work = Work.objects.create(
@@ -129,6 +135,13 @@ def create_private_import(
         visibility=Work.Visibility.PRIVATE,
         owner_id=owner_id,
         owner_label=owner_label,
+        metadata_provenance=initial_provenance(
+            title=title,
+            author=author,
+            description=description,
+            language=language,
+            publication_year=publication_year,
+        ),
     )
     edition = Edition.objects.create(
         id=import_id,

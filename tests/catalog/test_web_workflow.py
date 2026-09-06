@@ -222,18 +222,46 @@ def test_source_upload_queues_the_complete_pipeline(
 
 def test_complete_pipeline_runs_ingestion_before_local_nlp(monkeypatch) -> None:
     stages: list[tuple[str, str]] = []
-    monkeypatch.setattr(
-        "almonium_book_processor.catalog.tasks.process_source_edition.run",
-        lambda edition_id: stages.append(("ingest", edition_id)),
-    )
-    monkeypatch.setattr(
-        "almonium_book_processor.catalog.tasks.process_normalized_edition.run",
-        lambda edition_id: stages.append(("nlp", edition_id)),
-    )
+    for name, stage in (
+        ("process_source_edition", "ingest"),
+        ("detect_edition_metadata", "metadata"),
+        ("process_normalized_edition", "nlp"),
+    ):
+        monkeypatch.setattr(
+            f"almonium_book_processor.catalog.tasks.{name}.run",
+            lambda edition_id, stage=stage: stages.append((stage, edition_id)),
+        )
+    edition_id = str(uuid.uuid4())
 
-    process_book_pipeline.run("edition-id")
+    process_book_pipeline.run(edition_id)
 
-    assert stages == [("ingest", "edition-id"), ("nlp", "edition-id")]
+    assert stages == [("ingest", edition_id), ("nlp", edition_id)]
+
+
+def test_private_pipeline_detects_metadata_between_ingestion_and_nlp(monkeypatch) -> None:
+    stages: list[str] = []
+    for name, stage in (
+        ("process_source_edition", "ingest"),
+        ("detect_edition_metadata", "metadata"),
+        ("process_normalized_edition", "nlp"),
+    ):
+        monkeypatch.setattr(
+            f"almonium_book_processor.catalog.tasks.{name}.run",
+            lambda edition_id, stage=stage: stages.append(stage),
+        )
+    work = Work.objects.create(
+        slug="private-pipeline",
+        title="",
+        author="",
+        original_language="",
+        visibility=Work.Visibility.PRIVATE,
+        owner_id=uuid.uuid4(),
+    )
+    edition = Edition.objects.create(slug="private-pipeline", work=work, title="", author="")
+
+    process_book_pipeline.run(str(edition.id))
+
+    assert stages == ["ingest", "metadata", "nlp"]
 
 
 def test_internal_private_import_is_owner_scoped(tmp_path, monkeypatch) -> None:

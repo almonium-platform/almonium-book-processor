@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from almonium_book_processor import __version__
 from almonium_book_processor.catalog.import_events import send_private_import_event
+from almonium_book_processor.catalog.metadata import adopt_source_metadata, detect_metadata
 from almonium_book_processor.catalog.models import (
     AIRun,
     BlockAlignment,
@@ -115,14 +116,15 @@ def process_source_edition(self, edition_id: str) -> None:
             temporary_path,
             edition_slug=edition.slug,
             work_slug=edition.work.slug,
-            title=edition.title,
-            author=edition.author,
-            language=edition.language,
+            title=edition.title or None,
+            author=edition.author or None,
+            language=edition.language or None,
             edition_type=edition.edition_type,
             source_edition_slug=edition.source_edition.slug if edition.source_edition else None,
             cefr_level=edition.cefr_level,
         )
         with transaction.atomic():
+            adopt_source_metadata(edition, artifact.edition)
             persist_artifact(edition, artifact, run)
             run.status = PipelineRun.Status.SUCCEEDED
             run.progress = 100
@@ -204,10 +206,35 @@ def process_book_pipeline(self, edition_id: str) -> None:
 
     try:
         process_source_edition.run(edition_id)
+        is_private = Work.objects.filter(
+            editions__id=edition_id, visibility=Work.Visibility.PRIVATE
+        ).exists()
+        if is_private:
+            detect_edition_metadata.run(edition_id)
         process_normalized_edition.run(edition_id)
     except Exception:
         logger.exception("Book pipeline failed for edition %s", edition_id)
         raise
+
+
+@shared_task(bind=True, acks_late=True)
+def detect_edition_metadata(self, edition_id: str) -> None:
+    """Propose bibliographic metadata for a private import and tell the owner.
+
+    Best effort: a book with header-only metadata is still a readable book, so
+    a failure here is logged and the pipeline continues.
+    """
+
+    try:
+        detect_metadata(edition_id)
+    except Exception:
+        logger.exception("Metadata detection failed for edition %s", edition_id)
+        return
+    edition = Edition.objects.select_related("work").get(id=edition_id)
+    try:
+        send_private_import_event(edition, progress=40)
+    except Exception:
+        logger.exception("Could not report detected metadata for private import %s", edition.id)
 
 
 @shared_task(bind=True, acks_late=True)

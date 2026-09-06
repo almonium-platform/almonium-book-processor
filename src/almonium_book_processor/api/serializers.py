@@ -124,10 +124,14 @@ class PrivateImportSerializer(serializers.Serializer):
         max_length=150, allow_blank=True, required=False, default=""
     )
     source_file = serializers.FileField()
-    title = serializers.CharField(max_length=500)
-    author = serializers.CharField(max_length=300)
+    # Every bibliographic field is optional: blanks are read from the file
+    # header after ingestion and refined by the metadata stage.
+    title = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
+    author = serializers.CharField(max_length=300, required=False, allow_blank=True, default="")
     description = serializers.CharField(required=False, allow_blank=True, default="")
-    language = serializers.ChoiceField(choices=LANGUAGE_CHOICES)
+    language = serializers.ChoiceField(
+        choices=LANGUAGE_CHOICES, required=False, allow_blank=True, default=""
+    )
     publication_year = serializers.IntegerField(
         min_value=1,
         max_value=9999,
@@ -146,6 +150,18 @@ class PrivateImportSerializer(serializers.Serializer):
         from almonium_book_processor.catalog.services import create_private_import
 
         return create_private_import(**validated_data)
+
+
+class PrivateImportMetadataSerializer(serializers.Serializer):
+    """The owner's confirmed metadata; a missing key leaves that field alone."""
+
+    title = serializers.CharField(max_length=500, required=False)
+    author = serializers.CharField(max_length=300, required=False)
+    description = serializers.CharField(required=False, allow_blank=True)
+    language = serializers.ChoiceField(choices=LANGUAGE_CHOICES, required=False)
+    publication_year = serializers.IntegerField(
+        min_value=1, max_value=9999, required=False, allow_null=True
+    )
 
 
 class PipelineRunSerializer(serializers.ModelSerializer):

@@ -38,6 +38,10 @@ class Work(TimestampedModel):
     )
     owner_id = models.UUIDField(null=True, blank=True)
     owner_label = models.CharField(max_length=150, blank=True)
+    # Private imports: who supplied each bibliographic field ("user", "source",
+    # or "ai"), and when detection finished so the owner can be asked to confirm.
+    metadata_provenance = models.JSONField(default=dict, blank=True)
+    metadata_detected_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["author", "title"]
@@ -399,6 +403,7 @@ class ContentBlockRevision(TimestampedModel):
 class PipelineRun(TimestampedModel):
     class Stage(models.TextChoices):
         INGEST = "ingest", "Source ingestion"
+        METADATA = "metadata", "Metadata detection"
         SENTENCES = "sentences", "Sentence splitting"
         ALIGN = "align", "Alignment"
         LEXICAL = "lexical", "Lexical analysis"

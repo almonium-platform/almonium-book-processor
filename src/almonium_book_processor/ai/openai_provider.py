@@ -106,3 +106,15 @@ class OpenAIBatchProvider:
         content = self.client.files.content(output_file_id)
         text = content.text if hasattr(content, "text") else content.read().decode()
         return [json.loads(line) for line in text.splitlines() if line.strip()]
+
+
+def response_output_text(body: dict[str, Any]) -> str:
+    """Return the text of the first message in a Responses API body."""
+
+    for item in body.get("output", []):
+        if item.get("type") != "message":
+            continue
+        for content in item.get("content", []):
+            if content.get("type") == "output_text":
+                return content["text"]
+    raise ValueError("OpenAI response contained no output text")
