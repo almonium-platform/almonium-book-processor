@@ -409,3 +409,97 @@ def test_the_panel_refuses_while_generated_editions_depend_on_this_one() -> None
 
     assert response.status_code == 302
     assert Edition.objects.filter(id=original.id).exists()
+
+
+def staff_client(username):
+    staff = get_user_model().objects.create_user(
+        username=username, password="safe-test-password", is_staff=True
+    )
+    client = Client()
+    client.force_login(staff)
+    return client, staff
+
+
+def test_the_removed_books_page_shows_what_a_purge_left_behind() -> None:
+    edition = build_edition()
+    build_ai_run(edition)
+    client, staff = staff_client("auditor")
+    purge_edition(edition, reason=EditionTombstone.Reason.COPYRIGHT, notes="DMCA 12", actor=staff)
+
+    page = client.get(reverse("catalog:removed-books")).content.decode()
+
+    assert "Doomed Book" in page
+    assert "Copyright claim" in page
+    assert "DMCA 12" in page
+    assert "auditor" in page
+    # The ledger row the purge kept is summed against the tombstone it points at.
+    assert "$1.5000" in page
+
+
+def test_the_removed_books_page_is_staff_only() -> None:
+    response = Client().get(reverse("catalog:removed-books"))
+
+    assert response.status_code == 302
+    assert "/admin/login/" in response["Location"]
+
+
+def test_a_purge_lands_the_operator_on_the_record_it_just_created() -> None:
+    edition = build_edition()
+    client, _ = staff_client("purge-redirect")
+
+    response = client.post(
+        reverse("catalog:purge-edition", args=[edition.id]),
+        {"reason": "mistake", "notes": "", "confirm_slug": edition.slug},
+    )
+
+    assert response["Location"] == reverse("catalog:removed-books")
+
+
+def test_a_queued_withdrawal_is_visible_before_almonium_confirms(monkeypatch) -> None:
+    edition = build_edition(status=Edition.Status.PUBLISHED, published_book_id=uuid.uuid4())
+    client, staff = staff_client("withdrawal-watcher")
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.views.withdraw_edition.delay",
+        lambda *args, **kwargs: None,
+    )
+
+    response = client.post(
+        reverse("catalog:purge-edition", args=[edition.id]),
+        {"reason": "copyright", "notes": "DMCA 12", "confirm_slug": edition.slug},
+    )
+
+    assert response["Location"] == reverse("catalog:removed-books")
+    edition.refresh_from_db()
+    assert edition.withdrawal_requested_at is not None
+    assert edition.withdrawal_requested_by == staff
+    assert edition.withdrawal_reason == "copyright"
+    # Nothing was destroyed, so the only trace of the removal is the request.
+    page = client.get(reverse("catalog:removed-books")).content.decode()
+    assert "Withdrawals in flight" in page
+    assert "Doomed Book" in page
+    assert "withdrawal-watcher" in page
+    assert not EditionTombstone.objects.exists()
+
+
+def test_a_completed_withdrawal_leaves_the_in_flight_list_for_a_tombstone(monkeypatch) -> None:
+    edition = build_edition(status=Edition.Status.PUBLISHED, published_book_id=uuid.uuid4())
+    client, _ = staff_client("withdrawal-finisher")
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.views.withdraw_edition.delay",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.withdraw_from_almonium", lambda target: True
+    )
+    client.post(
+        reverse("catalog:purge-edition", args=[edition.id]),
+        {"reason": "copyright", "notes": "DMCA 12", "confirm_slug": edition.slug},
+    )
+    from almonium_book_processor.catalog.tasks import withdraw_edition
+
+    withdraw_edition.run(str(edition.id), reason="copyright", notes="DMCA 12")
+
+    page = client.get(reverse("catalog:removed-books")).content.decode()
+    assert "Withdrawals in flight" not in page
+    assert "Withdrawn from Almonium" in page
+    assert EditionTombstone.objects.get(edition_id=edition.id).was_published is True

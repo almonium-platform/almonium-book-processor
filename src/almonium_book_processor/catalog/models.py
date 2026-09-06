@@ -52,6 +52,20 @@ class Work(TimestampedModel):
         return f"{self.author} — {self.title}"
 
 
+class RemovalReason(models.TextChoices):
+    """Why a book is being taken out of Almonium.
+
+    A withdrawal request and the tombstone it ends in describe the same event,
+    so they name their reasons from one list rather than two that can drift.
+    """
+
+    COPYRIGHT = "copyright", "Copyright claim"
+    OWNER_REQUEST = "owner_request", "Owner request"
+    MISTAKE = "mistake", "Uploaded in error"
+    SUPERSEDED = "superseded", "Superseded by another edition"
+    OTHER = "other", "Other"
+
+
 def source_upload_path(instance: Edition, filename: str) -> str:
     extension = Path(filename).suffix.lower()
     return f"sources/{instance.id}/{uuid.uuid4()}{extension}"
@@ -135,6 +149,23 @@ class Edition(TimestampedModel):
     source_sha256 = models.CharField(max_length=64, blank=True)
     published_book_id = models.UUIDField(null=True, blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
+    # Withdrawing a published edition is a request Almonium has to confirm
+    # before the text may go, so it is not instantaneous and it can fail.
+    # Recording it here is the only thing that makes a removal visible while it
+    # is in flight; the fields die with the edition when the purge lands.
+    withdrawal_requested_at = models.DateTimeField(null=True, blank=True)
+    withdrawal_requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="requested_withdrawals",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    withdrawal_reason = models.CharField(
+        max_length=20,
+        choices=RemovalReason.choices,
+        blank=True,
+    )
 
     class Meta:
         ordering = ["work__author", "work__title", "language"]
@@ -690,12 +721,7 @@ class EditionTombstone(TimestampedModel):
     instead of at an edition that no longer exists.
     """
 
-    class Reason(models.TextChoices):
-        COPYRIGHT = "copyright", "Copyright claim"
-        OWNER_REQUEST = "owner_request", "Owner request"
-        MISTAKE = "mistake", "Uploaded in error"
-        SUPERSEDED = "superseded", "Superseded by another edition"
-        OTHER = "other", "Other"
+    Reason = RemovalReason
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     edition_id = models.UUIDField(unique=True)
@@ -709,7 +735,7 @@ class EditionTombstone(TimestampedModel):
     word_count = models.PositiveIntegerField(default=0)
     was_published = models.BooleanField(default=False)
     published_book_id = models.UUIDField(null=True, blank=True)
-    reason = models.CharField(max_length=20, choices=Reason.choices)
+    reason = models.CharField(max_length=20, choices=RemovalReason.choices)
     notes = models.TextField(blank=True)
     purged_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

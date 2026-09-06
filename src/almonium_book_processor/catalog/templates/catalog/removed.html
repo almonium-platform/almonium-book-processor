@@ -1,0 +1,66 @@
+{% extends "catalog/base.html" %}
+{% block title %}Removed books · Almonium Books{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Removal record</p>
+    <h1>Removed books</h1>
+    <p class="muted">Every purge destroys the text and leaves this record: which book it was, who removed it and why. The AI spend ledger keeps its rows and points here, because the money was really spent.</p>
+  </div>
+</div>
+
+{% if withdrawing %}
+<section class="panel withdrawals">
+  <h2>Withdrawals in flight</h2>
+  <p class="muted">Almonium was asked to stop serving these books. The text and the source file go only once it confirms, so a request that stays here has not completed — open the edition to see its processing history or ask again.</p>
+  {% for edition in withdrawing %}
+    <div class="run-row">
+      <span>
+        <a href="{% url 'catalog:edition-detail' edition.id %}">{{ edition.title }}</a>
+        <small class="run-note">{{ edition.author|default:"Unknown author" }} · {{ edition.language|upper }}</small>
+      </span>
+      <span class="status">{{ edition.get_withdrawal_reason_display|default:"No reason recorded" }}</span>
+      <span>Requested {{ edition.withdrawal_requested_at|timesince }} ago by {{ edition.withdrawal_requested_by|default:"a removed account" }}</span>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% for tombstone in page %}
+  <article class="panel tombstone">
+    <header>
+      <div>
+        <h2>{{ tombstone.title|default:"Untitled edition" }}</h2>
+        <p class="muted">{{ tombstone.author|default:"Unknown author" }} · <code>{{ tombstone.edition_slug }}</code></p>
+      </div>
+      <div>
+        <span class="language">{{ tombstone.language|upper }}</span>
+        <span class="status reason-{{ tombstone.reason }}">{{ tombstone.get_reason_display }}</span>
+      </div>
+    </header>
+    <dl>
+      <div><dt>Removed</dt><dd>{{ tombstone.purged_at }}</dd></div>
+      <div><dt>By</dt><dd>{{ tombstone.purged_by|default:"A removed account" }}</dd></div>
+      <div><dt>Published</dt><dd>{% if tombstone.was_published %}Withdrawn from Almonium{% else %}Never published{% endif %}</dd></div>
+      <div><dt>Words</dt><dd>{{ tombstone.word_count }}</dd></div>
+      <div><dt>AI runs</dt><dd>{{ tombstone.ai_run_count }}</dd></div>
+      <div><dt>AI spend</dt><dd>${{ tombstone.ai_cost_usd|default_if_none:0|floatformat:4 }}</dd></div>
+    </dl>
+    {% if tombstone.notes %}<p class="tombstone-notes">{{ tombstone.notes }}</p>{% endif %}
+    <p class="muted tombstone-ids">Source SHA-256 {{ tombstone.source_sha256|default:"not recorded" }}{% if tombstone.published_book_id %} · Almonium book {{ tombstone.published_book_id }}{% endif %}</p>
+  </article>
+{% empty %}
+  <section class="panel">
+    <h2>No book has been removed</h2>
+    <p class="muted">Purging an edition from its own page destroys the text and records it here.</p>
+  </section>
+{% endfor %}
+
+{% if page.has_other_pages %}
+<nav class="pagination">
+  {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Newer</a>{% endif %}
+  <span class="muted">{{ page.number }} of {{ page.paginator.num_pages }} · {{ removed_count }} removed</span>
+  {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Older</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

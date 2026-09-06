@@ -225,6 +225,12 @@ and why. The AI token ledger keeps its rows and points at that tombstone instead
 of the deleted edition, because the money was really spent and a spend report
 that quietly shrinks is a broken report.
 
+**Removed books** lists those tombstones with what each removal cost, and above
+them the withdrawals the product API has not confirmed yet. A withdrawal is the
+one removal that can stall — it waits on another service — so the request is
+recorded on the edition when it is asked for, and a row that stays in that list
+is a withdrawal that never completed.
+
 ## REST resources
 
 - `POST /api/v1/editions/upload/` — staff EPUB or TEI XML upload; returns `202`.

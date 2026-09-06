@@ -164,3 +164,20 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .reader-gap .gap-flag { display: inline-block; margin-top: .3rem; border-radius: 999px; padding: .15rem .45rem; background: #f6dfdc; color: var(--red); font-size: .66rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 @media (max-width: 900px) { .reader-parallel .reader-columns { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .reader-search { grid-template-columns: 1fr; } .reader-block { grid-template-columns: 1fr; } }
+
+/* Removal record: withdrawals still in flight, and the tombstones purges leave */
+.withdrawals { border-left: 4px solid var(--red); }
+.withdrawals .run-row:last-child { border-bottom: 0; }
+.withdrawals a { font-weight: 700; }
+.tombstone header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+.tombstone header h2 { margin: 0 0 .3rem; }
+.tombstone header p { margin: 0; font-size: .85rem; overflow-wrap: anywhere; }
+.tombstone header > div:last-child { display: flex; align-items: center; gap: .5rem; flex: none; }
+.tombstone dl { display: flex; flex-wrap: wrap; gap: 1.2rem; margin: 1.2rem 0 0; }
+.tombstone dl div { display: grid; }
+.reason-copyright { color: var(--red); background: #f6dfdc; }
+.tombstone-notes { margin: 1rem 0 0; padding: .7rem .9rem; border-radius: 10px; background: #fff3df; line-height: 1.5; }
+.tombstone-ids { margin: .9rem 0 0; font-size: .72rem; overflow-wrap: anywhere; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; font-size: .85rem; }
+.pagination a { font-weight: 700; color: var(--accent); }
+@media (max-width: 700px) { .tombstone header { flex-direction: column; } }

@@ -7,8 +7,9 @@ from urllib.parse import quote
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
+from django.core.paginator import Paginator
 from django.db import connection
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -41,6 +42,7 @@ from almonium_book_processor.catalog.models import (
     ChapterAlignment,
     ContentBlock,
     Edition,
+    EditionTombstone,
     PipelineRun,
     QAWarning,
     TextQualityFinding,
@@ -124,6 +126,37 @@ def private_imports(request: HttpRequest) -> HttpResponse:
                 status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING],
                 edition__work__visibility=Work.Visibility.PRIVATE,
             ).select_related("edition", "edition__work")[:20],
+        },
+    )
+
+
+@staff_member_required
+def removed_books(request: HttpRequest) -> HttpResponse:
+    """Where a removed book's record lives once the book itself is gone.
+
+    A purge deletes the edition, so every other page can only show its absence.
+    Here are the tombstones removals leave behind, and above them the
+    withdrawals Almonium has not confirmed yet — the only place a withdrawal
+    that never completed is visible.
+    """
+
+    tombstones = (
+        EditionTombstone.objects.select_related("purged_by")
+        .annotate(ai_run_count=Count("ai_runs"), ai_cost_usd=Sum("ai_runs__estimated_cost_usd"))
+        .order_by("-purged_at")
+    )
+    page = Paginator(tombstones, 50).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "catalog/removed.html",
+        {
+            "page": page,
+            "removed_count": page.paginator.count,
+            "withdrawing": (
+                Edition.objects.filter(withdrawal_requested_at__isnull=False)
+                .select_related("work", "withdrawal_requested_by")
+                .order_by("withdrawal_requested_at")
+            ),
         },
     )
 
@@ -1139,6 +1172,14 @@ def purge_edition_view(request: HttpRequest, edition_id: str) -> HttpResponse:
         messages.error(request, blocked)
         return redirect("catalog:edition-detail", edition_id=edition.id)
     if edition.status == Edition.Status.PUBLISHED:
+        # Record the request before queueing it, so the removal is visible from
+        # the moment it is asked for rather than only once the worker finishes.
+        Edition.objects.filter(id=edition.id).update(
+            withdrawal_requested_at=timezone.now(),
+            withdrawal_requested_by=request.user,
+            withdrawal_reason=reason,
+            updated_at=timezone.now(),
+        )
         withdraw_edition.delay(
             str(edition.id), reason=reason, notes=notes, actor_id=request.user.pk
         )
@@ -1147,11 +1188,11 @@ def purge_edition_view(request: HttpRequest, edition_id: str) -> HttpResponse:
             "Withdrawal queued. Almonium stops serving the book first; the text "
             "and the source file go once it confirms.",
         )
-        return redirect("catalog:edition-detail", edition_id=edition.id)
+        return redirect("catalog:removed-books")
     title = edition.title
     purge_edition(edition, reason=reason, notes=notes, actor=request.user)
     messages.success(request, f"Purged {title}. The AI spend ledger kept its rows.")
-    return redirect("catalog:dashboard")
+    return redirect("catalog:removed-books")
 
 
 @staff_member_required

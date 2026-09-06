@@ -181,7 +181,10 @@
   {% else %}
     <p>The normalized text, the uploaded file, and the book's own words inside stored AI payloads are destroyed. Nothing outside this application knows this edition, so nothing else has to be told.</p>
   {% endif %}
-  <p class="muted">The AI spend ledger keeps its rows either way: the money was spent. A tombstone records the slug, the title, the source hash, who removed it and why.</p>
+  <p class="muted">The AI spend ledger keeps its rows either way: the money was spent. A tombstone records the slug, the title, the source hash, who removed it and why, on the <a href="{% url 'catalog:removed-books' %}">Removed books</a> page.</p>
+  {% if edition.withdrawal_requested_at %}
+    <p class="purge-blocked">Withdrawal requested {{ edition.withdrawal_requested_at|timesince }} ago by {{ edition.withdrawal_requested_by|default:"a removed account" }} and Almonium has not confirmed it yet. Asking again re-queues the withdrawal.</p>
+  {% endif %}
   {% if purge_blocked %}
     <p class="purge-blocked">{{ purge_blocked }}</p>
   {% else %}
