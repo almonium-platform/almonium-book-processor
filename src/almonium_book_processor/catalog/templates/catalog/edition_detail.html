@@ -174,6 +174,26 @@
 {% else %}
   {% if edition.status == "ready" %}<section class="panel review-complete"><h2>Ready to publish</h2><p>Publishing sends this reviewed edition to the Almonium product API. It becomes visible on the website only after that hand-off succeeds.</p><form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit">Publish to Almonium</button></form></section>{% elif edition.status == "published" %}<section class="panel review-complete"><h2>Published to Almonium</h2><p>Published {{ edition.published_at }}{% if edition.published_book_id %} · Almonium book ID {{ edition.published_book_id }}{% endif %}</p></section>{% endif %}
 {% endif %}
+<details class="panel collapsible-panel danger-zone">
+  <summary><span class="summary-title">Remove this book</span><span class="summary-meta">{% if edition.status == "published" %}Withdraw from Almonium{% else %}Irreversible{% endif %}</span></summary>
+  {% if edition.status == "published" %}
+    <p>Almonium stops serving this book first, keeping every reader's progress and favourites; the normalized text and the uploaded file are destroyed once it confirms. The book disappears from the catalogue and cannot be read again without a fresh upload.</p>
+  {% else %}
+    <p>The normalized text, the uploaded file, and the book's own words inside stored AI payloads are destroyed. Nothing outside this application knows this edition, so nothing else has to be told.</p>
+  {% endif %}
+  <p class="muted">The AI spend ledger keeps its rows either way: the money was spent. A tombstone records the slug, the title, the source hash, who removed it and why.</p>
+  {% if purge_blocked %}
+    <p class="purge-blocked">{{ purge_blocked }}</p>
+  {% else %}
+  <form class="purge-form" method="post" action="{% url 'catalog:purge-edition' edition.id %}">
+    {% csrf_token %}
+    <label><span>Reason</span>{{ purge_form.reason }}</label>
+    <label><span>Notes (who claimed, ticket, anything to remember)</span>{{ purge_form.notes }}</label>
+    <label><span>Type <code>{{ edition.slug }}</code> to confirm</span>{{ purge_form.confirm_slug }}</label>
+    <button class="button button-danger" type="submit">{% if edition.status == "published" %}Withdraw and purge{% else %}Purge this edition{% endif %}</button>
+  </form>
+  {% endif %}
+</details>
 <section class="panel processing-history"><div class="section-heading"><h2>Processing history</h2>{% if older_pipeline_runs %}<span class="muted">Showing latest 3 of {{ pipeline_run_count }}</span>{% endif %}</div>{% for run in recent_pipeline_runs %}<div class="run-row"><span>{{ run.get_stage_display }}{% if run.summary_note %}<small class="run-note">{{ run.summary_note }}</small>{% endif %}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{{ run.created_at }}</span></div>{% empty %}<p>No processing runs.</p>{% endfor %}{% if older_pipeline_runs %}<details class="history-older"><summary>Show {{ older_pipeline_runs|length }} older run{{ older_pipeline_runs|length|pluralize }}</summary>{% for run in older_pipeline_runs %}<div class="run-row"><span>{{ run.get_stage_display }}{% if run.summary_note %}<small class="run-note">{{ run.summary_note }}</small>{% endif %}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{{ run.created_at }}</span></div>{% endfor %}</details>{% endif %}</section>
 {% if actionable_warnings %}<details class="panel collapsible-panel review-items"><summary><span class="summary-title">Review items</span><span class="summary-meta">{{ actionable_warnings|length }} open</span></summary><p class="muted">Resolve each item after inspecting the affected content. Alignment findings are easier to evaluate in the paired review workspace.</p>{% for warning in actionable_warnings %}<div class="warning warning-{{ warning.severity }}"><div><code>{{ warning.code }}</code><span>{{ warning.message }}{% if warning.source_ref %} <span class="muted">({{ warning.source_ref }})</span>{% endif %}</span></div><form method="post" action="{% url 'catalog:resolve-warning' edition.id warning.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Resolve</button></form></div>{% endfor %}</details>{% endif %}
 {% if import_notices %}<details class="panel notices"><summary>Import notices ({{ import_notices|length }})</summary><p class="muted">These are retained for traceability but do not require a decision.</p>{% for warning in import_notices %}<div class="warning warning-{{ warning.severity }}"><code>{{ warning.code }}</code><span>{{ warning.message }}{% if warning.source_ref %} <span class="muted">({{ warning.source_ref }})</span>{% endif %}</span></div>{% endfor %}</details>{% endif %}

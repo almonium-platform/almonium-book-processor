@@ -203,6 +203,28 @@ or failed notification; normalized text and the source remain here. Private
 imports skip the staff publication/review gate and can never enter the public
 published-edition endpoints.
 
+## Removing a book
+
+Nothing about a book is undeletable, but a takedown is two different operations
+depending on who else knows about the edition.
+
+An edition that was never published is purged here and now. The normalized
+blocks, the uploaded source file, and the book text stored inside AI request and
+response payloads are destroyed; a private import's owner can do the same to
+their own upload through the internal API.
+
+A published edition is withdrawn first. The processor asks the product API to
+stop serving the book, and only when that succeeds does the content go: the API
+reads our blocks live, so purging first would leave a live catalogue entry whose
+text endpoint fails. The withdrawal keeps the API's book row, so learner
+progress, favourites, and translation orders survive; publishing the same
+edition slug again revives it.
+
+Both leave an `EditionTombstone`: the slug, title, source hash, who removed it
+and why. The AI token ledger keeps its rows and points at that tombstone instead
+of the deleted edition, because the money was really spent and a spend report
+that quietly shrinks is a broken report.
+
 ## REST resources
 
 - `POST /api/v1/editions/upload/` — staff EPUB or TEI XML upload; returns `202`.
@@ -212,6 +234,8 @@ published-edition endpoints.
 - `POST /api/v1/internal/imports/` — service-authenticated private EPUB/TEI import.
 - `GET /api/v1/internal/imports/{uuid}/blocks/?owner_id={uuid}` — service-authenticated,
   owner-scoped private normalized content.
+- `DELETE /api/v1/internal/imports/{uuid}/?owner_id={uuid}` — the owner destroys their
+  own import: text, upload, and the book's words inside AI payloads.
 - `GET /healthz/` — process and database readiness.
 
 Staff resources use Django authentication. Private import resources are not a

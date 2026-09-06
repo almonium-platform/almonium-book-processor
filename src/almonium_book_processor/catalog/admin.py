@@ -11,6 +11,7 @@ from almonium_book_processor.catalog.models import (
     ContentBlockRevision,
     Edition,
     EditionArtifact,
+    EditionTombstone,
     ModelConfiguration,
     PipelineRun,
     PromptTemplate,
@@ -170,3 +171,21 @@ admin.site.register(AlignmentGroupReview)
 admin.site.register(ContentBlockRevision)
 admin.site.register(EditionArtifact)
 admin.site.register(TextQualityFinding)
+
+
+@admin.register(EditionTombstone)
+class EditionTombstoneAdmin(admin.ModelAdmin):
+    """Read-only: a purge record nobody can edit is the point of keeping it."""
+
+    list_display = ("title", "edition_slug", "language", "reason", "was_published", "purged_at")
+    list_filter = ("reason", "was_published")
+    search_fields = ("title", "author", "edition_slug", "work_slug", "notes")
+    readonly_fields = tuple(
+        field.name for field in EditionTombstone._meta.fields if field.name != "id"
+    )
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False

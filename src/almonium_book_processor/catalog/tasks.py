@@ -10,6 +10,7 @@ from pathlib import Path
 
 from celery import shared_task
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
@@ -32,7 +33,11 @@ from almonium_book_processor.catalog.models import (
     TextQualityFinding,
     Work,
 )
-from almonium_book_processor.catalog.publication import publish_to_almonium
+from almonium_book_processor.catalog.publication import (
+    publish_to_almonium,
+    withdraw_from_almonium,
+)
+from almonium_book_processor.catalog.purge import purge_edition, removal_blocker
 from almonium_book_processor.catalog.services import persist_artifact
 from almonium_book_processor.ingest.source import ingest_source, source_format
 from almonium_book_processor.processing.lexical import (
@@ -368,6 +373,35 @@ def publish_edition(edition_id: str) -> None:
         run.error = str(error)[:10000]
         run.save(update_fields=["status", "finished_at", "error", "updated_at"])
         raise
+
+
+@shared_task(
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 5},
+)
+def withdraw_edition(
+    edition_id: str, *, reason: str, notes: str = "", actor_id: int | None = None
+) -> None:
+    """Take a published edition off Almonium, then purge what it left here.
+
+    The product API goes first. It stops serving the book while keeping every
+    reader's progress and favourites, so a withdrawal is reversible for the
+    reader even though the text here is not. Only once it confirms does the
+    content go, because the API reads our blocks live: purging first would
+    leave a live catalogue entry whose text endpoint fails.
+    """
+
+    edition = Edition.objects.select_related("work").get(id=edition_id)
+    blocked = removal_blocker(edition)
+    if blocked:
+        raise ValueError(blocked)
+    withdraw_from_almonium(edition)
+    actor = None
+    if actor_id is not None:
+        actor = get_user_model().objects.filter(pk=actor_id).first()
+    purge_edition(edition, reason=reason, notes=notes, actor=actor, withdrawn=True)
+    logger.info("Withdrew and purged edition %s (%s)", edition_id, reason)
 
 
 @shared_task(

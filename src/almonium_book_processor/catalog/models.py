@@ -6,6 +6,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from almonium_book_processor.languages import LANGUAGE_CHOICES
 
@@ -680,6 +681,52 @@ class ReviewDecision(TimestampedModel):
         ordering = ["-created_at"]
 
 
+class EditionTombstone(TimestampedModel):
+    """What survives a purged edition: its identity and its cost, never its text.
+
+    A purge exists to make a book unreadable everywhere — the blocks, the source
+    file, and the text inside AI payloads all go. The money those model runs
+    cost was really spent, so the ledger keeps its rows and points them here
+    instead of at an edition that no longer exists.
+    """
+
+    class Reason(models.TextChoices):
+        COPYRIGHT = "copyright", "Copyright claim"
+        OWNER_REQUEST = "owner_request", "Owner request"
+        MISTAKE = "mistake", "Uploaded in error"
+        SUPERSEDED = "superseded", "Superseded by another edition"
+        OTHER = "other", "Other"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    edition_id = models.UUIDField(unique=True)
+    edition_slug = models.SlugField(max_length=180)
+    work_slug = models.SlugField(max_length=160)
+    title = models.CharField(max_length=500)
+    author = models.CharField(max_length=300)
+    language = models.CharField(max_length=35)
+    edition_type = models.CharField(max_length=32)
+    source_sha256 = models.CharField(max_length=64, blank=True)
+    word_count = models.PositiveIntegerField(default=0)
+    was_published = models.BooleanField(default=False)
+    published_book_id = models.UUIDField(null=True, blank=True)
+    reason = models.CharField(max_length=20, choices=Reason.choices)
+    notes = models.TextField(blank=True)
+    purged_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="edition_tombstones",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    purged_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-purged_at"]
+
+    def __str__(self) -> str:
+        return f"{self.title} [{self.language}] purged {self.purged_at:%Y-%m-%d}"
+
+
 class ModelConfiguration(TimestampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=120, unique=True)
@@ -724,11 +771,24 @@ class AIRun(TimestampedModel):
         FAILED = "failed", "Failed"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    edition = models.ForeignKey(Edition, related_name="ai_runs", on_delete=models.CASCADE)
+    edition = models.ForeignKey(
+        Edition,
+        related_name="ai_runs",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    tombstone = models.ForeignKey(
+        EditionTombstone,
+        related_name="ai_runs",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
     pipeline_run = models.ForeignKey(
         PipelineRun,
         related_name="ai_runs",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
     )

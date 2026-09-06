@@ -112,6 +112,11 @@ urlpatterns = [
         name="publish-edition",
     ),
     path(
+        "editions/<uuid:edition_id>/purge/",
+        views.purge_edition_view,
+        name="purge-edition",
+    ),
+    path(
         "editions/<uuid:edition_id>/retry/",
         views.retry_failed_edition,
         name="retry-edition",

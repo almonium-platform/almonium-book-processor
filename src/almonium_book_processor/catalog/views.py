@@ -22,6 +22,7 @@ from almonium_book_processor.catalog.ai_translation import (
 )
 from almonium_book_processor.catalog.forms import (
     EditionMetadataForm,
+    EditionPurgeForm,
     EditionUploadForm,
     LegacyArtifactImportForm,
     ParallelTranslationForm,
@@ -45,6 +46,7 @@ from almonium_book_processor.catalog.models import (
     TextQualityFinding,
     Work,
 )
+from almonium_book_processor.catalog.purge import purge_edition, removal_blocker
 from almonium_book_processor.catalog.services import (
     BULK_DETACHED_INITIAL_MIN_CONFIDENCE,
     apply_high_confidence_detached_initials,
@@ -71,6 +73,7 @@ from almonium_book_processor.catalog.tasks import (
     process_normalized_edition,
     publish_edition,
     translate_edition_inline,
+    withdraw_edition,
 )
 
 
@@ -254,6 +257,8 @@ def _render_edition_detail(
             "metadata_state": _metadata_state(edition),
             "metadata_provenance": form_provenance(edition),
             "has_provisional_slug": has_provisional_slug(edition),
+            "purge_form": EditionPurgeForm(edition=edition),
+            "purge_blocked": removal_blocker(edition),
             "has_blocks": edition.blocks.exists(),
             "blocks": blocks,
             "pipeline_run_count": len(pipeline_runs),
@@ -1109,6 +1114,44 @@ def publish_edition_to_almonium(request: HttpRequest, edition_id: str) -> HttpRe
             "Publication queued. It will appear in Almonium after the hand-off succeeds.",
         )
     return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def purge_edition_view(request: HttpRequest, edition_id: str) -> HttpResponse:
+    """Remove a book from Almonium at an editor's explicit request.
+
+    A published edition is withdrawn from the product API first and purged by
+    the worker once that succeeds. Anything else is purged here and now: no
+    reader can be holding it, so there is nothing to coordinate.
+    """
+
+    edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
+    form = EditionPurgeForm(request.POST, edition=edition)
+    if not form.is_valid():
+        for error in form.errors.values():
+            messages.error(request, error[0])
+        return redirect("catalog:edition-detail", edition_id=edition.id)
+    reason = form.cleaned_data["reason"]
+    notes = form.cleaned_data["notes"]
+    blocked = removal_blocker(edition)
+    if blocked:
+        messages.error(request, blocked)
+        return redirect("catalog:edition-detail", edition_id=edition.id)
+    if edition.status == Edition.Status.PUBLISHED:
+        withdraw_edition.delay(
+            str(edition.id), reason=reason, notes=notes, actor_id=request.user.pk
+        )
+        messages.success(
+            request,
+            "Withdrawal queued. Almonium stops serving the book first; the text "
+            "and the source file go once it confirms.",
+        )
+        return redirect("catalog:edition-detail", edition_id=edition.id)
+    title = edition.title
+    purge_edition(edition, reason=reason, notes=notes, actor=request.user)
+    messages.success(request, f"Purged {title}. The AI spend ledger kept its rows.")
+    return redirect("catalog:dashboard")
 
 
 @staff_member_required

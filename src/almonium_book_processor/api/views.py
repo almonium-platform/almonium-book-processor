@@ -22,7 +22,14 @@ from almonium_book_processor.api.serializers import (
     PrivateImportSerializer,
 )
 from almonium_book_processor.catalog.metadata import confirm_metadata, metadata_payload
-from almonium_book_processor.catalog.models import BlockAlignment, Edition, PipelineRun, Work
+from almonium_book_processor.catalog.models import (
+    BlockAlignment,
+    Edition,
+    EditionTombstone,
+    PipelineRun,
+    Work,
+)
+from almonium_book_processor.catalog.purge import purge_edition
 from almonium_book_processor.catalog.spend import ai_spend
 from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
@@ -103,6 +110,19 @@ class PrivateImportDetailView(APIView):
     def get(self, request, import_id):
         edition = _private_import(import_id, request.query_params.get("owner_id"))
         return Response(_private_import_payload(edition))
+
+    def delete(self, request, import_id):
+        """Destroy an owner's import at the owner's request.
+
+        A private import is never published, so nothing outside the owner's own
+        library refers to it and there is nothing to coordinate. The upload, the
+        normalized text, and the book's words inside AI payloads all go; the
+        token ledger keeps what the processing cost.
+        """
+
+        edition = _private_import(import_id, request.query_params.get("owner_id"))
+        purge_edition(edition, reason=EditionTombstone.Reason.OWNER_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PrivateImportMetadataView(APIView):

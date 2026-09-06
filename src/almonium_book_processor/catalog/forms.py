@@ -3,7 +3,7 @@ from __future__ import annotations
 from django import forms
 
 from almonium_book_processor.catalog.ai_translation import REGISTER_CHOICES
-from almonium_book_processor.catalog.models import Edition
+from almonium_book_processor.catalog.models import Edition, EditionTombstone
 from almonium_book_processor.catalog.services import create_source_edition
 from almonium_book_processor.ingest.source import SUPPORTED_SOURCE_EXTENSIONS
 from almonium_book_processor.languages import LANGUAGE_CHOICES
@@ -257,3 +257,21 @@ class ParallelTranslationForm(forms.Form):
         if language == self.source_edition.language:
             raise forms.ValidationError("Choose a language other than the original.")
         return language
+
+
+class EditionPurgeForm(forms.Form):
+    """Confirm an irreversible removal by naming the edition being removed."""
+
+    reason = forms.ChoiceField(choices=EditionTombstone.Reason.choices)
+    notes = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
+    confirm_slug = forms.CharField(max_length=180)
+
+    def __init__(self, *args, edition: Edition, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.edition = edition
+
+    def clean_confirm_slug(self) -> str:
+        value = self.cleaned_data["confirm_slug"].strip()
+        if value != self.edition.slug:
+            raise forms.ValidationError("Type the edition slug exactly to confirm.")
+        return value
