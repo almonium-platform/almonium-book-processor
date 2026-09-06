@@ -1,10 +1,10 @@
 {% extends "catalog/base.html" %}
-{% block title %}Alignment review · {{ edition.title }}{% endblock %}
+{% block title %}Alignment review · {{ edition.title|default:"Untitled upload" }}{% endblock %}
 {% block content %}
 <div class="page-heading alignment-heading">
   <div>
     <p class="eyebrow">{{ edition.source_edition.language|upper }} → {{ edition.language|upper }} alignment review</p>
-    <h1>{{ edition.title }}</h1>
+    <h1>{{ edition.title|default:"Untitled upload" }}</h1>
     <p class="muted">Compare automatic groups, repair pairings, correct target text, and resolve QA findings before approval.</p>
   </div>
   <div class="button-row">

@@ -42,6 +42,7 @@ class Work(TimestampedModel):
     # or "ai"), and when detection finished so the owner can be asked to confirm.
     metadata_provenance = models.JSONField(default=dict, blank=True)
     metadata_detected_at = models.DateTimeField(null=True, blank=True)
+    metadata_confirmed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["author", "title"]

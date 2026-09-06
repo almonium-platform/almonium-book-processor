@@ -1,11 +1,12 @@
 {% extends "catalog/base.html" %}
-{% block title %}{{ edition.title }} · Almonium Books{% endblock %}
+{% load catalog_extras %}
+{% block title %}{{ edition.title|default:"Untitled upload" }} · Almonium Books{% endblock %}
 {% block content %}
 <div class="page-heading">
   <div>
     <p class="eyebrow">{% if is_private %}Private user import{% else %}{{ edition.work.title }} · {{ edition.language|upper }} · {{ edition.cefr_level|default:"Level pending" }}{% endif %}</p>
-    <h1>{{ edition.title }}</h1>
-    <p>{{ edition.author }} · {{ edition.get_edition_type_display }}</p>
+    <h1>{{ edition.title|default:"Untitled upload" }}</h1>
+    <p>{{ edition.author|default:"Author pending" }} · {{ edition.get_edition_type_display }}</p>
     {% if is_private %}<p class="muted">Owner {% if edition.work.owner_label %}@{{ edition.work.owner_label }} · {% endif %}{{ edition.work.owner_id }} · Uploaded {{ edition.created_at }} · Last updated {{ edition.updated_at }}</p>{% endif %}
   </div>
   <div class="button-row">
@@ -19,6 +20,24 @@
   <div><strong>{{ edition.blocks.count }}</strong><span>blocks</span></div>
   <div><strong>{{ actionable_warnings|length }}</strong><span>review items</span></div>
 </section>
+{% if not is_private %}
+<details class="panel collapsible-panel metadata-panel"{% if metadata_state != "confirmed" or metadata_form.errors %} open{% endif %}>
+  <summary>
+    <span class="summary-title">Metadata</span>
+    <span class="summary-meta">{% if metadata_state == "confirmed" %}<span class="status status-ready">Confirmed</span> {{ edition.work.metadata_confirmed_at|date:"Y-m-d H:i" }}{% elif metadata_state == "detected" %}<span class="status status-review">Detected · check and confirm</span>{% else %}<span class="status status-queued">Detection pending</span>{% endif %}</span>
+  </summary>
+  <p class="muted">{% if metadata_state == "pending" %}Values are read from the file header and completed by one small AI call once ingestion finishes. Anything you pinned at upload is kept.{% else %}Each field says where its value came from. Confirming records these as editorial values, replaces provisional slugs, and is required before publication.{% endif %}{% if has_provisional_slug %} <strong>Slugs are still provisional.</strong>{% endif %}</p>
+  <form method="post" action="{% url 'catalog:confirm-edition-metadata' edition.id %}">
+    {% csrf_token %}
+    <div class="form-grid">
+      {% for field in metadata_form %}
+        <label><span>{{ field.label }}{% with source=metadata_provenance|get_item:field.name %}{% if source %} <em class="provenance provenance-{{ source }}">{% if source == "ai" %}AI{% elif source == "source" %}file{% else %}editor{% endif %}</em>{% endif %}{% endwith %}</span>{{ field }}{{ field.errors }}</label>
+      {% endfor %}
+    </div>
+    <button class="button" type="submit">Confirm metadata</button>
+  </form>
+</details>
+{% endif %}
 {% if not is_private %}
 <section class="panel role-panel role-{{ edition.parallel_role }}">
   <p class="eyebrow">Role in this work</p>

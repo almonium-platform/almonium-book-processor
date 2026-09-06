@@ -1,10 +1,10 @@
 {% extends "catalog/base.html" %}
-{% block title %}Reader · {{ edition.title }}{% endblock %}
+{% block title %}Reader · {{ edition.title|default:"Untitled upload" }}{% endblock %}
 {% block content %}
 <div class="page-heading">
   <div>
     <p class="eyebrow">{{ edition.language|upper }} · {{ edition.get_edition_type_display }} · {{ block_count }} block{{ block_count|pluralize }}</p>
-    <h1>{{ edition.title }}</h1>
+    <h1>{{ edition.title|default:"Untitled upload" }}</h1>
     <p class="muted">The complete normalized text. Correct any block in place — each save records an auditable revision, clears that block's sentences, and queues a refresh of derived data. This is independent of alignment.</p>
   </div>
   <div class="button-row">

@@ -15,7 +15,11 @@ from django.utils import timezone
 
 from almonium_book_processor import __version__
 from almonium_book_processor.catalog.import_events import send_private_import_event
-from almonium_book_processor.catalog.metadata import adopt_source_metadata, detect_metadata
+from almonium_book_processor.catalog.metadata import (
+    adopt_source_metadata,
+    detect_metadata,
+    has_provisional_slug,
+)
 from almonium_book_processor.catalog.models import (
     AIRun,
     BlockAlignment,
@@ -206,11 +210,7 @@ def process_book_pipeline(self, edition_id: str) -> None:
 
     try:
         process_source_edition.run(edition_id)
-        is_private = Work.objects.filter(
-            editions__id=edition_id, visibility=Work.Visibility.PRIVATE
-        ).exists()
-        if is_private:
-            detect_edition_metadata.run(edition_id)
+        detect_edition_metadata.run(edition_id)
         process_normalized_edition.run(edition_id)
     except Exception:
         logger.exception("Book pipeline failed for edition %s", edition_id)
@@ -219,7 +219,7 @@ def process_book_pipeline(self, edition_id: str) -> None:
 
 @shared_task(bind=True, acks_late=True)
 def detect_edition_metadata(self, edition_id: str) -> None:
-    """Propose bibliographic metadata for a private import and tell the owner.
+    """Propose bibliographic metadata for a fresh upload; tell a private owner.
 
     Best effort: a book with header-only metadata is still a readable book, so
     a failure here is logged and the pipeline continues.
@@ -231,6 +231,8 @@ def detect_edition_metadata(self, edition_id: str) -> None:
         logger.exception("Metadata detection failed for edition %s", edition_id)
         return
     edition = Edition.objects.select_related("work").get(id=edition_id)
+    if edition.work.visibility != Work.Visibility.PRIVATE:
+        return
     try:
         send_private_import_event(edition, progress=40)
     except Exception:
@@ -285,6 +287,8 @@ def publish_edition(edition_id: str) -> None:
         raise ValueError("Private imports cannot be published to the public catalog")
     if edition.status not in {Edition.Status.READY, Edition.Status.PUBLISHED}:
         raise ValueError("Only ready editions can be published.")
+    if has_provisional_slug(edition) or not edition.title or not edition.author:
+        raise ValueError("Confirm the detected metadata before publication.")
     if edition.cefr_level is None:
         raise ValueError("A CEFR level is required before publication.")
     if edition.work.publication_year is None:

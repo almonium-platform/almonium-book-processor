@@ -10,7 +10,7 @@
 <section class="panel">
   <h2>Active processing</h2>
   {% for run in active_runs %}
-    <div class="run-row"><strong>{{ run.edition.title }}</strong><span>{{ run.get_stage_display }}</span><progress value="{{ run.progress }}" max="100"></progress></div>
+    <div class="run-row"><strong>{{ run.edition.title|default:"Untitled upload" }}</strong><span>{{ run.get_stage_display }}</span><progress value="{{ run.progress }}" max="100"></progress></div>
   {% endfor %}
 </section>
 {% endif %}
@@ -19,8 +19,8 @@
   {% for edition in editions %}
     <a class="edition-card" href="{% url 'catalog:edition-detail' edition.id %}">
       <div><span class="status status-{{ edition.status }}">{{ edition.get_status_display }}</span><span class="language">{{ edition.language|upper }}</span></div>
-      <h2>{{ edition.title }}</h2>
-      <p>{{ edition.author }} · {{ edition.get_edition_type_display }}</p>
+      <h2>{{ edition.title|default:"Untitled upload" }}</h2>
+      <p>{{ edition.author|default:"Author pending" }} · {{ edition.get_edition_type_display }}</p>
       <p><span class="role-badge role-badge-{{ edition.parallel_role }}">{% if edition.parallel_role == "standalone" %}Standalone{% else %}Parallel reading{% endif %}</span></p>
       <dl><div><dt>Words</dt><dd>{{ edition.word_count }}</dd></div><div><dt>Warnings</dt><dd>{{ edition.warning_count }}</dd></div><div><dt>Runs</dt><dd>{{ edition.run_count }}</dd></div></dl>
     </a>

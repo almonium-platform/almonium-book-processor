@@ -1,7 +1,7 @@
 {% extends "catalog/base.html" %}
 {% block title %}Upload source · Almonium Books{% endblock %}
 {% block content %}
-<div class="page-heading"><div><p class="eyebrow">New source</p><h1>Upload a book source</h1></div></div>
+<div class="page-heading"><div><p class="eyebrow">New source</p><h1>Upload a book source</h1><p class="muted">Only the file is required. Title, author, language, description, first-publication year, and slugs are read from the file and completed by one small AI call; you confirm them on the edition page.</p></div></div>
 <form method="post" enctype="multipart/form-data" class="panel form-panel">
   {% csrf_token %}
   <label class="drop-zone" data-drop-zone>
@@ -12,9 +12,16 @@
     <small data-file-name>No file selected</small>
   </label>
   {{ form.source_file.errors }}
+  {{ form.non_field_errors }}
   <div class="form-grid">
-    {% for field in form %}{% if field.name != "source_file" %}<label><span>{{ field.label }}</span>{{ field }}{% if field.help_text %}<small class="field-help">{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>{% endif %}{% endfor %}
+    {% for field in form.primary_fields %}<label><span>{{ field.label }}</span>{{ field }}{% if field.help_text %}<small class="field-help">{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>{% endfor %}
   </div>
+  <details class="collapsible-panel override-panel"{% if form.errors %} open{% endif %}>
+    <summary><span class="summary-title">Pin details by hand</span><span class="summary-meta">Optional · anything left blank is detected</span></summary>
+    <div class="form-grid">
+      {% for field in form.override_fields %}<label><span>{{ field.label }}</span>{{ field }}{% if field.help_text %}<small class="field-help">{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>{% endfor %}
+    </div>
+  </details>
   <button class="button" type="submit">Queue ingestion</button>
 </form>
 <script>

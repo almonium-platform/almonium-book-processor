@@ -97,8 +97,13 @@ Draft (reserved) → Queued → Processing → Ready → Published
                                     └── Failed
 ```
 
-The upload form creates `Queued`; the worker moves it to `Processing`. A clean
-import, or one with informational notices only, becomes `Ready`. An actionable
+The upload form needs only the file and creates `Queued`; the worker moves it
+to `Processing`. After ingestion a metadata stage reads the header, checks it
+against the opening text with one small `OPENAI_METADATA_MODEL` call (a fraction
+of a cent per book, recorded as an `AIRun`), fills in the description and
+first-publication year, and derives the slugs; anything pinned in the form is
+kept. An editor confirms the result on the edition page before publication. A
+clean import, or one with informational notices only, becomes `Ready`. An actionable
 importer warning becomes `Needs review`. In the custom edition page, **Complete
 review** records the reviewer, timestamp, optional notes, source hash, and
 warning count, then moves the edition to `Ready`; it never publishes it. A

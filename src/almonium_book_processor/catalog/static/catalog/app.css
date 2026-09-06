@@ -92,6 +92,11 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .collapsible-panel > summary .summary-title { font: 1.5rem Georgia, serif; }
 .collapsible-panel > summary .summary-meta { color: var(--muted); font-size: .82rem; text-align: right; }
 .collapsible-panel[open] > summary { margin-bottom: 1rem; }
+.override-panel { margin: 0 0 1.5rem; padding: 1rem 1.25rem; border: 1px dashed var(--line); border-radius: 12px; }
+.override-panel > summary .summary-title { font-size: 1.05rem; }
+.provenance { display: inline-block; margin-left: .35rem; padding: .05rem .4rem; border-radius: 999px; font-size: .66rem; font-style: normal; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: #e9e1d4; color: var(--muted); }
+.provenance-ai { background: #e6e2f5; color: #4b3f8f; }
+.provenance-source { background: #e1eee5; color: var(--green); }
 .history-older { margin-top: .8rem; border-top: 1px solid var(--line); padding-top: .8rem; }
 .history-older summary { cursor: pointer; color: var(--accent); font-size: .85rem; font-weight: 700; }
 .block { display: grid; grid-template-columns: 110px 1fr; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--line); line-height: 1.55; }

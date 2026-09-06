@@ -12,6 +12,11 @@ urlpatterns = [
     path("editions/<uuid:edition_id>/", views.edition_detail, name="edition-detail"),
     path("editions/<uuid:edition_id>/reader/", views.edition_reader, name="edition-reader"),
     path(
+        "editions/<uuid:edition_id>/metadata/confirm/",
+        views.confirm_edition_metadata,
+        name="confirm-edition-metadata",
+    ),
+    path(
         "editions/<uuid:edition_id>/blocks/<uuid:block_id>/edit/",
         views.edit_block_text,
         name="edit-block-text",

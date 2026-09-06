@@ -47,49 +47,88 @@ def hash_uploaded_file(upload: BinaryIO) -> str:
 @transaction.atomic
 def create_source_edition(
     *,
-    work_slug: str,
-    work_title: str,
-    author: str,
-    description: str,
-    original_language: str,
-    publication_year: int,
-    cover_url: str,
-    edition_slug: str,
-    edition_title: str,
-    language: str,
-    edition_type: str,
-    source_edition: Edition | None,
-    cefr_level: str,
     source_file: File,
+    edition_type: str = Edition.EditionType.ORIGINAL,
+    source_edition: Edition | None = None,
+    cefr_level: str | None = None,
+    work_slug: str = "",
+    work_title: str = "",
+    author: str = "",
+    description: str = "",
+    original_language: str = "",
+    publication_year: int | None = None,
+    cover_url: str = "",
+    edition_slug: str = "",
+    edition_title: str = "",
+    language: str = "",
 ) -> Edition:
-    work, _ = Work.objects.get_or_create(
-        slug=work_slug,
-        defaults={
-            "title": work_title,
-            "author": author,
-            "description": description,
-            "original_language": original_language,
-            "publication_year": publication_year,
-            "cover_url": cover_url,
-        },
+    """Queue a catalogue source; every bibliographic field is an optional pin.
+
+    Blank fields are read from the file header and completed by the metadata
+    stage, which also replaces provisional slugs with ones derived from the
+    detected title. Pinned values are recorded as the editor's and never
+    overridden.
+    """
+
+    from almonium_book_processor.catalog.metadata import (
+        PROVENANCE_USER,
+        initial_provenance,
+        provisional_slug,
     )
-    work.title = work_title
-    work.author = author
-    work.description = description
-    work.original_language = original_language
-    work.publication_year = publication_year
-    if cover_url:
-        work.cover_url = cover_url
-    work.save()
-    edition = Edition.objects.create(
-        slug=edition_slug,
-        work=work,
-        title=edition_title,
+
+    pinned = initial_provenance(
+        title=work_title,
         author=author,
+        description=description,
+        language=original_language or language,
+        publication_year=publication_year,
+        work_slug=work_slug,
+        edition_slug=edition_slug,
+        edition_title=edition_title,
+        cover_url=cover_url,
+    )
+    if source_edition is not None:
+        work = source_edition.work
+    elif work_slug:
+        work, _ = Work.objects.get_or_create(
+            slug=work_slug,
+            defaults={
+                "title": work_title,
+                "author": author,
+                "description": description,
+                "original_language": original_language,
+                "publication_year": publication_year,
+                "cover_url": cover_url,
+            },
+        )
+    else:
+        work = Work.objects.create(slug=provisional_slug(), original_language=original_language)
+
+    # A pinned value wins over whatever the work already holds.
+    for field, value in (
+        ("title", work_title),
+        ("author", author),
+        ("description", description),
+        ("original_language", original_language),
+        ("publication_year", publication_year),
+        ("cover_url", cover_url),
+    ):
+        if value not in (None, ""):
+            setattr(work, field, value)
+    provenance = dict(work.metadata_provenance)
+    provenance.update({name: PROVENANCE_USER for name in pinned})
+    work.metadata_provenance = provenance
+    work.save()
+
+    edition = Edition.objects.create(
+        slug=edition_slug or provisional_slug(),
+        work=work,
+        title=edition_title or work_title,
+        author=author or work.author,
         language=language,
         edition_type=edition_type,
         source_edition=source_edition,
-        cefr_level=cefr_level,
+        cefr_level=cefr_level or None,
         source_file=source_file,
         status=Edition.Status.QUEUED,
     )

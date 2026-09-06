@@ -13,12 +13,14 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import uuid
 from decimal import Decimal
 from typing import Any
 
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+from django.utils.text import slugify
 
 from almonium_book_processor import __version__
 from almonium_book_processor.ai.metadata import (
@@ -52,6 +54,35 @@ PROVENANCE_USER = "user"
 PROVENANCE_SOURCE = "source"
 PROVENANCE_AI = "ai"
 
+# A catalogue upload without pinned slugs gets these until its title is known;
+# the metadata stage replaces them, and publication refuses to ship them.
+PROVISIONAL_SLUG_PREFIX = "pending-"
+
+EDITION_SLUG_SUFFIXES = {
+    Edition.EditionType.ORIGINAL: "original",
+    Edition.EditionType.HUMAN_TRANSLATION: "human",
+    Edition.EditionType.MACHINE_TRANSLATION: "machine",
+    Edition.EditionType.ADAPTATION: "adapted",
+    Edition.EditionType.ABRIDGEMENT: "abridged",
+}
+
+
+def provisional_slug() -> str:
+    return f"{PROVISIONAL_SLUG_PREFIX}{uuid.uuid4().hex[:12]}"
+
+
+def has_provisional_slug(edition: Edition) -> bool:
+    return edition.slug.startswith(PROVISIONAL_SLUG_PREFIX) or edition.work.slug.startswith(
+        PROVISIONAL_SLUG_PREFIX
+    )
+
+
+def _edition_owns_work(edition: Edition) -> bool:
+    """Only the original edition (or the first one) may describe the work itself."""
+
+    return edition.edition_type == Edition.EditionType.ORIGINAL or not edition.work.title
+
+
 # The draft translation tier: one call of a few thousand tokens per book.
 METADATA_MODEL_PRICING = {"input": "0.20", "cached_input": "0.02", "output": "1.20"}
 
@@ -67,15 +98,22 @@ def adopt_source_metadata(edition: Edition, declared: EditionMetadata) -> None:
 
     work = edition.work
     provenance = dict(work.metadata_provenance)
+    owns_work = _edition_owns_work(edition)
     if not edition.title:
-        edition.title = work.title = declared.title[:500]
-        provenance["title"] = PROVENANCE_SOURCE
+        edition.title = declared.title[:500]
+        if owns_work and not work.title:
+            work.title = edition.title
+            provenance["title"] = PROVENANCE_SOURCE
     if not edition.author:
-        edition.author = work.author = declared.author[:300]
-        provenance["author"] = PROVENANCE_SOURCE
+        edition.author = declared.author[:300]
+        if owns_work and not work.author:
+            work.author = edition.author
+            provenance["author"] = PROVENANCE_SOURCE
     if not edition.language:
-        edition.language = work.original_language = declared.language
-        provenance["language"] = PROVENANCE_SOURCE
+        edition.language = declared.language
+        if owns_work and not work.original_language:
+            work.original_language = edition.language
+            provenance["language"] = PROVENANCE_SOURCE
     work.metadata_provenance = provenance
     edition.save(update_fields=["title", "author", "language", "updated_at"])
     work.save(
@@ -128,7 +166,8 @@ def detect_metadata(edition_id: str) -> PipelineRun:
     provenance = dict(work.metadata_provenance)
     proposal = None
     ai_run = None
-    if ai_enabled:
+    open_fields = [name for name in METADATA_FIELDS if provenance.get(name) != PROVENANCE_USER]
+    if ai_enabled and open_fields:
         # A failed or unavailable model call must not fail the import: the
         # header values remain and the owner is still asked to confirm them.
         try:
@@ -139,12 +178,14 @@ def detect_metadata(edition_id: str) -> PipelineRun:
             proposal = BookMetadataProposal.model_validate(ai_run.response_payload["proposal"])
     if proposal is not None:
         _apply_proposal(edition, proposal, provenance)
+    _finalize_slugs(edition, provenance)
 
     with transaction.atomic():
         work.metadata_provenance = provenance
         work.metadata_detected_at = timezone.now()
         work.save(
             update_fields=[
+                "slug",
                 "title",
                 "author",
                 "description",
@@ -155,12 +196,13 @@ def detect_metadata(edition_id: str) -> PipelineRun:
                 "updated_at",
             ]
         )
-        edition.save(update_fields=["title", "author", "language", "updated_at"])
+        edition.save(update_fields=["slug", "title", "author", "language", "updated_at"])
         run.status = PipelineRun.Status.SUCCEEDED
         run.progress = 100
         run.finished_at = timezone.now()
         run.summary = {
             "ai_enabled": ai_enabled,
+            "open_fields": open_fields,
             "ai_run_id": str(ai_run.id) if ai_run else None,
             "ai_status": ai_run.status if ai_run else None,
             "provenance": provenance,
@@ -178,44 +220,82 @@ def confirm_metadata(
     language: str | None = None,
     publication_year: int | None = None,
     clear_publication_year: bool = False,
+    work_title: str | None = None,
+    original_language: str | None = None,
+    work_slug: str | None = None,
+    edition_slug: str | None = None,
+    cover_url: str | None = None,
+    cefr_level: str | None = None,
+    clear_cefr_level: bool = False,
 ) -> bool:
-    """Apply the owner's confirmed values; return whether the language changed.
+    """Apply confirmed values; return whether the edition's language changed.
 
-    A changed language invalidates sentence splitting and lexical analysis, so
-    a ready edition is sent back through the NLP stages. The stage keys include
-    the language, so this never repeats work already done for it.
+    ``title``/``author``/``language`` describe the edition and, when the edition
+    owns its work, the work too; ``work_title``/``original_language`` address
+    the work explicitly. A changed language invalidates sentence splitting and
+    lexical analysis, so a ready edition is sent back through the NLP stages.
+    The stage keys include the language, so this never repeats work already
+    done for it.
     """
 
     work = edition.work
+    owns_work = _edition_owns_work(edition)
     provenance = dict(work.metadata_provenance)
     language_changed = False
     if title is not None and title.strip():
-        edition.title = work.title = title.strip()[:500]
+        edition.title = title.strip()[:500]
+        if owns_work and work_title is None:
+            work.title = edition.title
+        provenance["title"] = PROVENANCE_USER
+    if work_title is not None and work_title.strip():
+        work.title = work_title.strip()[:500]
         provenance["title"] = PROVENANCE_USER
     if author is not None and author.strip():
-        edition.author = work.author = author.strip()[:300]
+        edition.author = author.strip()[:300]
+        if owns_work:
+            work.author = edition.author
         provenance["author"] = PROVENANCE_USER
     if description is not None:
         work.description = description.strip()
         provenance["description"] = PROVENANCE_USER
     if language and language != edition.language:
-        edition.language = work.original_language = language
+        edition.language = language
+        if owns_work and original_language is None:
+            work.original_language = language
         provenance["language"] = PROVENANCE_USER
         language_changed = True
+    if original_language:
+        work.original_language = original_language
+        provenance["language"] = PROVENANCE_USER
     if publication_year is not None or clear_publication_year:
         work.publication_year = publication_year
         provenance["publication_year"] = PROVENANCE_USER
+    if work_slug:
+        work.slug = work_slug
+        provenance["work_slug"] = PROVENANCE_USER
+    if edition_slug:
+        edition.slug = edition_slug
+        provenance["edition_slug"] = PROVENANCE_USER
+    if cover_url is not None:
+        work.cover_url = cover_url.strip()
+        provenance["cover_url"] = PROVENANCE_USER
+    if cefr_level or clear_cefr_level:
+        edition.cefr_level = cefr_level or None
     work.metadata_provenance = provenance
+    work.metadata_confirmed_at = timezone.now()
 
     with transaction.atomic():
         work.save(
             update_fields=[
+                "slug",
                 "title",
                 "author",
                 "description",
                 "original_language",
                 "publication_year",
+                "cover_url",
                 "metadata_provenance",
+                "metadata_confirmed_at",
                 "updated_at",
             ]
         )
@@ -224,8 +304,54 @@ def confirm_metadata(
 
             edition.status = Edition.Status.PROCESSING
             transaction.on_commit(lambda: process_normalized_edition.delay(str(edition.id)))
-        edition.save(update_fields=["title", "author", "language", "status", "updated_at"])
+        edition.save(
+            update_fields=[
+                "slug",
+                "title",
+                "author",
+                "language",
+                "cefr_level",
+                "status",
+                "updated_at",
+            ]
+        )
     return language_changed
+
+
+def _unique_slug(model, base: str, *, exclude_id) -> str:
+    base = base[:150] or "book"
+    candidate = base
+    counter = 2
+    while model.objects.filter(slug=candidate).exclude(id=exclude_id).exists():
+        candidate = f"{base}-{counter}"
+        counter += 1
+    return candidate
+
+
+def _finalize_slugs(edition: Edition, provenance: dict[str, str]) -> None:
+    """Replace provisional slugs with ones derived from the detected metadata."""
+
+    from almonium_book_processor.catalog.models import Work
+
+    work = edition.work
+    if not edition.title:
+        edition.title = work.title
+    if (
+        work.slug.startswith(PROVISIONAL_SLUG_PREFIX)
+        and provenance.get("work_slug") != PROVENANCE_USER
+        and work.title
+    ):
+        work.slug = _unique_slug(Work, slugify(work.title), exclude_id=work.id)
+    if (
+        edition.slug.startswith(PROVISIONAL_SLUG_PREFIX)
+        and provenance.get("edition_slug") != PROVENANCE_USER
+        and not work.slug.startswith(PROVISIONAL_SLUG_PREFIX)
+        and edition.language
+    ):
+        suffix = EDITION_SLUG_SUFFIXES.get(edition.edition_type, edition.edition_type)
+        edition.slug = _unique_slug(
+            Edition, f"{work.slug}-{edition.language}-{suffix}", exclude_id=edition.id
+        )
 
 
 def _owner_supplied(edition: Edition) -> dict[str, object]:
@@ -417,22 +543,29 @@ def _apply_proposal(
     """Adopt the proposal for every field the owner did not type at upload."""
 
     work = edition.work
+    owns_work = _edition_owns_work(edition)
 
     def open_field(name: str) -> bool:
         return provenance.get(name) != PROVENANCE_USER
 
     title = proposal.title.strip()[:500]
     if open_field("title") and title and title != edition.title:
-        edition.title = work.title = title
-        provenance["title"] = PROVENANCE_AI
+        edition.title = title
+        if owns_work:
+            work.title = title
+            provenance["title"] = PROVENANCE_AI
     author = proposal.author.strip()[:300]
     if open_field("author") and author and author != edition.author:
-        edition.author = work.author = author
-        provenance["author"] = PROVENANCE_AI
+        edition.author = author
+        if owns_work:
+            work.author = author
+            provenance["author"] = PROVENANCE_AI
     language = _supported_language(proposal.language)
     if open_field("language") and language and language != edition.language:
-        edition.language = work.original_language = language
-        provenance["language"] = PROVENANCE_AI
+        edition.language = language
+        if owns_work:
+            work.original_language = language
+            provenance["language"] = PROVENANCE_AI
     description = proposal.description.strip()
     if open_field("description") and description:
         work.description = description

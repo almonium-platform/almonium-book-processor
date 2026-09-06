@@ -21,9 +21,17 @@ from almonium_book_processor.catalog.ai_translation import (
     last_translation_tier,
 )
 from almonium_book_processor.catalog.forms import (
+    EditionMetadataForm,
     EditionUploadForm,
     LegacyArtifactImportForm,
     ParallelTranslationForm,
+)
+from almonium_book_processor.catalog.metadata import (
+    METADATA_FIELDS,
+    PROVENANCE_AI,
+    PROVENANCE_SOURCE,
+    confirm_metadata,
+    has_provisional_slug,
 )
 from almonium_book_processor.catalog.models import (
     AlignmentGroupReview,
@@ -121,9 +129,51 @@ def upload_source(request: HttpRequest) -> HttpResponse:
     form = EditionUploadForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         edition = form.save()
-        messages.success(request, f"Queued source ingestion for {edition.title}.")
+        label = edition.title or form.cleaned_data["source_file"].name
+        messages.success(
+            request,
+            f"Queued source ingestion for {label}. "
+            "Title, author, language, and slugs are detected from the file; "
+            "confirm them on this page once processing finishes.",
+        )
         return redirect("catalog:edition-detail", edition_id=edition.id)
     return render(request, "catalog/upload.html", {"form": form})
+
+
+@staff_member_required
+@require_POST
+def confirm_edition_metadata(request: HttpRequest, edition_id: str) -> HttpResponse:
+    edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
+    if edition.work.visibility == Work.Visibility.PRIVATE:
+        messages.error(request, "Private imports are confirmed by their owner in Almonium.")
+        return redirect("catalog:edition-detail", edition_id=edition.id)
+    form = EditionMetadataForm.for_edition(edition, request.POST)
+    if not form.is_valid():
+        messages.error(request, "Fix the highlighted metadata fields.")
+        return _render_edition_detail(request, edition, metadata_form=form)
+    data = form.cleaned_data
+    language_changed = confirm_metadata(
+        edition,
+        title=data["edition_title"],
+        work_title=data["work_title"],
+        author=data["author"],
+        description=data["description"],
+        language=data["language"],
+        original_language=data["original_language"],
+        publication_year=data["publication_year"],
+        clear_publication_year=data["publication_year"] is None,
+        work_slug=data["work_slug"],
+        edition_slug=data["edition_slug"],
+        cover_url=data["cover_url"],
+        cefr_level=data["cefr_level"] or None,
+        clear_cefr_level=not data["cefr_level"],
+    )
+    messages.success(
+        request,
+        "Metadata confirmed."
+        + (" Sentence splitting is re-running for the new language." if language_changed else ""),
+    )
+    return redirect("catalog:edition-detail", edition_id=edition.id)
 
 
 @staff_member_required
@@ -150,6 +200,26 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
         ),
         id=edition_id,
     )
+    return _render_edition_detail(request, edition)
+
+
+def _metadata_state(edition: Edition) -> str:
+    """pending → detected → confirmed; a confirmation covers every detected value."""
+
+    work = edition.work
+    detected_values = {
+        source for name, source in work.metadata_provenance.items() if name in METADATA_FIELDS
+    } & {PROVENANCE_AI, PROVENANCE_SOURCE}
+    if work.metadata_confirmed_at and not detected_values:
+        return "confirmed"
+    if work.metadata_detected_at:
+        return "detected"
+    return "pending"
+
+
+def _render_edition_detail(
+    request: HttpRequest, edition: Edition, *, metadata_form: EditionMetadataForm | None = None
+) -> HttpResponse:
     blocks = edition.blocks.select_related("chapter").order_by("chapter__sequence", "sequence")[
         :300
     ]
@@ -179,6 +249,10 @@ def edition_detail(request: HttpRequest, edition_id: str) -> HttpResponse:
         {
             "edition": edition,
             "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
+            "metadata_form": metadata_form or EditionMetadataForm.for_edition(edition),
+            "metadata_state": _metadata_state(edition),
+            "metadata_provenance": edition.work.metadata_provenance,
+            "has_provisional_slug": has_provisional_slug(edition),
             "has_blocks": edition.blocks.exists(),
             "blocks": blocks,
             "pipeline_run_count": len(pipeline_runs),
