@@ -31,6 +31,7 @@ from almonium_book_processor.catalog.metadata import (
     PROVENANCE_AI,
     PROVENANCE_SOURCE,
     confirm_metadata,
+    form_provenance,
     has_provisional_slug,
 )
 from almonium_book_processor.catalog.models import (
@@ -251,7 +252,7 @@ def _render_edition_detail(
             "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
             "metadata_form": metadata_form or EditionMetadataForm.for_edition(edition),
             "metadata_state": _metadata_state(edition),
-            "metadata_provenance": edition.work.metadata_provenance,
+            "metadata_provenance": form_provenance(edition),
             "has_provisional_slug": has_provisional_slug(edition),
             "has_blocks": edition.blocks.exists(),
             "blocks": blocks,

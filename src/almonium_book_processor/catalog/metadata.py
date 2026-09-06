@@ -33,6 +33,7 @@ from almonium_book_processor.ai.metadata import (
 )
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
 from almonium_book_processor.catalog.models import (
+    METADATA_FIELD_LABELS,
     AIRun,
     ContentBlock,
     Edition,
@@ -48,7 +49,7 @@ logger = logging.getLogger(__name__)
 PROMPT_NAME = "private-import-metadata"
 PROMPT_VERSION = 1
 
-METADATA_FIELDS = ("title", "author", "description", "language", "publication_year")
+METADATA_FIELDS = tuple(METADATA_FIELD_LABELS)
 
 PROVENANCE_USER = "user"
 PROVENANCE_SOURCE = "source"
@@ -64,6 +65,21 @@ EDITION_SLUG_SUFFIXES = {
     Edition.EditionType.MACHINE_TRANSLATION: "machine",
     Edition.EditionType.ADAPTATION: "adapted",
     Edition.EditionType.ABRIDGEMENT: "abridged",
+}
+
+
+# The review panel names some fields after the model they live on, so its field
+# names are not the provenance keys. Work title and language are the edition's
+# too whenever the edition owns its work.
+METADATA_FORM_FIELDS = {
+    "work_title": "title",
+    "author": "author",
+    "description": "description",
+    "original_language": "language",
+    "publication_year": "publication_year",
+    "work_slug": "work_slug",
+    "edition_slug": "edition_slug",
+    "cover_url": "cover_url",
 }
 
 
@@ -91,6 +107,18 @@ def initial_provenance(**fields: object) -> dict[str, str]:
     """Mark the fields the owner filled in at upload; the rest are detected later."""
 
     return {name: PROVENANCE_USER for name, value in fields.items() if value not in (None, "")}
+
+
+def form_provenance(edition: Edition) -> dict[str, str]:
+    """Metadata provenance keyed by the review form's field names."""
+
+    provenance = edition.work.metadata_provenance
+    fields = dict(METADATA_FORM_FIELDS)
+    if _edition_owns_work(edition):
+        # The same decision named the work and this edition.
+        fields["edition_title"] = "title"
+        fields["language"] = "language"
+    return {name: provenance[key] for name, key in fields.items() if provenance.get(key)}
 
 
 def adopt_source_metadata(edition: Edition, declared: EditionMetadata) -> None:

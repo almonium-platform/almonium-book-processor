@@ -29,6 +29,8 @@ dd { margin: .15rem 0 0; font-weight: 700; }
 .status-failed { color: var(--red); background: #f6dfdc; }
 .language { float: right; color: var(--muted); font-size: .75rem; }
 .run-row { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 1rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid var(--line); }
+.run-row > span:first-child { display: grid; gap: .2rem; }
+.run-note { color: var(--muted); font-size: .72rem; line-height: 1.4; }
 .drop-zone { min-height: 190px; border: 2px dashed var(--line); border-radius: 14px; display: grid; place-content: center; text-align: center; padding: 2rem; cursor: pointer; }
 .drop-zone.dragging { border-color: var(--accent); background: #f1e5d5; }
 .drop-zone input { margin: 1rem auto; }

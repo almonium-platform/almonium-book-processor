@@ -11,7 +11,11 @@ from django.utils import timezone
 from ebooklib import epub
 
 from almonium_book_processor.catalog.forms import EditionUploadForm
-from almonium_book_processor.catalog.metadata import PROVISIONAL_SLUG_PREFIX, detect_metadata
+from almonium_book_processor.catalog.metadata import (
+    PROVISIONAL_SLUG_PREFIX,
+    detect_metadata,
+    form_provenance,
+)
 from almonium_book_processor.catalog.models import (
     AIRun,
     Chapter,
@@ -369,3 +373,136 @@ def test_upload_page_offers_pins_as_optional() -> None:
     assert "Only the file is required." in page
     assert "Pin details by hand" in page
     assert "Detect from the file" in page
+
+
+def test_metadata_run_note_names_who_chose_each_field() -> None:
+    run = PipelineRun(
+        stage=PipelineRun.Stage.METADATA,
+        summary={
+            "ai_enabled": True,
+            "ai_status": AIRun.Status.SUCCEEDED,
+            "open_fields": ["title", "description", "publication_year"],
+            "provenance": {
+                "title": "ai",
+                "author": "source",
+                "description": "ai",
+                "language": "source",
+                "publication_year": "ai",
+            },
+        },
+    )
+
+    assert run.summary_note == (
+        "AI proposed title, blurb, first-published year · file header supplied author, language"
+    )
+
+
+@pytest.mark.parametrize(
+    ("summary", "expected"),
+    [
+        (
+            {"ai_enabled": False, "open_fields": ["title"], "provenance": {"title": "source"}},
+            "file header supplied title · no model configured",
+        ),
+        (
+            {"ai_enabled": True, "open_fields": [], "provenance": {"title": "user"}},
+            "editor pinned title · every field was pinned, so no model was called",
+        ),
+        (
+            {
+                "ai_enabled": True,
+                "ai_status": AIRun.Status.FAILED,
+                "open_fields": ["title"],
+                "provenance": {"title": "source"},
+            },
+            "file header supplied title · the model call did not complete",
+        ),
+    ],
+)
+def test_metadata_run_note_explains_a_missing_model_call(summary, expected) -> None:
+    assert PipelineRun(stage=PipelineRun.Stage.METADATA, summary=summary).summary_note == expected
+
+
+def test_other_stages_and_unfinished_runs_have_no_note() -> None:
+    assert PipelineRun(stage=PipelineRun.Stage.LEXICAL, summary={"words": 1}).summary_note == ""
+    assert PipelineRun(stage=PipelineRun.Stage.METADATA, summary={}).summary_note == ""
+
+
+def test_edition_page_shows_metadata_provenance_in_the_panel_and_the_history() -> None:
+    provenance = {
+        "title": "ai",
+        "author": "source",
+        "description": "ai",
+        "language": "source",
+        "publication_year": "ai",
+    }
+    work = Work.objects.create(
+        slug="detected",
+        title="Detected Title",
+        author="Ada Author",
+        description="A detected blurb.",
+        original_language="de",
+        publication_year=1912,
+        metadata_provenance=provenance,
+        metadata_detected_at=timezone.now(),
+    )
+    edition = Edition.objects.create(
+        slug="detected-de-original",
+        work=work,
+        title="Detected Title",
+        author="Ada Author",
+        language="de",
+        status=Edition.Status.READY,
+    )
+    PipelineRun.objects.create(
+        edition=edition,
+        stage=PipelineRun.Stage.METADATA,
+        status=PipelineRun.Status.SUCCEEDED,
+        idempotency_key=f"{edition.id}:metadata",
+        processor_version="test",
+        input_hash="0" * 64,
+        summary={
+            "ai_enabled": True,
+            "ai_status": AIRun.Status.SUCCEEDED,
+            "open_fields": list(provenance),
+            "provenance": provenance,
+        },
+    )
+    staff = get_user_model().objects.create_user(
+        username="history-editor", password="safe-test-password", is_staff=True
+    )
+    client = Client()
+    client.force_login(staff)
+
+    detail = client.get(reverse("catalog:edition-detail", args=[edition.id])).content.decode()
+
+    assert "AI proposed title, blurb, first-published year" in detail
+    assert "file header supplied author, language" in detail
+    # Work title and language are tagged too: the form names them differently
+    # from the provenance keys, and both are the fields a model is most likely
+    # to have chosen.
+    assert detail.count('provenance-ai">AI</em>') == 4  # both titles, blurb, year
+    assert detail.count('provenance-source">file</em>') == 3  # author, both languages
+
+
+def test_a_translation_does_not_borrow_the_work_provenance_for_its_own_fields() -> None:
+    work = Work.objects.create(
+        slug="werk",
+        title="Werk",
+        author="Ada Author",
+        original_language="de",
+        metadata_provenance={"title": "ai", "language": "ai"},
+    )
+    Edition.objects.create(
+        slug="werk-de-original", work=work, title="Werk", author="Ada Author", language="de"
+    )
+    translation = Edition.objects.create(
+        slug="werk-en-human",
+        work=work,
+        title="Work",
+        author="Ada Author",
+        language="en",
+        edition_type=Edition.EditionType.HUMAN_TRANSLATION,
+    )
+
+    assert set(form_provenance(translation)) == {"work_title", "original_language"}

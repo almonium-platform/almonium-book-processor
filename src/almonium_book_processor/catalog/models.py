@@ -401,6 +401,23 @@ class ContentBlockRevision(TimestampedModel):
         ordering = ["-created_at"]
 
 
+# The bibliographic fields the metadata stage decides, in the wording the
+# processing history and the review panel use for them.
+METADATA_FIELD_LABELS = {
+    "title": "title",
+    "author": "author",
+    "description": "blurb",
+    "language": "language",
+    "publication_year": "first-published year",
+}
+
+METADATA_PROVENANCE_PHRASES = {
+    "ai": "AI proposed",
+    "source": "file header supplied",
+    "user": "editor pinned",
+}
+
+
 class PipelineRun(TimestampedModel):
     class Stage(models.TextChoices):
         INGEST = "ingest", "Source ingestion"
@@ -437,6 +454,36 @@ class PipelineRun(TimestampedModel):
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["status", "created_at"])]
+
+    @property
+    def summary_note(self) -> str:
+        """One line saying what this run decided, for the processing history.
+
+        Only the metadata stage has something to say so far: whose decision each
+        bibliographic field is, so a reader of the history can see that a model
+        named the book rather than the file header.
+        """
+
+        if self.stage != self.Stage.METADATA or not self.summary:
+            return ""
+        provenance = self.summary.get("provenance") or {}
+        by_source: dict[str, list[str]] = {}
+        for name, label in METADATA_FIELD_LABELS.items():
+            source = provenance.get(name)
+            if source in METADATA_PROVENANCE_PHRASES:
+                by_source.setdefault(source, []).append(label)
+        parts = [
+            f"{phrase} {', '.join(by_source[source])}"
+            for source, phrase in METADATA_PROVENANCE_PHRASES.items()
+            if source in by_source
+        ]
+        if not self.summary.get("ai_enabled"):
+            parts.append("no model configured")
+        elif not self.summary.get("open_fields"):
+            parts.append("every field was pinned, so no model was called")
+        elif self.summary.get("ai_status") != AIRun.Status.SUCCEEDED:
+            parts.append("the model call did not complete")
+        return " · ".join(parts) or "nothing detected"
 
 
 class EditionArtifact(TimestampedModel):
