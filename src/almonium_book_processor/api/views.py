@@ -3,10 +3,12 @@ from __future__ import annotations
 import hmac
 import os
 
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -21,6 +23,7 @@ from almonium_book_processor.api.serializers import (
 )
 from almonium_book_processor.catalog.metadata import confirm_metadata, metadata_payload
 from almonium_book_processor.catalog.models import BlockAlignment, Edition, PipelineRun, Work
+from almonium_book_processor.catalog.spend import ai_spend
 from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
     split_edition_sentences,
@@ -130,6 +133,28 @@ class PrivateImportBlocksView(APIView):
             )
         blocks = edition.blocks.select_related("chapter").order_by("chapter__sequence", "sequence")
         return Response(ContentBlockSerializer(blocks, many=True).data)
+
+
+class InternalAiSpendView(APIView):
+    """The token ledger summed for the API's spend page; the API owns the window."""
+
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [InternalBooksPermission]
+
+    def get(self, request):
+        since = _aware_datetime(request.query_params.get("since"), "since")
+        until_raw = request.query_params.get("until")
+        until = _aware_datetime(until_raw, "until") if until_raw else timezone.now()
+        if since >= until:
+            raise ValidationError({"since": "must be before until"})
+        return Response(ai_spend(since, until))
+
+
+def _aware_datetime(value, name):
+    parsed = parse_datetime(value) if value else None
+    if parsed is None or timezone.is_naive(parsed):
+        raise ValidationError({name: "an ISO 8601 datetime with a timezone is required"})
+    return parsed
 
 
 def _private_import(import_id, owner_id):

@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from almonium_book_processor.api.views import (
     EditionViewSet,
+    InternalAiSpendView,
     PipelineRunViewSet,
     PrivateImportBlocksView,
     PrivateImportDetailView,
@@ -18,6 +19,7 @@ router.register("public/editions", PublishedEditionViewSet, basename="published-
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("internal/ai-spend/", InternalAiSpendView.as_view(), name="internal-ai-spend"),
     path("internal/imports/", PrivateImportView.as_view(), name="private-import"),
     path(
         "internal/imports/<uuid:import_id>/",
