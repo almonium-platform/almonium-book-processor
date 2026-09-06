@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ebooklib import ITEM_DOCUMENT, epub
+from bs4 import Tag
+from ebooklib import ITEM_COVER, ITEM_DOCUMENT, epub
 
 from almonium_book_processor import __version__
 from almonium_book_processor.ingest.common import (
@@ -28,6 +29,40 @@ def _metadata_value(book: epub.EpubBook, name: str) -> str | None:
         return None
     value = values[0][0]
     return str(value).strip() or None
+
+
+def _cover_image_names(book: epub.EpubBook) -> set[str]:
+    """Names of the images the EPUB itself declares as its cover."""
+
+    return {item.get_name() for item in book.get_items_of_type(ITEM_COVER)} | {
+        item.get_name()
+        for item in book.get_items()
+        if "cover-image" in (getattr(item, "properties", None) or [])
+    }
+
+
+def _image_sources(root: Tag) -> set[str]:
+    sources = {str(tag.get("src", "")).strip() for tag in root.find_all("img")}
+    sources |= {
+        str(tag.get("xlink:href") or tag.get("href") or "").strip()
+        for tag in root.find_all("image")
+    }
+    return {source for source in sources if source}
+
+
+def _is_cover_document(root: Tag, document_name: str, cover_images: set[str]) -> bool:
+    """True when a spine document does nothing but display the declared cover.
+
+    Almonium renders its own cover from the work's metadata, so this page is
+    not content. Recognising it keeps the importer from reporting the book's
+    first page as unreadable.
+    """
+
+    if not cover_images or root.get_text(strip=True):
+        return False
+    resolve = epub_image_resolver(document_name)
+    references = {resolve(source) for source in _image_sources(root)}
+    return bool(references) and references <= cover_images
 
 
 def ingest_epub(
@@ -61,6 +96,7 @@ def ingest_epub(
     builder = BlockBuilder(edition_slug)
     chapter = 0
     seen_documents: set[str] = set()
+    cover_images = _cover_image_names(book)
     for spine_entry in book.spine:
         item_id = spine_entry[0] if isinstance(spine_entry, tuple) else spine_entry
         item = book.get_item_with_id(item_id)
@@ -75,6 +111,16 @@ def ingest_epub(
 
         soup = parse_html(item.get_content())
         root = soup.body or soup
+        if _is_cover_document(root, document_name, cover_images):
+            builder.warnings.append(
+                IngestionWarning(
+                    code="cover_document_skipped",
+                    message="Skipped the cover page; Almonium renders its own cover",
+                    source_ref=document_name,
+                    chapter=chapter,
+                )
+            )
+            continue
         previous_count = len(builder.blocks)
         extract_blocks(
             root,

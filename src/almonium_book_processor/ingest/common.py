@@ -165,8 +165,34 @@ def extract_blocks(
             attributes={"line_count": len(lines)},
         )
 
+    def emit_svg_image(tag: Tag) -> None:
+        """Emit the bitmap an <svg> wraps; ignore genuine vector decoration.
+
+        Full-page images are routinely wrapped in an SVG viewport, so skipping
+        every <svg> would silently drop illustration plates and leave the page
+        looking empty.
+        """
+
+        image = tag.find("image")
+        href = str(image.get("xlink:href") or image.get("href") or "").strip() if image else ""
+        if not href:
+            return
+        builder.add(
+            chapter=chapter,
+            block_type=BlockType.IMAGE,
+            source_ref=resolve_image(href) if resolve_image else href,
+            attributes={
+                key: str(image[key]) for key in ("width", "height") if image.get(key) is not None
+            },
+        )
+
     def visit(tag: Tag) -> None:
-        if tag.name in SKIP_TAGS or tag.get("hidden") is not None:
+        if tag.get("hidden") is not None:
+            return
+        if tag.name == "svg":
+            emit_svg_image(tag)
+            return
+        if tag.name in SKIP_TAGS:
             return
 
         markers = marker_values(tag)
