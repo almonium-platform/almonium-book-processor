@@ -37,6 +37,13 @@ worker = [
   "simplemma>=1.1,<2",
   "spacy>=3.8,<4",
   "wordfreq>=3.1,<4",
+  # Pinned spaCy models, one per NLP_SPACY_MODELS entry. They are dependencies,
+  # not an optional download: without a model spaCy loads a blank pipeline that
+  # cannot lemmatize, and vocabulary analysis then describes invented words.
+  "de_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl",
+  "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+  "fr_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/fr_core_news_sm-3.8.0/fr_core_news_sm-3.8.0-py3-none-any.whl",
+  "uk_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/uk_core_news_sm-3.8.0/uk_core_news_sm-3.8.0-py3-none-any.whl",
 ]
 
 [tool.hatch.build.targets.wheel]

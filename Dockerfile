@@ -37,6 +37,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     SECRET_KEY=build-only-secret-key-not-used-at-runtime \
     ALLOWED_HOSTS=localhost \
     python manage.py collectstatic --noinput && \
+    DEBUG=false \
+    SECRET_KEY=build-only-secret-key-not-used-at-runtime \
+    ALLOWED_HOSTS=localhost \
+    python manage.py check --tag nlp && \
     mkdir -p /app/media /app/models && \
     chown -R app:app /app
 

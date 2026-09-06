@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,7 +38,12 @@ def _spacy_pipeline(language: str) -> Any:
         try:
             return spacy.load(model_name, exclude=["ner", "lemmatizer"])
         except OSError:
-            pass
+            logger.warning(
+                "spaCy model %r for %r is not installed; splitting sentences with a blank "
+                "pipeline, which is rule-based and weaker than the model.",
+                model_name,
+                language,
+            )
 
     try:
         pipeline = spacy.blank(language)

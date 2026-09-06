@@ -61,7 +61,7 @@ jobs:
       - name: Derive immutable dependency image tag
         id: dependency_image
         run: |
-          dependency_hash=$(sha256sum pyproject.toml | cut -d ' ' -f 1)
+          dependency_hash=$(sha256sum pyproject.toml Dockerfile | sha256sum | cut -d ' ' -f 1)
           echo "ref=ghcr.io/almonium-platform/almonium-book-processor:deps-${dependency_hash}" >> "$GITHUB_OUTPUT"
 
       - name: Check for dependency image

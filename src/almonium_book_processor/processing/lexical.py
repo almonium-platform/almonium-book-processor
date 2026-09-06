@@ -11,8 +11,28 @@ from typing import Any
 from django.conf import settings
 
 LEXICAL_SCHEMA_VERSION = 1
-LEXICAL_PROCESSOR_VERSION = "lexical-v1"
+LEXICAL_PROCESSOR_VERSION = "lexical-v2"
 USEFUL_WORD_LIMIT = 50
+
+# Everyday vocabulary a learner already has; the gate and the band label it
+# the same way, so nothing the list calls "very common" can be picked.
+VERY_COMMON_ZIPF = 5.0
+# Below this a word is usually a name, OCR damage, or too obscure to be worth
+# one of the fifty slots.
+OBSCURE_ZIPF = 2.5
+
+# A fallback lemma this much rarer than the surface it came from is mangled
+# (simplemma turns the English "gone" into "gan"), not a lemma worth keeping.
+MAX_FALLBACK_LEMMA_FREQUENCY_DROP = 1.0
+
+
+class LexicalModelUnavailable(RuntimeError):
+    """No trustworthy lemmatizer exists for the language, so we refuse to guess.
+
+    A blank spaCy pipeline tokenizes but does not lemmatize or tag, which turns
+    every filter here into a filter on a made-up word. Failing is the only
+    honest option: a silent fallback shipped "gone" as an uncommon word.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,15 +58,18 @@ def _lexical_pipeline(language: str) -> Any:
         raise RuntimeError("Install the worker dependency group to analyze vocabulary") from error
 
     model_name = settings.NLP_SPACY_MODELS.get(language)
-    if model_name:
-        try:
-            return spacy.load(model_name, exclude=["ner"])
-        except OSError:
-            pass
+    if not model_name:
+        raise LexicalModelUnavailable(
+            f"No spaCy model is configured for {language!r}. "
+            "Add one to NLP_SPACY_MODELS before analyzing this language."
+        )
     try:
-        return spacy.blank(language)
-    except ValueError:
-        return spacy.blank("xx")
+        return spacy.load(model_name, exclude=["ner"])
+    except OSError as error:
+        raise LexicalModelUnavailable(
+            f"The spaCy model {model_name!r} for {language!r} is not installed. "
+            "Install it in the image rather than falling back to a blank pipeline."
+        ) from error
 
 
 def _word_frequency(word: str, language: str) -> float:
@@ -70,7 +93,7 @@ def _context(text: str, start: int, end: int, radius: int = 90) -> str:
 
 
 def _frequency_band(zipf: float) -> str:
-    if zipf >= 5:
+    if zipf >= VERY_COMMON_ZIPF:
         return "very_common"
     if zipf >= 4:
         return "common"
@@ -79,18 +102,38 @@ def _frequency_band(zipf: float) -> str:
     return "rare"
 
 
-def _lemma(token: Any, language: str) -> str:
-    if token.lemma_:
-        return token.lemma_.casefold().strip()
+def _fallback_lemma(word: str, language: str) -> str:
     try:
         import simplemma
     except ImportError as error:
         message = "Install the worker dependency group to lemmatize vocabulary"
         raise RuntimeError(message) from error
     try:
-        return simplemma.lemmatize(token.text, lang=language).casefold().strip()
+        return simplemma.lemmatize(word, lang=language)
     except ValueError:
-        return token.text.casefold().strip()
+        return word
+
+
+def _lemma(
+    token: Any,
+    language: str,
+    *,
+    frequency_lookup: Callable[[str, str], float],
+    fallback_lemmatizer: Callable[[str, str], str],
+) -> str:
+    """Lemmatize a token, distrusting the fallback when it invents a rare word."""
+
+    surface = token.text.casefold().strip()
+    if token.lemma_:
+        return token.lemma_.casefold().strip() or surface
+
+    candidate = fallback_lemmatizer(token.text, language).casefold().strip()
+    if not candidate or candidate == surface:
+        return surface
+    drop = frequency_lookup(surface, language) - frequency_lookup(candidate, language)
+    if drop > MAX_FALLBACK_LEMMA_FREQUENCY_DROP:
+        return surface
+    return candidate
 
 
 def _looks_like_proper_name(text: str, token: Any, language: str) -> bool:
@@ -104,7 +147,7 @@ def _looks_like_proper_name(text: str, token: Any, language: str) -> bool:
 
 def lexical_runtime_signature(language: str) -> dict[str, Any]:
     pipeline = _lexical_pipeline(language)
-    model_name = pipeline.meta.get("name") if pipeline.pipe_names else f"blank:{pipeline.lang}"
+    model_name = f"{pipeline.meta.get('lang', 'xx')}_{pipeline.meta.get('name', 'unknown')}"
     return {
         "spacy_version": importlib.metadata.version("spacy"),
         "spacy_model": model_name,
@@ -120,6 +163,7 @@ def analyze_lexicon(
     language: str,
     *,
     frequency_lookup: Callable[[str, str], float] = _word_frequency,
+    fallback_lemmatizer: Callable[[str, str], str] = _fallback_lemma,
     limit: int = USEFUL_WORD_LIMIT,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Build book-level lexical statistics and a useful distinctive-word list.
@@ -128,6 +172,10 @@ def analyze_lexicon(
     that are uncommon in general language, while excluding stop words, proper
     nouns, hapaxes, and extremely obscure forms that are usually names, OCR
     damage, or poor learning targets.
+
+    Rarity is judged on the whole entry - the lemma and every surface form the
+    reader actually meets - because a common word behind a rarer lemma is still
+    a common word, and picking it would waste one of the fifty slots.
     """
 
     blocks = list(blocks)
@@ -145,7 +193,12 @@ def analyze_lexicon(
             if not token.is_alpha:
                 continue
             total_tokens += 1
-            lemma = _lemma(token, language)
+            lemma = _lemma(
+                token,
+                language,
+                frequency_lookup=frequency_lookup,
+                fallback_lemmatizer=fallback_lemmatizer,
+            )
             if not lemma:
                 continue
             counts[lemma] += 1
@@ -163,7 +216,14 @@ def analyze_lexicon(
                     )
                 )
 
-    frequencies = {lemma: frequency_lookup(lemma, language) for lemma in counts}
+    lemma_frequencies = {lemma: frequency_lookup(lemma, language) for lemma in counts}
+    frequencies = {
+        lemma: max(
+            lemma_frequencies[lemma],
+            *(frequency_lookup(surface.casefold(), language) for surface in surfaces[lemma]),
+        )
+        for lemma in counts
+    }
     bands = Counter()
     for lemma, count in counts.items():
         bands[_frequency_band(frequencies[lemma])] += count
@@ -172,7 +232,7 @@ def analyze_lexicon(
     chapter_total = len({item.chapter for item in blocks})
     for lemma, count in counts.items():
         zipf = frequencies[lemma]
-        if lemma in excluded or count < 2 or not 2.5 <= zipf <= 5.5:
+        if lemma in excluded or count < 2 or not OBSCURE_ZIPF <= zipf < VERY_COMMON_ZIPF:
             continue
         dispersion = len(chapters[lemma]) / max(1, chapter_total)
         rarity = 6.0 - zipf
@@ -184,6 +244,7 @@ def analyze_lexicon(
                 "count": count,
                 "chapter_count": len(chapters[lemma]),
                 "zipf_frequency": round(zipf, 3),
+                "lemma_zipf_frequency": round(lemma_frequencies[lemma], 3),
                 "frequency_band": _frequency_band(zipf),
                 "score": round(score, 6),
                 "occurrences": [

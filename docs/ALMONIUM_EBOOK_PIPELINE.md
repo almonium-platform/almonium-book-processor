@@ -271,19 +271,35 @@ reprocess only what it touched.
 
 Lexical analysis belongs in this Python worker because it already owns the
 normalized book text and offline NLP dependencies. The first version is fully
-deterministic: tokenize with spaCy, use its model lemmatizer or `simplemma` as
-the model-free fallback, obtain general-language Zipf frequency from
-`wordfreq`, and persist two small artifacts:
+deterministic: tokenize with spaCy, lemmatize with its model, obtain
+general-language Zipf frequency from `wordfreq`, and persist two small
+artifacts:
 
 - `lexical_profile`: aggregate token, lemma, and frequency-band statistics;
 - `useful_words`: up to 50 ranked lemmas with counts, chapter dispersion,
   general frequency, and evidence-bearing source occurrences.
 
 “Useful” deliberately does not mean the 50 lowest-frequency strings. Exclude
-stop words, proper names, one-off forms, and extremely obscure candidates;
-reward words that recur across the book while remaining less common in general
-language. The product backend may publish and render the artifact, but it must
-not re-tokenize the book or own a second frequency algorithm.
+stop words, proper names, one-off forms, everyday vocabulary, and extremely
+obscure candidates; reward words that recur across the book while remaining
+less common in general language. The product backend may publish and render
+the artifact, but it must not re-tokenize the book or own a second frequency
+algorithm.
+
+Two rules protect that policy from its own machinery:
+
+- A spaCy model is a hard requirement, not a preference. Without one spaCy
+  loads a blank pipeline that tokenizes but cannot lemmatize or tag, the
+  `simplemma` fallback then invents a lemma (English “gone” becomes “gan”),
+  and every filter judges a word the book does not contain. The models are
+  pinned dependencies of the `worker` extra, a Django system check under the
+  `nlp` tag verifies them, and analysis raises `LexicalModelUnavailable`
+  rather than degrading. A language with no configured model records a
+  cancelled pipeline run instead of a wrong answer.
+- Rarity is judged on the whole entry, lemma and surface forms together. A
+  common surface behind a rarer lemma is still a common word, and the
+  candidate gate shares its ceiling with the “very common” frequency band so
+  the list can never rank a word it simultaneously labels everyday vocabulary.
 
 This profile can later support a book-level CEFR estimate. Chapter measurements
 are useful as internal samples and confidence evidence, not necessarily as a

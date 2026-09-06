@@ -39,6 +39,7 @@ from almonium_book_processor.processing.lexical import (
     LEXICAL_PROCESSOR_VERSION,
     LEXICAL_SCHEMA_VERSION,
     LexicalBlock,
+    LexicalModelUnavailable,
     analyze_lexicon,
     lexical_runtime_signature,
 )
@@ -452,7 +453,11 @@ def analyze_edition_lexicon(edition_id: str) -> None:
 
     edition = Edition.objects.get(id=edition_id)
     content_hash = _edition_content_hash(edition)
-    runtime_signature = lexical_runtime_signature(edition.language)
+    try:
+        runtime_signature = lexical_runtime_signature(edition.language)
+    except LexicalModelUnavailable as error:
+        _record_unanalyzable_lexicon(edition, error)
+        return
     input_hash = _text_hash(
         content_hash,
         edition.language,
@@ -553,6 +558,25 @@ def analyze_edition_lexicon(edition_id: str) -> None:
         run.error = str(error)[:10000]
         run.save(update_fields=["status", "finished_at", "error", "updated_at"])
         raise
+
+
+def _record_unanalyzable_lexicon(edition: Edition, error: Exception) -> None:
+    """Record the missing lemmatizer instead of retrying or guessing at words."""
+
+    run, _ = PipelineRun.objects.get_or_create(
+        idempotency_key=f"{edition.id}:unavailable:lexical:{LEXICAL_PROCESSOR_VERSION}",
+        defaults={
+            "edition": edition,
+            "stage": PipelineRun.Stage.LEXICAL,
+            "processor_version": LEXICAL_PROCESSOR_VERSION,
+            "input_hash": "",
+        },
+    )
+    run.status = PipelineRun.Status.CANCELLED
+    run.finished_at = timezone.now()
+    run.error = str(error)[:10000]
+    run.save(update_fields=["status", "finished_at", "error", "updated_at"])
+    logger.warning("Skipped lexical analysis for edition %s: %s", edition.id, error)
 
 
 @shared_task(acks_late=True)

@@ -16,6 +16,7 @@ from almonium_book_processor.catalog.tasks import (
     analyze_edition_lexicon,
     process_normalized_edition,
 )
+from almonium_book_processor.processing.lexical import LexicalModelUnavailable
 
 pytestmark = pytest.mark.django_db
 
@@ -217,3 +218,21 @@ def test_edition_page_displays_useful_words_artifact(client) -> None:
     assert response.status_code == 200
     assert "50 useful words from this book" in response.content.decode()
     assert "The lantern burned." in response.content.decode()
+
+
+def test_lexical_task_cancels_the_run_when_no_lemmatizer_is_installed(monkeypatch) -> None:
+    edition = _edition()
+
+    def unavailable(language: str) -> dict[str, str]:
+        raise LexicalModelUnavailable(f"The spaCy model for {language!r} is not installed.")
+
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.lexical_runtime_signature", unavailable
+    )
+
+    analyze_edition_lexicon.run(str(edition.id))
+
+    run = edition.pipeline_runs.get(stage=PipelineRun.Stage.LEXICAL)
+    assert run.status == PipelineRun.Status.CANCELLED
+    assert "is not installed" in run.error
+    assert edition.artifacts.count() == 0

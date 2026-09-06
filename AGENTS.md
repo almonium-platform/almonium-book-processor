@@ -61,7 +61,14 @@ Cross-service integration uses an explicit HTTP or messaging contract.
 - Treat admin authentication and user-owned uploads as authorization
   boundaries. Authentication alone does not grant access to an upload or job.
 - Add tests for behavior changes. Use fixtures or fake providers in tests; CI
-  must never call paid AI APIs.
+  must never call paid AI APIs. CI installs only the `dev` extra, so nothing
+  there exercises spaCy, `wordfreq`, or `simplemma`; a test that fakes the NLP
+  stack proves the surrounding logic, never the stack itself.
+- Offline NLP models are pinned dependencies of the `worker` extra, one per
+  `NLP_SPACY_MODELS` entry, and `manage.py check --tag nlp` verifies that each
+  loads and can lemmatize. Do not let analysis degrade quietly to a blank
+  spaCy pipeline: it tokenizes but invents lemmas, and the vocabulary features
+  then describe words no reader will find in the book.
 - Configuration changes are cross-repository changes when they affect
   deployment. Keep application variables, local templates, infra mappings,
   vault schemas, and encrypted values synchronized without exposing secrets.
