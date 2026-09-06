@@ -1489,6 +1489,9 @@ def test_public_catalogue_and_user_imports_are_separate(client) -> None:
     ).content.decode()
 
     assert "Public List Work" in public_page
+    # An uploaded original roots the parallel tree; it is not itself a parallel
+    # edition, and the card must not read as if it were.
+    assert "Canonical original" in public_page
     assert "Private List Work" not in public_page
     assert "Private List Work" in imports_page
     assert str(private_work.owner_id) in imports_page
