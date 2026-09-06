@@ -44,6 +44,41 @@ docker compose exec web python manage.py createsuperuser
 Open <http://localhost:8000>. Local PostgreSQL and RabbitMQ are exposed on
 ports `5433` and `5673`, avoiding the neighboring backend's normal ports.
 
+### Seeing your changes in the running stack
+
+The image copies `src/` at build time and no source directory is bind-mounted,
+so an edit on your machine is **not** live in the containers. After changing
+Python code, templates, static files, or dependencies, rebuild and restart the
+affected services:
+
+```bash
+docker compose up -d --build web worker
+```
+
+Rules of thumb:
+
+- Views, templates, tasks, or any code under `src/` — rebuild `web` and
+  `worker` as above. Templates and static files are baked into the image and
+  collected by `collectstatic` during the build, so a plain restart is not
+  enough.
+- Only Celery task code — `docker compose up -d --build worker` is enough, but
+  rebuilding both is always safe.
+- `.env` or compose environment values — no rebuild needed, just
+  `docker compose up -d web worker` to recreate the containers with the new
+  environment.
+- `pyproject.toml` dependencies — same rebuild; the dependency layer is cached
+  and only reinstalls when that file changes.
+- New migrations — the `web` container runs `migrate` on start, so the rebuild
+  above applies them. To apply them without a restart, use
+  `docker compose exec web python manage.py migrate`.
+
+Then hard-reload the browser (static assets are cached) and check the logs if
+something looks stale:
+
+```bash
+docker compose logs -f web worker
+```
+
 For a fast Python-only test loop:
 
 ```bash

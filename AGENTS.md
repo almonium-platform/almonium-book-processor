@@ -67,6 +67,12 @@ Cross-service integration uses an explicit HTTP or messaging contract.
   vault schemas, and encrypted values synchronized without exposing secrets.
 - Stage files explicitly and commit verified changes as focused commits. Keep
   coordinated commits separate per repository and report each hash.
+- The Docker image copies `src/` at build time and nothing is bind-mounted, so
+  edits are not live in a running stack. After changing anything under `src/`
+  (code, templates, static files) or `pyproject.toml`, rebuild and restart
+  before telling the user to look at the running app:
+  `docker compose up -d --build web worker`. Environment-only changes need just
+  `docker compose up -d web worker`. Report that you did it.
 
 ## Current verification
 
@@ -78,4 +84,10 @@ The canonical local checks are:
 .venv/bin/ruff format --check src tests
 .venv/bin/python manage.py makemigrations --check --dry-run
 .venv/bin/python manage.py check
+```
+
+After they pass, refresh the local stack so the change is visible live:
+
+```bash
+docker compose up -d --build web worker
 ```
