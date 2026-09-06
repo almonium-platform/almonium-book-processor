@@ -11,7 +11,7 @@ from typing import Any
 from django.conf import settings
 
 LEXICAL_SCHEMA_VERSION = 1
-LEXICAL_PROCESSOR_VERSION = "lexical-v2"
+LEXICAL_PROCESSOR_VERSION = "lexical-v1"
 USEFUL_WORD_LIMIT = 50
 
 # Everyday vocabulary a learner already has; the gate and the band label it

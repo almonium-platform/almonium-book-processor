@@ -46,6 +46,10 @@ worker = [
   "uk_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/uk_core_news_sm-3.8.0/uk_core_news_sm-3.8.0-py3-none-any.whl",
 ]
 
+[tool.hatch.metadata]
+# The pinned spaCy model wheels in the worker extra are direct URL references.
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/almonium_book_processor"]
 
