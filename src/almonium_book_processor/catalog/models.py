@@ -73,6 +73,11 @@ def source_upload_path(instance: Edition, filename: str) -> str:
 
 
 class Edition(TimestampedModel):
+    class LiteraryRegister(models.TextChoices):
+        CONTEMPORARY = "contemporary neutral", "Contemporary neutral"
+        PERIOD_FAITHFUL = "period-faithful", "Period-faithful"
+        LIGHTLY_MODERNISED = "lightly modernised", "Lightly modernised"
+
     class CEFRLevel(models.TextChoices):
         A1 = "A1", "A1"
         A2 = "A2", "A2"
@@ -123,6 +128,12 @@ class Edition(TimestampedModel):
         default=EditionType.ORIGINAL,
     )
     translator = models.CharField(max_length=300, blank=True)
+    literary_register = models.CharField(
+        max_length=32,
+        choices=LiteraryRegister.choices,
+        blank=True,
+        help_text="Generation register; blank means unknown or not applicable.",
+    )
     cefr_level = models.CharField(
         max_length=2,
         choices=CEFRLevel.choices,

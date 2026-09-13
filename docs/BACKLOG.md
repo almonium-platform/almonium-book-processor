@@ -1,6 +1,11 @@
 # Almonium Book Processor backlog
 
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-13
+
+The current implementation sequence and acceptance criteria are in
+[Pipeline review and delivery plan](PIPELINE_REVIEW_AND_DELIVERY.md#delivery-tickets).
+Use its P0–P5 tickets for new sessions. The sections below retain historical
+calibration details; their original ordering is superseded by that plan.
 
 This backlog records the gap between the executable service and the longer
 pipeline roadmap. The order is deliberate: make deterministic local processing
@@ -161,8 +166,8 @@ alignment remains an explicit staff action and records its audit and cost data.
 
 - [x] Select two or three candidate models and translate one representative
   chapter blind before choosing a default. Terra is the default; see above.
-- [ ] Translate one book into Ukrainian with explicit register and disclosure.
-- [ ] Add translation length, sentence-count, truncation, and structural QA.
+- [x] Translate one book into Ukrainian with explicit register; public client disclosure remains P2-3.
+- [x] Add translation length, sentence-count, truncation, and structural QA.
 - [ ] Pilot one CEFR adaptation after translation quality is accepted.
 - [ ] Publish a small, exceptionally reviewed shelf before scaling the catalogue.
 - [ ] Add pair-specific phrase colouring only for requested reader pairs.

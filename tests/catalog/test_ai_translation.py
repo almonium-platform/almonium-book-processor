@@ -127,6 +127,7 @@ def test_parallel_translation_inherits_canonical_block_groups(monkeypatch) -> No
     )
     assert edition.parallel_role == Edition.ParallelRole.PARALLEL
     assert edition.supports_parallel_reading is True
+    assert edition.literary_register == Edition.LiteraryRegister.PERIOD_FAITHFUL
 
     sink: dict = {}
     fake_provider(monkeypatch, sink)
@@ -167,6 +168,78 @@ def test_parallel_translation_inherits_canonical_block_groups(monkeypatch) -> No
         assert block.align_group == source.blocks.get(block_id=block_id).align_group
     assert edition.chapters.get(sequence=1).title == "Chapitre premier"
     assert blocks["c1.p2"].attributes["translation"]["confidence"] == 0.95
+
+
+def test_translation_retry_uses_register_even_after_credit_is_edited(monkeypatch) -> None:
+    edition = create_parallel_translation(
+        source_edition=canonical_edition(),
+        target_language="fr",
+        register="period-faithful",
+        tier="quality",
+    )
+    sink: dict = {}
+    fake_provider(monkeypatch, sink)
+    first = submit_translation_batch(str(edition.id))
+    first.status = AIRun.Status.FAILED
+    first.save(update_fields=["status"])
+    edition.translator = "AI translation, edited by staff"
+    edition.save(update_fields=["translator"])
+
+    retried = submit_translation_batch(str(edition.id))
+    assert retried.id == first.id
+    assert retried.request_payload["register"] == "period-faithful"
+    assert "Target register: period-faithful" in sink["requests"][0]["body"]["instructions"]
+
+
+@pytest.mark.parametrize("register", ["", "unknown"])
+def test_translation_refuses_unknown_register_before_provider_call(monkeypatch, register) -> None:
+    edition = create_parallel_translation(
+        source_edition=canonical_edition(),
+        target_language="fr",
+        register="period-faithful",
+        tier="quality",
+    )
+    edition.literary_register = register
+    edition.save(update_fields=["literary_register"])
+    sink: dict = {}
+    fake_provider(monkeypatch, sink)
+    with pytest.raises(ValueError, match="Choose a literary register"):
+        submit_translation_batch(str(edition.id))
+    assert sink == {}
+    assert not AIRun.objects.filter(edition=edition).exists()
+
+
+def test_register_migration_backfills_only_recognized_machine_credits() -> None:
+    from importlib import import_module
+
+    from django.apps import apps
+    from django.db import connection
+
+    source = canonical_edition()
+    for index, register in enumerate(Edition.LiteraryRegister.values):
+        Edition.objects.create(
+            work=source.work,
+            slug=f"legacy-{index}",
+            edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+            translator=f"AI ({register})",
+        )
+    source.translator = "AI (period-faithful)"
+    source.save(update_fields=["translator"])
+    unknown = Edition.objects.create(
+        work=source.work,
+        slug="legacy-unknown",
+        edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+        translator="AI (unknown)",
+    )
+    migration = import_module(
+        "almonium_book_processor.catalog.migrations.0021_edition_literary_register"
+    )
+    migration.backfill_register(apps, SimpleNamespace(connection=connection))
+    for index, register in enumerate(Edition.LiteraryRegister.values):
+        assert Edition.objects.get(slug=f"legacy-{index}").literary_register == register
+    source.refresh_from_db()
+    unknown.refresh_from_db()
+    assert source.literary_register == unknown.literary_register == ""
 
 
 def test_missing_block_fails_the_run_without_materializing(monkeypatch) -> None:

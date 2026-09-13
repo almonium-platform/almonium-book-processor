@@ -60,11 +60,7 @@ TRANSLATION_MODEL_PRICING = {
 
 LANGUAGE_NAMES = {language.code: language.name for language in LANGUAGES}
 
-REGISTER_CHOICES = (
-    ("contemporary neutral", "Contemporary neutral"),
-    ("period-faithful", "Period-faithful"),
-    ("lightly modernised", "Lightly modernised"),
-)
+REGISTER_CHOICES = Edition.LiteraryRegister.choices
 
 
 def language_name(code: str) -> str:
@@ -150,6 +146,7 @@ def create_parallel_translation(
         edition_type=Edition.EditionType.MACHINE_TRANSLATION,
         parallel_role=Edition.ParallelRole.PARALLEL,
         translator=f"AI ({register})",
+        literary_register=register,
         status=Edition.Status.PROCESSING,
     )
     return edition
@@ -181,10 +178,9 @@ def _response_request(
 
 
 def _register_of(edition: Edition) -> str:
-    translator = edition.translator or ""
-    if translator.startswith("AI (") and translator.endswith(")"):
-        return translator[4:-1]
-    return "contemporary neutral"
+    if edition.literary_register not in Edition.LiteraryRegister.values:
+        raise ValueError("Choose a literary register before starting or retrying translation.")
+    return edition.literary_register
 
 
 def _prepare_translation_run(
@@ -212,8 +208,8 @@ def _prepare_translation_run(
     if not blocks_by_chapter:
         raise ValueError("The canonical edition has no translatable blocks")
 
-    configuration, prompt_template = _configuration(tier)
     register = _register_of(edition)
+    configuration, prompt_template = _configuration(tier)
     digest_payload = {
         "source_sha256": source.source_sha256,
         "model": configuration.model,
