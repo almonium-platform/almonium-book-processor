@@ -14,6 +14,14 @@
     {% if is_private and edition.status == "ready" %}<span class="status status-ready">Available</span>{% else %}<span class="status status-{{ edition.status }}">{{ edition.get_status_display }}</span>{% endif %}
   </div>
 </div>
+{% if active_runs %}
+<section class="panel">
+  <h2>Active processing</h2>
+  {% for run in active_runs %}
+    <div class="run-row"><strong>{{ run.get_stage_display }}</strong><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><progress value="{{ run.progress }}" max="100"></progress></div>
+  {% endfor %}
+</section>
+{% endif %}
 <section class="metrics">
   <div><strong>{{ edition.word_count }}</strong><span>words</span></div>
   <div><strong>{{ edition.chapters.count }}</strong><span>chapters</span></div>

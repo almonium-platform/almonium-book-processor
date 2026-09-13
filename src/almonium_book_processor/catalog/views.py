@@ -340,6 +340,11 @@ def _render_edition_detail(
         :300
     ]
     pipeline_runs = list(edition.pipeline_runs.all())
+    active_runs = [
+        run
+        for run in pipeline_runs
+        if run.status in (PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING)
+    ]
     source_qa_artifacts = edition.artifacts.filter(kind="source_qa")
     source_qa_artifact = source_qa_artifacts.filter(is_current=True).first()
     text_quality_findings = edition.text_quality_findings.filter(
@@ -378,6 +383,7 @@ def _render_edition_detail(
             ),
             "has_blocks": edition.blocks.exists(),
             "blocks": blocks,
+            "active_runs": active_runs,
             "pipeline_run_count": len(pipeline_runs),
             "recent_pipeline_runs": pipeline_runs[:3],
             "older_pipeline_runs": pipeline_runs[3:],

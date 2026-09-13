@@ -488,6 +488,7 @@ def test_edition_detail_collapses_long_sections_and_limits_processing_history(cl
         PipelineRun.objects.create(
             edition=edition,
             stage=PipelineRun.Stage.INGEST,
+            status=PipelineRun.Status.SUCCEEDED,
             processor_version="test",
             input_hash=f"{sequence + 1:064d}",
             idempotency_key=f"detail-page-run-{sequence}",
@@ -504,6 +505,22 @@ def test_edition_detail_collapses_long_sections_and_limits_processing_history(cl
     assert "Show 2 older runs" in content
     assert content.index("Processing history") < content.index("Review items")
     assert content.index("Processing history") < content.index("Content preview")
+    assert "Active processing" not in content
+
+    PipelineRun.objects.create(
+        edition=edition,
+        stage=PipelineRun.Stage.CHAPTER_ANALYSIS,
+        status=PipelineRun.Status.RUNNING,
+        progress=40,
+        processor_version="test",
+        input_hash="7" * 64,
+        idempotency_key="detail-page-run-active",
+    )
+    content = client.get(reverse("catalog:edition-detail", args=[edition.id])).content.decode()
+
+    assert content.index("Active processing") < content.index("Processing history")
+    assert "<strong>Chapter analysis</strong>" in content
+    assert '<progress value="40" max="100">' in content
 
 
 def alignment_review_records() -> tuple:
