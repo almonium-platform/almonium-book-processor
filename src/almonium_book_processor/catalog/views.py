@@ -21,6 +21,7 @@ from almonium_book_processor.catalog.ai_translation import (
     last_translation_mode,
     last_translation_tier,
 )
+from almonium_book_processor.catalog.chapter_analysis import analysis_context, queue_analysis
 from almonium_book_processor.catalog.forms import (
     EditionMetadataForm,
     EditionPurgeForm,
@@ -238,6 +239,25 @@ def queue_metadata_detection(request: HttpRequest, edition_id: str) -> HttpRespo
 
 
 @staff_member_required
+@require_POST
+def queue_chapter_analysis(request: HttpRequest, edition_id: str) -> HttpResponse:
+    edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
+    try:
+        run = queue_analysis(str(edition.id))
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request,
+            "Current chapter analysis is already complete."
+            if run.status == PipelineRun.Status.SUCCEEDED
+            else "Chapter analysis queued. Validated windows are reused on retry. "
+            "Reload to see progress and proposals; the editorial level is unchanged.",
+        )
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
 def import_legacy(request: HttpRequest) -> HttpResponse:
     form = LegacyArtifactImportForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
@@ -310,6 +330,7 @@ def _render_edition_detail(
         {
             "edition": edition,
             "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
+            **analysis_context(edition),
             "metadata_form": metadata_form or EditionMetadataForm.for_edition(edition),
             "metadata_state": _metadata_state(edition),
             "metadata_provenance": form_provenance(edition),

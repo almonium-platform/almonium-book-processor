@@ -78,6 +78,17 @@ ALIGNMENT_WARNING_CODES = {
 ALIGNMENT_PROCESSOR_VERSION = f"{__version__}:hierarchical-v1"
 
 
+@shared_task(bind=True, acks_late=True, max_retries=25)
+def analyze_edition_chapters(self, run_id: str) -> None:
+    from almonium_book_processor.catalog.chapter_analysis import AnalysisBusy, analyze_chapters
+
+    try:
+        analyze_chapters(run_id)
+    except AnalysisBusy as error:
+        # A redelivery after worker loss must outlive the ten-minute lease.
+        raise self.retry(exc=error, countdown=30) from error
+
+
 def _copy_source_to_temporary_file(edition: Edition) -> tuple[Path, str]:
     digest = hashlib.sha256()
     suffix = Path(edition.source_file.name).suffix.lower()

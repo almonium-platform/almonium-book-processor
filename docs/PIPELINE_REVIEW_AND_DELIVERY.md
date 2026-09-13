@@ -167,7 +167,7 @@ both Angular and Expo. Do not build the public reader in the processor.
 | P0-1 | processor | Dedicated literary register, conservative legacy backfill, retry independent of translator credit, unknown register fails before paid work. Implemented in this change. |
 | P0-2 | processor + backend | Define source-of-truth and versioned publication contract for editorial/computed level, chapter metadata, lineage, register, generated/reviewed labels and rights. Old consumers remain compatible; retries do not erase overrides or publish stale content. |
 | P0-3 | processor | Add language-mismatch and chapter-size warnings with front-matter/verse exceptions; calibrated fixtures and staff resolution. Enrichment failure must not take a readable original offline. |
-| P1-1 | processor; P0-1 | Implement bounded chapter-analysis schema, prompt, provider adapter, Celery task and staff trigger. Per-chapter hashes include actual text, language, rubric and provider versions; resumable jobs charge/account each attempt and reject stale completion. No paid calls in tests. |
+| P1-1 | processor; P0-1 | Implemented: bounded chapter-analysis schema, prompt, provider adapter, Celery task and staff trigger. Per-chapter hashes include actual text, language, rubric and provider versions; resumable jobs account each attempt and reject stale completion. Fake-provider tests cover failures and privacy. See [operation and limits](CHAPTER_ANALYSIS.md). |
 | P1-2 | processor; P1-1 | Store separate current difficulty/summary artifacts and chapter projections, partial coverage, percentile distribution, evidence and editorial override. Source edits invalidate affected analysis. UI shows pending/partial/stale/failed distinctly. |
 | P1-3 | processor; P1-2 | Evaluate a small human-rated EN/DE/UK sample including letters, dialogue, archaic and modern prose. Record model disagreement, coverage and actual cost. First-encounter vocabulary comes from ordered source occurrences. |
 | P2-1 | processor; P1-2 | Explicit modernization source selection, lineage/revision and block-group integrity. Generate one reviewed pilot; preserve source, setting and authorial content. No automatic year threshold. |
@@ -182,7 +182,7 @@ both Angular and Expo. Do not build the public reader in the processor.
 | P5-1 | processor + backend + clients; P2-3 | Evaluate N:M sentence then phrase alignment on demanded pairs; versioned bounded jobs, discontinuous spans, uncertainty fallback and Unicode-safe rendering. No all-pairs catalogue generation. |
 | P5-2 | processor + infra | Audited source/media retention, derivative invalidation, operational budgets and production routing; coordinated separate infra commit. Audio and quizzes remain optional follow-on pilots. |
 
-Suggested next session: P1-1, followed by P1-2. In parallel product planning,
+Suggested next session: P1-2 (chapter/book projections and separate artifacts). In parallel product planning,
 P0-2 then P3-1 delivers the first public reading surface without waiting for
 adaptation, phrase coloring or every enrichment.
 

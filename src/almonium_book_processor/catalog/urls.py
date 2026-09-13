@@ -13,6 +13,11 @@ urlpatterns = [
     path("editions/<uuid:edition_id>/", views.edition_detail, name="edition-detail"),
     path("editions/<uuid:edition_id>/reader/", views.edition_reader, name="edition-reader"),
     path(
+        "editions/<uuid:edition_id>/chapter-analysis/queue/",
+        views.queue_chapter_analysis,
+        name="queue-chapter-analysis",
+    ),
+    path(
         "editions/<uuid:edition_id>/metadata/confirm/",
         views.confirm_edition_metadata,
         name="confirm-edition-metadata",

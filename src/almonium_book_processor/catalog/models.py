@@ -473,6 +473,7 @@ class PipelineRun(TimestampedModel):
     class Stage(models.TextChoices):
         INGEST = "ingest", "Source ingestion"
         METADATA = "metadata", "Metadata detection"
+        CHAPTER_ANALYSIS = "chapter_analysis", "Chapter analysis"
         SENTENCES = "sentences", "Sentence splitting"
         ALIGN = "align", "Alignment"
         LEXICAL = "lexical", "Lexical analysis"

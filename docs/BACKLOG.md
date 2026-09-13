@@ -7,6 +7,10 @@ The current implementation sequence and acceptance criteria are in
 Use its P0–P5 tickets for new sessions. The sections below retain historical
 calibration details; their original ordering is superseded by that plan.
 
+P1-1 is implemented: staff-triggered, resumable chapter analysis with bounded
+requests and versioned window results. See [Chapter analysis](CHAPTER_ANALYSIS.md)
+for operation and limits. Next: P1-2 chapter/book projections and artifacts.
+
 This backlog records the gap between the executable service and the longer
 pipeline roadmap. The order is deliberate: make deterministic local processing
 observable and reviewable before adding paid AI stages.

@@ -278,7 +278,9 @@ def cancel_translation(edition: Edition) -> Edition:
 
                 OpenAIBatchProvider().cancel(run.provider_request_id)
             except Exception:
-                logger.exception("Could not cancel batch %s at the provider", run.provider_request_id)
+                logger.exception(
+                    "Could not cancel batch %s at the provider", run.provider_request_id
+                )
         run.status = AIRun.Status.FAILED
         run.error = "Cancelled by operator"
         run.finished_at = now

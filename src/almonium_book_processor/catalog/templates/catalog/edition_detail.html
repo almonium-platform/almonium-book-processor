@@ -88,7 +88,7 @@
 <section class="panel enrichment-panel">
   <p class="eyebrow">Enrichment</p>
   <h2>Derived data for this edition</h2>
-  <p class="muted">Both are independent, versioned artifacts. Neither blocks reading or publication, and neither changes book text on its own.</p>
+  <p class="muted">Enrichments are versioned independently. They do not block reading or publication and do not change book text on their own.</p>
   <div class="action-list">
     <div class="action-row">
       <div>
@@ -104,7 +104,36 @@
       </div>
       <form method="post" action="{% url 'catalog:queue-lexical-analysis' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Analyse</button></form>
     </div>
+    {% if not is_private %}
+    <div class="action-row">
+      <div>
+        <strong>Analyze chapters with AI</strong>
+        <p class="muted">Paid analysis of reading difficulty, historical language and summaries. Long chapters are assessed in separate windows. Retries reuse completed results. Estimates are proposals; your editorial CEFR level stays unchanged.</p>
+      </div>
+      {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-chapter-analysis' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Analyze / resume</button></form>{% else %}<p class="muted">Configure an OpenAI key to enable chapter analysis.</p>{% endif %}
+    </div>
+    {% endif %}
   </div>
+</section>
+{% endif %}
+
+{% if chapter_analysis_run %}
+<section class="panel">
+  <p class="eyebrow">Chapter analysis</p>
+  <h2>{% if chapter_analysis_stale %}Stale — text or analysis configuration changed{% else %}{{ chapter_analysis_run.get_status_display }}{% endif %}</h2>
+  <p>{{ chapter_analysis_run.summary.completed_windows }} / {{ chapter_analysis_run.summary.windows }} windows completed across {{ chapter_analysis_run.summary.chapters }} chapters.</p>
+  <p class="muted">{{ chapter_analysis_run.summary.spec.model }} · {{ chapter_analysis_run.processor_version }}. Window estimates are not yet aggregated into chapter or book levels. Confidence is a model judgment, not calibrated accuracy.</p>
+  {% if chapter_analysis_run.error %}<p>{{ chapter_analysis_run.error }}</p>{% endif %}
+  {% for result in chapter_analysis_results %}
+  <details>
+    <summary>Chapter {{ result.request_payload.window.chapter_sequence }} — {{ result.request_payload.window.chapter_title }} · window {{ result.request_payload.window.window }} / {{ result.request_payload.window.window_count }} · estimated {{ result.response_payload.analysis.cefr_estimate }}</summary>
+    <p>{{ result.response_payload.analysis.spoiler_free_description }}</p>
+    <p>Archaism rating: {{ result.response_payload.analysis.archaism_score }} / 1 · Modernization may help: {{ result.response_payload.analysis.modernisation_would_help|yesno:"yes,no" }}</p>
+    <ul>{% for evidence in result.response_payload.analysis.evidence %}<li><code>{{ evidence.block_id }}</code> “{{ evidence.quote }}” — {{ evidence.explanation }}</li>{% endfor %}</ul>
+    {% if result.response_payload.analysis.hard_words %}<p>Vocabulary candidates: {% for word in result.response_payload.analysis.hard_words %}{{ word.surface }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+    <details><summary>Show recap (spoilers)</summary><p>{{ result.response_payload.analysis.recap }}</p></details>
+  </details>
+  {% endfor %}
 </section>
 {% endif %}
 
