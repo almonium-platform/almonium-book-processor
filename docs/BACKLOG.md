@@ -9,7 +9,9 @@ calibration details; their original ordering is superseded by that plan.
 
 P1-1 is implemented: staff-triggered, resumable chapter analysis with bounded
 requests and versioned window results. See [Chapter analysis](CHAPTER_ANALYSIS.md)
-for operation and limits. Next: P1-2 chapter/book projections and artifacts.
+for operation and limits. P1-2 is also implemented: independently versioned chapter
+artifacts, provisional book aggregation, coverage and free projection refresh.
+Next: P1-3 calibration and corpus-derived first-encounter vocabulary.
 
 This backlog records the gap between the executable service and the longer
 pipeline roadmap. The order is deliberate: make deterministic local processing

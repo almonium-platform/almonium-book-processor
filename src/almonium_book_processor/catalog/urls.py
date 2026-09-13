@@ -5,6 +5,16 @@ from almonium_book_processor.catalog import views
 app_name = "catalog"
 
 urlpatterns = [
+    path(
+        "editions/<uuid:edition_id>/chapter-analysis/project/",
+        views.refresh_chapter_projections,
+        name="refresh-chapter-projections",
+    ),
+    path(
+        "editions/<uuid:edition_id>/chapters/<uuid:chapter_id>/analysis-role/",
+        views.update_chapter_role,
+        name="update-chapter-role",
+    ),
     path("", views.dashboard, name="dashboard"),
     path("imports/private/", views.private_imports, name="private-imports"),
     path("removed/", views.removed_books, name="removed-books"),

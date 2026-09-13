@@ -241,10 +241,21 @@ class Edition(TimestampedModel):
 
 
 class Chapter(TimestampedModel):
+    class AnalysisRole(models.TextChoices):
+        BODY = "body", "Substantive chapter"
+        FRONT = "front", "Front matter"
+        BACK = "back", "Back matter"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     edition = models.ForeignKey(Edition, related_name="chapters", on_delete=models.CASCADE)
     sequence = models.PositiveIntegerField()
     title = models.CharField(max_length=500, blank=True)
+    analysis_role = models.CharField(
+        max_length=10,
+        choices=AnalysisRole.choices,
+        default=AnalysisRole.BODY,
+        help_text="Only substantive chapters contribute to the book difficulty estimate.",
+    )
 
     class Meta:
         ordering = ["edition", "sequence"]
@@ -552,6 +563,13 @@ class EditionArtifact(TimestampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     edition = models.ForeignKey(Edition, related_name="artifacts", on_delete=models.CASCADE)
+    chapter = models.ForeignKey(
+        Chapter,
+        related_name="artifacts",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
     pipeline_run = models.ForeignKey(
         PipelineRun,
         related_name="artifacts",

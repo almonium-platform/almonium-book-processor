@@ -357,6 +357,8 @@ def confirm_metadata(
                 "updated_at",
             ]
         )
+        if language_changed:
+            edition.artifacts.filter(is_current=True).update(is_current=False)
     return language_changed
 
 

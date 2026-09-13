@@ -117,12 +117,41 @@
 </section>
 {% endif %}
 
+{% if not is_private and has_blocks %}
+<section class="panel">
+  <p class="eyebrow">Reading difficulty · {{ projection_state|default:"pending" }}</p>
+  <h2>Computed estimate: {{ book_difficulty.cefr_estimate|default:"Pending" }}</h2>
+  <p>Editorial level: {{ edition.cefr_level|default:"Not set" }}. Analysis never overwrites this value.</p>
+  {% if chapter_analysis_run %}<form method="post" action="{% url 'catalog:refresh-chapter-projections' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Refresh saved assessments (no AI calls)</button></form>{% endif %}
+  {% if projection_state == "stale" %}<p>Previous assessments are stale. Analyze the current text, or refresh saved assessments after changing chapter roles.</p>{% endif %}
+  {% if book_difficulty %}
+  <p>{{ book_difficulty.chapters_completed }} / {{ book_difficulty.chapters_total }} substantive chapters complete · {{ book_difficulty.chapters_excluded }} front/back-matter chapters excluded. {% if not book_difficulty.chapters_total %}<strong>No substantive chapters selected.</strong>{% elif not book_difficulty.complete %}<strong>Partial coverage: this is a provisional estimate.</strong>{% endif %}</p>
+  <p>{{ book_difficulty.whitespace_tokens_analyzed }} / {{ book_difficulty.whitespace_tokens_total }} whitespace tokens assessed. These counts are not NLP vocabulary measurements.</p>
+  {% if book_difficulty.cefr_estimate %}
+  <p>Range: {{ book_difficulty.min_level }}–{{ book_difficulty.max_level }} · whitespace-token-weighted comparison: {{ book_difficulty.weighted_comparison }}.</p>
+  <p>Chapter distribution: {% for level, count in book_difficulty.distribution.items %}{{ level }}: {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>
+  <p class="muted">Nearest-rank 75th percentile of complete substantive chapters. Model confidence range {{ book_difficulty.confidence_min }}–{{ book_difficulty.confidence_max }} is not calibrated book accuracy.</p>
+  {% endif %}
+  {% for row in chapter_projections %}
+  <details>
+    <summary>Chapter {{ row.chapter.sequence }} — {{ row.chapter.title }} · {{ row.difficulty.cefr_estimate|default:"Pending" }}{% if not row.difficulty.complete %} (partial){% endif %} · {{ row.difficulty.windows_completed }}/{{ row.difficulty.windows_total }} windows</summary>
+    <form method="post" action="{% url 'catalog:update-chapter-role' edition.id row.chapter.id %}">{% csrf_token %}<label>Contribution to book estimate <select name="analysis_role">{% for value, label in chapter_role_choices %}<option value="{{ value }}"{% if row.chapter.analysis_role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><button class="button button-secondary" type="submit">Save chapter role</button></form>
+    {% if row.difficulty.cefr_estimate %}<p>Window range: {{ row.difficulty.min_level }}–{{ row.difficulty.max_level }} · archaism rating: {{ row.difficulty.archaism_score }} / 1.</p>{% endif %}
+    {% for section in row.summary.sections %}<p><strong>Window {{ section.window }}</strong> {{ section.spoiler_free_description }}</p>{% endfor %}
+    <details><summary>Show chapter recap (spoilers)</summary>{% for section in row.summary.sections %}<p><strong>Window {{ section.window }}</strong> {{ section.recap }}</p>{% endfor %}</details>
+    <p class="muted">Multi-window summaries remain ordered sections; no additional AI call merges them.</p>
+  </details>
+  {% endfor %}
+  {% endif %}
+</section>
+{% endif %}
+
 {% if chapter_analysis_run %}
 <section class="panel">
   <p class="eyebrow">Chapter analysis</p>
   <h2>{% if chapter_analysis_stale %}Stale — text or analysis configuration changed{% else %}{{ chapter_analysis_run.get_status_display }}{% endif %}</h2>
   <p>{{ chapter_analysis_run.summary.completed_windows }} / {{ chapter_analysis_run.summary.windows }} windows completed across {{ chapter_analysis_run.summary.chapters }} chapters.</p>
-  <p class="muted">{{ chapter_analysis_run.summary.spec.model }} · {{ chapter_analysis_run.processor_version }}. Window estimates are not yet aggregated into chapter or book levels. Confidence is a model judgment, not calibrated accuracy.</p>
+  <p class="muted">{{ chapter_analysis_run.summary.spec.model }} · {{ chapter_analysis_run.processor_version }}. Window evidence supports the computed chapter and book estimates above. Confidence is a model judgment, not calibrated accuracy.</p>
   {% if chapter_analysis_run.error %}<p>{{ chapter_analysis_run.error }}</p>{% endif %}
   {% for result in chapter_analysis_results %}
   <details>

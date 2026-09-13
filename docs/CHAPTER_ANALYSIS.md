@@ -1,4 +1,4 @@
-# Chapter analysis: first implementation (P1-1)
+# Chapter analysis and projections (P1-1 / P1-2)
 
 From a public edition's staff page, use **Analyze / resume** under Enrichment.
 This queues paid AI work; HTTP does not wait for a provider. No analysis is
@@ -9,7 +9,7 @@ entitlement and budget policy is implemented.
 The worker assesses reading demand, archaism and modernization usefulness,
 source evidence, vocabulary candidates, themes, characters, setting and content
 flags. It keeps a spoiler-free description separate from a recap. The staff page
-shows window estimates and evidence, with recaps collapsed behind a spoiler
+shows book/chapter estimates, coverage and window evidence, with recaps collapsed behind a spoiler
 label. CEFR and archaism are estimates, not certified levels or measured token
 percentages. Existing editorial CEFR, book text and publication status are
 unchanged even when this enrichment fails.
@@ -25,13 +25,67 @@ unchanged even when this enrichment fails.
 - A single oversized block or oversized edition fails before any request is
   queued. Review segmentation or revise the limits with a processor version
   change; text is never silently truncated.
-- Window assessments of long chapters are explicitly partial. Combining them
-  into chapter estimates, separate difficulty/summary artifacts, book-level
-  percentiles and chapter projections is **P1-2**, not implemented here.
+- Window assessments of long chapters feed separate chapter difficulty and
+  summary artifacts. Incomplete chapters show partial estimates and remain
+  excluded from the book percentile until all their windows have succeeded.
 - First-encounter words and lexical measurements are not guessed by this prompt.
   They remain corpus-derived follow-up work. P1-3 evaluates the rubric with real
   EN/DE/UK samples; automated tests use fake responses and do not validate model
   quality.
+
+## Chapter and book projections
+
+`EditionArtifact.chapter` scopes an artifact to a chapter; a null chapter still
+means an edition-level artifact. Each analyzed chapter has independently
+versioned `difficulty` and `chapter_summary` artifacts. Its computed level,
+archaism, confidence range, coverage and source evidence live in the difficulty
+payload rather than a second mutable copy on Chapter. Historical artifacts
+remain available; source/model/projection fingerprints identify current results.
+
+Projection versions are independent: `chapter-difficulty-v1`,
+`chapter-summary-v1`, and `book-difficulty-v1`. Upgrading summary assembly does
+not regenerate difficulty artifacts or require another model request.
+
+The initial aggregation rules are explicitly provisional heuristics:
+
+- A chapter's level is the nearest-rank 75th percentile of its available window
+  levels, weighted by non-whitespace token counts. Partial window coverage is
+  retained and labelled. Archaism is the similarly weighted average rubric
+  rating, not a percentage of archaic words.
+- The book estimate is the unweighted nearest-rank 75th percentile of **complete
+  substantive chapters**. It stores min/max, the full six-band distribution,
+  complete/total chapters and analyzed/total whitespace-token counts. If some
+  chapters remain incomplete, the displayed book estimate is provisional. With
+  no eligible complete chapters there is no computed level.
+- A whitespace-token-weighted book comparison exposes sensitivity to chapter
+  sizes. These simple counts are not spaCy tokens, provider tokens, vocabulary
+  measurements or CEFR classifications; they are especially weak length proxies
+  for writing systems without spaces. P1-3 must evaluate the heuristics before
+  treating them as calibrated reader-facing labels.
+- Confidence is a min/max range of contributing model judgments; there is no
+  average presented as book accuracy.
+- Summaries retain ordered window sections, with spoiler-free descriptions
+  separate from recaps. There is no extra AI merge call and no claim that a
+  concatenated multi-window recap is a newly edited chapter summary.
+
+Chapters default to **Substantive chapter**. Staff can explicitly label front or
+back matter in each chapter's assessment or Django admin. There is no guessed
+exclusion based on chapter size or title. These roles affect only book
+aggregation, not the paid analysis hash. Empty chapters do not contribute.
+After changing roles, use **Refresh saved assessments (no AI calls)** to update
+the book projection. This action also backfills artifacts for P1-1 runs and
+works without an API key. Completed analysis can be refreshed repeatedly
+without duplicating artifacts or spend.
+
+The worker projects after each successful window, so a later failed request
+leaves partial results and explicit coverage. The staff UI distinguishes pending,
+queued/running, partial, complete, stale, failed and no-substantive-chapters
+states. Source edits and language changes invalidate artifacts; rendering also
+checks current content, model and chapter-role fingerprints. A late old-model
+completion may add historical results but cannot replace current projections.
+Editorial `Edition.cefr_level` remains separate and is never automatically
+prefilled, cleared or overwritten by the projections. Product API publication
+of these artifacts is separate contract work (P0-2).
 
 ## Configuration and audit
 
@@ -87,5 +141,7 @@ dispatch failure leaves a visible failed run that the same button can requeue.
 `tests/catalog/test_chapter_analysis.py` exercises full/partial coverage,
 bounded windows, source evidence validation, retry cost retention, model and
 metadata changes, concurrent redelivery, stale input, deletion during a request,
-staff authorization, private-import exclusion and broker failures. No paid
+staff authorization, private-import exclusion, percentile aggregation, front/back
+matter exclusion, partial chapter coverage, independent projection versions,
+free backfill and broker failures. No paid
 provider is contacted by these tests.

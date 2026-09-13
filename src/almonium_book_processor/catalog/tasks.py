@@ -89,6 +89,13 @@ def analyze_edition_chapters(self, run_id: str) -> None:
         raise self.retry(exc=error, countdown=30) from error
 
 
+@shared_task(acks_late=True)
+def project_chapter_analysis(run_id: str) -> None:
+    from almonium_book_processor.catalog.chapter_projections import refresh_projections
+
+    refresh_projections(run_id)
+
+
 def _copy_source_to_temporary_file(edition: Edition) -> tuple[Path, str]:
     digest = hashlib.sha256()
     suffix = Path(edition.source_file.name).suffix.lower()

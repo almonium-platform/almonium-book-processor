@@ -1,7 +1,7 @@
 """Resumable chapter analysis. Every provider attempt has its own spend-ledger row.
 
-P1-1 deliberately stores validated window results in AIRun. Chapter projections,
-book aggregation and separate difficulty/summary artifacts belong to P1-2.
+Validated window results live in AIRun; deterministic chapter and book
+projections are separate versioned artifacts.
 """
 
 from __future__ import annotations
@@ -144,6 +144,7 @@ def snapshot(edition: Edition, spec: dict) -> dict:
 
 def queue_analysis(edition_id: str) -> PipelineRun:
     """Snapshot inputs in HTTP; dispatch only after the queued record commits."""
+    from almonium_book_processor.catalog.chapter_projections import enqueue_projection
     from almonium_book_processor.catalog.tasks import analyze_edition_chapters
 
     if not settings.OPENAI_API_KEY:
@@ -172,6 +173,8 @@ def queue_analysis(edition_id: str) -> PipelineRun:
         live = run.status == PipelineRun.Status.RUNNING and (
             run.updated_at > timezone.now() - LEASE_DURATION
         )
+        if run.status == PipelineRun.Status.SUCCEEDED:
+            enqueue_projection(str(run.id))
         if run.status != PipelineRun.Status.SUCCEEDED and not live:
             run.status = PipelineRun.Status.QUEUED
             run.error = ""
@@ -314,13 +317,17 @@ def _record_response(ai_run: AIRun, response: dict, spec: dict) -> bool:
 
 
 def _attempt(run: PipelineRun, window: dict, spec: dict, configuration, prompt, provider) -> AIRun:
-    cached = AIRun.objects.filter(
-        edition_id=run.edition_id,
-        input_hash=window["hash"],
-        status=AIRun.Status.SUCCEEDED,
-        prompt_template=prompt,
-        model_configuration=configuration,
-    ).first()
+    cached = (
+        AIRun.objects.filter(
+            edition_id=run.edition_id,
+            input_hash=window["hash"],
+            status=AIRun.Status.SUCCEEDED,
+            prompt_template=prompt,
+            model_configuration=configuration,
+        )
+        .order_by("created_at", "id")
+        .first()
+    )
     if cached:
         return cached
     ai_run = AIRun.objects.create(
@@ -388,6 +395,11 @@ def _attempt(run: PipelineRun, window: dict, spec: dict, configuration, prompt, 
 
 
 def analyze_chapters(run_id: str, *, provider=None) -> None:
+    from almonium_book_processor.catalog.chapter_projections import refresh_projections
+
+    if PipelineRun.objects.filter(id=run_id, status=PipelineRun.Status.SUCCEEDED).exists():
+        refresh_projections(run_id)
+        return
     claimed = _claim(run_id)
     if claimed is None:
         return
@@ -396,6 +408,7 @@ def analyze_chapters(run_id: str, *, provider=None) -> None:
     try:
         plan = _current_plan(run, spec)
         configuration, prompt = _configuration(spec)
+        refresh_projections(run_id, token=token)
         results = []
         for window in plan["windows"]:
             _current_plan(run, spec)
@@ -409,6 +422,7 @@ def analyze_chapters(run_id: str, *, provider=None) -> None:
                 summary=run.summary,
                 progress=int(100 * len(results) / len(plan["windows"])),
             )
+            refresh_projections(run_id, token=token)
         _current_plan(run, spec)
         _update_run(run, token, status=PipelineRun.Status.SUCCEEDED, finished_at=timezone.now())
     except Exception as error:
@@ -437,6 +451,7 @@ def analysis_context(edition: Edition) -> dict:
     context = {
         "chapter_analysis_run": run,
         "chapter_analysis_enabled": bool(settings.OPENAI_API_KEY),
+        "projection_state": "pending",
     }
     if not run:
         return context
@@ -462,4 +477,7 @@ def analysis_context(edition: Edition) -> dict:
             status=AIRun.Status.SUCCEEDED,
         ).order_by("created_at")
     )
+    from almonium_book_processor.catalog.chapter_projections import projection_context
+
+    context.update(projection_context(edition, context))
     return context

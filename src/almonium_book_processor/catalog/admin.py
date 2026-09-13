@@ -114,7 +114,7 @@ class EditionAdmin(admin.ModelAdmin):
 
 @admin.register(Chapter)
 class ChapterAdmin(admin.ModelAdmin):
-    list_display = ("edition", "sequence", "title")
+    list_display = ("edition", "sequence", "title", "analysis_role")
     list_filter = ("edition__language",)
     search_fields = ("edition__title", "title")
     autocomplete_fields = ("edition",)

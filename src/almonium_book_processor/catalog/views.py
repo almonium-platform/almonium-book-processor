@@ -22,6 +22,10 @@ from almonium_book_processor.catalog.ai_translation import (
     last_translation_tier,
 )
 from almonium_book_processor.catalog.chapter_analysis import analysis_context, queue_analysis
+from almonium_book_processor.catalog.chapter_projections import (
+    queue_projection_refresh,
+    set_chapter_role,
+)
 from almonium_book_processor.catalog.forms import (
     EditionMetadataForm,
     EditionPurgeForm,
@@ -40,6 +44,7 @@ from almonium_book_processor.catalog.metadata import (
 from almonium_book_processor.catalog.models import (
     AlignmentGroupReview,
     BlockAlignment,
+    Chapter,
     ChapterAlignment,
     ContentBlock,
     Edition,
@@ -249,12 +254,42 @@ def queue_chapter_analysis(request: HttpRequest, edition_id: str) -> HttpRespons
     else:
         messages.success(
             request,
-            "Current chapter analysis is already complete."
+            "Current chapter analysis is complete; refreshing its projections from saved results."
             if run.status == PipelineRun.Status.SUCCEEDED
             else "Chapter analysis queued. Validated windows are reused on retry. "
             "Reload to see progress and proposals; the editorial level is unchanged.",
         )
     return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def refresh_chapter_projections(request: HttpRequest, edition_id: str) -> HttpResponse:
+    get_object_or_404(Edition, id=edition_id)
+    try:
+        queue_projection_refresh(str(edition_id))
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request, "Projection refresh queued. This uses saved results, with no AI calls."
+        )
+    return redirect("catalog:edition-detail", edition_id=edition_id)
+
+
+@staff_member_required
+@require_POST
+def update_chapter_role(request: HttpRequest, edition_id: str, chapter_id: str) -> HttpResponse:
+    get_object_or_404(Edition, id=edition_id)
+    try:
+        set_chapter_role(str(edition_id), str(chapter_id), request.POST.get("analysis_role", ""))
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request, "Chapter role saved. Refresh projections to update the book estimate."
+        )
+    return redirect("catalog:edition-detail", edition_id=edition_id)
 
 
 @staff_member_required
@@ -331,6 +366,7 @@ def _render_edition_detail(
             "edition": edition,
             "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
             **analysis_context(edition),
+            "chapter_role_choices": Chapter.AnalysisRole.choices,
             "metadata_form": metadata_form or EditionMetadataForm.for_edition(edition),
             "metadata_state": _metadata_state(edition),
             "metadata_provenance": form_provenance(edition),

@@ -20,6 +20,11 @@ from almonium_book_processor.catalog.chapter_analysis import (
     queue_analysis,
     snapshot,
 )
+from almonium_book_processor.catalog.chapter_projections import (
+    percentile,
+    refresh_projections,
+    set_chapter_role,
+)
 from almonium_book_processor.catalog.models import AIRun, Chapter, ContentBlock, Edition, Work
 from almonium_book_processor.catalog.purge import purge_edition
 
@@ -32,6 +37,9 @@ def edition(settings, monkeypatch):
     settings.OPENAI_TRANSLATION_DRAFT_MODEL = "test-analysis-model"
     monkeypatch.setattr(
         "almonium_book_processor.catalog.tasks.analyze_edition_chapters.delay", lambda _: None
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.project_chapter_analysis.delay", lambda _: None
     )
     work = Work.objects.create(slug="analysis", title="A book", author="Author")
     edition = Edition.objects.create(
@@ -134,7 +142,7 @@ def test_full_analysis_is_versioned_reusable_and_does_not_change_editorial_level
     assert run.summary["completed_windows"] == 2
     assert edition.cefr_level == "C1"
     assert edition.status == "ready"
-    assert not edition.artifacts.exists()  # Projections belong to P1-2.
+    assert edition.artifacts.filter(is_current=True).count() == 5
     ai = run.ai_runs.first()
     assert ai.estimated_cost_usd == Decimal("0.000302")
     assert ai.provider_request_id.startswith("response-")
@@ -493,3 +501,323 @@ def test_broker_failure_is_visible_and_same_job_can_be_requeued(
     assert retry.id == run.id
     assert retry.status == "queued"
     assert calls == [str(run.id)]
+
+
+def book_assessment(edition):
+    return edition.artifacts.get(kind="difficulty", chapter__isnull=True, is_current=True)
+
+
+def graded_provider(levels):
+    def grade(response, data):
+        content = response["output"][0]["content"][0]
+        value = json.loads(content["text"])
+        value["cefr_estimate"] = levels[data["chapter_sequence"] - 1]
+        value["confidence"] = 0.4 if data["chapter_sequence"] == 1 else 0.9
+        content["text"] = json.dumps(value)
+
+    return Provider(grade)
+
+
+def test_nearest_rank_percentile_does_not_interpolate_cefr_bands():
+    assert percentile([]) is None
+    assert percentile(["B1"]) == "B1"
+    assert percentile(["B1", "B2", "C1", "C2"]) == "C1"
+    assert percentile(["B1", "B2", "C1", "C2"], [100, 1, 1, 1]) == "B1"
+
+
+def test_book_distribution_and_weighted_comparison_with_editorial_override(edition):
+    for sequence in (3, 4):
+        chapter = Chapter.objects.create(edition=edition, sequence=sequence)
+        ContentBlock.objects.create(
+            edition=edition,
+            chapter=chapter,
+            block_id=f"c{sequence}.p1",
+            sequence=1,
+            block_type="paragraph",
+            text="Ere dawn, the traveler considered the journey.",
+        )
+    edition.blocks.filter(block_id="c1.p1").update(text="Ere dawn. " + "word " * 1000)
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=graded_provider(["B1", "B2", "C1", "C2"]))
+    book = book_assessment(edition).payload
+    assert book["cefr_estimate"] == "C1"
+    assert book["weighted_comparison"] == "B1"
+    assert (book["min_level"], book["max_level"]) == ("B1", "C2")
+    assert book["distribution"] == {"A1": 0, "A2": 0, "B1": 1, "B2": 1, "C1": 1, "C2": 1}
+    assert book["confidence_min"] == 0.4
+    assert book["confidence_max"] == 0.9
+    assert book["chapters_completed"] == book["chapters_total"] == 4
+    edition.refresh_from_db()
+    assert edition.cefr_level == "C1"
+    assert analysis_context(edition)["projection_state"] == "complete"
+
+
+def test_front_matter_exclusion_reuses_chapter_artifacts_and_no_provider(edition):
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=graded_provider(["B1", "C2"]))
+    assert book_assessment(edition).payload["cefr_estimate"] == "C2"
+    chapter_ids = set(
+        edition.artifacts.filter(chapter__isnull=False, is_current=True).values_list(
+            "id", flat=True
+        )
+    )
+    set_chapter_role(str(edition.id), str(edition.chapters.get(sequence=2).id), "front")
+    assert analysis_context(edition)["projection_state"] == "stale"
+    refresh_projections(str(run.id))
+    book = book_assessment(edition).payload
+    assert book["cefr_estimate"] == "B1"
+    assert book["chapters_total"] == book["chapters_completed"] == 1
+    assert book["chapters_excluded"] == 1
+    assert (
+        set(
+            edition.artifacts.filter(chapter__isnull=False, is_current=True).values_list(
+                "id", flat=True
+            )
+        )
+        == chapter_ids
+    )
+    assert edition.ai_runs.count() == 2
+
+
+def test_all_excluded_and_empty_chapters_do_not_invent_a_book_level(edition):
+    Chapter.objects.create(edition=edition, sequence=3, title="Empty chapter")
+    edition.chapters.update(analysis_role="back")
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    book = book_assessment(edition).payload
+    assert book["cefr_estimate"] is None
+    assert book["chapters_total"] == 0
+    assert book["chapters_excluded"] == 2
+    assert analysis_context(edition)["projection_state"] == "empty"
+
+
+def test_partial_failed_run_keeps_complete_chapters_and_coverage(edition):
+    run = queue_analysis(str(edition.id))
+
+    def fail(response, data):
+        if data["chapter_sequence"] == 2:
+            response["status"] = "incomplete"
+
+    with pytest.raises(ValueError):
+        analyze_chapters(str(run.id), provider=Provider(fail))
+    book = book_assessment(edition).payload
+    assert book["chapters_completed"] == 1
+    assert book["chapters_total"] == 2
+    assert not book["complete"]
+    assert book["cefr_estimate"] == "B2"
+    assert book["whitespace_tokens_analyzed"] < book["whitespace_tokens_total"]
+    context = analysis_context(edition)
+    assert context["projection_state"] == "failed"
+    assert len(context["chapter_projections"]) == 2
+    analyze_chapters(str(run.id), provider=Provider())
+    assert analysis_context(edition)["projection_state"] == "complete"
+
+
+def test_partial_chapter_never_counts_as_complete_in_book_percentile(edition):
+    chapter = edition.chapters.first()
+    for sequence in (2, 3):
+        ContentBlock.objects.create(
+            edition=edition,
+            chapter=chapter,
+            block_id=f"c1.p{sequence}",
+            sequence=sequence,
+            block_type="paragraph",
+            text="Ere " * 3000,
+        )
+    run = queue_analysis(str(edition.id))
+
+    def fail(response, data):
+        if data["window"] == 2:
+            response["status"] = "incomplete"
+
+    with pytest.raises(ValueError):
+        analyze_chapters(str(run.id), provider=Provider(fail))
+    book = book_assessment(edition).payload
+    assert book["cefr_estimate"] is None
+    assert book["chapters_completed"] == 0
+    partial = chapter.artifacts.get(kind="difficulty", is_current=True).payload
+    assert partial["cefr_estimate"] == "B2"
+    assert not partial["complete"]
+    assert partial["windows_completed"] == 1
+    analyze_chapters(str(run.id), provider=Provider())
+    summary = chapter.artifacts.get(kind="chapter_summary", is_current=True).payload
+    assert summary["complete"]
+    assert [s["window"] for s in summary["sections"]] == [1, 2]
+
+
+def test_projection_versions_are_independent_and_rebuilds_are_idempotent(edition, monkeypatch):
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    count = edition.artifacts.count()
+    refresh_projections(str(run.id))
+    assert edition.artifacts.count() == count
+    difficulty_ids = set(
+        edition.artifacts.filter(kind="difficulty", is_current=True).values_list("id", flat=True)
+    )
+    summary_ids = set(
+        edition.artifacts.filter(kind="chapter_summary", is_current=True).values_list(
+            "id", flat=True
+        )
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.chapter_projections.SUMMARY_VERSION", "chapter-summary-v2"
+    )
+    refresh_projections(str(run.id))
+    assert (
+        set(
+            edition.artifacts.filter(kind="difficulty", is_current=True).values_list(
+                "id", flat=True
+            )
+        )
+        == difficulty_ids
+    )
+    assert not summary_ids & set(
+        edition.artifacts.filter(kind="chapter_summary", is_current=True).values_list(
+            "id", flat=True
+        )
+    )
+    assert edition.ai_runs.count() == 2
+
+
+def test_completed_pre_projection_run_backfills_without_credentials_or_ai(edition, settings):
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    edition.artifacts.all().delete()
+    settings.OPENAI_API_KEY = ""
+    provider = Provider()
+    analyze_chapters(str(run.id), provider=provider)
+    assert not provider.calls
+    assert book_assessment(edition).payload["complete"]
+
+
+def test_approved_text_edit_invalidates_projection_and_retains_history(edition):
+    from almonium_book_processor.catalog.services import revise_block_text
+
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    previous_book = book_assessment(edition)
+    block = edition.blocks.get(block_id="c1.p1")
+    revise_block_text(
+        edition=edition,
+        block_id=block.id,
+        revised_text="Ere dawn, revised prose.",
+        editor=get_user_model().objects.create_user(username="projection-editor"),
+    )
+    previous_book.refresh_from_db()
+    assert not previous_book.is_current
+    assert analysis_context(edition)["projection_state"] == "stale"
+    with pytest.raises(StaleAnalysis):
+        refresh_projections(str(run.id))
+    assert not edition.artifacts.filter(is_current=True).exists()
+
+
+def test_missing_chapter_artifact_is_stale_instead_of_a_server_error(edition):
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    edition.chapters.first().artifacts.filter(kind="difficulty").delete()
+    context = analysis_context(edition)
+    assert context["projection_state"] == "stale"
+    assert context["book_difficulty"] is None
+
+
+def test_role_is_owner_scoped_and_invalid_choice_is_rejected(edition):
+    other = Edition.objects.create(work=edition.work, slug="other-edition")
+    foreign = Chapter.objects.create(edition=other, sequence=1)
+    with pytest.raises(ValueError, match="does not belong"):
+        set_chapter_role(str(edition.id), str(foreign.id), "front")
+    with pytest.raises(ValueError, match="valid chapter role"):
+        set_chapter_role(str(edition.id), str(edition.chapters.first().id), "invalid")
+
+
+def test_staff_can_queue_free_refresh_and_edit_chapter_role(
+    edition,
+    settings,
+    monkeypatch,
+    django_capture_on_commit_callbacks,
+):
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    settings.OPENAI_API_KEY = ""
+    client = Client()
+    url = reverse("catalog:refresh-chapter-projections", args=[edition.id])
+    assert client.post(url).status_code == 302
+    client.force_login(
+        get_user_model().objects.create_user(username="projection-staff", is_staff=True)
+    )
+    assert client.get(url).status_code == 405
+    calls = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.project_chapter_analysis.delay", calls.append
+    )
+    with django_capture_on_commit_callbacks(execute=True):
+        assert client.post(url).status_code == 302
+    assert calls == [str(run.id)]
+    chapter = edition.chapters.first()
+    role_url = reverse("catalog:update-chapter-role", args=[edition.id, chapter.id])
+    assert client.get(role_url).status_code == 405
+    assert client.post(role_url, {"analysis_role": "front"}).status_code == 302
+    chapter.refresh_from_db()
+    assert chapter.analysis_role == "front"
+    content = client.get(reverse("catalog:edition-detail", args=[edition.id])).content.decode()
+    assert "Previous assessments are stale" in content
+
+
+def test_late_old_model_job_cannot_replace_current_projections(edition, settings):
+    old = queue_analysis(str(edition.id))
+    settings.OPENAI_TRANSLATION_DRAFT_MODEL = "new-analysis-model"
+    current = queue_analysis(str(edition.id))
+    analyze_chapters(str(current.id), provider=graded_provider(["C1", "C2"]))
+    artifact = book_assessment(edition)
+    analyze_chapters(str(old.id), provider=graded_provider(["B1", "B1"]))
+    assert book_assessment(edition).id == artifact.id
+    assert analysis_context(edition)["book_difficulty"]["cefr_estimate"] == "C2"
+
+
+def test_projection_version_change_is_stale_until_free_rebuild(edition, monkeypatch):
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.chapter_projections.DIFFICULTY_VERSION",
+        "chapter-difficulty-v2",
+    )
+    assert analysis_context(edition)["projection_state"] == "stale"
+    refresh_projections(str(run.id))
+    assert analysis_context(edition)["projection_state"] == "complete"
+    assert edition.ai_runs.count() == 2
+
+
+def test_language_edit_invalidates_persisted_projections(edition):
+    from almonium_book_processor.catalog.metadata import confirm_metadata
+
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    confirm_metadata(edition, language="de")
+    assert not edition.artifacts.filter(is_current=True).exists()
+    assert analysis_context(edition)["projection_state"] == "stale"
+
+
+def test_projection_broker_failure_is_reported_without_changing_analysis(
+    edition,
+    monkeypatch,
+    django_capture_on_commit_callbacks,
+):
+    from almonium_book_processor.catalog.chapter_projections import queue_projection_refresh
+
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+
+    def unavailable(_):
+        raise ConnectionError("broker unavailable")
+
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.project_chapter_analysis.delay",
+        unavailable,
+    )
+    with (
+        pytest.raises(ValueError, match="Could not queue the projection"),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        queue_projection_refresh(str(edition.id))
+    run.refresh_from_db()
+    assert run.status == "succeeded"
+    assert book_assessment(edition).payload["complete"]
