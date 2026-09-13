@@ -126,11 +126,11 @@
 {% endif %}
 
 {% if not is_private and has_blocks %}
-<section class="panel">
+<section class="panel assessment-panel">
   <p class="eyebrow">Reading difficulty · {{ projection_state|default:"pending" }}</p>
   <h2>Computed estimate: {{ book_difficulty.cefr_estimate|default:"Pending" }}</h2>
   <p>Editorial level: {{ edition.cefr_level|default:"Not set" }}. Analysis never overwrites this value.</p>
-  {% if chapter_analysis_run %}<form method="post" action="{% url 'catalog:refresh-chapter-projections' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Refresh saved assessments (no AI calls)</button></form>{% endif %}
+  {% if chapter_analysis_run %}<div class="button-row"><form method="post" action="{% url 'catalog:refresh-chapter-projections' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Refresh saved assessments (no AI calls)</button></form></div>{% endif %}
   {% if projection_state == "stale" %}<p>Previous assessments are stale. Analyze the current text, or refresh saved assessments after changing chapter roles.</p>{% endif %}
   {% if book_difficulty %}
   <p>{{ book_difficulty.chapters_completed }} / {{ book_difficulty.chapters_total }} substantive chapters complete · {{ book_difficulty.chapters_excluded }} front/back-matter chapters excluded. {% if not book_difficulty.chapters_total %}<strong>No substantive chapters selected.</strong>{% elif not book_difficulty.complete %}<strong>Partial coverage: this is a provisional estimate.</strong>{% endif %}</p>
@@ -141,12 +141,12 @@
   <p class="muted">Nearest-rank 75th percentile of complete substantive chapters. Model confidence range {{ book_difficulty.confidence_min }}–{{ book_difficulty.confidence_max }} is not calibrated book accuracy.</p>
   {% endif %}
   {% for row in chapter_projections %}
-  <details>
+  <details class="chapter-row">
     <summary>Chapter {{ row.chapter.sequence }} — {{ row.chapter.title }} · {{ row.difficulty.cefr_estimate|default:"Pending" }}{% if not row.difficulty.complete %} (partial){% endif %} · {{ row.difficulty.windows_completed }}/{{ row.difficulty.windows_total }} windows</summary>
-    <form method="post" action="{% url 'catalog:update-chapter-role' edition.id row.chapter.id %}">{% csrf_token %}<label>Contribution to book estimate <select name="analysis_role">{% for value, label in chapter_role_choices %}<option value="{{ value }}"{% if row.chapter.analysis_role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><button class="button button-secondary" type="submit">Save chapter role</button></form>
+    <form class="chapter-role-form" method="post" action="{% url 'catalog:update-chapter-role' edition.id row.chapter.id %}">{% csrf_token %}<label><span>Contribution to book estimate</span><select name="analysis_role">{% for value, label in chapter_role_choices %}<option value="{{ value }}"{% if row.chapter.analysis_role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><button class="button button-secondary" type="submit">Save chapter role</button></form>
     {% if row.difficulty.cefr_estimate %}<p>Window range: {{ row.difficulty.min_level }}–{{ row.difficulty.max_level }} · archaism rating: {{ row.difficulty.archaism_score }} / 1.</p>{% endif %}
     {% for section in row.summary.sections %}<p><strong>Window {{ section.window }}</strong> {{ section.spoiler_free_description }}</p>{% endfor %}
-    <details><summary>Show chapter recap (spoilers)</summary>{% for section in row.summary.sections %}<p><strong>Window {{ section.window }}</strong> {{ section.recap }}</p>{% endfor %}</details>
+    <details class="spoiler"><summary>Show chapter recap (spoilers)</summary>{% for section in row.summary.sections %}<p><strong>Window {{ section.window }}</strong> {{ section.recap }}</p>{% endfor %}</details>
     <p class="muted">Multi-window summaries remain ordered sections; no additional AI call merges them.</p>
   </details>
   {% endfor %}
@@ -155,21 +155,21 @@
 {% endif %}
 
 {% if chapter_analysis_run %}
-<section class="panel">
+<section class="panel assessment-panel">
   <p class="eyebrow">Chapter analysis</p>
   <h2>{% if chapter_analysis_stale %}Stale — text or analysis configuration changed{% else %}{{ chapter_analysis_run.get_status_display }}{% endif %}</h2>
   <p>{{ chapter_analysis_run.summary.completed_windows }} / {{ chapter_analysis_run.summary.windows }} windows completed across {{ chapter_analysis_run.summary.chapters }} chapters.</p>
   <p class="muted">{{ chapter_analysis_run.summary.spec.model }} · {{ chapter_analysis_run.processor_version }}. Window evidence supports the computed chapter and book estimates above. Confidence is a model judgment, not calibrated accuracy.</p>
   {% if chapter_analysis_run.error %}<p>{{ chapter_analysis_run.error }}</p>{% endif %}
   {% for result in chapter_analysis_results %}
-  <details>
+  <details class="chapter-row">
     <summary>Chapter {{ result.request_payload.window.chapter_sequence }} — {{ result.request_payload.window.chapter_title }} · window {{ result.request_payload.window.window }} / {{ result.request_payload.window.window_count }} · estimated {{ result.response_payload.analysis.cefr_estimate }}</summary>
     <p>{{ result.response_payload.analysis.spoiler_free_description }}</p>
     <p>Archaism rating: {{ result.response_payload.analysis.archaism_score }} / 1 · Modernization may help: {{ result.response_payload.analysis.modernisation_would_help|yesno:"yes,no" }}</p>
     <ul>{% for evidence in result.response_payload.analysis.evidence %}<li><code>{{ evidence.block_id }}</code> “{{ evidence.quote }}” — {{ evidence.explanation }}</li>{% endfor %}</ul>
     {% if result.response_payload.analysis.hard_words %}<p>Vocabulary candidates: {% for word in result.response_payload.analysis.hard_words %}{{ word.surface }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
     {% if result.response_payload.validation_notes %}<p class="muted">Validation: {{ result.response_payload.validation_notes|join:" " }}</p>{% endif %}
-    <details><summary>Show recap (spoilers)</summary><p>{{ result.response_payload.analysis.recap }}</p></details>
+    <details class="spoiler"><summary>Show recap (spoilers)</summary><p>{{ result.response_payload.analysis.recap }}</p></details>
   </details>
   {% endfor %}
 </section>

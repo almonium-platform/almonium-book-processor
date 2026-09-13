@@ -136,6 +136,21 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .action-row form { flex: none; }
 @media (max-width: 720px) { .action-row { flex-direction: column; gap: .8rem; } }
 
+/* Per-chapter reading-difficulty and AI-analysis rows */
+.assessment-panel > .button-row { margin: 1rem 0; }
+.assessment-panel > p + .chapter-row { margin-top: 1rem; }
+.chapter-row { border-top: 1px solid var(--line); padding: .7rem 0; }
+.chapter-row:last-child { padding-bottom: 0; }
+.chapter-row > summary { cursor: pointer; font-weight: 700; }
+.chapter-row[open] > summary { margin-bottom: .8rem; }
+.chapter-row p, .chapter-row ul { margin: .6rem 0; line-height: 1.5; }
+.chapter-row li { margin: .3rem 0; }
+.chapter-role-form { display: flex; flex-wrap: wrap; align-items: end; gap: .8rem; margin: 0 0 1rem; padding: .9rem 1rem; border: 1px dashed var(--line); border-radius: 12px; }
+.chapter-role-form label { display: grid; gap: .4rem; font-size: .82rem; font-weight: 700; }
+.chapter-role-form select { width: auto; min-width: 16rem; }
+.spoiler { margin: .6rem 0; }
+.spoiler > summary { cursor: pointer; color: var(--accent); font-size: .85rem; font-weight: 700; }
+
 /* Full-text reader with in-place block correction */
 .reader-search { display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: end; }
 .reader-search label { display: grid; gap: .4rem; font-size: .82rem; font-weight: 700; }
