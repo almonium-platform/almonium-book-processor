@@ -59,6 +59,33 @@ def test_check_passes_for_a_model_with_a_lemmatizer(monkeypatch) -> None:
     assert check_spacy_models(None) == []
 
 
+def test_check_accepts_pipelines_whose_lemmas_come_from_elsewhere(monkeypatch) -> None:
+    """Japanese lemmas come from the tokenizer; Chinese words do not inflect."""
+
+    monkeypatch.setattr(
+        "django.conf.settings.NLP_SPACY_MODELS",
+        {"ja": "ja_core_news_sm", "zh": "zh_core_web_sm", "sv": "sv_core_news_sm"},
+        raising=False,
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "spacy",
+        _fake_spacy(
+            {
+                "ja_core_news_sm": FakePipeline(["tok2vec", "morphologizer", "parser"]),
+                "zh_core_web_sm": FakePipeline(["tok2vec", "tagger", "parser"]),
+                "sv_core_news_sm": FakePipeline(["tok2vec", "tagger", "parser"]),
+            }
+        ),
+    )
+
+    messages = check_spacy_models(None)
+
+    assert [(message.id, message.msg.split(" ")[3]) for message in messages] == [
+        ("processing.E002", "'sv_core_news_sm'")
+    ]
+
+
 def test_check_says_so_when_the_worker_stack_is_absent(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "spacy", None)
 

@@ -11,7 +11,7 @@ from typing import Any
 from django.conf import settings
 
 LEXICAL_SCHEMA_VERSION = 1
-LEXICAL_PROCESSOR_VERSION = "lexical-v1"
+LEXICAL_PROCESSOR_VERSION = "lexical-v2"
 USEFUL_WORD_LIMIT = 50
 
 # Everyday vocabulary a learner already has; the gate and the band label it
@@ -24,6 +24,24 @@ OBSCURE_ZIPF = 2.5
 # A fallback lemma this much rarer than the surface it came from is mangled
 # (simplemma turns the English "gone" into "gan"), not a lemma worth keeping.
 MAX_FALLBACK_LEMMA_FREQUENCY_DROP = 1.0
+
+# Registry codes that wordfreq and simplemma know under another name. Passing
+# the registry code makes wordfreq guess (and say so on stderr) and simplemma
+# refuse, so the alias is resolved here rather than at each lookup.
+WORDFREQ_LANGUAGES = {"hr": "sh", "no": "nb"}
+SIMPLEMMA_LANGUAGES = {"hr": "hbs", "no": "nb"}
+
+# Chinese does not inflect: the surface form is the headword, and neither the
+# spaCy pipeline nor simplemma has a lemma to offer, so none is asked for.
+UNINFLECTED_LANGUAGES = frozenset({"zh"})
+
+# Japanese lemmas come from the SudachiPy tokenizer, not a lemmatizer pipe.
+TOKENIZER_LEMMA_LANGUAGES = frozenset({"ja"})
+
+# ko_core_news_sm lemmatizes into morphemes ("바라보+았+다"); the headword a
+# dictionary lists is the stem, with 다 restored for a verb or adjective.
+KOREAN_MORPHEME_SEPARATOR = "+"
+KOREAN_PREDICATE_POS = frozenset({"VERB", "ADJ", "AUX"})
 
 
 class LexicalModelUnavailable(RuntimeError):
@@ -78,7 +96,7 @@ def _word_frequency(word: str, language: str) -> float:
     except ImportError as error:
         message = "Install the worker dependency group to analyze word frequency"
         raise RuntimeError(message) from error
-    return float(zipf_frequency(word, language))
+    return float(zipf_frequency(word, WORDFREQ_LANGUAGES.get(language, language)))
 
 
 def _context(text: str, start: int, end: int, radius: int = 90) -> str:
@@ -109,9 +127,19 @@ def _fallback_lemma(word: str, language: str) -> str:
         message = "Install the worker dependency group to lemmatize vocabulary"
         raise RuntimeError(message) from error
     try:
-        return simplemma.lemmatize(word, lang=language)
+        return simplemma.lemmatize(word, lang=SIMPLEMMA_LANGUAGES.get(language, language))
     except ValueError:
         return word
+
+
+def _headword(text: str) -> str:
+    """Lowercase a lemma without folding letters away.
+
+    casefold() rewrites German ß as "ss" and Greek final ς as σ, producing a
+    spelling no dictionary lists; lower() keeps the word the reader will find.
+    """
+
+    return text.lower().strip()
 
 
 def _lemma(
@@ -123,17 +151,28 @@ def _lemma(
 ) -> str:
     """Lemmatize a token, distrusting the fallback when it invents a rare word."""
 
-    surface = token.text.casefold().strip()
+    surface = _headword(token.text)
+    if language in UNINFLECTED_LANGUAGES:
+        return surface
+    if language == "ko":
+        return _korean_headword(token) or surface
     if token.lemma_:
-        return token.lemma_.casefold().strip() or surface
+        return _headword(token.lemma_) or surface
 
-    candidate = fallback_lemmatizer(token.text, language).casefold().strip()
+    candidate = _headword(fallback_lemmatizer(token.text, language))
     if not candidate or candidate == surface:
         return surface
     drop = frequency_lookup(surface, language) - frequency_lookup(candidate, language)
     if drop > MAX_FALLBACK_LEMMA_FREQUENCY_DROP:
         return surface
     return candidate
+
+
+def _korean_headword(token: Any) -> str:
+    stem, separator, _ = token.lemma_.strip().partition(KOREAN_MORPHEME_SEPARATOR)
+    if separator and stem and token.pos_ in KOREAN_PREDICATE_POS:
+        return stem + "다"
+    return stem
 
 
 def _looks_like_proper_name(text: str, token: Any, language: str) -> bool:
@@ -220,7 +259,7 @@ def analyze_lexicon(
     frequencies = {
         lemma: max(
             lemma_frequencies[lemma],
-            *(frequency_lookup(surface.casefold(), language) for surface in surfaces[lemma]),
+            *(frequency_lookup(surface.lower(), language) for surface in surfaces[lemma]),
         )
         for lemma in counts
     }

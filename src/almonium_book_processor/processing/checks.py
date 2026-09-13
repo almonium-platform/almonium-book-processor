@@ -13,7 +13,16 @@ from typing import Any
 from django.conf import settings
 from django.core.checks import CheckMessage, Error, Info, register
 
+from almonium_book_processor.processing.lexical import (
+    TOKENIZER_LEMMA_LANGUAGES,
+    UNINFLECTED_LANGUAGES,
+)
+
 LEMMATIZER_PIPES = {"lemmatizer", "trainable_lemmatizer"}
+
+# Languages whose lemmas legitimately come from outside a lemmatizer pipe: the
+# lexical stage takes them from the tokenizer or from the surface form itself.
+LEMMATIZER_OPTIONAL_LANGUAGES = TOKENIZER_LEMMA_LANGUAGES | UNINFLECTED_LANGUAGES
 
 
 @register("nlp")
@@ -41,6 +50,8 @@ def check_spacy_models(app_configs: Any, **kwargs: Any) -> list[CheckMessage]:
                     id="processing.E001",
                 )
             )
+            continue
+        if language in LEMMATIZER_OPTIONAL_LANGUAGES:
             continue
         if not LEMMATIZER_PIPES & set(pipeline.pipe_names):
             messages.append(

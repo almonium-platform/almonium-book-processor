@@ -31,8 +31,11 @@ LANGUAGES = (
     LanguageDefinition("hu", "Hungarian", ("hun",)),
     LanguageDefinition("is", "Icelandic", ("isl", "ice")),
     LanguageDefinition("it", "Italian", ("ita",)),
+    LanguageDefinition("ja", "Japanese", ("jpn",)),
+    LanguageDefinition("ko", "Korean", ("kor",)),
     LanguageDefinition("lt", "Lithuanian"),
     LanguageDefinition("lv", "Latvian"),
+    LanguageDefinition("mk", "Macedonian", ("mkd", "mac")),
     LanguageDefinition("mt", "Maltese"),
     LanguageDefinition("nl", "Dutch", ("nld", "dut")),
     LanguageDefinition("no", "Norwegian", ("nor", "nb", "nn")),
@@ -46,6 +49,7 @@ LANGUAGES = (
     LanguageDefinition("sv", "Swedish", ("swe",)),
     LanguageDefinition("tr", "Turkish", ("tur",)),
     LanguageDefinition("uk", "Ukrainian", ("ukr",)),
+    LanguageDefinition("zh", "Chinese", ("zho", "chi", "cmn")),
 )
 
 LANGUAGE_CHOICES = tuple(

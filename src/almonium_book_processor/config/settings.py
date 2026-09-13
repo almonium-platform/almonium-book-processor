@@ -125,11 +125,39 @@ CELERY_TASK_SOFT_TIME_LIMIT = int(os.getenv("CELERY_TASK_SOFT_TIME_LIMIT", "6900
 CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_TASK_ALWAYS_EAGER", False)
 CELERY_TASK_EAGER_PROPAGATES = True
 
+# One pretrained spaCy pipeline for every language spaCy ships one for, keyed
+# by the registry code (Norwegian is "no" here and Bokmål "nb" in spaCy). Each
+# is pinned in the worker extra; NLP_SPACY_MODEL_<CODE> swaps a model's size,
+# not its language. A language absent here cannot have its vocabulary analyzed.
+_SPACY_DEFAULT_MODELS = {
+    "ca": "ca_core_news_sm",
+    "da": "da_core_news_sm",
+    "de": "de_core_news_sm",
+    "el": "el_core_news_sm",
+    "en": "en_core_web_sm",
+    "es": "es_core_news_sm",
+    "fi": "fi_core_news_sm",
+    "fr": "fr_core_news_sm",
+    "hr": "hr_core_news_sm",
+    "it": "it_core_news_sm",
+    "ja": "ja_core_news_sm",
+    "ko": "ko_core_news_sm",
+    "lt": "lt_core_news_sm",
+    "mk": "mk_core_news_sm",
+    "nl": "nl_core_news_sm",
+    "no": "nb_core_news_sm",
+    "pl": "pl_core_news_sm",
+    "pt": "pt_core_news_sm",
+    "ro": "ro_core_news_sm",
+    "ru": "ru_core_news_sm",
+    "sl": "sl_core_news_sm",
+    "sv": "sv_core_news_sm",
+    "uk": "uk_core_news_sm",
+    "zh": "zh_core_web_sm",
+}
 NLP_SPACY_MODELS = {
-    "en": os.getenv("NLP_SPACY_MODEL_EN", "en_core_web_sm"),
-    "de": os.getenv("NLP_SPACY_MODEL_DE", "de_core_news_sm"),
-    "fr": os.getenv("NLP_SPACY_MODEL_FR", "fr_core_news_sm"),
-    "uk": os.getenv("NLP_SPACY_MODEL_UK", "uk_core_news_sm"),
+    language: os.getenv(f"NLP_SPACY_MODEL_{language.upper()}", model)
+    for language, model in _SPACY_DEFAULT_MODELS.items()
 }
 NLP_EMBEDDING_MODEL = os.getenv(
     "NLP_EMBEDDING_MODEL",

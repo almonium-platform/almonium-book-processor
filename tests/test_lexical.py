@@ -147,6 +147,92 @@ def test_a_plausible_fallback_lemma_is_kept(monkeypatch) -> None:
     assert [item["lemma"] for item in useful["words"]] == ["freeze"]
 
 
+class TaggedPipeline(FakePipeline):
+    """A pipeline whose lemma and part of speech are set per surface form."""
+
+    def __init__(self, tokens: dict[str, tuple[str, str]]) -> None:
+        self.tokens = tokens
+
+    def __call__(self, text: str):
+        tokens = super().__call__(text)
+        for token in tokens:
+            token.lemma_, token.pos_ = self.tokens.get(token.text, (token.text, "NOUN"))
+        return tokens
+
+
+def test_a_korean_morpheme_lemma_becomes_a_dictionary_headword(monkeypatch) -> None:
+    """ko_core_news_sm says "바라보+았+다"; the reader looks up "바라보다"."""
+
+    monkeypatch.setattr(
+        lexical,
+        "_lexical_pipeline",
+        lambda language: TaggedPipeline(
+            {"바라보았다": ("바라보+았+다", "VERB"), "창문을": ("창문+을", "NOUN")}
+        ),
+    )
+    monkeypatch.setattr(lexical, "lexical_runtime_signature", lambda language: {"test": True})
+
+    _, useful = analyze_lexicon(
+        [
+            LexicalBlock("c1.p1", 1, "창문을 바라보았다"),
+            LexicalBlock("c2.p1", 2, "창문을 바라보았다"),
+        ],
+        "ko",
+        frequency_lookup=lambda word, language: 4.0,
+        fallback_lemmatizer=lambda word, language: pytest.fail("Korean has no simplemma"),
+    )
+
+    assert sorted(item["lemma"] for item in useful["words"]) == ["바라보다", "창문"]
+
+
+def test_chinese_keeps_the_surface_form_without_asking_a_lemmatizer(monkeypatch) -> None:
+    monkeypatch.setattr(
+        lexical, "_lexical_pipeline", lambda language: TaggedPipeline({"水手": ("", "NOUN")})
+    )
+    monkeypatch.setattr(lexical, "lexical_runtime_signature", lambda language: {"test": True})
+
+    _, useful = analyze_lexicon(
+        [LexicalBlock("c1.p1", 1, "水手 等待"), LexicalBlock("c2.p1", 2, "水手 来临")],
+        "zh",
+        frequency_lookup=lambda word, language: 4.0,
+        fallback_lemmatizer=lambda word, language: pytest.fail("Chinese has no lemmatizer"),
+    )
+
+    assert [item["lemma"] for item in useful["words"]] == ["水手"]
+
+
+def test_lowercasing_keeps_letters_a_dictionary_lists() -> None:
+    assert lexical._headword("Straße") == "straße"
+    assert lexical._headword("Ναυτικός") == "ναυτικός"
+
+
+def test_dictionaries_are_asked_in_their_own_language_codes(monkeypatch) -> None:
+    """Registry "no" is "nb" to wordfreq and simplemma; "hr" is "sh" and "hbs"."""
+
+    seen: dict[str, list[str]] = {"wordfreq": [], "simplemma": []}
+
+    class FakeWordfreq:
+        @staticmethod
+        def zipf_frequency(word: str, lang: str) -> float:
+            seen["wordfreq"].append(lang)
+            return 4.0
+
+    class FakeSimplemma:
+        @staticmethod
+        def lemmatize(word: str, lang: str) -> str:
+            seen["simplemma"].append(lang)
+            return word
+
+    monkeypatch.setitem(sys.modules, "wordfreq", FakeWordfreq)
+    monkeypatch.setitem(sys.modules, "simplemma", FakeSimplemma)
+
+    for language in ("no", "hr", "sv"):
+        lexical._word_frequency("hus", language)
+        lexical._fallback_lemma("hus", language)
+
+    assert seen == {"wordfreq": ["nb", "sh", "sv"], "simplemma": ["nb", "hbs", "sv"]}
+
+
 def test_a_missing_model_stops_the_analysis_instead_of_guessing(monkeypatch) -> None:
     class FakeSpacy:
         @staticmethod
