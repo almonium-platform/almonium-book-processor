@@ -204,3 +204,32 @@ class ContentBlockSerializer(serializers.ModelSerializer):
             "source_ref",
             "attributes",
         )
+
+
+class TranslationEstimateSerializer(serializers.Serializer):
+    edition_slug = serializers.SlugField(max_length=180)
+    target_language = serializers.CharField(max_length=35)
+    tier = serializers.ChoiceField(choices=["draft", "quality"], default="quality")
+    mode = serializers.ChoiceField(choices=["batch", "inline"], default="batch")
+
+
+class TranslationJobSerializer(TranslationEstimateSerializer):
+    job_id = serializers.UUIDField()
+    register = serializers.ChoiceField(
+        choices=Edition.LiteraryRegister.choices,
+        default=Edition.LiteraryRegister.CONTEMPORARY,
+    )
+    auto_publish = serializers.BooleanField(default=True)
+
+
+class LibraryIngestSerializer(serializers.Serializer):
+    suggestion_id = serializers.UUIDField()
+    import_id = serializers.UUIDField()
+    owner_id = serializers.UUIDField()
+    title = serializers.CharField(max_length=500)
+    author = serializers.CharField(max_length=300)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+    language = serializers.ChoiceField(choices=LANGUAGE_CHOICES)
+    publication_year = serializers.IntegerField(
+        min_value=1, max_value=9999, required=False, allow_null=True
+    )

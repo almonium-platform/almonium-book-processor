@@ -39,6 +39,7 @@ from almonium_book_processor.catalog.publication import (
 )
 from almonium_book_processor.catalog.purge import purge_edition, removal_blocker
 from almonium_book_processor.catalog.services import persist_artifact
+from almonium_book_processor.catalog.translation_jobs import continue_after_translation
 from almonium_book_processor.ingest.source import ingest_source, source_format
 from almonium_book_processor.processing.lexical import (
     LEXICAL_PROCESSOR_VERSION,
@@ -1173,8 +1174,9 @@ def poll_translation_batch(self, ai_run_id: str) -> None:
         if batch.status == "completed":
             complete_translation_batch(ai_run, provider.output_lines(batch.output_file_id))
             # A parallel edition is aligned by construction, so it only needs the
-            # same enrichment any normalized edition gets.
-            split_edition_sentences.delay(str(ai_run.edition_id))
+            # same enrichment any normalized edition gets; an ordered one also
+            # goes out on its own once the split is current.
+            continue_after_translation(str(ai_run.edition_id))
             analyze_edition_lexicon.delay(str(ai_run.edition_id))
             analyze_edition_source_quality.delay(str(ai_run.edition_id))
             return
@@ -1207,7 +1209,7 @@ def translate_edition_inline(edition_id: str, tier: str = "quality") -> str:
             status=Edition.Status.FAILED, updated_at=timezone.now()
         )
         raise
-    split_edition_sentences.delay(edition_id)
+    continue_after_translation(edition_id)
     analyze_edition_lexicon.delay(edition_id)
     analyze_edition_source_quality.delay(edition_id)
     return str(ai_run.id)

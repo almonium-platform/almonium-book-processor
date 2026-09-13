@@ -161,6 +161,13 @@ class Edition(TimestampedModel):
     source_sha256 = models.CharField(max_length=64, blank=True)
     published_book_id = models.UUIDField(null=True, blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
+    # The product API's own id for the job or suggestion that asked for this
+    # edition. It is the idempotency key of the internal endpoints and rides the
+    # publication payload back, so the API can settle what it started.
+    external_job_id = models.UUIDField(null=True, blank=True, db_index=True)
+    # A translation the product API ordered goes out on its own once it lands
+    # clean; one that needs review still waits for an editor.
+    auto_publish = models.BooleanField(default=False)
     # Withdrawing a published edition is a request Almonium has to confirm
     # before the text may go, so it is not instantaneous and it can fail.
     # Recording it here is the only thing that makes a removal visible while it

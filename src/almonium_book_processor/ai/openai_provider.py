@@ -102,6 +102,11 @@ class OpenAIBatchProvider:
     def retrieve(self, batch_id: str) -> Any:
         return self.client.batches.retrieve(batch_id)
 
+    def cancel(self, batch_id: str) -> Any:
+        """Ask the Batch service to stop; requests already finished still bill."""
+
+        return self.client.batches.cancel(batch_id)
+
     def output_lines(self, output_file_id: str) -> list[dict[str, Any]]:
         content = self.client.files.content(output_file_id)
         text = content.text if hasattr(content, "text") else content.read().decode()

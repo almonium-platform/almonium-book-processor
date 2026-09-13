@@ -3,6 +3,7 @@ from __future__ import annotations
 import hmac
 import os
 
+from django.http import FileResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import mixins, permissions, status, viewsets
@@ -17,9 +18,12 @@ from almonium_book_processor.api.serializers import (
     ContentBlockSerializer,
     EditionSerializer,
     EditionUploadSerializer,
+    LibraryIngestSerializer,
     PipelineRunSerializer,
     PrivateImportMetadataSerializer,
     PrivateImportSerializer,
+    TranslationEstimateSerializer,
+    TranslationJobSerializer,
 )
 from almonium_book_processor.catalog.metadata import confirm_metadata, metadata_payload
 from almonium_book_processor.catalog.models import (
@@ -30,10 +34,22 @@ from almonium_book_processor.catalog.models import (
     Work,
 )
 from almonium_book_processor.catalog.purge import purge_edition
+from almonium_book_processor.catalog.services import create_library_ingest
 from almonium_book_processor.catalog.spend import ai_spend
 from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
     split_edition_sentences,
+)
+from almonium_book_processor.catalog.translation_jobs import (
+    JobConflict,
+    JobNotFound,
+    cancel_translation,
+    estimate_translation,
+    library_ingest,
+    library_ingest_status,
+    start_translation_job,
+    translation_job,
+    translation_status,
 )
 
 
@@ -153,6 +169,111 @@ class PrivateImportBlocksView(APIView):
             )
         blocks = edition.blocks.select_related("chapter").order_by("chapter__sequence", "sequence")
         return Response(ContentBlockSerializer(blocks, many=True).data)
+
+
+class PrivateImportSourceView(APIView):
+    """The owner's upload, streamed back for a reviewer; ownership is checked first."""
+
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [InternalBooksPermission]
+
+    def get(self, request, import_id):
+        edition = _private_import(import_id, request.query_params.get("owner_id"))
+        if not edition.source_file:
+            raise NotFound("Private import has no source file.")
+        filename = os.path.basename(edition.source_file.name)
+        return FileResponse(edition.source_file.open("rb"), as_attachment=True, filename=filename)
+
+
+class TranslationEstimateView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [InternalBooksPermission]
+
+    def get(self, request):
+        serializer = TranslationEstimateSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        try:
+            return Response(estimate_translation(**serializer.validated_data))
+        except JobNotFound as error:
+            raise NotFound(str(error)) from error
+        except ValueError as error:
+            raise ValidationError({"detail": str(error)}) from error
+
+
+class TranslationJobView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [InternalBooksPermission]
+
+    def post(self, request):
+        serializer = TranslationJobSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            edition, created = start_translation_job(**serializer.validated_data)
+        except JobNotFound as error:
+            raise NotFound(str(error)) from error
+        except ValueError as error:
+            raise ValidationError({"detail": str(error)}) from error
+        return Response(
+            translation_status(edition),
+            status=status.HTTP_202_ACCEPTED if created else status.HTTP_200_OK,
+        )
+
+
+class TranslationJobDetailView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [InternalBooksPermission]
+
+    def get(self, request, edition_id):
+        return Response(translation_status(_translation_job(edition_id)))
+
+
+class TranslationJobCancelView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [InternalBooksPermission]
+
+    def post(self, request, edition_id):
+        edition = _translation_job(edition_id)
+        try:
+            cancel_translation(edition)
+        except JobConflict as error:
+            return Response({"detail": str(error)}, status=status.HTTP_409_CONFLICT)
+        return Response(translation_status(edition))
+
+
+class LibraryIngestView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [InternalBooksPermission]
+
+    def post(self, request):
+        serializer = LibraryIngestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            edition, created = create_library_ingest(**serializer.validated_data)
+        except LookupError as error:
+            raise NotFound(str(error)) from error
+        return Response(
+            library_ingest_status(edition),
+            status=status.HTTP_202_ACCEPTED if created else status.HTTP_200_OK,
+        )
+
+
+class LibraryIngestDetailView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [InternalBooksPermission]
+
+    def get(self, request, edition_id):
+        try:
+            edition = library_ingest(edition_id)
+        except JobNotFound as error:
+            raise NotFound(str(error)) from error
+        return Response(library_ingest_status(edition))
+
+
+def _translation_job(edition_id):
+    try:
+        return translation_job(edition_id)
+    except JobNotFound as error:
+        raise NotFound(str(error)) from error
 
 
 class InternalAiSpendView(APIView):

@@ -4,6 +4,7 @@ import hashlib
 import json
 import uuid
 from collections.abc import Iterable
+from pathlib import Path
 from typing import BinaryIO
 
 from django.contrib.auth.models import AbstractBaseUser
@@ -137,6 +138,55 @@ def create_source_edition(
 
     transaction.on_commit(lambda: process_book_pipeline.delay(str(edition.id)))
     return edition
+
+
+def create_library_ingest(
+    *,
+    suggestion_id: uuid.UUID,
+    import_id: uuid.UUID,
+    owner_id: uuid.UUID,
+    title: str,
+    author: str,
+    description: str = "",
+    language: str = "",
+    publication_year: int | None = None,
+) -> tuple[Edition, bool]:
+    """Seed a public catalogue edition from the file behind a private import.
+
+    The private text is never promoted in place: the owner's copy stays theirs,
+    and the library gets a fresh edition that runs the whole public pipeline and
+    waits for an editor's level, cover, and publication like any upload. The
+    product API's suggestion id keys the call, so a repeat returns the edition
+    it already made.
+    """
+
+    existing = Edition.objects.select_related("work").filter(external_job_id=suggestion_id).first()
+    if existing is not None:
+        return existing, False
+
+    source = (
+        Edition.objects.select_related("work")
+        .filter(id=import_id, work__visibility=Work.Visibility.PRIVATE, work__owner_id=owner_id)
+        .first()
+    )
+    if source is None or not source.source_file:
+        raise LookupError("Private import not found.")
+
+    with source.source_file.open("rb") as stream:
+        copied = File(stream, name=Path(source.source_file.name).name)
+        with transaction.atomic():
+            edition = create_source_edition(
+                source_file=copied,
+                work_title=title,
+                author=author,
+                description=description,
+                original_language=language,
+                publication_year=publication_year,
+                language=language,
+            )
+            edition.external_job_id = suggestion_id
+            edition.save(update_fields=["external_job_id", "updated_at"])
+    return edition, True
 
 
 @transaction.atomic
