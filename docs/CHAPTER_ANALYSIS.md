@@ -21,7 +21,8 @@ unchanged even when this enrichment fails.
   included once; images without text and empty chapters require no request.
 - Each window has at most 24,000 UTF-8 bytes of serialized blocks. Request input
   including chapter metadata is capped at 32,000 bytes, output at 4,096 tokens,
-  and the edition at 128 windows. These are request bounds, not a dollar quota.
+  and the edition at 1,024 windows (roughly 24 MB of text; a 2.3 MB novel such as
+  *Bleak House* needs about 130). These are request bounds, not a dollar quota.
 - A single oversized block or oversized edition fails before any request is
   queued. Review segmentation or revise the limits with a processor version
   change; text is never silently truncated.

@@ -10,10 +10,10 @@ from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
 
 PROMPT_NAME = "chapter-analysis"
 PROMPT_VERSION = 1
-PROCESSOR_VERSION = "chapter-analysis-v1"
+PROCESSOR_VERSION = "chapter-analysis-v2"
 MAX_WINDOW_BYTES = 24_000
 MAX_REQUEST_BYTES = 32_000
-MAX_WINDOWS = 128
+MAX_WINDOWS = 1024
 MAX_OUTPUT_TOKENS = 4096
 
 
