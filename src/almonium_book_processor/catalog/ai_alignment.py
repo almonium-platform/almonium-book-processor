@@ -502,12 +502,12 @@ def _complete_alignment_batch_locked(
                 error=error_text,
             )
     ai_run.status = AIRun.Status.SUCCEEDED
-    ai_run.input_tokens = input_tokens
-    ai_run.cached_input_tokens = cached_tokens
-    ai_run.output_tokens = output_tokens
-    ai_run.reasoning_tokens = reasoning_tokens
-    ai_run.estimated_cost_usd = _estimated_batch_cost(
-        tier, input_tokens, cached_tokens, output_tokens
+    ai_run.add_attempt_usage(
+        input_tokens=input_tokens,
+        cached_input_tokens=cached_tokens,
+        output_tokens=output_tokens,
+        reasoning_tokens=reasoning_tokens,
+        estimated_cost_usd=_estimated_batch_cost(tier, input_tokens, cached_tokens, output_tokens),
     )
     ai_run.response_payload = {
         **ai_run.response_payload,

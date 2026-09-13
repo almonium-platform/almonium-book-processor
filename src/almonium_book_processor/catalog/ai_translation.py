@@ -571,12 +571,14 @@ def _complete_translation_batch_locked(
     for custom_id in sorted(set(manifest) - seen):
         invalid[custom_id] = "Batch output omitted this request"
 
-    ai_run.input_tokens = input_tokens
-    ai_run.cached_input_tokens = cached_tokens
-    ai_run.output_tokens = output_tokens
-    ai_run.reasoning_tokens = reasoning_tokens
-    ai_run.estimated_cost_usd = _estimated_cost(
-        tier, input_tokens, cached_tokens, output_tokens, discounted=discounted
+    ai_run.add_attempt_usage(
+        input_tokens=input_tokens,
+        cached_input_tokens=cached_tokens,
+        output_tokens=output_tokens,
+        reasoning_tokens=reasoning_tokens,
+        estimated_cost_usd=_estimated_cost(
+            tier, input_tokens, cached_tokens, output_tokens, discounted=discounted
+        ),
     )
     ai_run.finished_at = timezone.now()
 

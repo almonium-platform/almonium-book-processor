@@ -193,6 +193,55 @@ def test_missing_block_fails_the_run_without_materializing(monkeypatch) -> None:
     assert edition.blocks.count() == 0
 
 
+def test_a_retried_run_keeps_what_the_failed_attempt_cost(monkeypatch) -> None:
+    source = canonical_edition()
+    edition = create_parallel_translation(
+        source_edition=source,
+        target_language="fr",
+        register="period-faithful",
+        tier="quality",
+    )
+    sink: dict = {}
+    fake_provider(monkeypatch, sink)
+    ai_run = submit_translation_batch(str(edition.id), tier="quality")
+    custom_id = sink["requests"][0]["custom_id"]
+    with pytest.raises(ValueError):
+        complete_translation_batch(
+            ai_run, [output_line(custom_id, [translated("c1.h1", "Chapitre premier")])]
+        )
+    ai_run.refresh_from_db()
+    first_attempt_cost = ai_run.estimated_cost_usd
+    assert ai_run.status == AIRun.Status.FAILED
+    assert first_attempt_cost > 0
+
+    Edition.objects.filter(id=edition.id).update(status=Edition.Status.PROCESSING)
+    retried = submit_translation_batch(str(edition.id), tier="quality")
+    assert retried.id == ai_run.id
+    complete_translation_batch(
+        retried,
+        [
+            output_line(
+                custom_id,
+                [
+                    translated("c1.h1", "Chapitre premier"),
+                    translated(
+                        "c1.p2",
+                        "Ce fut par une morne nuit de novembre que je vis l'accomplissement "
+                        "de mes travaux.",
+                    ),
+                ],
+            )
+        ],
+    )
+
+    retried.refresh_from_db()
+    assert retried.status == AIRun.Status.SUCCEEDED
+    assert retried.input_tokens == 1800
+    assert retried.output_tokens == 2200
+    assert retried.reasoning_tokens == 80
+    assert retried.estimated_cost_usd == first_attempt_cost * 2
+
+
 def test_length_and_confidence_gates_send_edition_to_review(monkeypatch) -> None:
     source = canonical_edition()
     edition = create_parallel_translation(

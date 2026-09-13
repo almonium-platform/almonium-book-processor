@@ -537,12 +537,15 @@ def _propose_with_ai(edition: Edition, run: PipelineRun) -> AIRun | None:
         return ai_run
 
     usage = response.get("usage") or {}
-    ai_run.input_tokens = usage.get("input_tokens", 0)
-    ai_run.cached_input_tokens = (usage.get("input_tokens_details") or {}).get("cached_tokens", 0)
-    ai_run.output_tokens = usage.get("output_tokens", 0)
-    ai_run.reasoning_tokens = (usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0)
-    ai_run.estimated_cost_usd = _estimated_cost(
-        ai_run.input_tokens, ai_run.cached_input_tokens, ai_run.output_tokens
+    input_tokens = usage.get("input_tokens", 0)
+    cached_input_tokens = (usage.get("input_tokens_details") or {}).get("cached_tokens", 0)
+    output_tokens = usage.get("output_tokens", 0)
+    ai_run.add_attempt_usage(
+        input_tokens=input_tokens,
+        cached_input_tokens=cached_input_tokens,
+        output_tokens=output_tokens,
+        reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
+        estimated_cost_usd=_estimated_cost(input_tokens, cached_input_tokens, output_tokens),
     )
     ai_run.status = AIRun.Status.SUCCEEDED
     ai_run.finished_at = timezone.now()

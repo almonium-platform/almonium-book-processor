@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 from pathlib import Path
 
 from django.conf import settings
@@ -824,6 +825,7 @@ class AIRun(TimestampedModel):
     input_hash = models.CharField(max_length=64, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED)
     provider_request_id = models.CharField(max_length=255, blank=True)
+    # Summed over every attempt of the run, because a retry pays the provider again.
     input_tokens = models.PositiveIntegerField(default=0)
     cached_input_tokens = models.PositiveIntegerField(default=0)
     output_tokens = models.PositiveIntegerField(default=0)
@@ -837,6 +839,36 @@ class AIRun(TimestampedModel):
 
     class Meta:
         ordering = ["-created_at"]
+
+    USAGE_FIELDS = (
+        "input_tokens",
+        "cached_input_tokens",
+        "output_tokens",
+        "reasoning_tokens",
+        "estimated_cost_usd",
+    )
+
+    def add_attempt_usage(
+        self,
+        *,
+        input_tokens: int,
+        cached_input_tokens: int,
+        output_tokens: int,
+        reasoning_tokens: int,
+        estimated_cost_usd: Decimal,
+    ) -> None:
+        """Add one attempt's usage to the run.
+
+        A failed or interrupted attempt was billed all the same, so the run
+        carries the sum of its attempts rather than whatever the last one
+        happened to cost. The caller saves ``USAGE_FIELDS``.
+        """
+
+        self.input_tokens += input_tokens
+        self.cached_input_tokens += cached_input_tokens
+        self.output_tokens += output_tokens
+        self.reasoning_tokens += reasoning_tokens
+        self.estimated_cost_usd = (self.estimated_cost_usd or Decimal("0")) + estimated_cost_usd
 
 
 class UserErrorReport(TimestampedModel):
