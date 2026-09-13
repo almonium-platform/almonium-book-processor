@@ -69,6 +69,7 @@ from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
     analyze_edition_lexicon,
     analyze_edition_source_quality,
+    detect_edition_metadata,
     prepare_ai_alignment,
     prepare_translation,
     process_book_pipeline,
@@ -210,6 +211,28 @@ def confirm_edition_metadata(request: HttpRequest, edition_id: str) -> HttpRespo
         "Metadata confirmed."
         + (" Sentence splitting is re-running for the new language." if language_changed else ""),
     )
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def queue_metadata_detection(request: HttpRequest, edition_id: str) -> HttpResponse:
+    """Run the metadata stage on a book that missed it: the model fills the open fields."""
+
+    edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
+    if edition.work.visibility == Work.Visibility.PRIVATE:
+        messages.error(request, "Private imports are confirmed by their owner in Almonium.")
+    elif not settings.OPENAI_API_KEY:
+        messages.error(request, "No OpenAI key is configured, so there is no model to ask.")
+    elif not edition.blocks.exists():
+        messages.error(request, "Nothing to read yet: the source has not been ingested.")
+    else:
+        detect_edition_metadata.delay(str(edition.id), rerun=True)
+        messages.success(
+            request,
+            "Metadata detection queued. Reload in a moment: detected values are labelled "
+            "and wait for your confirmation. Fields you confirmed before are kept.",
+        )
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
 

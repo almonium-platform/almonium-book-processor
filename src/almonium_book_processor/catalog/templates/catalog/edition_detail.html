@@ -36,6 +36,15 @@
     </div>
     <button class="button" type="submit">Confirm metadata</button>
   </form>
+  {% if has_blocks %}
+  <div class="action-row">
+    <div>
+      <strong>Detect with AI</strong>
+      <p class="muted">For a book imported before this step existed, or whose model call never completed: one small call reads the opening text, checks the title and author, and proposes a blurb and first-publication year. Fields you confirmed are kept, the language is left alone (change it above if it is wrong), and nothing is final until you confirm.</p>
+    </div>
+    <form method="post" action="{% url 'catalog:queue-metadata-detection' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Detect</button></form>
+  </div>
+  {% endif %}
 </details>
 {% endif %}
 {% if not is_private %}

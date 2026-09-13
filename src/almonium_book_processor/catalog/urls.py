@@ -18,6 +18,11 @@ urlpatterns = [
         name="confirm-edition-metadata",
     ),
     path(
+        "editions/<uuid:edition_id>/metadata/detect/",
+        views.queue_metadata_detection,
+        name="queue-metadata-detection",
+    ),
+    path(
         "editions/<uuid:edition_id>/blocks/<uuid:block_id>/edit/",
         views.edit_block_text,
         name="edit-block-text",

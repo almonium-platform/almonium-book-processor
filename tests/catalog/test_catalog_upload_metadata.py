@@ -506,3 +506,150 @@ def test_a_translation_does_not_borrow_the_work_provenance_for_its_own_fields() 
     )
 
     assert set(form_provenance(translation)) == {"work_title", "original_language"}
+
+
+def _legacy_edition() -> Edition:
+    """A book imported before the metadata stage: real slugs, no provenance."""
+
+    work = Work.objects.create(
+        slug="alte-sachen", title="Alte Sachen", author="A. Author", original_language="de"
+    )
+    edition = Edition.objects.create(
+        slug="alte-sachen-de-original",
+        work=work,
+        title="Alte Sachen",
+        author="A. Author",
+        language="de",
+        status=Edition.Status.READY,
+        source_sha256="d" * 64,
+    )
+    chapter = Chapter.objects.create(edition=edition, sequence=1)
+    ContentBlock.objects.create(
+        edition=edition,
+        chapter=chapter,
+        block_id="c1.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="Der erste Abschnitt.",
+    )
+    return edition
+
+
+def test_rerun_asks_the_model_again_after_a_failed_call_but_keeps_the_language(
+    settings, monkeypatch
+) -> None:
+    edition = _legacy_edition()
+    calls = fake_openai(monkeypatch, settings, error=RuntimeError("provider down"))
+    first = detect_metadata(str(edition.id))
+    assert first.summary["ai_status"] == AIRun.Status.FAILED
+
+    # The same inputs: a plain retry finds the finished stage and stops.
+    assert detect_metadata(str(edition.id)).id == first.id
+    assert calls["count"] == 1
+
+    calls = fake_openai(
+        monkeypatch,
+        settings,
+        proposal={
+            "title": "Alte Sachen: Erzählungen",
+            "author": "Anna Author",
+            "language": "en",
+            "description": "Stories from an old town.",
+            "publication_year": 1898,
+            "note": "",
+        },
+    )
+    run = detect_metadata(str(edition.id), rerun=True)
+
+    assert run.id == first.id
+    assert calls["count"] == 1
+    assert run.summary["rerun"] is True
+    assert run.summary["locked_fields"] == ["language"]
+    assert "language" not in run.summary["open_fields"]
+    edition.refresh_from_db()
+    work = edition.work
+    assert edition.title == work.title == "Alte Sachen: Erzählungen"
+    assert edition.author == work.author == "Anna Author"
+    assert (edition.language, work.original_language) == ("de", "de")
+    assert work.description == "Stories from an old town."
+    assert work.publication_year == 1898
+    assert work.metadata_provenance == {
+        "title": "ai",
+        "author": "ai",
+        "description": "ai",
+        "publication_year": "ai",
+    }
+    assert work.metadata_detected_at is not None
+    assert edition.slug == "alte-sachen-de-original"
+    assert work.slug == "alte-sachen"
+
+
+def test_rerun_reuses_a_finished_model_call_instead_of_paying_again(settings, monkeypatch) -> None:
+    edition = _legacy_edition()
+    calls = fake_openai(
+        monkeypatch,
+        settings,
+        proposal={
+            "title": "Alte Sachen",
+            "author": "A. Author",
+            "language": "de",
+            "description": "A blurb.",
+            "publication_year": 1898,
+            "note": "",
+        },
+    )
+    detect_metadata(str(edition.id), rerun=True)
+    edition.work.description = ""
+    edition.work.save(update_fields=["description"])
+
+    detect_metadata(str(edition.id), rerun=True)
+
+    assert calls["count"] == 1
+    assert AIRun.objects.count() == 1
+    edition.work.refresh_from_db()
+    assert edition.work.description == "A blurb."
+
+
+def test_detect_button_queues_a_rerun_for_staff(settings, monkeypatch) -> None:
+    settings.OPENAI_API_KEY = "test-key"
+    edition = _legacy_edition()
+    queued: list[tuple] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.views.detect_edition_metadata.delay",
+        lambda edition_id, **kwargs: queued.append((edition_id, kwargs)),
+    )
+    staff = get_user_model().objects.create_user(
+        username="editor", password="safe-test-password", is_staff=True
+    )
+    client = Client()
+    client.force_login(staff)
+    url = reverse("catalog:queue-metadata-detection", args=[edition.id])
+
+    detail = client.get(reverse("catalog:edition-detail", args=[edition.id])).content.decode()
+    assert "Detect with AI" in detail
+    assert url in detail
+
+    response = client.post(url, follow=True)
+
+    assert queued == [(str(edition.id), {"rerun": True})]
+    assert "Metadata detection queued" in response.content.decode()
+
+
+def test_detect_button_refuses_without_a_model(settings, monkeypatch) -> None:
+    settings.OPENAI_API_KEY = ""
+    edition = _legacy_edition()
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.views.detect_edition_metadata.delay",
+        lambda *args, **kwargs: pytest.fail("must not queue"),
+    )
+    staff = get_user_model().objects.create_user(
+        username="editor", password="safe-test-password", is_staff=True
+    )
+    client = Client()
+    client.force_login(staff)
+
+    response = client.post(
+        reverse("catalog:queue-metadata-detection", args=[edition.id]), follow=True
+    )
+
+    assert "No OpenAI key is configured" in response.content.decode()

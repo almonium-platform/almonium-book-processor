@@ -149,13 +149,20 @@ def adopt_source_metadata(edition: Edition, declared: EditionMetadata) -> None:
     )
 
 
-def detect_metadata(edition_id: str) -> PipelineRun:
+def detect_metadata(edition_id: str, *, rerun: bool = False) -> PipelineRun:
     """Run the metadata stage for an ingested edition.
 
     Header values are already on the edition. When an OpenAI key is configured
     the stage verifies them against the opening text and proposes a blurb and
     a first-publication year; without one it only marks detection finished so
     the owner is asked to confirm what the header said.
+
+    ``rerun`` is the editor asking for the stage on a book that was imported
+    before it existed or whose model call never completed. It runs even when
+    an earlier run for the same inputs succeeded, but a finished model call for
+    those inputs is reused rather than paid for again, and the language is left
+    alone: the edition's sentences and vocabulary were built for it, and a
+    change belongs in the review form, which re-runs those stages.
     """
 
     edition = Edition.objects.select_related("work").get(id=edition_id)
@@ -182,7 +189,7 @@ def detect_metadata(edition_id: str) -> PipelineRun:
             "input_hash": input_hash,
         },
     )
-    if run.status == PipelineRun.Status.SUCCEEDED:
+    if run.status == PipelineRun.Status.SUCCEEDED and not rerun:
         return run
 
     run.status = PipelineRun.Status.RUNNING
@@ -194,7 +201,12 @@ def detect_metadata(edition_id: str) -> PipelineRun:
     provenance = dict(work.metadata_provenance)
     proposal = None
     ai_run = None
-    open_fields = [name for name in METADATA_FIELDS if provenance.get(name) != PROVENANCE_USER]
+    locked_fields = {"language"} if rerun and edition.language else set()
+    open_fields = [
+        name
+        for name in METADATA_FIELDS
+        if provenance.get(name) != PROVENANCE_USER and name not in locked_fields
+    ]
     if ai_enabled and open_fields:
         # A failed or unavailable model call must not fail the import: the
         # header values remain and the owner is still asked to confirm them.
@@ -205,7 +217,7 @@ def detect_metadata(edition_id: str) -> PipelineRun:
         if ai_run is not None and ai_run.status == AIRun.Status.SUCCEEDED:
             proposal = BookMetadataProposal.model_validate(ai_run.response_payload["proposal"])
     if proposal is not None:
-        _apply_proposal(edition, proposal, provenance)
+        _apply_proposal(edition, proposal, provenance, open_fields)
     _finalize_slugs(edition, provenance)
 
     with transaction.atomic():
@@ -230,7 +242,9 @@ def detect_metadata(edition_id: str) -> PipelineRun:
         run.finished_at = timezone.now()
         run.summary = {
             "ai_enabled": ai_enabled,
+            "rerun": rerun,
             "open_fields": open_fields,
+            "locked_fields": sorted(locked_fields),
             "ai_run_id": str(ai_run.id) if ai_run else None,
             "ai_status": ai_run.status if ai_run else None,
             "provenance": provenance,
@@ -566,15 +580,18 @@ def _supported_language(value: str) -> str:
 
 
 def _apply_proposal(
-    edition: Edition, proposal: BookMetadataProposal, provenance: dict[str, str]
+    edition: Edition,
+    proposal: BookMetadataProposal,
+    provenance: dict[str, str],
+    open_fields: list[str],
 ) -> None:
-    """Adopt the proposal for every field the owner did not type at upload."""
+    """Adopt the proposal for the open fields: those the owner did not type."""
 
     work = edition.work
     owns_work = _edition_owns_work(edition)
 
     def open_field(name: str) -> bool:
-        return provenance.get(name) != PROVENANCE_USER
+        return name in open_fields
 
     title = proposal.title.strip()[:500]
     if open_field("title") and title and title != edition.title:

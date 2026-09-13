@@ -224,15 +224,16 @@ def process_book_pipeline(self, edition_id: str) -> None:
 
 
 @shared_task(bind=True, acks_late=True)
-def detect_edition_metadata(self, edition_id: str) -> None:
+def detect_edition_metadata(self, edition_id: str, *, rerun: bool = False) -> None:
     """Propose bibliographic metadata for a fresh upload; tell a private owner.
 
     Best effort: a book with header-only metadata is still a readable book, so
-    a failure here is logged and the pipeline continues.
+    a failure here is logged and the pipeline continues. ``rerun`` is an
+    editor asking for the stage again on an already-imported book.
     """
 
     try:
-        detect_metadata(edition_id)
+        detect_metadata(edition_id, rerun=rerun)
     except Exception:
         logger.exception("Metadata detection failed for edition %s", edition_id)
         return
