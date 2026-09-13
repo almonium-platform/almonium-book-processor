@@ -142,6 +142,7 @@ class IngestionWarningCode(StrEnum):
     EMPTY_SPINE_DOCUMENT = "empty_spine_document"
     COVER_DOCUMENT_SKIPPED = "cover_document_skipped"
     EMPTY_TEI_SECTION = "empty_tei_section"
+    BLANK_TEI_SECTION = "blank_tei_section"
     UNEXPECTED_CHAPTER_COUNT = "unexpected_chapter_count"
 
 
@@ -157,6 +158,7 @@ INGESTION_WARNING_SEVERITIES: dict[str, IngestionWarningSeverity] = {
     IngestionWarningCode.EMPTY_SPINE_DOCUMENT: IngestionWarningSeverity.WARNING,
     IngestionWarningCode.COVER_DOCUMENT_SKIPPED: IngestionWarningSeverity.INFO,
     IngestionWarningCode.EMPTY_TEI_SECTION: IngestionWarningSeverity.WARNING,
+    IngestionWarningCode.BLANK_TEI_SECTION: IngestionWarningSeverity.INFO,
     IngestionWarningCode.UNEXPECTED_CHAPTER_COUNT: IngestionWarningSeverity.WARNING,
 }
 

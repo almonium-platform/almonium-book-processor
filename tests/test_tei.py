@@ -5,7 +5,11 @@ from defusedxml.common import DefusedXmlException
 
 from almonium_book_processor.ingest.source import ingest_source
 from almonium_book_processor.ingest.tei import ingest_tei
-from almonium_book_processor.models import BlockType
+from almonium_book_processor.models import (
+    BlockType,
+    IngestionWarningSeverity,
+    ingestion_warning_severity,
+)
 
 TEI_FIXTURE = """<?xml version="1.0" encoding="UTF-8"?>
 <TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="ENG-TEST" xml:lang="en">
@@ -68,7 +72,61 @@ def test_tei_extracts_metadata_structure_and_semantic_blocks(tmp_path) -> None:
     assert artifact.blocks[4].text == "A quoted line\nAnd another"
     assert artifact.blocks[5].text == "The Poet."
     assert artifact.blocks[5].attributes["role"] == "attribution"
-    assert artifact.blocks[6].source_ref == "novel.xml#note-one"
+    assert artifact.blocks[6].source_ref == "ENG-TEST#note-one"
+
+
+def _tei_with_body(body: str) -> str:
+    start = TEI_FIXTURE.index("<body>")
+    end = TEI_FIXTURE.index("</body>") + len("</body>")
+    return TEI_FIXTURE[:start] + f"<body>{body}</body>" + TEI_FIXTURE[end:]
+
+
+def test_a_page_break_only_division_is_a_notice_and_claims_no_chapter(tmp_path) -> None:
+    source = tmp_path / "novel.xml"
+    source.write_text(
+        _tei_with_body(
+            '<div type="chapter"><head>One</head><p>Text.</p></div>'
+            '<div type="chapter"><p><pb n="182"/></p></div>'
+            '<div type="chapter"><head>Two</head><p>More.</p></div>'
+        )
+    )
+
+    artifact = ingest_tei(source, edition_slug="tei-novel-en-orig", work_slug="tei-novel")
+
+    assert sorted({block.chapter for block in artifact.blocks}) == [0, 1, 2]  # no gap at 2
+    assert [w.code for w in artifact.warnings] == ["empty_block_skipped", "blank_tei_section"]
+    assert artifact.warnings[1].source_ref == "ENG-TEST:chapter:2"
+    assert ingestion_warning_severity("blank_tei_section") == IngestionWarningSeverity.INFO
+
+
+def test_a_division_whose_text_was_lost_still_needs_review(tmp_path) -> None:
+    source = tmp_path / "novel.xml"
+    source.write_text(
+        _tei_with_body(
+            '<div type="chapter"><head>One</head><p>Text.</p></div>'
+            '<div type="chapter" xml:id="odd"><p/><list><item>Unplaced words</item></list></div>'
+        )
+    )
+
+    artifact = ingest_tei(source, edition_slug="tei-novel-en-orig", work_slug="tei-novel")
+
+    lost = [w for w in artifact.warnings if w.code == "empty_tei_section"]
+    assert [w.source_ref for w in lost] == ["ENG-TEST#odd"]
+    assert ingestion_warning_severity("empty_tei_section") == IngestionWarningSeverity.WARNING
+
+
+def test_a_group_heading_does_not_count_nested_chapter_text_as_its_own(tmp_path) -> None:
+    source = tmp_path / "novel.xml"
+    source.write_text(
+        _tei_with_body(
+            '<div type="group"><head/><div type="chapter"><p>Chapter text.</p></div></div>'
+        )
+    )
+
+    artifact = ingest_tei(source, edition_slug="tei-novel-en-orig", work_slug="tei-novel")
+
+    assert [w.code for w in artifact.warnings] == ["empty_block_skipped", "blank_tei_section"]
+    assert [block.chapter for block in artifact.blocks] == [0, 1]
 
 
 def test_xml_dispatches_to_tei_adapter(tmp_path) -> None:

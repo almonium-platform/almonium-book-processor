@@ -75,6 +75,25 @@ def _sections(text: Element) -> list[Element]:
     return sections
 
 
+def _own_text(section: Element) -> str:
+    """Text a section holds itself; nested divisions are sections of their own."""
+
+    parts = [section.text or ""]
+    for child in section:
+        if _local_name(child) != "div":
+            parts.append("".join(child.itertext()))
+        parts.append(child.tail or "")
+    return re.sub(r"\s+", " ", "".join(parts)).strip()
+
+
+def _section_ref(section: Element, *, source_name: str, position: int) -> str:
+    identifier = section.get(XML_ID)
+    if identifier:
+        return f"{source_name}#{identifier}"
+    kind = section.get("type") or _local_name(section)
+    return f"{source_name}:{kind}:{position}"
+
+
 def _extract_section(
     section: Element,
     *,
@@ -238,21 +257,41 @@ def ingest_tei(
     if not sections:
         raise ValueError("TEI document contains no supported text sections")
 
+    # Temporary copies carry meaningless file names, so prefer the document's
+    # own identifier (ELTeC assigns one to every text) when naming references.
+    source_name = root.get(XML_ID) or source_path.name
+
     builder = BlockBuilder(edition_slug)
-    for chapter, section in enumerate(sections):
+    chapter = 0
+    for position, section in enumerate(sections):
         previous_count = len(builder.blocks)
         _extract_section(
             section,
             chapter=chapter,
-            source_name=source_path.name,
+            source_name=source_name,
             builder=builder,
         )
-        if len(builder.blocks) == previous_count:
+        if len(builder.blocks) > previous_count:
+            chapter += 1
+            continue
+        # An empty division must not claim a chapter number, or the book ends
+        # up with a gap that alignment and the reader both trip over.
+        section_ref = _section_ref(section, source_name=source_name, position=position)
+        if _own_text(section):
             builder.warnings.append(
                 IngestionWarning(
                     code="empty_tei_section",
-                    message="TEI section contained no supported content blocks",
-                    source_ref=f"{source_path.name}:section:{chapter}",
+                    message="TEI section has text the importer could not place in any block",
+                    source_ref=section_ref,
+                    chapter=chapter,
+                )
+            )
+        else:
+            builder.warnings.append(
+                IngestionWarning(
+                    code="blank_tei_section",
+                    message="Skipped a TEI section with no readable text (page breaks only)",
+                    source_ref=section_ref,
                     chapter=chapter,
                 )
             )
