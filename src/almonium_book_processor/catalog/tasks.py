@@ -287,19 +287,24 @@ def process_normalized_edition(self, edition_id: str) -> None:
         raise
 
 
-@shared_task(acks_late=True)
-def publish_edition(edition_id: str) -> None:
-    edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
+def publication_blocker(edition: Edition) -> str:
+    """Why this edition cannot go to Almonium right now, or an empty string.
+
+    The web layer asks before queueing so the editor sees the reason instead of
+    a "queued" notice that leads nowhere; the task asks again because the
+    edition may have changed in the meantime.
+    """
+
     if edition.work.visibility != edition.work.Visibility.PUBLIC:
-        raise ValueError("Private imports cannot be published to the public catalog")
+        return "Private imports cannot be published to the public catalog"
     if edition.status not in {Edition.Status.READY, Edition.Status.PUBLISHED}:
-        raise ValueError("Only ready editions can be published.")
+        return "Only ready editions can be published."
     if has_provisional_slug(edition) or not edition.title or not edition.author:
-        raise ValueError("Confirm the detected metadata before publication.")
+        return "Confirm the detected metadata before publication."
     if edition.cefr_level is None:
-        raise ValueError("A CEFR level is required before publication.")
+        return "A CEFR level is required before publication."
     if edition.work.publication_year is None:
-        raise ValueError("A publication year is required before publication.")
+        return "A publication year is required before publication."
     spacy_model = settings.NLP_SPACY_MODELS.get(edition.language, "blank")
     sentence_input_hash = _text_hash(
         edition.source_sha256,
@@ -317,7 +322,7 @@ def publish_edition(edition_id: str) -> None:
         status=PipelineRun.Status.SUCCEEDED,
         input_hash__in=valid_sentence_hashes,
     ).exists():
-        raise ValueError("Current sentence splitting must succeed before publication.")
+        return "Current sentence splitting must succeed before publication."
     if edition.source_edition_id:
         alignment_input_hash = _alignment_input_hash(edition.source_edition, edition)
         if not edition.pipeline_runs.filter(
@@ -325,7 +330,16 @@ def publish_edition(edition_id: str) -> None:
             status=PipelineRun.Status.SUCCEEDED,
             input_hash=alignment_input_hash,
         ).exists():
-            raise ValueError("Current source alignment must succeed before publication.")
+            return "Current source alignment must succeed before publication."
+    return ""
+
+
+@shared_task(acks_late=True)
+def publish_edition(edition_id: str) -> None:
+    edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
+    blocked = publication_blocker(edition)
+    if blocked:
+        raise ValueError(blocked)
     input_hash = _text_hash(
         edition.source_sha256,
         edition.slug,

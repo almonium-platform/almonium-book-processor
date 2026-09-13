@@ -74,6 +74,7 @@ from almonium_book_processor.catalog.tasks import (
     prepare_translation,
     process_book_pipeline,
     process_normalized_edition,
+    publication_blocker,
     publish_edition,
     translate_edition_inline,
     withdraw_edition,
@@ -315,6 +316,9 @@ def _render_edition_detail(
             "has_provisional_slug": has_provisional_slug(edition),
             "purge_form": EditionPurgeForm(edition=edition),
             "purge_blocked": removal_blocker(edition),
+            "publish_blocked": (
+                publication_blocker(edition) if edition.status == Edition.Status.READY else ""
+            ),
             "has_blocks": edition.blocks.exists(),
             "blocks": blocks,
             "pipeline_run_count": len(pipeline_runs),
@@ -1158,11 +1162,15 @@ def complete_edition_review(request: HttpRequest, edition_id: str) -> HttpRespon
 @staff_member_required
 @require_POST
 def publish_edition_to_almonium(request: HttpRequest, edition_id: str) -> HttpResponse:
-    edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
+    edition = get_object_or_404(
+        Edition.objects.select_related("work", "source_edition"), id=edition_id
+    )
     if edition.work.visibility != Work.Visibility.PUBLIC:
         messages.error(request, "Private imports are released to their owner, not published.")
     elif edition.status != Edition.Status.READY:
         messages.error(request, "Complete review before publishing this edition.")
+    elif blocked := publication_blocker(edition):
+        messages.error(request, blocked)
     else:
         publish_edition.delay(str(edition.id))
         messages.success(

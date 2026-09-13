@@ -5,6 +5,7 @@ import uuid
 from io import BytesIO, StringIO
 
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
@@ -29,6 +30,8 @@ from almonium_book_processor.catalog.models import (
 )
 from almonium_book_processor.catalog.services import import_legacy_artifact, persist_artifact
 from almonium_book_processor.catalog.tasks import (
+    _edition_content_hash,
+    _text_hash,
     align_edition_to_source,
     process_book_pipeline,
     process_normalized_edition,
@@ -1999,3 +2002,99 @@ def test_publication_requires_current_cheap_nlp() -> None:
 
     with pytest.raises(ValueError, match="sentence splitting"):
         publish_edition.run(str(edition.id))
+
+
+def test_publish_view_refuses_and_names_the_blocker_instead_of_queueing(
+    client, monkeypatch
+) -> None:
+    staff = get_user_model().objects.create_user(
+        username="publisher", password="safe-test-password"
+    )
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    work = Work.objects.create(
+        slug="publish-gate-work",
+        title="Publish Gate Work",
+        author="Ada Author",
+        original_language="en",
+        publication_year=1912,
+    )
+    edition = Edition.objects.create(
+        slug="publish-gate-work-en",
+        work=work,
+        title="Publish Gate Work",
+        author="Ada Author",
+        language="en",
+        source_sha256="2" * 64,
+        status=Edition.Status.READY,
+    )
+    queued: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.views.publish_edition.delay",
+        lambda edition_id: queued.append(edition_id),
+    )
+    client.force_login(staff)
+
+    page = client.get(reverse("catalog:edition-detail", args=[edition.id]))
+    assert "A CEFR level is required before publication." in page.content.decode()
+
+    response = client.post(reverse("catalog:publish-edition", args=[edition.id]), follow=True)
+
+    assert response.status_code == 200
+    assert queued == []
+    assert "A CEFR level is required before publication." in response.content.decode()
+    assert "Publication queued" not in response.content.decode()
+
+
+def test_failed_publication_hand_off_is_shown_in_the_processing_history(
+    client, monkeypatch
+) -> None:
+    staff = get_user_model().objects.create_user(
+        username="publisher", password="safe-test-password"
+    )
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    work = Work.objects.create(
+        slug="hand-off-work",
+        title="Hand Off Work",
+        author="Ada Author",
+        original_language="en",
+        publication_year=1912,
+    )
+    edition = Edition.objects.create(
+        slug="hand-off-work-en",
+        work=work,
+        title="Hand Off Work",
+        author="Ada Author",
+        language="en",
+        cefr_level=Edition.CEFRLevel.B2,
+        source_sha256="3" * 64,
+        status=Edition.Status.READY,
+    )
+    PipelineRun.objects.create(
+        edition=edition,
+        stage=PipelineRun.Stage.SENTENCES,
+        status=PipelineRun.Status.SUCCEEDED,
+        processor_version="test",
+        input_hash=_text_hash(
+            edition.source_sha256,
+            edition.language,
+            settings.NLP_SPACY_MODELS.get(edition.language, "blank"),
+            _edition_content_hash(edition),
+        ),
+        idempotency_key="hand-off-sentences",
+    )
+
+    def refuse(_edition):
+        raise RuntimeError("Almonium API returned 503 Service Unavailable")
+
+    monkeypatch.setattr("almonium_book_processor.catalog.tasks.publish_to_almonium", refuse)
+    client.force_login(staff)
+
+    with pytest.raises(RuntimeError):
+        publish_edition.run(str(edition.id))
+
+    edition.refresh_from_db()
+    assert edition.status == Edition.Status.READY
+    page = client.get(reverse("catalog:edition-detail", args=[edition.id]))
+    assert "Almonium API returned 503 Service Unavailable" in page.content.decode()

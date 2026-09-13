@@ -36,6 +36,9 @@ dd { margin: .15rem 0 0; font-weight: 700; }
 .button-danger { background: var(--red); color: #fff; }
 .run-row > span:first-child { display: grid; gap: .2rem; }
 .run-note { color: var(--muted); font-size: .72rem; line-height: 1.4; }
+.run-error { color: var(--red); }
+.publish-blocked { color: var(--red); font-weight: 600; }
+.button[disabled] { opacity: .5; cursor: not-allowed; }
 .drop-zone { min-height: 190px; border: 2px dashed var(--line); border-radius: 14px; display: grid; place-content: center; text-align: center; padding: 2rem; cursor: pointer; }
 .drop-zone.dragging { border-color: var(--accent); background: #f1e5d5; }
 .drop-zone input { margin: 1rem auto; }
