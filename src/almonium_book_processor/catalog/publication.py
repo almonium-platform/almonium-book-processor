@@ -5,15 +5,60 @@ import hmac
 import json
 import os
 import time
+from http.client import HTTPConnection, HTTPSConnection
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
+from urllib.request import HTTPHandler, HTTPSHandler, Request, build_opener
 
 from almonium_book_processor.catalog.models import Edition
+
+# A product API that is up answers a publication in well under a second, so a
+# connection that cannot even be opened quickly is a dead or unreachable host,
+# and the editor should hear that in seconds rather than after a full read
+# timeout.
+CONNECT_TIMEOUT_SECONDS = 5
+READ_TIMEOUT_SECONDS = 30
 
 
 class PublicationError(RuntimeError):
     pass
+
+
+class _TimedConnection(HTTPConnection):
+    """Open the socket within the connect timeout, then wait the read timeout."""
+
+    def connect(self) -> None:
+        read_timeout, self.timeout = self.timeout, CONNECT_TIMEOUT_SECONDS
+        super().connect()
+        self.sock.settimeout(read_timeout)
+
+
+class _TimedHTTPSConnection(_TimedConnection, HTTPSConnection):
+    pass
+
+
+class _TimedHTTPHandler(HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_TimedConnection, req)
+
+
+class _TimedHTTPSHandler(HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_TimedHTTPSConnection, req, context=self._context)
+
+
+urlopen = build_opener(_TimedHTTPHandler, _TimedHTTPSHandler).open
+
+
+def _describe(error: Exception, url: str) -> str:
+    """Say what went wrong on the wire, so a firewall reads differently from a crash."""
+
+    reason = getattr(error, "reason", error)
+    host = urlsplit(url).netloc
+    if isinstance(reason, TimeoutError):
+        return f"{host} did not answer within {READ_TIMEOUT_SECONDS}s"
+    return f"{host}: {reason}"
 
 
 def _signed_post(path: str, payload: dict[str, Any], *, failure: str) -> Any:
@@ -41,12 +86,14 @@ def _signed_post(path: str, payload: dict[str, Any], *, failure: str) -> Any:
         method="POST",
     )
     try:
-        with urlopen(request, timeout=30) as response:  # noqa: S310 - configured service endpoint
+        with urlopen(request, timeout=READ_TIMEOUT_SECONDS) as response:  # noqa: S310
             return json.loads(response.read())
     except HTTPError as error:
         raise PublicationError(f"{failure} with HTTP {error.code}.") from error
-    except (URLError, TimeoutError, json.JSONDecodeError) as error:
-        raise PublicationError(f"{failure}.") from error
+    except (URLError, TimeoutError) as error:
+        raise PublicationError(f"{failure}: {_describe(error, request.full_url)}.") from error
+    except json.JSONDecodeError as error:
+        raise PublicationError(f"{failure}: Almonium returned a non-JSON body.") from error
 
 
 def withdraw_from_almonium(edition: Edition) -> bool:
