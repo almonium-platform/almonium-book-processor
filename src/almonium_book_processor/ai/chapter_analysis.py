@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
 
 PROMPT_NAME = "chapter-analysis"
-PROMPT_VERSION = 1
+PROMPT_VERSION = 2
 PROCESSOR_VERSION = "chapter-analysis-v2"
 MAX_WINDOW_BYTES = 24_000
 MAX_REQUEST_BYTES = 32_000
@@ -72,10 +72,12 @@ only when obsolete language is an obstacle. Cite exact text as evidence.
 
 Analyze ALL provided blocks. A window marked partial covers only part of a chapter: summarize and
 assess only that part, never claim knowledge of unseen text. Do not invent facts or characters.
-Give 1–8 short exact quotes with their block IDs supporting your assessment. Hard words must be
-exact surface strings from their cited blocks; do not claim they first appear in the book.
-Keep the description spoiler-free and put plot revelations only in the recap. Content flags are
-brief suggestions (not age-suitability guarantees); support any flags with content evidence.
+Give 1–8 short exact quotes with their block IDs supporting your assessment. Copy every quote and
+hard word character for character from the cited block: no added spaces, hyphens or corrections.
+Hard words are exact surface strings from their cited blocks; do not claim they first appear in
+the book. Keep the description spoiler-free and put plot revelations only in the recap. Content
+flags are brief suggestions (not age-suitability guarantees). If content_flags is not empty, at
+least one evidence item must have dimension "content" and quote the passage behind the flags.
 Keep theme, character and flag entries under 100 characters each. Empty lists are valid.
 """
 

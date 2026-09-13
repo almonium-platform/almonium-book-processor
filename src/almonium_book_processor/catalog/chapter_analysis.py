@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import uuid
 from datetime import timedelta
 from decimal import Decimal
@@ -49,6 +50,10 @@ class AnalysisBusy(Exception):
 
 class StaleAnalysis(ValueError):
     """The source changed while analysis was queued or running."""
+
+
+class AnalysisRejected(ValueError):
+    """A validated-but-unacceptable model answer; the message never contains book text."""
 
 
 def _json(value) -> str:
@@ -273,21 +278,59 @@ def _current_plan(run: PipelineRun, spec: dict) -> dict:
     return plan
 
 
-def _evidence_spans(result: ChapterAnalysis, data: dict) -> list[dict]:
+def _locate(text: str, quote: str) -> tuple[int, int] | None:
+    """Exact match first; then forgive stray or missing whitespace and letter case."""
+    start = text.find(quote)
+    if start >= 0:
+        return start, start + len(quote)
+    compact = "".join(quote.split())
+    if not compact:
+        return None
+    pattern = r"\s*".join(re.escape(char) for char in compact)
+    match = re.search(pattern, text, re.IGNORECASE)
+    return (match.start(), match.end()) if match else None
+
+
+def _verify_citations(result: ChapterAnalysis, data: dict) -> tuple[ChapterAnalysis, list, list]:
+    """Drop citations the text cannot back; reject only when nothing verifiable remains.
+
+    Quotes and surfaces are rewritten to the exact source substring so stored
+    payloads never carry the model's spelling of the book.
+    """
     blocks = {b["block_id"]: b["text"] for b in data["blocks"]}
-    spans = []
-    for item in [*result.evidence, *result.hard_words]:
-        quote = getattr(item, "quote", None) or item.surface
-        text = blocks.get(item.block_id, "")
-        start = text.find(quote)
-        if start < 0:
-            raise ValueError("Analysis evidence does not occur in its cited source block.")
-        spans.append({"block_id": item.block_id, "start": start, "end": start + len(quote)})
-    if result.content_flags and not any(e.dimension == "content" for e in result.evidence):
-        raise ValueError("Content flags require source evidence.")
+    spans, notes = [], []
+    evidence, hard_words = [], []
+    for kind, items, keep in (
+        ("evidence", result.evidence, evidence),
+        ("hard word", result.hard_words, hard_words),
+    ):
+        for item in items:
+            quote = getattr(item, "quote", None) or item.surface
+            located = _locate(blocks.get(item.block_id, ""), quote)
+            if located is None:
+                notes.append(f"Dropped {kind} not found in block {item.block_id}.")
+                continue
+            start, end = located
+            exact = blocks[item.block_id][start:end]
+            field = "quote" if kind == "evidence" else "surface"
+            keep.append(item.model_copy(update={field: exact}))
+            spans.append({"block_id": item.block_id, "start": start, "end": end})
+    if not evidence:
+        raise AnalysisRejected("No cited evidence occurs in the analyzed text.")
     if any(len(s) > 100 for s in [*result.themes, *result.characters, *result.content_flags]):
-        raise ValueError("Analysis labels exceed the output limit.")
-    return spans
+        raise AnalysisRejected("Analysis labels exceed the output limit.")
+    unsupported = []
+    if result.content_flags and not any(e.dimension == "content" for e in evidence):
+        unsupported = list(result.content_flags)
+        notes.append("Content flags lack cited content evidence; kept as unsupported suggestions.")
+    result = result.model_copy(
+        update={
+            "evidence": evidence,
+            "hard_words": hard_words,
+            "content_flags": [f for f in result.content_flags if f not in unsupported],
+        }
+    )
+    return result, spans, [*notes, *(f"Unsupported content flag: {f}" for f in unsupported)]
 
 
 def _record_response(ai_run: AIRun, response: dict, spec: dict) -> bool:
@@ -364,7 +407,7 @@ def _attempt(run: PipelineRun, window: dict, spec: dict, configuration, prompt, 
         if response.get("status") != "completed":
             raise ValueError("Provider response was incomplete or refused.")
         result = ChapterAnalysis.model_validate_json(response_output_text(response))
-        spans = _evidence_spans(result, window["data"])
+        result, spans, notes = _verify_citations(result, window["data"])
         _current_plan(run, spec)
         with transaction.atomic():
             current = AIRun.objects.select_for_update().get(id=ai_run.id)
@@ -374,24 +417,29 @@ def _attempt(run: PipelineRun, window: dict, spec: dict, configuration, prompt, 
             current.response_payload = {
                 "analysis": result.model_dump(mode="json"),
                 "evidence_spans": spans,
+                "validation_notes": notes,
             }
             current.finished_at = timezone.now()
             current.save(update_fields=["status", "response_payload", "finished_at", "updated_at"])
         return current
     except Exception as error:
-        # Validation exceptions can contain book text. Keep a bounded type-only
-        # failure in the ledger; source-bearing payloads are handled by purge.
+        # Schema and provider exceptions can contain book text, so only our own
+        # messages are stored verbatim; source-bearing payloads are handled by purge.
+        data = window["data"]
+        where = f"Chapter {data['chapter_sequence']} window {data['window']}/{data['window_count']}"
+        if isinstance(error, (StaleAnalysis, AnalysisRejected)):
+            reason = str(error)
+        else:
+            reason = f"{type(error).__name__}: the answer did not complete validation."
         AIRun.objects.filter(id=ai_run.id).update(
             status=AIRun.Status.FAILED,
-            error=f"{type(error).__name__}: chapter analysis did not complete validation.",
+            error=f"{where}: {reason}",
             finished_at=timezone.now(),
             updated_at=timezone.now(),
         )
         if isinstance(error, StaleAnalysis):
             raise
-        raise ValueError(
-            f"{type(error).__name__}: chapter analysis failed; inspect the attempt ledger."
-        ) from None
+        raise AnalysisRejected(f"{where}: {reason}") from None
 
 
 def analyze_chapters(run_id: str, *, provider=None) -> None:
@@ -435,7 +483,8 @@ def analyze_chapters(run_id: str, *, provider=None) -> None:
             error=(
                 str(error)
                 if isinstance(error, StaleAnalysis)
-                else f"{type(error).__name__}: analysis failed; retry reuses validated windows."
+                else f"{error if isinstance(error, AnalysisRejected) else type(error).__name__}"
+                " — retry reuses validated windows."
             ),
             finished_at=timezone.now(),
             updated_at=timezone.now(),

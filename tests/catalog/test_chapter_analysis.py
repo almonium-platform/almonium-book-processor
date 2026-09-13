@@ -178,7 +178,7 @@ def test_retry_reuses_success_and_keeps_failed_response_cost(edition):
     assert failed.estimated_cost_usd == Decimal("0.000302")
 
 
-@pytest.mark.parametrize("failure", ["evidence", "incomplete", "refusal", "confidence", "flags"])
+@pytest.mark.parametrize("failure", ["evidence", "incomplete", "refusal", "confidence"])
 def test_invalid_outputs_are_rejected_but_usage_survives(edition, failure):
     run = queue_analysis(str(edition.id))
 
@@ -193,16 +193,58 @@ def test_invalid_outputs_are_rejected_but_usage_survives(edition, failure):
             return
         elif failure == "confidence":
             value["confidence"] = 1.2
-        elif failure == "flags":
-            value["content_flags"] = ["Violence"]
         response["output"][0]["content"][0]["text"] = json.dumps(value)
 
     with pytest.raises(ValueError):
         analyze_chapters(str(run.id), provider=Provider(corrupt))
-    assert run.ai_runs.get().estimated_cost_usd > 0
-    assert run.ai_runs.get().status == "failed"
+    ai = run.ai_runs.get()
+    assert ai.estimated_cost_usd > 0
+    assert ai.status == "failed"
+    assert ai.error.startswith("Chapter 1 window 1/1: ")
+    run.refresh_from_db()
+    assert run.error.startswith("Chapter 1 window 1/1: ")
+    assert "retry reuses validated windows" in run.error
+    if failure == "evidence":
+        assert "No cited evidence occurs" in run.error
+        assert "Invented" not in run.error
+    else:
+        # Provider and schema failures stay type-only; they may quote book text.
+        assert "did not complete validation" in run.error
     edition.refresh_from_db()
     assert edition.status == "ready"
+
+
+def test_whitespace_slips_are_repaired_and_unbacked_items_dropped_not_fatal(edition):
+    """A sloppy hard word or unevidenced flag must not discard a paid, otherwise valid window."""
+    run = queue_analysis(str(edition.id))
+
+    def sloppy(response, data):
+        value = output(data)
+        block = data["blocks"][0]["block_id"]
+        value["evidence"].append(
+            {"block_id": block, "quote": "the trav eler", "dimension": "syntax", "explanation": "x"}
+        )
+        value["hard_words"] = [
+            {"block_id": block, "surface": "consid ered", "explanation": "Thought about."},
+            {"block_id": block, "surface": "phantasm", "explanation": "Not in the text."},
+        ]
+        value["content_flags"] = ["Peril"]
+        response["output"][0]["content"][0]["text"] = json.dumps(value)
+
+    analyze_chapters(str(run.id), provider=Provider(sloppy))
+    ai = run.ai_runs.order_by("created_at").first()
+    assert {r.status for r in run.ai_runs.all()} == {"succeeded"}
+    analysis = ai.response_payload["analysis"]
+    text = edition.chapters.get(sequence=1).blocks.get().text
+    assert [e["quote"] for e in analysis["evidence"]] == ["Ere", "the traveler"]
+    assert [w["surface"] for w in analysis["hard_words"]] == ["considered"]
+    for span in ai.response_payload["evidence_spans"]:
+        assert text[span["start"] : span["end"]] in ("Ere", "the traveler", "considered")
+    assert analysis["content_flags"] == []
+    notes = ai.response_payload["validation_notes"]
+    assert any("Dropped hard word" in n for n in notes)
+    assert any("Unsupported content flag: Peril" in n for n in notes)
+    assert "phantasm" not in json.dumps(analysis)
 
 
 def test_long_chapter_windows_cover_every_block_once(edition):

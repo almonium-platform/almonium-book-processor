@@ -160,6 +160,7 @@
     <p>Archaism rating: {{ result.response_payload.analysis.archaism_score }} / 1 · Modernization may help: {{ result.response_payload.analysis.modernisation_would_help|yesno:"yes,no" }}</p>
     <ul>{% for evidence in result.response_payload.analysis.evidence %}<li><code>{{ evidence.block_id }}</code> “{{ evidence.quote }}” — {{ evidence.explanation }}</li>{% endfor %}</ul>
     {% if result.response_payload.analysis.hard_words %}<p>Vocabulary candidates: {% for word in result.response_payload.analysis.hard_words %}{{ word.surface }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+    {% if result.response_payload.validation_notes %}<p class="muted">Validation: {{ result.response_payload.validation_notes|join:" " }}</p>{% endif %}
     <details><summary>Show recap (spoilers)</summary><p>{{ result.response_payload.analysis.recap }}</p></details>
   </details>
   {% endfor %}

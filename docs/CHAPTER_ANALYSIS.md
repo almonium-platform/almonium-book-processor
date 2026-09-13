@@ -29,6 +29,15 @@ unchanged even when this enrichment fails.
 - Window assessments of long chapters feed separate chapter difficulty and
   summary artifacts. Incomplete chapters show partial estimates and remain
   excluded from the book percentile until all their windows have succeeded.
+- Every quote and hard word must occur in the block it cites. Exact matches are
+  required first; a stray or missing space or a case slip is repaired to the
+  exact source substring and the span recorded. Citations the text cannot back
+  are dropped and listed in the attempt's `validation_notes` rather than
+  discarding a paid window; a window is rejected only when no evidence remains.
+  Content flags with no `content` evidence are moved out of `content_flags` into
+  the notes as unsupported suggestions. Rejections store our own reason with the
+  chapter and window; schema and provider failures stay type-only because their
+  messages may quote book text.
 - First-encounter words and lexical measurements are not guessed by this prompt.
   They remain corpus-derived follow-up work. P1-3 evaluates the rubric with real
   EN/DE/UK samples; automated tests use fake responses and do not validate model
