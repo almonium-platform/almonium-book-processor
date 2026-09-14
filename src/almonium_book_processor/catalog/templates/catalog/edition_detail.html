@@ -154,6 +154,20 @@
 </section>
 {% endif %}
 
+{% if edition.work.visibility == "public" %}
+<section class="panel">
+  <h2>Try a B2 chapter adaptation</h2>
+  <p>Generate a paid, same-language chapter pilot. Keeps accessible wording, simplifies selectively, and never changes the original. B2 is a target, not a verified rating. No separate modernization is required.</p>
+  {% if chapter_analysis_enabled %}
+  <form method="post" action="{% url 'catalog:queue-adaptation-pilot' edition.id %}">{% csrf_token %}
+    <label>Source chapter <select name="chapter_id">{% for chapter in edition.chapters.all %}<option value="{{ chapter.id }}">{{ chapter.sequence }} — {{ chapter.title }}</option>{% endfor %}</select></label>
+    <button class="button button-secondary" type="submit">Generate B2 pilot (paid)</button>
+  </form>
+  {% endif %}
+  {% for pilot in adaptation_pilots %}<p><a href="{% url 'catalog:adaptation-pilot' edition.id pilot.id %}">{{ pilot.summary.chapter_title }} — B2 pilot · {{ pilot.get_status_display }}</a></p>{% endfor %}
+</section>
+{% endif %}
+
 {% if chapter_analysis_run %}
 <section class="panel assessment-panel">
   <p class="eyebrow">Chapter analysis</p>

@@ -1,0 +1,25 @@
+{% extends "catalog/base.html" %}
+{% block title %}B2 pilot — {{ run.edition.title }}{% endblock %}
+{% block content %}
+<section class="panel">
+  <a href="{% url 'catalog:edition-detail' run.edition.id %}">Back to original edition</a>
+  <h1>{{ run.summary.chapter_title }} — B2 adaptation pilot</h1>
+  <p>{{ run.get_status_display }} · {{ ai.request_payload.body.model }} · prompt v{{ ai.prompt_template.version }} · {{ run.processor_version }}</p>
+  <p>Original preserved. B2 is the requested target, not an independently verified assessment. This chapter sample is not an edition and cannot be published. Review for ease of reading, lost meaning and literary voice before generating a whole book.</p>
+  {% if stale %}<p class="message error">Source has changed. This comparison shows the saved source snapshot, not the current chapter.</p>{% endif %}
+  {% if run.error %}<p class="message error">{{ run.error }}</p>{% endif %}
+  {% if ai.estimated_cost_usd != None %}<p>Estimated cost: ${{ ai.estimated_cost_usd }} · {{ ai.input_tokens }} input / {{ ai.output_tokens }} output tokens (this attempt).</p>{% endif %}
+  {% if rows %}<p>{{ run.summary.kept }} / {{ run.summary.blocks }} blocks kept exactly.</p>{% else %}<p>Reload this page to check progress.</p>{% endif %}
+  {% for warning in ai.response_payload.warnings %}<p class="message warning">{{ warning }}</p>{% endfor %}
+</section>
+{% for row in rows %}
+<section class="panel" id="{{ row.source.block_id }}">
+  <p><code>{{ row.source.block_id }}</code> · {{ row.target.decision }}</p>
+  <div class="pilot-comparison">
+    <div><h3>Original</h3><div class="pilot-text">{{ row.source.text }}</div></div>
+    <div><h3>B2 target</h3><div class="pilot-text">{{ row.target.text }}</div></div>
+  </div>
+  {% if row.target.reason %}<p class="muted">Change: {{ row.target.reason }}</p>{% endif %}
+</section>
+{% endfor %}
+{% endblock %}

@@ -1,6 +1,6 @@
 # Almonium Book Processor backlog
 
-**Last reviewed:** 2026-09-13
+**Last reviewed:** 2026-09-14
 
 The current implementation sequence and acceptance criteria are in
 [Pipeline review and delivery plan](PIPELINE_REVIEW_AND_DELIVERY.md#delivery-tickets).
@@ -11,13 +11,15 @@ P1-1 is implemented: staff-triggered, resumable chapter analysis with bounded
 requests and versioned window results. See [Chapter analysis](CHAPTER_ANALYSIS.md)
 for operation and limits. P1-2 is also implemented: independently versioned chapter
 artifacts, provisional book aggregation, coverage and free projection refresh.
-Next: P1-3 calibration and corpus-derived first-encounter vocabulary.
-Its [fixture matrix and offline comparison tool](CALIBRATION_FIXTURES.md) are
-implemented; human-rated literary samples and actual evaluation remain open.
+Next: review a real Frankenstein B2 chapter pilot, then deliver a complete aligned
+B2 adaptation. The original C1 edition stays available; no prerequisite C1
+modernization. See [B2 pilot](ADAPTATION_PILOT.md). Calibration infrastructure is
+deferred, not a prerequisite to this pilot. Corpus-derived first-encounter
+vocabulary remains useful subsequent work.
 
 This backlog records the gap between the executable service and the longer
-pipeline roadmap. The order is deliberate: make deterministic local processing
-observable and reviewable before adding paid AI stages.
+pipeline roadmap. The current priority is useful reader-facing editions, with
+paid chapter trials and direct editorial review before full-book generation.
 
 ## Current baseline
 

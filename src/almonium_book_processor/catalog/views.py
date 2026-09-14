@@ -245,6 +245,41 @@ def queue_metadata_detection(request: HttpRequest, edition_id: str) -> HttpRespo
 
 @staff_member_required
 @require_POST
+def queue_adaptation_pilot(request: HttpRequest, edition_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.adaptation import queue_pilot
+
+    edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
+    try:
+        chapter_id = uuid.UUID(request.POST.get("chapter_id", ""))
+    except (ValueError, AttributeError):
+        messages.error(request, "Choose a source chapter.")
+        return redirect("catalog:edition-detail", edition_id=edition.id)
+    chapter = get_object_or_404(edition.chapters, pk=chapter_id)
+    try:
+        run = queue_pilot(str(edition.id), str(chapter.id))
+    except ValueError as error:
+        messages.error(request, str(error))
+        return redirect("catalog:edition-detail", edition_id=edition.id)
+    return redirect("catalog:adaptation-pilot", edition_id=edition.id, run_id=run.id)
+
+
+@staff_member_required
+def adaptation_pilot(request: HttpRequest, edition_id: str, run_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.adaptation import VERSION, pilot_context
+
+    run = get_object_or_404(
+        PipelineRun.objects.select_related("edition"),
+        pk=run_id,
+        edition_id=edition_id,
+        edition__work__visibility=Work.Visibility.PUBLIC,
+        processor_version=VERSION,
+        stage=PipelineRun.Stage.ADAPT,
+    )
+    return render(request, "catalog/adaptation_pilot.html", pilot_context(run))
+
+
+@staff_member_required
+@require_POST
 def queue_chapter_analysis(request: HttpRequest, edition_id: str) -> HttpResponse:
     edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
     try:
@@ -371,6 +406,9 @@ def _render_edition_detail(
             "edition": edition,
             "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
             **analysis_context(edition),
+            "adaptation_pilots": edition.pipeline_runs.filter(
+                stage=PipelineRun.Stage.ADAPT, processor_version="b2-chapter-pilot-v1"
+            )[:10],
             "chapter_role_choices": Chapter.AnalysisRole.choices,
             "metadata_form": metadata_form or EditionMetadataForm.for_edition(edition),
             "metadata_state": _metadata_state(edition),

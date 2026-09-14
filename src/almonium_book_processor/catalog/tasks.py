@@ -90,6 +90,13 @@ def analyze_edition_chapters(self, run_id: str) -> None:
 
 
 @shared_task(acks_late=True)
+def adapt_chapter_pilot(run_id: str) -> None:
+    from almonium_book_processor.catalog.adaptation import run_pilot
+
+    run_pilot(run_id)
+
+
+@shared_task(acks_late=True)
 def project_chapter_analysis(run_id: str) -> None:
     from almonium_book_processor.catalog.chapter_projections import refresh_projections
 

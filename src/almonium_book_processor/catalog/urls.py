@@ -6,6 +6,16 @@ app_name = "catalog"
 
 urlpatterns = [
     path(
+        "editions/<uuid:edition_id>/adaptation-pilot/queue/",
+        views.queue_adaptation_pilot,
+        name="queue-adaptation-pilot",
+    ),
+    path(
+        "editions/<uuid:edition_id>/adaptation-pilot/<uuid:run_id>/",
+        views.adaptation_pilot,
+        name="adaptation-pilot",
+    ),
+    path(
         "editions/<uuid:edition_id>/chapter-analysis/project/",
         views.refresh_chapter_projections,
         name="refresh-chapter-projections",
