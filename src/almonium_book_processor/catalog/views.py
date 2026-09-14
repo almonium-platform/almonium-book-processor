@@ -16,6 +16,13 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from almonium_book_processor.catalog.adaptation import (
+    VERSION as ADAPTATION_PILOT_VERSION,
+)
+from almonium_book_processor.catalog.adaptation import (
+    pilot_context,
+    queue_pilot,
+)
 from almonium_book_processor.catalog.ai_translation import (
     create_parallel_translation,
     last_translation_mode,
@@ -246,8 +253,6 @@ def queue_metadata_detection(request: HttpRequest, edition_id: str) -> HttpRespo
 @staff_member_required
 @require_POST
 def queue_adaptation_pilot(request: HttpRequest, edition_id: str) -> HttpResponse:
-    from almonium_book_processor.catalog.adaptation import queue_pilot
-
     edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
     try:
         chapter_id = uuid.UUID(request.POST.get("chapter_id", ""))
@@ -265,14 +270,12 @@ def queue_adaptation_pilot(request: HttpRequest, edition_id: str) -> HttpRespons
 
 @staff_member_required
 def adaptation_pilot(request: HttpRequest, edition_id: str, run_id: str) -> HttpResponse:
-    from almonium_book_processor.catalog.adaptation import VERSION, pilot_context
-
     run = get_object_or_404(
         PipelineRun.objects.select_related("edition"),
         pk=run_id,
         edition_id=edition_id,
         edition__work__visibility=Work.Visibility.PUBLIC,
-        processor_version=VERSION,
+        processor_version=ADAPTATION_PILOT_VERSION,
         stage=PipelineRun.Stage.ADAPT,
     )
     return render(request, "catalog/adaptation_pilot.html", pilot_context(run))
@@ -407,7 +410,7 @@ def _render_edition_detail(
             "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
             **analysis_context(edition),
             "adaptation_pilots": edition.pipeline_runs.filter(
-                stage=PipelineRun.Stage.ADAPT, processor_version="b2-chapter-pilot-v1"
+                stage=PipelineRun.Stage.ADAPT, processor_version=ADAPTATION_PILOT_VERSION
             )[:10],
             "chapter_role_choices": Chapter.AnalysisRole.choices,
             "metadata_form": metadata_form or EditionMetadataForm.for_edition(edition),

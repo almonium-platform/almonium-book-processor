@@ -203,4 +203,6 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .pilot-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
 .pilot-comparison > div { min-width: 0; }
 .pilot-text { white-space: pre-wrap; line-height: 1.7; overflow-wrap: anywhere; }
+.pilot-text del { background: rgba(220, 38, 38, .14); text-decoration: none; }
+.pilot-text ins { background: rgba(22, 163, 74, .16); text-decoration: none; }
 @media (max-width: 700px) { .pilot-comparison { grid-template-columns: 1fr; } }

@@ -4,8 +4,21 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
-from almonium_book_processor.catalog.adaptation import pilot_context, queue_pilot, run_pilot
-from almonium_book_processor.catalog.models import AIRun, Chapter, ContentBlock, Edition, Work
+from almonium_book_processor.catalog.adaptation import (
+    PROMPT_NAME,
+    pilot_context,
+    queue_pilot,
+    run_pilot,
+    word_diff,
+)
+from almonium_book_processor.catalog.models import (
+    AIRun,
+    Chapter,
+    ContentBlock,
+    Edition,
+    PromptTemplate,
+    Work,
+)
 from almonium_book_processor.catalog.purge import purge_edition
 
 pytestmark = pytest.mark.django_db
@@ -204,10 +217,50 @@ def test_staff_can_queue_and_view_but_nonstaff_cannot(client, chapter):
     run_pilot(run.id, provider=Provider())
     page = client.get(response.url)
     assert page.status_code == 200
-    assert b"Before dawn, he left." in page.content
-    assert b"Ere dawn, he departed." in page.content
+    assert b"<ins>Before</ins> dawn, he <ins>left.</ins>" in page.content
+    assert b"<del>Ere</del> dawn, he <del>departed.</del>" in page.content
+    assert b'<div class="pilot-text">He was afraid.</div>' in page.content
     assert b"not an independently verified" in page.content
     other = Edition.objects.create(work=chapter.edition.work, slug="other")
     assert (
         client.get(reverse("catalog:adaptation-pilot", args=[other.id, run.id])).status_code == 404
     )
+
+
+def test_review_rows_carry_word_level_diff(chapter):
+    run = queue_pilot(chapter.edition_id, chapter.id)
+    run_pilot(run.id, provider=Provider())
+    rows = pilot_context(run)["rows"]
+    assert [s["op"] for s in rows[0]["source_segments"]] == ["equal"]
+    deleted = [s["text"] for s in rows[1]["source_segments"] if s["op"] == "delete"]
+    inserted = [s["text"] for s in rows[1]["target_segments"] if s["op"] == "insert"]
+    assert deleted == ["Ere", "departed."]
+    assert inserted == ["Before", "left."]
+    assert "".join(s["text"] for s in rows[1]["target_segments"]) == "Before dawn, he left."
+
+
+def test_word_diff_round_trips_whitespace():
+    source, target = word_diff("a  b\nc", "a  c\nd")
+    assert "".join(s["text"] for s in source) == "a  b\nc"
+    assert "".join(s["text"] for s in target) == "a  c\nd"
+
+
+def test_punctuation_only_edit_is_flagged(chapter):
+    run = queue_pilot(chapter.edition_id, chapter.id)
+
+    def repunctuate(response):
+        content = response["output"][0]["content"][0]
+        data = json.loads(content["text"])
+        data["blocks"][2].update(text="He was afraid!", decision="adapted", reason="Emphasis.")
+        content["text"] = json.dumps(data)
+
+    run_pilot(run.id, provider=Provider(repunctuate))
+    warnings = run.ai_runs.get().response_payload["warnings"]
+    assert any(w.startswith("b2: only punctuation") for w in warnings)
+
+
+def test_edited_prompt_text_must_bump_version(chapter):
+    queue_pilot(chapter.edition_id, chapter.id)
+    PromptTemplate.objects.filter(name=PROMPT_NAME).update(system_prompt="edited")
+    with pytest.raises(ValueError, match="Bump PROMPT_VERSION"):
+        queue_pilot(chapter.edition_id, chapter.id)

@@ -110,6 +110,49 @@ CEFR rating. Specific remaining edits to discuss before a full-book run:
 The paid versions remain separate in the staff UI, including the earlier
 imperfect drafts. No full-book generation or publication was launched.
 
+Second review of v3, 2026-09-14 (independent read of all 28 blocks): the
+direction is confirmed, but v3 also regressed on a point v2 had held.
+`c11.p25` “an object on whom I dared not even think” became “the being of
+whom”, softening Victor's dehumanizing reference. Also, `c11.p5` turned “now
+that I had finished” into “now that I had succeeded” (an outcome the source does
+not state) and “livid with the hue of death” into “deathly pale” (livid is
+bluish-grey, not pale); `c11.p8` reads “showed … which showed” after
+substitution, and “the sixth hour” could be “six o'clock”. Several change
+reasons mislabel formal words as historical (“spectre”, “lifeless”). The
+`c11.p2` import defect “I t was” was silently normalized in the adaptation;
+the source record still needs its own correction.
+
+Prompt v4 restructures the same rules under headed sections and adds the
+specific guards these slips need: accessible phrases inside adapted blocks stay
+verbatim (with “fly towards” as the example), dehumanizing words for the
+creature are never softened, a firm intention is not a wish, an outcome is
+never added, obsolete senses are always replaced rather than kept (with
+“accidents” as the example), sensory words keep their exact meaning, and the
+change reason must name the real barrier. Alongside v4 the service gained a
+guard that refuses to run when a saved prompt version's text or schema differs
+from the code (bump the version instead), a warning when an “adapted” block
+differs only in punctuation, spacing or case, and word-level diff highlighting
+on the review page so reviewers see exactly what changed in each paragraph.
+
+Prompt v4, run `ef7bd349-9a3d-4d0a-953c-b21839dd9e59`, estimated $0.060184
+(5,420 input / 4,112 output tokens, 313 reasoning): all 28 blocks present,
+seven kept verbatim. Every targeted slip is fixed: `c11.p23`, `c11.p27` and
+`c11.p14` are now kept exactly; `c11.p25` keeps “object” (“Could he refer to an
+object…”); `c11.p5` reads “chance events”, keeps “now that I had finished” and
+renders “livid” as “bluish-grey”; `c11.p8` replaces the obsolete “discovered”
+with “revealed” and no longer repeats “showed”. Trade-offs: v4 is slightly more
+conservative on syntax than v3 (the long final sentence of `c11.p2` stays
+unsplit), “at the very moment of my getting down” in `c11.p10` is clumsy where
+v3 had “I arrive”, “unbelieving” in `c11.p11` is odd where v3 had
+“unconvinced”, and the `c11.p21` reason claims “bestowed existence” was replaced
+when it was kept. Total estimated spend for four trials: **$0.241482**.
+
+Assessment: v4 is the more faithful draft and the better base for a full-book
+run; v3 is the more fluent one. The next prompt iteration, if any, should push
+v4's syntax unpacking back toward v3 (specifically the `c11.p2` pattern of
+splitting a “when, by…; it…, and…” sentence) without loosening the v4 fidelity
+guards. Neither is human-approved or a verified B2 rating.
+
 Existing import issues also visible in this source: `c11.p2` starts “I t” and
 `c11.h3` is an illustration quotation tagged as a heading. Source cleanup is
 separate from adaptation. The pilot does not modify those original records.

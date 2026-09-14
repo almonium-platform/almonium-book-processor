@@ -1,7 +1,9 @@
 """Bounded, staff-only B2 chapter pilots. Never mutates or publishes an edition."""
 
+import difflib
 import hashlib
 import json
+import re
 import uuid
 
 from django.conf import settings
@@ -87,6 +89,7 @@ def queue_pilot(edition_id, chapter_id):
             },
         },
     )
+    schema = ChapterAdaptation.model_json_schema()
     prompt, _ = PromptTemplate.objects.get_or_create(
         name=PROMPT_NAME,
         version=PROMPT_VERSION,
@@ -94,10 +97,16 @@ def queue_pilot(edition_id, chapter_id):
             "purpose": "level_adaptation",
             "system_prompt": SYSTEM_PROMPT,
             "user_template": "{source_json}",
-            "output_schema": ChapterAdaptation.model_json_schema(),
+            "output_schema": schema,
             "active": True,
         },
     )
+    if prompt.system_prompt != SYSTEM_PROMPT or prompt.output_schema != schema:
+        # The saved version is what past runs were hashed against; an edit must be a new version.
+        raise ValueError(
+            f"Prompt v{PROMPT_VERSION} is already saved with different text or schema. "
+            "Bump PROMPT_VERSION instead of editing a saved prompt."
+        )
     body = {
         "model": configuration.model,
         "instructions": prompt.system_prompt,
@@ -187,6 +196,10 @@ def validate_result(result, source):
         if not unchanged and not block.reason.strip():
             warnings.append(
                 f"{block.block_id}: model omitted the change reason; inspect this edit."
+            )
+        if not unchanged and _letters(block.text) == _letters(original["text"]):
+            warnings.append(
+                f"{block.block_id}: only punctuation, spacing or case changed; gratuitous edit."
             )
         if unchanged:
             block.reason = ""
@@ -304,6 +317,23 @@ def record_response(ai_id, response):
         )
 
 
+def _letters(text):
+    return re.sub(r"[\W_]+", "", text).casefold()
+
+
+def word_diff(original, adapted):
+    """Word-level diff as (source segments, target segments) of {op, text} for the review page."""
+    a = re.findall(r"\s+|\S+", original)
+    b = re.findall(r"\s+|\S+", adapted)
+    source, target = [], []
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if i2 > i1:
+            source.append({"op": "equal" if op == "equal" else "delete", "text": "".join(a[i1:i2])})
+        if j2 > j1:
+            target.append({"op": "equal" if op == "equal" else "insert", "text": "".join(b[j1:j2])})
+    return source, target
+
+
 def pilot_context(run):
     ai = run.ai_runs.order_by("-created_at").first()
     source = ai.request_payload["source"] if ai else {}
@@ -313,14 +343,15 @@ def pilot_context(run):
         stale = not chapter or digest(source_snapshot(chapter)) != run.summary["source_hash"]
     except ValueError:
         stale = True
-    return {
-        "run": run,
-        "ai": ai,
-        "stale": stale,
-        "rows": [
-            {"source": original, "target": adapted}
-            for original, adapted in zip(
-                source.get("blocks", []), result.get("blocks", []), strict=False
-            )
-        ],
-    }
+    rows = []
+    for original, adapted in zip(source.get("blocks", []), result.get("blocks", []), strict=False):
+        source_segments, target_segments = word_diff(original["text"], adapted["text"])
+        rows.append(
+            {
+                "source": original,
+                "target": adapted,
+                "source_segments": source_segments,
+                "target_segments": target_segments,
+            }
+        )
+    return {"run": run, "ai": ai, "stale": stale, "rows": rows}
