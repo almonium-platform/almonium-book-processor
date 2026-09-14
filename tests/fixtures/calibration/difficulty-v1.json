@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "samples": [
+    {
+      "id": "en-letter", "language": "en", "category": "letter",
+      "source_kind": "synthetic", "source_note": "Original AI-authored pipeline fixture; not a literary excerpt or validated CEFR reference.",
+      "blocks": [{"block_id": "letter.p1", "text": "Dear Mira, I arrived on Tuesday, but my suitcase did not. The woman at the station promised to call when it appeared. Until then, I am borrowing my brother's coat. Please send the address of the guesthouse; I seem to have copied the street name incorrectly."}], "reference": null
+    },
+    {
+      "id": "en-dialogue", "language": "en", "category": "dialogue",
+      "source_kind": "synthetic", "source_note": "Original AI-authored pipeline fixture; tests quotation marks and speaker changes, not CEFR accuracy.",
+      "blocks": [{"block_id": "dialogue.p1", "text": "“You said the bridge was open.”\n“It was open when I left.”\n“And when was that?”\n“Before the rain.”\nMira folded the map. “Then we had better ask someone who has crossed it today.”"}], "reference": null
+    },
+    {
+      "id": "en-archaic", "language": "en", "category": "archaic",
+      "source_kind": "synthetic", "source_note": "Original AI-authored pastiche; obsolete wording is a test dimension, not a human level label.",
+      "blocks": [{"block_id": "archaic.p1", "text": "Ere the household stirred, the messenger came unto the gate. ‘Whither goest thou?’ asked the keeper. ‘I seek him whose seal this letter bears,’ he answered; yet, when bidden to disclose his name, he would say no more."}], "reference": null
+    },
+    {
+      "id": "en-contemporary", "language": "en", "category": "contemporary",
+      "source_kind": "synthetic", "source_note": "Original AI-authored pipeline fixture; short sentences include abstract reasoning.",
+      "blocks": [{"block_id": "modern.p1", "text": "🙂 The app said the request was approved. Nobody knew who had approved it. That distinction mattered to Leila: a decision could follow the rules and still leave everyone avoiding responsibility. She saved the message, closed the laptop, and asked for a name."}], "reference": null
+    },
+    {
+      "id": "de-letter", "language": "de", "category": "letter",
+      "source_kind": "synthetic", "source_note": "Original AI-authored pipeline fixture; includes subordinate clauses and German punctuation.",
+      "blocks": [{"block_id": "letter.p1", "text": "Liebe Mira, ich bin am Dienstag angekommen, doch mein Koffer fehlt noch. Die Frau am Bahnhof hat versprochen, mich anzurufen, sobald er gefunden wird. Bis dahin leihe ich mir den Mantel meines Bruders. Schick mir bitte die Adresse der Pension, denn offenbar habe ich den Straßennamen falsch notiert."}], "reference": null
+    },
+    {
+      "id": "de-dialogue", "language": "de", "category": "dialogue",
+      "source_kind": "synthetic", "source_note": "Original AI-authored pipeline fixture; includes a separable verb and dialogue.",
+      "blocks": [{"block_id": "dialogue.p1", "text": "„Du hast gesagt, die Brücke sei offen.“\n„Als ich losging, war sie das.“\n„Und wann war das?“\n„Vor dem Regen.“\nMira faltete die Karte zusammen. „Dann fragen wir lieber jemanden, der heute darübergegangen ist.“"}], "reference": null
+    },
+    {
+      "id": "de-archaic", "language": "de", "category": "archaic",
+      "source_kind": "synthetic", "source_note": "Original AI-authored historical pastiche; no external literary source or validated rating.",
+      "blocks": [{"block_id": "archaic.p1", "text": "Noch ehe das Gesinde erwachte, stand am Tore ein Bote. „Wohin des Weges?“, fragte der Wächter. Der Fremde wies auf das Siegel seines Briefes und begehrte Einlass; seinen Namen aber wollte er nicht kundtun, obschon man ihn mehrfach darum ersuchte."}], "reference": null
+    },
+    {
+      "id": "de-contemporary", "language": "de", "category": "contemporary",
+      "source_kind": "synthetic", "source_note": "Original AI-authored pipeline fixture; contemporary register with abstract content.",
+      "blocks": [{"block_id": "modern.p1", "text": "Die App zeigte an, dass der Antrag genehmigt war. Wer ihn genehmigt hatte, wusste niemand. Für Leila war das ein wichtiger Unterschied: Eine Entscheidung konnte den Regeln entsprechen, ohne dass jemand die Verantwortung dafür übernahm. Sie speicherte die Nachricht und bat um einen Namen."}], "reference": null
+    },
+    {
+      "id": "uk-letter", "language": "uk", "category": "letter",
+      "source_kind": "synthetic", "source_note": "Original AI-authored pipeline fixture; Ukrainian vocative, apostrophe and connected narration.",
+      "blocks": [{"block_id": "letter.p1", "text": "Люба Міро! Я приїхала у вівторок, але моя валіза досі десь у дорозі. Працівниця вокзалу обіцяла зателефонувати, щойно її знайдуть. Поки що я позичила братове пальто. Надішли, будь ласка, адресу пансіону: здається, я неправильно записала назву вулиці. Я пам’ятаю лише номер будинку."}], "reference": null
+    },
+    {
+      "id": "uk-dialogue", "language": "uk", "category": "dialogue",
+      "source_kind": "synthetic", "source_note": "Original AI-authored pipeline fixture; Ukrainian dialogue dashes and line boundaries.",
+      "blocks": [{"block_id": "dialogue.p1", "text": "— Ти ж казав, що міст відкритий.\n— Коли я виходив, так і було.\n— А коли це було?\n— До дощу.\nМіра склала карту.\n— Тоді краще спитаймо когось, хто переходив його сьогодні."}], "reference": null
+    },
+    {
+      "id": "uk-archaic", "language": "uk", "category": "archaic",
+      "source_kind": "synthetic", "source_note": "Original AI-authored historical pastiche; requires fluent human review before any linguistic claims.",
+      "blocks": [{"block_id": "archaic.p1", "text": "Ще челядь не прокинулася, як до брами прибув гонець. «Куди прямуєш, чоловіче?» — мовив сторож. Незнайомець показав печатку на листі та зажадав, аби його впустили. Ймення свого він, одначе, не назвав, хоч як пильно його про те розпитували."}], "reference": null
+    },
+    {
+      "id": "uk-contemporary", "language": "uk", "category": "contemporary",
+      "source_kind": "synthetic", "source_note": "Original AI-authored pipeline fixture; contemporary register, abstract reasoning and Unicode.",
+      "blocks": [{"block_id": "modern.p1", "text": "🙂 Застосунок повідомив, що заявку схвалено. Хто саме її схвалив, ніхто не знав. Для Лейли ця різниця була суттєвою: рішення могло відповідати правилам, а відповідальність за нього так і залишалася нічиєю. Вона зберегла повідомлення, закрила ноутбук і попросила назвати конкретну людину."}], "reference": null
+    }
+  ]
+}
