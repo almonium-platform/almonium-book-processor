@@ -182,9 +182,12 @@ both Angular and Expo. Do not build the public reader in the processor.
 | P5-1 | processor + backend + clients; P2-3 | Evaluate N:M sentence then phrase alignment on demanded pairs; versioned bounded jobs, discontinuous spans, uncertainty fallback and Unicode-safe rendering. No all-pairs catalogue generation. |
 | P5-2 | processor + infra | Audited source/media retention, derivative invalidation, operational budgets and production routing; coordinated separate infra commit. Audio and quizzes remain optional follow-on pilots. |
 
-Suggested next session: P1-3 (calibration samples and corpus-derived first encounters). In parallel product planning,
-P0-2 then P3-1 delivers the first public reading surface without waiting for
-adaptation, phrase coloring or every enrichment.
+Suggested next sessions: [R1–R3: parallel reading delivery](PARALLEL_READING_NEXT.md).
+First close the inherited-group public-reader/publication gap (P0-2/P2-3), then
+deliver a clickable Chapter V sentence-alignment preview (bring P5-1 forward;
+the staff preview can start independently). Review real reading barriers rather
+than starting another calibration project. Public chapter SEO and corpus-derived
+examples remain subsequent valuable work.
 
 ## External references checked for this review
 

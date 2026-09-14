@@ -14,8 +14,10 @@ artifacts, provisional book aggregation, coverage and free projection refresh.
 Full-book B2 generation is implemented: bounded parallel chapter chunks,
 resumable paid results, atomic aligned-edition creation, then sentence/lexical/
 difficulty enrichment. The full Frankenstein draft has 815 aligned blocks, but
-reassessment still estimates 21 chapters C1 / 9 B2 (aggregate C1). Next: targeted
-revision of genuine remaining reading barriers and fidelity review; do not
+reassessment still estimates 21 chapters C1 / 9 B2 (aggregate C1). Next: close the
+public-reader pairing gap and preview clickable sentence correspondence; see
+[the actual pairing review and R1–R3 acceptance criteria](PARALLEL_READING_NEXT.md).
+Continue targeted revision of genuine reading barriers and fidelity review; do not
 publish it as verified B2. The original C1 edition stays
 available; no prerequisite C1 modernization. See [B2 adaptation](ADAPTATION_PILOT.md).
 Calibration infrastructure is
@@ -183,7 +185,7 @@ alignment remains an explicit staff action and records its audit and cost data.
   chapter blind before choosing a default. Terra is the default; see above.
 - [x] Translate one book into Ukrainian with explicit register; public client disclosure remains P2-3.
 - [x] Add translation length, sentence-count, truncation, and structural QA.
-- [ ] Pilot one CEFR adaptation after translation quality is accepted.
+- [x] Pilot one CEFR adaptation and generate the complete aligned Frankenstein draft; editorial approval remains open.
 - [ ] Publish a small, exceptionally reviewed shelf before scaling the catalogue.
 - [ ] Add pair-specific phrase colouring only for requested reader pairs.
 - [ ] Add audio for a measured premium pilot only after the reader workflow is live.
