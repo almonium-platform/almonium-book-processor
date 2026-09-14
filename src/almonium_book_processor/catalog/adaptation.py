@@ -32,7 +32,7 @@ MAX_CHARS = 40000
 MAX_BLOCKS = 100
 
 
-def source_snapshot(chapter):
+def source_snapshot(chapter, block_ids=None):
     edition = chapter.edition
     if edition.work.visibility != Work.Visibility.PUBLIC:
         raise ValueError("Adaptation pilots currently support public catalogue sources only.")
@@ -46,6 +46,7 @@ def source_snapshot(chapter):
             "align_group": str(b.align_group) if b.align_group else None,
         }
         for b in chapter.blocks.order_by("sequence")
+        if block_ids is None or b.block_id in block_ids
     ]
     if not blocks or not any(b["text"].strip() for b in blocks):
         raise ValueError("The chapter has no text.")
@@ -68,14 +69,24 @@ def digest(data):
 
 
 @transaction.atomic
-def queue_pilot(edition_id, chapter_id):
+def queue_pilot(edition_id, chapter_id, *, target_edition_id=None, block_ids=None, dispatch=True):
     from almonium_book_processor.catalog.tasks import adapt_chapter_pilot
 
     if not settings.OPENAI_API_KEY:
         raise ValueError("Configure an OpenAI key to generate a pilot.")
     edition = Edition.objects.select_for_update().select_related("work").get(pk=edition_id)
     chapter = Chapter.objects.get(pk=chapter_id, edition=edition)
-    source = source_snapshot(chapter)
+    source = source_snapshot(chapter, block_ids)
+    owner = edition
+    if target_edition_id is not None:
+        owner = Edition.objects.select_for_update().get(
+            pk=target_edition_id,
+            source_edition=edition,
+            work=edition.work,
+            edition_type=Edition.EditionType.ADAPTATION,
+        )
+        if owner.status == Edition.Status.PUBLISHED or owner.withdrawal_requested_at:
+            raise ValueError("Cannot generate into a published or withdrawing edition.")
     model = settings.OPENAI_TRANSLATION_QUALITY_MODEL
     configuration, _ = ModelConfiguration.objects.get_or_create(
         name=f"adaptation-pilot-{digest(model)[:16]}-v1",
@@ -125,9 +136,9 @@ def queue_pilot(edition_id, chapter_id):
     }
     input_hash = digest({"request": body, "processor": VERSION, "prompt": prompt.version})
     run, created = PipelineRun.objects.get_or_create(
-        idempotency_key=f"{edition.id}:adapt-pilot:{input_hash}",
+        idempotency_key=f"{owner.id}:adapt-pilot:{input_hash}",
         defaults={
-            "edition": edition,
+            "edition": owner,
             "stage": PipelineRun.Stage.ADAPT,
             "processor_version": VERSION,
             "input_hash": input_hash,
@@ -136,6 +147,8 @@ def queue_pilot(edition_id, chapter_id):
                 "chapter_title": chapter.title,
                 "target_level": "B2",
                 "source_hash": digest(source),
+                "source_edition_id": str(edition.id),
+                "block_ids": block_ids,
             },
         },
     )
@@ -158,7 +171,7 @@ def queue_pilot(edition_id, chapter_id):
         previous
         if reusable
         else AIRun.objects.create(
-            edition=edition,
+            edition=owner,
             pipeline_run=run,
             model_configuration=configuration,
             prompt_template=prompt,
@@ -172,7 +185,8 @@ def queue_pilot(edition_id, chapter_id):
     run.finished_at = None
     run.summary = {**run.summary, "ai_run_id": str(ai.id)}
     run.save()
-    transaction.on_commit(lambda: adapt_chapter_pilot.delay(str(run.id)))
+    if dispatch:
+        transaction.on_commit(lambda: adapt_chapter_pilot.delay(str(run.id)))
     return run
 
 
@@ -190,7 +204,8 @@ def validate_result(result, source):
         if original["text"].strip() and not block.text.strip():
             raise ValueError(f"Empty adapted block: {block.block_id}")
         if (
-            not original["text"].strip() or original["type"] in {"heading", "verse_line", "stanza"}
+            not original["text"].strip()
+            or original["type"] in {"heading", "verse_line", "verse_stanza", "stanza"}
         ) and not unchanged:
             raise ValueError(f"Protected block changed: {block.block_id}")
         if not unchanged and not block.reason.strip():
@@ -222,11 +237,13 @@ def run_pilot(run_id, *, provider=None):
     run = PipelineRun.objects.get(pk=run_id)
     ai = AIRun.objects.get(pk=run.summary["ai_run_id"])
     source = ai.request_payload["source"]
+    source_edition_id = run.summary.get("source_edition_id", run.edition_id)
+    block_ids = run.summary.get("block_ids")
     try:
         chapter = Chapter.objects.select_related("edition__work").get(
-            pk=source["chapter_id"], edition_id=run.edition_id
+            pk=source["chapter_id"], edition_id=source_edition_id
         )
-        if digest(source_snapshot(chapter)) != run.summary["source_hash"]:
+        if digest(source_snapshot(chapter, block_ids)) != run.summary["source_hash"]:
             raise ValueError("Source changed before generation. Queue a new pilot.")
         ai.status = AIRun.Status.SUBMITTED
         ai.started_at = timezone.now()
@@ -245,11 +262,11 @@ def run_pilot(run_id, *, provider=None):
         result = ChapterAdaptation.model_validate_json(response_output_text(response))
         warnings = validate_result(result, source)
         with transaction.atomic():
-            edition = Edition.objects.select_for_update().get(pk=run.edition_id)
+            Edition.objects.select_for_update().get(pk=run.edition_id)
             chapter = Chapter.objects.select_related("edition__work").get(
-                pk=source["chapter_id"], edition=edition
+                pk=source["chapter_id"], edition_id=source_edition_id
             )
-            if digest(source_snapshot(chapter)) != run.summary["source_hash"]:
+            if digest(source_snapshot(chapter, block_ids)) != run.summary["source_hash"]:
                 raise ValueError(
                     "Source changed during generation. Result retained only in AI history."
                 )
@@ -338,9 +355,20 @@ def pilot_context(run):
     ai = run.ai_runs.order_by("-created_at").first()
     source = ai.request_payload["source"] if ai else {}
     result = ai.response_payload.get("adaptation", {}) if ai else {}
-    chapter = run.edition.chapters.filter(pk=run.summary["chapter_id"]).first()
+    chapter = (
+        Chapter.objects.select_related("edition__work")
+        .filter(
+            pk=run.summary["chapter_id"],
+            edition_id=run.summary.get("source_edition_id", run.edition_id),
+        )
+        .first()
+    )
     try:
-        stale = not chapter or digest(source_snapshot(chapter)) != run.summary["source_hash"]
+        stale = (
+            not chapter
+            or digest(source_snapshot(chapter, run.summary.get("block_ids")))
+            != run.summary["source_hash"]
+        )
     except ValueError:
         stale = True
     rows = []

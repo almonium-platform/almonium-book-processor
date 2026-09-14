@@ -1,5 +1,74 @@
 # B2 chapter pilot
 
+## Full-book generation
+
+The source edition page now also offers **Generate / resume full B2 book (paid)**.
+This creates a separate same-language `adaptation` edition with explicit source
+lineage and `parallel_role=parallel`. It uses the current versioned pilot prompt
+(v4), including the user's fidelity improvements and word-diff review.
+
+Generation is a worker job with up to three requests in flight. Chapters larger
+than 40,000 characters / 100 blocks are split at block boundaries; a single
+oversized block is refused before creating the edition. Blank-only chunks and
+empty chapters are preserved without AI requests. All blocks, media attributes,
+chapter order/roles and canonical alignment groups are retained. Generation
+decisions and AI-run IDs are stored on the derived blocks.
+
+Completed chunks are checkpoints owned by the new edition (including their
+spend), and failed retries reuse successful results. A failed chunk leaves no
+partial normalized book: all chapters/blocks materialize in one transaction only
+after completeness and source-revision checks. The parent job records progress;
+the existing retry button resumes adaptation, never translation. A new source
+revision or generation specification creates a new edition, not an overwrite.
+Running jobs interrupted during a paid call still require operator reconciliation.
+
+The completed draft stays **Needs review**, with a mandatory fidelity/difficulty
+warning and `auto_publish=false`. The requested B2 level lives in generation
+metadata; the editorial `cefr_level` remains unset. A by-construction alignment
+run records the inherited groups, then the worker splits sentences, computes
+vocabulary and queues paid difficulty reassessment on the generated wording.
+None of these operations change the source edition. The existing staff reader
+can show the full draft beside its original; chunk review pages retain the word
+diff and change reasons.
+
+This remains a reviewed-library workflow, not private-import adaptation. No
+public API contract, backend or client deployment changes are part of this slice.
+Human fidelity review, source-import cleanup and confirmation of the achieved
+level are still required before manually publishing the draft.
+
+### Full Frankenstein draft — actual result, 2026-09-14
+
+- Edition: `shelley-frankenstein-en-orig-b2`
+  (`f0617488-6553-4131-9a13-2e470a62ffa9`).
+- Generation run: `d9b46765-3568-4cf0-b826-79fa51507e30`, prompt v4.
+- 31 successful chunks, all 30 chapters and 815 blocks; 123 blocks kept
+  verbatim. 76,419 whitespace-delimited words. All source block IDs and
+  alignment groups match exactly, and the original source revision is unchanged.
+- Generation estimate $1.923042; difficulty reassessment $0.067073;
+  total for this full draft **$1.990115** (prior chapter pilots excluded).
+- Sentence splitting, inherited alignment and vocabulary completed. The
+  reassessment completed all 32 windows. Full staff parallel-reader rendering
+  was checked on Chapter V.
+- **Target not yet achieved by the estimator:** 9 chapters B2, 21 chapters C1;
+  the aggregate is C1. The original roles were preserved, including introduction
+  and preface currently marked as body; excluding those two would not change
+  this conclusion. These remain model judgments, not validated ground truth.
+- The draft remains Needs review, editorial level unset, and unpublished.
+
+Editorial spot checks: the full Chapter V now unpacks the opening syntax,
+preserves “now that I had finished”, “promised yourself”, the dehumanizing
+“object”, and “my first thought would not fly towards”. But Chapter IV still
+contains “Whence” and formal embedded scientific argument. Other flagged
+chapters retain long abstract sentences. Some assessment evidence is weak
+(metaphor, tragic content and literary references do not by themselves prove
+C1), so do not blindly rewrite everything cited by the judge.
+
+Next useful delivery: targeted revision of the still-difficult chapters using
+specific reading barriers, with fidelity checked against the original and
+already-suitable generated chapters retained. Reassess revised wording, not
+just a new B2 label. Do not insert mandatory C1 modernization, regenerate the
+entire book merely to change a badge, or publish this draft as proven B2.
+
 Product decision, 2026-09-14: preserve Frankenstein's original C1 edition and
 adapt directly to B2. Do not create a mandatory modernized C1 intermediate.
 The analysis flag “modernization may help” is advisory, not an instruction to
@@ -50,11 +119,11 @@ structural correspondence, not semantic fidelity; review the actual output.
 1. Read the real Chapter V pilot for clarity, omissions, semantic drift and voice.
 2. Resolve source-import defects separately, with existing audited correction
    tools; do not silently rewrite the original as part of adaptation.
-3. After pilot approval, implement resumable full-book B2 generation with
-   explicit source lineage, inherited alignment groups, completeness gates,
-   sentence splitting and difficulty reassessment. Do not publish this sample
-   as though it were the complete book.
-4. Review the complete edition, then expose original/B2 switching in the reader.
+3. Review the complete generated B2 draft and its difficulty reassessment.
+   Full-book generation is now implemented (see above); the chapter pilot is
+   still not a publishable edition.
+4. Confirm the full edition's level and fidelity before manual publication.
+   The staff reader already supports original/B2 comparison via inherited groups.
    B1 is a separate subsequent adaptation from the approved source, not from B2.
 
 ## Frankenstein trial, 2026-09-14

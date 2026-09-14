@@ -11,9 +11,14 @@ P1-1 is implemented: staff-triggered, resumable chapter analysis with bounded
 requests and versioned window results. See [Chapter analysis](CHAPTER_ANALYSIS.md)
 for operation and limits. P1-2 is also implemented: independently versioned chapter
 artifacts, provisional book aggregation, coverage and free projection refresh.
-Next: review a real Frankenstein B2 chapter pilot, then deliver a complete aligned
-B2 adaptation. The original C1 edition stays available; no prerequisite C1
-modernization. See [B2 pilot](ADAPTATION_PILOT.md). Calibration infrastructure is
+Full-book B2 generation is implemented: bounded parallel chapter chunks,
+resumable paid results, atomic aligned-edition creation, then sentence/lexical/
+difficulty enrichment. The full Frankenstein draft has 815 aligned blocks, but
+reassessment still estimates 21 chapters C1 / 9 B2 (aggregate C1). Next: targeted
+revision of genuine remaining reading barriers and fidelity review; do not
+publish it as verified B2. The original C1 edition stays
+available; no prerequisite C1 modernization. See [B2 adaptation](ADAPTATION_PILOT.md).
+Calibration infrastructure is
 deferred, not a prerequisite to this pilot. Corpus-derived first-encounter
 vocabulary remains useful subsequent work.
 

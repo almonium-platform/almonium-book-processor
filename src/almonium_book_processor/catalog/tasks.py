@@ -90,6 +90,22 @@ def analyze_edition_chapters(self, run_id: str) -> None:
 
 
 @shared_task(acks_late=True)
+def adapt_book(run_id: str) -> None:
+    from almonium_book_processor.catalog.book_adaptation import run_book
+
+    run_book(run_id)
+
+
+@shared_task(acks_late=True)
+def enrich_adapted_book(edition_id: str) -> None:
+    from almonium_book_processor.catalog.chapter_analysis import queue_analysis
+
+    split_edition_sentences(edition_id)
+    analyze_edition_lexicon(edition_id)
+    queue_analysis(edition_id)
+
+
+@shared_task(acks_late=True)
 def adapt_chapter_pilot(run_id: str) -> None:
     from almonium_book_processor.catalog.adaptation import run_pilot
 

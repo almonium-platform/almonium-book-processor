@@ -252,6 +252,23 @@ def queue_metadata_detection(request: HttpRequest, edition_id: str) -> HttpRespo
 
 @staff_member_required
 @require_POST
+def queue_book_adaptation(request: HttpRequest, edition_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.book_adaptation import queue_book
+
+    edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
+    try:
+        run = queue_book(edition.id)
+    except ValueError as error:
+        messages.error(request, str(error))
+        return redirect("catalog:edition-detail", edition_id=edition.id)
+    messages.success(
+        request, "B2 edition queued. Completed chunks are reused; publication requires review."
+    )
+    return redirect("catalog:edition-detail", edition_id=run.edition_id)
+
+
+@staff_member_required
+@require_POST
 def queue_adaptation_pilot(request: HttpRequest, edition_id: str) -> HttpResponse:
     edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
     try:
@@ -411,7 +428,10 @@ def _render_edition_detail(
             **analysis_context(edition),
             "adaptation_pilots": edition.pipeline_runs.filter(
                 stage=PipelineRun.Stage.ADAPT, processor_version=ADAPTATION_PILOT_VERSION
-            )[:10],
+            ),
+            "book_adaptation_run": edition.pipeline_runs.filter(
+                stage=PipelineRun.Stage.ADAPT, processor_version="b2-book-v1"
+            ).first(),
             "chapter_role_choices": Chapter.AnalysisRole.choices,
             "metadata_form": metadata_form or EditionMetadataForm.for_edition(edition),
             "metadata_state": _metadata_state(edition),
@@ -1336,6 +1356,19 @@ def retry_failed_edition(request: HttpRequest, edition_id: str) -> HttpResponse:
     edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
     if edition.status != Edition.Status.FAILED:
         messages.error(request, "Only failed editions can be retried.")
+    elif (
+        edition.edition_type == Edition.EditionType.ADAPTATION
+        and edition.pipeline_runs.filter(processor_version="b2-book-v1").exists()
+    ):
+        from almonium_book_processor.catalog.book_adaptation import queue_book
+
+        try:
+            run = queue_book(edition.source_edition_id)
+        except ValueError as error:
+            messages.error(request, str(error))
+        else:
+            messages.success(request, "Adaptation resumed; completed chunks are reused.")
+            return redirect("catalog:edition-detail", edition_id=run.edition_id)
     elif edition.source_file:
         process_book_pipeline.delay(str(edition.id))
         messages.success(request, "Source reprocessing queued.")

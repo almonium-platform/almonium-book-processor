@@ -165,6 +165,20 @@
   </form>
   {% endif %}
   {% for pilot in adaptation_pilots %}<p><a href="{% url 'catalog:adaptation-pilot' edition.id pilot.id %}">{{ pilot.summary.chapter_title }} — B2 pilot · {{ pilot.get_status_display }}</a></p>{% endfor %}
+  {% if chapter_analysis_enabled and edition.supports_parallel_reading and not book_adaptation_run %}
+  <h3>Create the full B2 edition</h3>
+  <p>Paid generation of every chapter, followed by sentence splitting, vocabulary and difficulty analysis. The source stays unchanged. The new edition must be reviewed before publication.</p>
+  <form method="post" action="{% url 'catalog:queue-book-adaptation' edition.id %}">{% csrf_token %}<button class="button" type="submit">Generate / resume full B2 book (paid)</button></form>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if book_adaptation_run %}
+<section class="panel"><h2>B2 adaptation — {{ book_adaptation_run.get_status_display }}</h2>
+  <p>{{ book_adaptation_run.summary.completed }} / {{ book_adaptation_run.summary.plan.windows|length }} generation chunks complete. {% if book_adaptation_run.summary.blocks %}{{ book_adaptation_run.summary.blocks }} blocks · {{ book_adaptation_run.summary.kept }} kept verbatim.{% endif %}</p>
+  <p>Target B2; editorial level stays unset until confirmed. Source revision: <code>{{ book_adaptation_run.summary.plan.source_hash }}</code>.</p>
+  {% if book_adaptation_run.error %}<p class="message error">{{ book_adaptation_run.error }}</p>{% endif %}
+  {% if has_blocks %}<a class="button" href="{% url 'catalog:edition-reader' edition.id %}?parallel={{ edition.source_edition.id }}">Read beside source</a>{% endif %}
 </section>
 {% endif %}
 
