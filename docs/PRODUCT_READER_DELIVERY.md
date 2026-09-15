@@ -34,12 +34,20 @@ Firebase bearer authentication must remain separate from Angular session cookies
    In Angular, open adaptation ↔ original and adaptation ↔ Ukrainian. Verify real
    catalogue selection, truthful labels, all block pairs, and unavailable-pair
    handling. Do not bypass publication gates to make an integration test pass.
-3. **Chapter data in backend and Angular.** Define one explicit public chapter DTO
-   carrying stable chapter identity/order/title, spoiler-free description, current
-   estimated CEFR with coverage/provenance, and useful vocabulary when available.
-   Keep editorial level and requested adaptation target distinct. Project through
-   the product API; add actual chapter navigation and level/vocabulary panels.
-   Private chapters must never enter public routes. No recap spoilers in defaults.
+3. **Chapter data in backend and Angular — first slice implemented.** Public
+   `/editions/{slug}/chapters/` feeds product `/public/books/{slug}/chapters`.
+   Stable chapter UUID/order/title, analysis status, complete current CEFR estimate
+   and ordered spoiler-free descriptions appear in Angular's chapter navigation.
+   Missing enrichment never blocks reading. Review/private editions return 404;
+   stale or incomplete estimates are not displayed. Editorial book level remains
+   separate. Vocabulary panels, reader-facing provenance detail and individual
+   chapter SEO routes remain next, not part of this slice. No recaps in defaults.
+   Verification: 313 processor tests; focused backend content tests; 24 Angular
+   reader/contract tests, development build and mocked browser test pass. Processor
+   rebuilt/restarted; live original chapter endpoint returns 30 chapters. Backend
+   and Angular changes are not yet a live publication round-trip. Some generated
+   descriptions hint at later events despite the prompt's spoiler-free intent;
+   review these before treating them as finished public SEO copy.
 4. **Offline sentence correspondence in the existing reader.** Use the existing
    paragraph groups as bounded windows; persist N:M sentence spans keyed by both
    current texts and segmentations. Same-language and translated pairs need their

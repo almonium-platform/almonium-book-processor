@@ -340,6 +340,12 @@ class PublishedEditionViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "slug"
 
     @action(detail=True, methods=["get"])
+    def chapters(self, request, slug=None):
+        from almonium_book_processor.catalog.public_chapters import public_chapters
+
+        return Response(public_chapters(self.get_object()))
+
+    @action(detail=True, methods=["get"])
     def blocks(self, request, slug=None):
         edition = self.get_object()
         blocks = edition.blocks.select_related("chapter").order_by("chapter__sequence", "sequence")
