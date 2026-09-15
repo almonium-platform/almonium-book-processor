@@ -113,6 +113,13 @@ def adapt_chapter_pilot(run_id: str) -> None:
 
 
 @shared_task(acks_late=True)
+def reassess_applied_pilot(edition_id: str) -> None:
+    from almonium_book_processor.catalog.chapter_analysis import queue_analysis
+
+    queue_analysis(edition_id)
+
+
+@shared_task(acks_late=True)
 def project_chapter_analysis(run_id: str) -> None:
     from almonium_book_processor.catalog.chapter_projections import refresh_projections
 

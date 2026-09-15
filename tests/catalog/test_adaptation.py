@@ -1,4 +1,5 @@
 import json
+import uuid
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -22,6 +23,165 @@ from almonium_book_processor.catalog.models import (
 from almonium_book_processor.catalog.purge import purge_edition
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture
+def application(chapter, monkeypatch):
+    from almonium_book_processor.catalog.chapter_analysis import analysis_spec
+    from almonium_book_processor.catalog.models import PipelineRun
+
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.refresh_edition_after_revision.delay", lambda _: None
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.reassess_applied_pilot.delay", lambda _: None
+    )
+    for block in chapter.blocks.all():
+        block.align_group = uuid.uuid4()
+        block.save()
+    run = queue_pilot(chapter.edition_id, chapter.id, dispatch=False)
+    run_pilot(run.id, provider=Provider())
+    PipelineRun.objects.create(
+        edition=chapter.edition,
+        stage="adapt",
+        processor_version="pilot-difficulty-v1",
+        input_hash="test",
+        idempotency_key="test-pilot-assessment",
+        status="succeeded",
+        summary={
+            "pilot_id": str(run.id),
+            "spec": analysis_spec(),
+            "assessment": {"max_level": "B2"},
+        },
+    )
+    target = Edition.objects.create(
+        work=chapter.edition.work,
+        source_edition=chapter.edition,
+        slug="target",
+        title="Draft",
+        language="en",
+        edition_type="adaptation",
+        status="ready",
+    )
+    tc = Chapter.objects.create(edition=target, sequence=chapter.sequence)
+    for block in chapter.blocks.all():
+        ContentBlock.objects.create(
+            edition=target,
+            chapter=tc,
+            block_id=block.block_id,
+            sequence=block.sequence,
+            block_type=block.block_type,
+            text=block.text,
+            align_group=block.align_group,
+            attributes={"adaptation": {"target_level": "B2"}},
+        )
+    return run, target, tc
+
+
+def test_apply_whole_pilot_preserves_identity_audit_and_review_gate(application):
+    from almonium_book_processor.catalog.pilot_application import apply_pilot, chapter_revision
+
+    run, target, chapter = application
+    ids = list(chapter.blocks.values_list("id", "align_group"))
+    count = apply_pilot(
+        pilot_id=run.id,
+        target_id=target.id,
+        expected_revision=chapter_revision(chapter),
+        editor=None,
+        notes="Reviewed for fidelity.",
+    )
+    assert count == 1
+    assert chapter.blocks.get(block_id="b1").text == "Before dawn, he left."
+    assert list(chapter.blocks.values_list("id", "align_group")) == ids
+    assert run.edition.blocks.get(block_id="b1").text == "Ere dawn, he departed."
+    revision = target.block_revisions.get()
+    assert revision.previous_text == "Ere dawn, he departed."
+    assert str(run.id) in revision.notes
+    assert target.warnings.get().code == "adaptation_chapter_replaced"
+    target.refresh_from_db()
+    assert target.status == "review"
+    assert (
+        apply_pilot(
+            pilot_id=run.id,
+            target_id=target.id,
+            expected_revision=chapter_revision(chapter),
+            editor=None,
+            notes="Retry",
+        )
+        == 0
+    )
+
+
+@pytest.mark.parametrize(
+    "problem",
+    [
+        "stale_target",
+        "stale_source",
+        "published",
+        "wrong_source",
+        "missing_judge",
+        "bad_group",
+        "active_job",
+        "partial",
+    ],
+)
+def test_apply_pilot_rejects_unsafe_targets_atomically(application, problem):
+    from almonium_book_processor.catalog.models import PipelineRun
+    from almonium_book_processor.catalog.pilot_application import apply_pilot, chapter_revision
+
+    run, target, chapter = application
+    expected = chapter_revision(chapter)
+    if problem == "stale_target":
+        chapter.blocks.filter(block_id="b1").update(text="Staff correction.")
+    elif problem == "stale_source":
+        run.edition.blocks.filter(block_id="b1").update(text="Revised original.")
+    elif problem == "published":
+        target.status = "published"
+        target.save()
+    elif problem == "wrong_source":
+        target.source_edition = None
+        target.save()
+    elif problem == "missing_judge":
+        run.edition.pipeline_runs.filter(processor_version="pilot-difficulty-v1").delete()
+    elif problem == "bad_group":
+        chapter.blocks.filter(block_id="b1").update(align_group=uuid.uuid4())
+        expected = chapter_revision(chapter)
+    elif problem == "active_job":
+        PipelineRun.objects.create(
+            edition=target,
+            stage="sentences",
+            input_hash="busy",
+            idempotency_key="busy",
+            status="running",
+        )
+    elif problem == "partial":
+        run.summary = {**run.summary, "block_ids": ["b1"]}
+        run.save()
+    with pytest.raises(ValueError):
+        apply_pilot(
+            pilot_id=run.id,
+            target_id=target.id,
+            expected_revision=expected,
+            editor=None,
+            notes="Reviewed",
+        )
+    assert not target.block_revisions.exists()
+
+
+def test_apply_pilot_staff_post(application, client):
+    from almonium_book_processor.catalog.pilot_application import chapter_revision
+
+    run, target, chapter = application
+    url = reverse("catalog:apply-adaptation-pilot", args=[run.edition_id, run.id])
+    assert client.post(url).status_code == 302
+    editor = get_user_model().objects.create_user("apply-staff", is_staff=True)
+    client.force_login(editor)
+    assert client.get(url).status_code == 405
+    response = client.post(
+        url, {"target_choice": f"{target.id}:{chapter_revision(chapter)}", "notes": "Reviewed"}
+    )
+    assert response.status_code == 302
+    assert target.block_revisions.get().editor == editor
 
 
 def test_pilot_blind_assessment_is_cached_and_displayed(chapter):

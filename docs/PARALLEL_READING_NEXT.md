@@ -5,6 +5,11 @@ This is a review and delivery plan, not a publication approval.
 
 ## Implementation update — 2026-09-15
 
+Follow [the cross-product delivery sequence](PRODUCT_READER_DELIVERY.md) for the
+next sessions, including the unfinished Expo contract/UI work. Reviewed pilot
+chapters can now replace draft chapters with revision history and re-analysis;
+this does not approve or publish them automatically.
+
 ### Priority correction — offline alignment and achieved adaptation level
 
 The user explicitly reaffirmed offline/free sentence alignment. The paid preview

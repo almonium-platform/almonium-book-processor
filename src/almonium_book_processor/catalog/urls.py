@@ -7,6 +7,11 @@ app_name = "catalog"
 
 urlpatterns = [
     path(
+        "editions/<uuid:edition_id>/adaptation-pilot/<uuid:run_id>/apply/",
+        views.apply_adaptation_pilot,
+        name="apply-adaptation-pilot",
+    ),
+    path(
         "editions/<uuid:edition_id>/sentence-preview/<uuid:other_id>/",
         sentence_preview,
         name="sentence-preview",

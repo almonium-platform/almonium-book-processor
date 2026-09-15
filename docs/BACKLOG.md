@@ -1,5 +1,10 @@
 # Almonium Book Processor backlog
 
+The next cross-product sessions are tracked in
+[Processor → backend → web → mobile delivery](PRODUCT_READER_DELIVERY.md).
+Reviewed whole-chapter pilot application is now implemented; live publication,
+typed chapter metadata and mobile edition-based companions remain explicit work.
+
 **Last reviewed:** 2026-09-14
 
 **Priority correction, 2026-09-15:** achieve B2 with fidelity before further

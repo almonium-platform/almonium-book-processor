@@ -299,7 +299,62 @@ def adaptation_pilot(request: HttpRequest, edition_id: str, run_id: str) -> Http
         processor_version=ADAPTATION_PILOT_VERSION,
         stage=PipelineRun.Stage.ADAPT,
     )
-    return render(request, "catalog/adaptation_pilot.html", pilot_context(run))
+    from almonium_book_processor.catalog.pilot_application import chapter_revision
+
+    context = pilot_context(run)
+    choices = []
+    if not context["stale"] and run.status == "succeeded" and run.summary.get("block_ids") is None:
+        source_chapter = run.edition.chapters.filter(pk=run.summary["chapter_id"]).first()
+        if source_chapter:
+            for edition in run.edition.derived_editions.filter(
+                edition_type="adaptation",
+                language=run.edition.language,
+                status__in=["draft", "review", "ready"],
+                withdrawal_requested_at__isnull=True,
+            ):
+                chapter = edition.chapters.filter(sequence=source_chapter.sequence).first()
+                if chapter:
+                    choices.append(
+                        {"edition": edition, "value": f"{edition.id}:{chapter_revision(chapter)}"}
+                    )
+    context["application_targets"] = choices
+    return render(request, "catalog/adaptation_pilot.html", context)
+
+
+@staff_member_required
+@require_POST
+def apply_adaptation_pilot(request: HttpRequest, edition_id: str, run_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.pilot_application import apply_pilot
+
+    get_object_or_404(
+        PipelineRun,
+        pk=run_id,
+        edition_id=edition_id,
+        edition__work__visibility="public",
+        processor_version=ADAPTATION_PILOT_VERSION,
+    )
+    try:
+        target_id, revision = request.POST.get("target_choice", "").split(":", 1)
+        count = apply_pilot(
+            pilot_id=run_id,
+            target_id=uuid.UUID(target_id),
+            expected_revision=revision,
+            editor=request.user,
+            notes=request.POST.get("notes", ""),
+        )
+    except (ValueError, Edition.DoesNotExist, Chapter.DoesNotExist) as error:
+        messages.error(
+            request,
+            str(error)
+            if isinstance(error, ValueError)
+            else "The selected edition or chapter is unavailable.",
+        )
+        return redirect("catalog:adaptation-pilot", edition_id=edition_id, run_id=run_id)
+    messages.success(
+        request,
+        f"Applied {count} block changes. The edition remains in review; fresh analysis is queued.",
+    )
+    return redirect("catalog:edition-detail", edition_id=target_id)
 
 
 @staff_member_required

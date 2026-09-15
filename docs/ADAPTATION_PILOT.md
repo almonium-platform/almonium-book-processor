@@ -227,6 +227,12 @@ Existing import issues also visible in this source: `c11.p2` starts “I t” an
 separate from adaptation. The pilot does not modify those original records.
 # Target-level gate and prompt review — 2026-09-15
 
+**Later follow-up:** the feedback-corrected Chapter IV pilot has now been applied
+to the draft with 13 audited block changes, followed by two audited wording
+corrections. The original and other chapters remain untouched. The account below
+records the earlier pilot-review state; see [current cross-product delivery and
+content state](PRODUCT_READER_DELIVERY.md#local-content-update).
+
 The existing full-book draft is **v4**, not v6/v7. No chapter text or published
 edition was overwritten during this review. Its old judge result was 9 B2 / 21 C1.
 The revised blind judge (chapter-analysis prompt v3, operational rubric v2)
