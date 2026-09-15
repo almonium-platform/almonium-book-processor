@@ -95,6 +95,9 @@ def generate_sentence_preview(primary_id, secondary_id, chapter, block_ids=None)
     version = f"{VERSION}:{configuration.model}"
     completed = 0
     for p, s in pairs:
+        if not p.text.strip() and not s.text.strip():
+            completed += 1
+            continue
         if not p.sentences or not s.sentences:
             continue
         revision = pair_hash(p, s)
@@ -106,6 +109,37 @@ def generate_sentence_preview(primary_id, secondary_id, chapter, block_ids=None)
         )
         if cached.exists():
             cached.update(is_current=True)
+            completed += 1
+            continue
+        # Exact text/boundaries need no semantic inference. A sole sentence on
+        # each side is already the entire inherited paragraph correspondence.
+        exact = p.text == s.text and p.sentences == s.sentences
+        single = len(p.sentences) == len(s.sentences) == 1
+        if exact or single:
+            payload = {
+                "groups": [
+                    {"primary": [i], "secondary": [i], "certain": True}
+                    for i in range(len(p.sentences))
+                ],
+                "method": "identical_text" if exact else "inherited_single_sentence",
+            }
+            with transaction.atomic():
+                editions = list(
+                    Edition.objects.select_for_update().filter(pk__in=[primary.id, secondary.id])
+                )
+                if len(editions) != 2 or any(e.withdrawal_requested_at for e in editions):
+                    raise ValueError("Edition removed during alignment")
+                p.refresh_from_db()
+                s.refresh_from_db()
+                if pair_hash(p, s) != revision:
+                    raise ValueError("Text or segmentation changed during alignment")
+                EditionArtifact.objects.update_or_create(
+                    edition=primary,
+                    kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,
+                    input_hash=revision,
+                    processor_version=version,
+                    defaults={"chapter": p.chapter, "payload": payload, "is_current": True},
+                )
             completed += 1
             continue
         # No copied book text in this ledger: the immutable pair digest and IDs

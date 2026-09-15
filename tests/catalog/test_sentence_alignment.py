@@ -37,7 +37,7 @@ def pair():
             block_id="c11.p1",
             sequence=1,
             align_group=group,
-            text="Hello. Again.",
+            text="Hello. Again." if edition == original else "Hello! Again.",
             sentences=[{"start": 0, "end": 6}, {"start": 7, "end": 13}],
         )
     return original, target
@@ -61,6 +61,18 @@ def test_missing_or_duplicate_groups_refuse_inherited_pair(pair):
     block.align_group = uuid.uuid4()
     block.save()
     assert inherited_payload(p, s) is None
+
+
+def test_identical_sentences_need_no_paid_alignment(pair, monkeypatch):
+    p, s = pair
+    s.blocks.update(text=p.blocks.get().text)
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.sentence_alignment.OpenAIBatchProvider",
+        lambda: pytest.fail("Identical text must not call AI"),
+    )
+    generate_sentence_preview(str(p.id), str(s.id), 11)
+    assert not AIRun.objects.exists()
+    assert p.artifacts.get(kind="sentence_alignment").payload["method"] == "identical_text"
 
 
 def test_preview_requires_staff(client, pair):
