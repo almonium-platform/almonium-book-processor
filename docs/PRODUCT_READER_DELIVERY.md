@@ -1,6 +1,6 @@
 # Processor → backend → web → mobile delivery
 
-Updated 2026-09-15. This is the next visible product work, not a calibration project.
+Updated 2026-09-16. This is the next visible product work, not a calibration project.
 
 ## Current boundary
 
@@ -13,9 +13,10 @@ same-language pairs plus optional many-to-many sentence highlights. The reader
 contract and mocked browser interaction were tested in the preceding delivery;
 that is not a completed live processor → backend → browser publication test.
 
-Mobile still uses `{id, language}` variants and `/books/{id}/parallel/{language}`.
-Its WebView identifies secondary spans by language, so it cannot reliably offer
-original English alongside simplified English. Do not call mobile caught up yet.
+Mobile now selects a companion by edition slug, labels level/type, and consumes
+the same product parallel-edition endpoint. Its WebView uses `data-side` and
+supports grouped sentence highlights in inline/on-demand modes. Native-device
+verification and chapter enrichment remain outstanding.
 Firebase bearer authentication must remain separate from Angular session cookies.
 
 ## Next sessions, in order
@@ -48,11 +49,19 @@ Firebase bearer authentication must remain separate from Angular session cookies
    and Angular changes are not yet a live publication round-trip. Some generated
    descriptions hint at later events despite the prompt's spoiler-free intent;
    review these before treating them as finished public SEO copy.
-4. **Offline sentence correspondence in the existing reader.** Use the existing
-   paragraph groups as bounded windows; persist N:M sentence spans keyed by both
-   current texts and segmentations. Same-language and translated pairs need their
-   own correspondence. Preserve paragraph fallback. No further paid alignment by
-   default; clause/phrase highlighting follows reliable sentence coverage.
+4. **Offline sentence correspondence — implemented and run on both full pairs.**
+   Paragraph groups bound monotonic 1:1, 1:2, 2:1, 2:2, 1:3 and 3:1 matching.
+   Prefer smaller matches; uncertain, oversized or encoder-truncated inputs keep
+   paragraph fallback. Artifacts include both current texts/segmentations and the
+   configured model/algorithm identity. Staff preview queues a tracked, cached
+   whole-pair worker job, with chapter selection and progress. No paid calls.
+   `offline-sentence-v2`: B2 ↔ original run
+   `1e5cd966-bd85-46f6-a9b7-19993a1a749d`: 815 blocks, 3296 highlightable groups,
+   6 entirely paragraph-only blocks. B2 ↔ Ukrainian run
+   `ba22bf2d-fc0a-499a-887d-44f999022148`: 815 blocks, 2190 groups, 49 paragraph-only
+   blocks. Samples from chapters 1, 10, 11, 20 and 30 preserve ordinary 1:1 matches
+   and genuine sentence splits. These counts are not calibrated accuracy claims.
+   Clause/phrase alignment and wider quality review remain separate future work.
 5. **Expo parity against that same contract.** Extend authenticated book info and
    companion selection to edition identity; label language + level + edition type.
    Replace language-based WebView side detection with `data-side`. Add tap-based
@@ -74,6 +83,22 @@ Useful starting points:
 
 Keep verified commits separate per repository. Existing unrelated notification
 and settings changes in the backend/frontend worktrees belong to other work.
+
+## Where to test locally
+
+- Live Angular original: `http://localhost:9999/reader/shelley-frankenstein-en-orig`.
+  Verified against the live backend: 30 estimates and 32 window descriptions.
+- Staff B2 ↔ original sentence preview:
+  `http://localhost:8000/editions/f0617488-6553-4131-9a13-2e470a62ffa9/sentence-preview/da3a845f-572c-4ed3-acf3-3172bbc972f9/?chapter=11`.
+- For Ukrainian, replace the companion UUID with
+  `5a0a2c21-0350-4500-aaae-98a634fccafe`. Staff sign-in is required. These previews
+  do not publish the editions or clear outstanding fidelity review warnings.
+
+Verification: processor 319 tests and canonical checks pass. Mobile TypeScript,
+91 tests, ESLint (one existing generated `.expo` warning), Android export and
+browser execution of inline/on-demand WebView scripts pass. The `npm run check`
+wrapper fails with the environment's `Exec format error` bin shims; equivalent
+underlying commands were invoked via Node. No new dependency or auth changes.
 
 ## Local content update
 

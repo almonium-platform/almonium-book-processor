@@ -58,17 +58,23 @@ def inherited_pairs(edition, other):
 
 
 def inherited_payload(edition, other):
+    from almonium_book_processor.catalog.offline_sentence_alignment import processor_version
+
     pairs = inherited_pairs(edition, other)
     if not pairs:
         return None
+    candidates = EditionArtifact.objects.filter(
+        edition__in=[edition, other],
+        kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,
+        is_current=True,
+        processor_version__in=[
+            processor_version(),
+            f"sentence-pair-v2:{settings.OPENAI_TRANSLATION_QUALITY_MODEL}",
+        ],
+    ).order_by("created_at", "id")
     artifacts = {
         a.input_hash: a.payload
-        for a in EditionArtifact.objects.filter(
-            edition__in=[edition, other],
-            kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,
-            is_current=True,
-            processor_version=f"sentence-pair-v2:{settings.OPENAI_TRANSLATION_QUALITY_MODEL}",
-        )
+        for a in sorted(candidates, key=lambda a: a.processor_version == processor_version())
     }
     return {
         "schema_version": 2,

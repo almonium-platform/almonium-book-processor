@@ -69,10 +69,15 @@ def _embedding_model(model_name: str) -> Any:
     return SentenceTransformer(model_name)
 
 
-def embed_texts(texts: list[str]) -> list[list[float]]:
+def embed_texts(texts: list[str], *, reject_truncation: bool = False) -> list[list[float]]:
     """Create normalized multilingual embeddings with the configured local model."""
 
-    vectors = _embedding_model(settings.NLP_EMBEDDING_MODEL).encode(
+    model = _embedding_model(settings.NLP_EMBEDDING_MODEL)
+    if reject_truncation:
+        tokens = model.tokenizer(texts, truncation=False, padding=False)["input_ids"]
+        if any(len(ids) > model.max_seq_length for ids in tokens):
+            raise ValueError("Sentence exceeds embedding token limit")
+    vectors = model.encode(
         texts,
         normalize_embeddings=True,
         show_progress_bar=False,
@@ -149,6 +154,7 @@ def align_embeddings(
     target_lengths: list[int] | None = None,
     minimum_confidence: float = 0.55,
     skip_penalty: float = 0.15,
+    sentence_groups: bool = False,
 ) -> list[AlignmentCandidate]:
     """Return monotonic 1:1, 1:2, and 2:1 candidates for review.
 
@@ -183,11 +189,14 @@ def align_embeddings(
                 (best[source_index + 1][target_index] - skip_penalty, "skip_source"),
                 (best[source_index][target_index + 1] - skip_penalty, "skip_target"),
             ]
-            for source_count, target_count, action in (
+            moves = [
                 (1, 1, "match_1_1"),
                 (1, 2, "match_1_2"),
                 (2, 1, "match_2_1"),
-            ):
+            ]
+            if sentence_groups:
+                moves.extend([(2, 2, "match_2_2"), (1, 3, "match_1_3"), (3, 1, "match_3_1")])
+            for source_count, target_count, action in moves:
                 next_source = source_index + source_count
                 next_target = target_index + target_count
                 if next_source > len(source) or next_target > len(target):
@@ -206,7 +215,9 @@ def align_embeddings(
                     consumed = (source_count + target_count) / 2
                     choices.append(
                         (
-                            confidence * consumed + best[next_source][next_target],
+                            confidence * consumed
+                            + best[next_source][next_target]
+                            - (0.08 * (source_count + target_count - 2) if sentence_groups else 0),
                             action,
                         )
                     )
@@ -222,6 +233,9 @@ def align_embeddings(
                 "match_1_1": (1, 1),
                 "match_1_2": (1, 2),
                 "match_2_1": (2, 1),
+                "match_2_2": (2, 2),
+                "match_1_3": (1, 3),
+                "match_3_1": (3, 1),
             }[action]
             source_indices = tuple(range(source_index, source_index + source_count))
             target_indices = tuple(range(target_index, target_index + target_count))

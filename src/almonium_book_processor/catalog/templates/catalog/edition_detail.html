@@ -133,6 +133,7 @@
   {% if adaptation_blocker %}<p class="message warning" role="alert">{{ adaptation_blocker }}</p>{% elif adaptation_target %}<p>Current difficulty check passed. This does not replace fidelity review.</p>{% endif %}
   {% if adaptation_below_chapters %}<p>Below-target chapters: {{ adaptation_below_chapters|join:", " }}. Check for unnecessary simplification.</p>{% endif %}
   <p>Editorial level: {{ edition.cefr_level|default:"Not set" }}. Analysis never overwrites this value.</p>
+  <p class="muted">Chapter roles: <strong>Substantive chapter</strong> means the main story or content and counts toward the book estimate. <strong>Front matter</strong> means introductory extras, such as a preface or introduction. <strong>Back matter</strong> means end extras, such as appendices or notes. Extras remain readable and keep their own estimates, but do not count toward the overall book level. Storytelling letters and prologues still count as substantive content. Exclusion does not bypass an adaptation's target-level checks.</p>
   {% if chapter_analysis_run %}<div class="button-row"><form method="post" action="{% url 'catalog:refresh-chapter-projections' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Refresh saved assessments (no AI calls)</button></form></div>{% endif %}
   {% if projection_state == "stale" %}<p>Previous assessments are stale. Analyze the current text, or refresh saved assessments after changing chapter roles.</p>{% endif %}
   {% if book_difficulty %}

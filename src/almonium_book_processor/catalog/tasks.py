@@ -65,6 +65,14 @@ from almonium_book_processor.processing.source_qa import (
 
 logger = logging.getLogger(__name__)
 
+
+@shared_task
+def align_edition_sentences(run_id):
+    from almonium_book_processor.catalog.offline_sentence_alignment import run_alignment
+
+    return run_alignment(run_id)
+
+
 ALIGNMENT_CANDIDATE_MIN_CONFIDENCE = 0.45
 CHAPTER_ALIGNMENT_MIN_CONFIDENCE = 0.32
 ALIGNMENT_REVIEW_CONFIDENCE = 0.72

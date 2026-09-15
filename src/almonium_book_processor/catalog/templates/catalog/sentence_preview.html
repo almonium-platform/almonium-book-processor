@@ -2,7 +2,10 @@
 {% block content %}
 <h1>Sentence alignment preview</h1>
 <p>{{ primary.title }} ({{ primary.language }}) ↔ {{ secondary.title }} ({{ secondary.language }})</p>
-<p>AI-generated correspondence, not editorial certification. Click or focus a highlighted sentence to see its counterpart. Plain passages remain paragraph-aligned. Nothing is published by this preview.</p>
+<p>Automatic correspondence, not editorial certification. The full-book job uses the local multilingual embedding model, not a paid AI API. Click or focus a highlighted sentence to see its counterpart. Uncertain or unsupported passages remain paragraph-aligned. Nothing is published by this preview.</p>
+<form method="get"><label>Chapter <select name="chapter">{% for item in chapters %}<option value="{{ item.sequence }}"{% if item.sequence == chapter %} selected{% endif %}>{{ item.sequence }} — {{ item.title }}</option>{% endfor %}</select></label><button class="button button-secondary" type="submit">Open chapter</button></form>
+<form method="post">{% csrf_token %}<button class="button" type="submit">Align all chapters offline (no API cost)</button></form>
+{% if alignment_run %}<p>Latest offline job: {{ alignment_run.get_status_display }} · {{ alignment_run.progress }}%. Refresh this page for progress.</p>{% if alignment_run.error %}<p class="message warning">{{ alignment_run.error }}</p>{% endif %}{% if alignment_run.summary.completed_blocks %}<p>{{ alignment_run.summary.completed_blocks }} blocks processed · {{ alignment_run.summary.highlighted_groups }} highlightable groups · {{ alignment_run.summary.paragraph_fallback_blocks }} blocks kept entirely paragraph-aligned.</p>{% endif %}{% endif %}
 <div id="sentence-preview"></div>
 {{ payload|json_script:"sentence-data" }}
 <style>
