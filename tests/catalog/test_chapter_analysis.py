@@ -173,6 +173,45 @@ def test_adaptation_gate_exposes_evidence_and_below_target(edition):
     assert b"An obsolete conjunction" in response.content
 
 
+def test_worker_difficulty_warning_cannot_be_dismissed_and_clears_after_reassessment(edition):
+    from almonium_book_processor.catalog.adaptation_quality import DIFFICULTY_WARNING
+    from almonium_book_processor.catalog.services import resolve_review_warning
+
+    edition.edition_type = Edition.EditionType.ADAPTATION
+    edition.save()
+    edition.blocks.update(attributes={"adaptation": {"target_level": "B2"}})
+    edition.chapters.filter(sequence=2).update(analysis_role=Chapter.AnalysisRole.FRONT)
+
+    def harder_front_matter(response, data):
+        if data["chapter_sequence"] == 2:
+            content = response["output"][0]["content"][0]
+            result = json.loads(content["text"])
+            result["cefr_estimate"] = "C1"
+            content["text"] = json.dumps(result)
+
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider(harder_front_matter))
+    warning = edition.warnings.get(code=DIFFICULTY_WARNING)
+    assert warning.resolved_at is None
+    assert "not achieved" in warning.message
+    assert analysis_context(edition)["book_difficulty"]["cefr_estimate"] == "B2"
+    with pytest.raises(ValueError, match="not achieved"):
+        resolve_review_warning(
+            edition=edition,
+            warning_id=warning.id,
+            reviewer=get_user_model().objects.create_user("cannot-dismiss"),
+        )
+    edition.blocks.filter(chapter__sequence=2).update(
+        text="Ere dawn, the traveler considered a new journey."
+    )
+    replacement = queue_analysis(str(edition.id))
+    analyze_chapters(str(replacement.id), provider=Provider())
+    warning.refresh_from_db()
+    assert warning.resolved_at is not None
+    assert warning.resolved_by is None
+    assert edition.warnings.filter(code=DIFFICULTY_WARNING).count() == 1
+
+
 def test_full_analysis_is_versioned_reusable_and_does_not_change_editorial_level(edition):
     run = queue_analysis(str(edition.id))
     provider = Provider()

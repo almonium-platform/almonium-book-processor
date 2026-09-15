@@ -100,6 +100,29 @@ browser execution of inline/on-demand WebView scripts pass. The `npm run check`
 wrapper fails with the environment's `Exec format error` bin shims; equivalent
 underlying commands were invoked via Node. No new dependency or auth changes.
 
+## Follow-through: difficulty gate and reader parity
+
+Current chapter projections now maintain a tracked `adaptation_difficulty_gate`
+review warning. A manual resolve cannot dismiss a currently failing gate. The
+worker clears this warning after a current passing reassessment; other fidelity
+warnings and editorial approval remain untouched. A test covers a B2 book whose
+excluded front-matter chapter is C1: publication/review remains blocked despite
+the aggregate B2 label.
+
+Angular now highlights marked groups in side, inline and overlay modes, with text
+selection taking precedence. Spring validates both sides' offsets and complete,
+nonduplicated sentence indexes before rendering clickable spans; an invalid pair
+falls back to plain paragraph text on both sides instead of leaving orphan links.
+
+Follow-through verification: 320 processor tests and all canonical checks pass;
+24 Angular reader/contract tests, development build and browser tests in all three
+parallel modes pass; Spring's six focused content-service tests pass. Processor
+web/worker were rebuilt/restarted, and the backend was restarted on local port
+9998 with the `local` profile. The live original chapter endpoint returns 200.
+Refreshing the B2 edition's saved projections (no AI calls) confirms no difficulty
+blocker; only `adaptation_chapter_replaced` and `adaptation_fidelity_review` remain
+open. Full public B2/UK publication and native-device acceptance are still pending.
+
 ## Local content update
 
 Pilot `da64bf26-f698-4c8d-b1ce-af83934eda8c` has been applied to Chapter IV of

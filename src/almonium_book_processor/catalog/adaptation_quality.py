@@ -3,6 +3,8 @@
 from almonium_book_processor.catalog.chapter_projections import LEVELS
 from almonium_book_processor.catalog.models import Edition, PipelineRun
 
+DIFFICULTY_WARNING = "adaptation_difficulty_gate"
+
 
 def adaptation_quality(edition, analysis=None):
     if edition.edition_type != Edition.EditionType.ADAPTATION:
@@ -64,3 +66,30 @@ def adaptation_quality(edition, analysis=None):
 
 def adaptation_blocker(edition):
     return adaptation_quality(edition).get("adaptation_blocker", "")
+
+
+def sync_difficulty_warning(edition, run):
+    """Called with the edition locked after current worker projections are saved."""
+    from django.utils import timezone
+
+    from almonium_book_processor.catalog.models import QAWarning
+
+    quality = adaptation_quality(edition)
+    blocker = quality.get("adaptation_blocker")
+    if blocker:
+        QAWarning.objects.update_or_create(
+            edition=edition,
+            code=DIFFICULTY_WARNING,
+            defaults={
+                "severity": QAWarning.Severity.WARNING,
+                "message": blocker,
+                "source_ref": f"chapter-analysis:{run.id}",
+                "resolved_at": None,
+                "resolved_by": None,
+            },
+        )
+    elif quality.get("adaptation_target"):
+        edition.warnings.filter(code=DIFFICULTY_WARNING, resolved_at=None).update(
+            resolved_at=timezone.now(),
+            resolved_by=None,
+        )

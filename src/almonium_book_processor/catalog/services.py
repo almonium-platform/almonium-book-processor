@@ -888,6 +888,13 @@ def resolve_review_warning(
     warning = edition.warnings.select_for_update().filter(id=warning_id).first()
     if warning is None:
         raise ValueError("This review item does not belong to the edition.")
+    from almonium_book_processor.catalog.adaptation_quality import (
+        DIFFICULTY_WARNING,
+        adaptation_blocker,
+    )
+
+    if warning.code == DIFFICULTY_WARNING and (blocker := adaptation_blocker(edition)):
+        raise ValueError(blocker)
     if warning.resolved_at is None:
         warning.resolved_at = timezone.now()
         warning.resolved_by = reviewer

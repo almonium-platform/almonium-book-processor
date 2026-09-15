@@ -250,6 +250,9 @@ def refresh_projections(run_id: str, *, token: str | None = None) -> None:
                 id__in=retained
             ).update(is_current=False)
             edition.artifacts.filter(id__in=retained).update(is_current=True)
+            from almonium_book_processor.catalog.adaptation_quality import sync_difficulty_warning
+
+            sync_difficulty_warning(edition, run)
 
 
 def projection_context(edition: Edition, analysis: dict) -> dict:
