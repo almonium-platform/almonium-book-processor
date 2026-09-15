@@ -34,6 +34,7 @@
     {% endfor %}
   </div>
   {% if parallel_edition %}
+  <a class="button button-secondary" href="{% url 'catalog:sentence-preview' edition.id parallel_edition.id %}?chapter={{ chapter|default:11 }}">Sentence alignment preview</a>
   <p class="muted">Blocks pair through the canonical group they inherit, so correspondence here is exact rather than inferred. Anything that fails to pair is a defect in the generated text, and every one is shown as its own row.</p>
   <p class="{% if gap_count %}gap-summary gap-summary-bad{% else %}gap-summary gap-summary-clean{% endif %}">
     {% if gap_count %}{{ gap_count }} unpaired row{{ gap_count|pluralize }} {% if query %}in these results{% else %}in this chapter{% endif %}.{% else %}Every block {% if query %}in these results pairs{% else %}in this chapter pairs{% endif %} one to one.{% endif %}

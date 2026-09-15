@@ -2,6 +2,12 @@
 
 **Last reviewed:** 2026-09-14
 
+2026-09-15: first processor/backend/Angular parallel-reading integration is
+implemented, including same-language edition selection and a paid sentence-preview
+slice. See [implementation and next product deliveries](PARALLEL_READING_NEXT.md#implementation-update--2026-09-15).
+Chapter metadata/CEFR/vocabulary projection and a deliberate live publication
+round-trip remain next; do not treat all processor artifacts as integrated yet.
+
 The current implementation sequence and acceptance criteria are in
 [Pipeline review and delivery plan](PIPELINE_REVIEW_AND_DELIVERY.md#delivery-tickets).
 Use its P0–P5 tickets for new sessions. The sections below retain historical

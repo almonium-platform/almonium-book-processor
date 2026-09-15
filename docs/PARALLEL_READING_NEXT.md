@@ -3,6 +3,49 @@
 Reviewed 2026-09-14 against the local Frankenstein editions and current code.
 This is a review and delivery plan, not a publication approval.
 
+## Implementation update — 2026-09-15
+
+The first R1/R2 slice is implemented across processor, backend and Angular:
+complete inherited-group public pairs, an explicit companion-edition endpoint,
+sibling/level/type discovery, same-language panes, and clickable many-to-many
+sentence highlights. Generated editions now pass the alignment publication gate
+by validating complete inherited groups; publication still requires review,
+metadata, editorial level and current sentence splitting. Adaptations no longer
+settle translation orders in the backend.
+
+Paid previews ran for `c11.p2`, `c11.p13`, `c11.p20` in adaptation → original and
+adaptation → Ukrainian. Prompt v1 mishandled the greeting's overlapping boundaries;
+v2 correctly produces a 2:2 group. The awakening maps 3:1 and the illness passage
+contains two 2:1 groups. Twelve requests across both prompt versions cost an
+estimated **$0.020948**. No book text or publication status was changed.
+
+Staff preview (chapter 11; login required):
+`/editions/f0617488-6553-4131-9a13-2e470a62ffa9/sentence-preview/5a0a2c21-0350-4500-aaae-98a634fccafe/?chapter=11`.
+Replace the secondary ID with `da3a845f-572c-4ed3-acf3-3172bbc972f9` for the original.
+The normal staff reader also links to the preview. Missing sentence artifacts
+remain plain paragraph pairs. Inverting a cached pair is free; composing through
+a third edition is not used.
+
+Explicit worker trigger (bounded to one chapter, optionally selected blocks):
+
+```bash
+docker compose exec -T web python manage.py preview_sentence_alignment shelley-frankenstein-en-orig-b2 shelley-frankenstein-uk-parallel 11 --blocks c11.p2 c11.p13 c11.p20
+```
+
+Results are keyed by both block identities/texts/segmentations/groups/languages,
+processor/prompt version and model. Retries reuse unchanged results; concurrent
+claims do not duplicate paid work. Interrupted submitted runs require operator
+recovery rather than silently billing again. AI runs retain usage/failures; no
+paid calls occur in CI or reader GETs. Structured output follows the
+[official OpenAI schema contract](https://developers.openai.com/api/docs/guides/structured-outputs),
+with local index coverage validation; schema validity is not semantic proof.
+
+**Next iteration remains backend/frontend-focused:** deliberate end-to-end
+publication testing, typed chapter metadata/CEFR/vocabulary, pair-eligibility
+discovery and provenance, then broader sentence/clause coverage. No manual book
+rewrite is implied. See the neighboring backend's `docs/PROCESSOR_READER_CONTRACT.md`
+and frontend's `docs/PROCESSOR_READER.md` for contracts and verification limitations.
+
 ## Reuse the original's translation
 
 Yes: a faithful, unabridged adaptation can use a translation made from its
@@ -39,12 +82,15 @@ chapter needs rewriting. Editorial level is unset.
 
 ## Next sessions, in delivery order
 
+The tickets below record the original review scope; the implementation update
+above distinguishes the delivered first slice from the remaining work.
+
 ### R1 — Make the existing pairing reach the product
 
 This is the focused first slice of P0-2/P2-3, not a new platform project.
 
 - Serve inherited `align_group` pairs in the public parallel endpoint alongside
-  the reviewed inferred-alignment path. Today it only reads `BlockAlignment`;
+  the reviewed inferred-alignment path. At initial review it only read `BlockAlignment`;
   there are zero such rows among these three editions, so publication alone
   would not make their public parallel reader work.
 - Add explicit secondary-edition selection in the backend/clients. The current

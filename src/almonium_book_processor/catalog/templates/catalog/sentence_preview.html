@@ -1,0 +1,44 @@
+{% extends "catalog/base.html" %}
+{% block content %}
+<h1>Sentence alignment preview</h1>
+<p>{{ primary.title }} ({{ primary.language }}) ↔ {{ secondary.title }} ({{ secondary.language }})</p>
+<p>AI-generated correspondence, not editorial certification. Click or focus a highlighted sentence to see its counterpart. Plain passages remain paragraph-aligned. Nothing is published by this preview.</p>
+<div id="sentence-preview"></div>
+{{ payload|json_script:"sentence-data" }}
+<style>
+  .sentence-row { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 1rem 0; }
+  .sentence-pane { white-space: pre-wrap; line-height: 1.8; }
+  .sentence-hit { cursor: pointer; border-bottom: 1px dotted #947838; }
+  .sentence-hit.active, .sentence-hit:focus { background: #e4bf6260; }
+</style>
+<script>
+const payload = JSON.parse(document.getElementById('sentence-data').textContent);
+const root = document.getElementById('sentence-preview');
+for (const [rowIndex, block] of payload.blocks.entries()) {
+  const row = document.createElement('div'); row.className = 'sentence-row';
+  for (const side of ['primary', 'secondary']) {
+    const pane = document.createElement('div'); pane.className = 'sentence-pane';
+    pane.lang = payload[side + '_language'];
+    const text = Array.from(block[side + '_text']);
+    let cursor = 0;
+    for (const [index, span] of block[side + '_sentences'].entries()) {
+      pane.append(text.slice(cursor, span.start).join(''));
+      const group = block.sentence_alignment.findIndex(g => g.certain && g.primary.length && g.secondary.length && g[side].includes(index));
+      const hit = document.createElement('span');
+      hit.textContent = text.slice(span.start, span.end).join('');
+      if (group >= 0) {
+        hit.className = 'sentence-hit'; hit.tabIndex = 0; hit.dataset.group = `${rowIndex}-${group}`;
+        const activate = () => {
+          root.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+          root.querySelectorAll(`[data-group="${hit.dataset.group}"]`).forEach(el => el.classList.add('active'));
+        };
+        hit.addEventListener('click', activate); hit.addEventListener('focus', activate);
+      }
+      pane.append(hit); cursor = span.end;
+    }
+    pane.append(text.slice(cursor).join('')); row.append(pane);
+  }
+  root.append(row);
+}
+</script>
+{% endblock %}

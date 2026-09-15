@@ -366,6 +366,12 @@ def publication_blocker(edition: Edition) -> str:
     ).exists():
         return "Current sentence splitting must succeed before publication."
     if edition.source_edition_id:
+        if not edition.requires_inferred_alignment:
+            from almonium_book_processor.catalog.parallel_content import inherited_pairs
+
+            if not inherited_pairs(edition, edition.source_edition):
+                return "Inherited source block groups must be complete before publication."
+            return ""
         alignment_input_hash = _alignment_input_hash(edition.source_edition, edition)
         if not edition.pipeline_runs.filter(
             stage=PipelineRun.Stage.ALIGN,

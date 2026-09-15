@@ -183,11 +183,11 @@ both Angular and Expo. Do not build the public reader in the processor.
 | P5-2 | processor + infra | Audited source/media retention, derivative invalidation, operational budgets and production routing; coordinated separate infra commit. Audio and quizzes remain optional follow-on pilots. |
 
 Suggested next sessions: [R1–R3: parallel reading delivery](PARALLEL_READING_NEXT.md).
-First close the inherited-group public-reader/publication gap (P0-2/P2-3), then
-deliver a clickable Chapter V sentence-alignment preview (bring P5-1 forward;
-the staff preview can start independently). Review real reading barriers rather
-than starting another calibration project. Public chapter SEO and corpus-derived
-examples remain subsequent valuable work.
+The first inherited-group public-reader integration and paid sentence-preview
+slice are implemented across processor/backend/Angular. Next: a deliberate
+approved publication round-trip, typed chapter metadata/CEFR/vocabulary and
+eligible-pair/provenance discovery, then broader sentence/clause coverage. Keep
+the next iteration focused on the product clients, not a calibration project.
 
 ## External references checked for this review
 

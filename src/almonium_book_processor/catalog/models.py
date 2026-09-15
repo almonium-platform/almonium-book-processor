@@ -560,6 +560,7 @@ class EditionArtifact(TimestampedModel):
         DESCRIPTION = "description", "Generated description"
         CHAPTER_SUMMARY = "chapter_summary", "Chapter summary"
         QUIZ = "quiz", "Quiz"
+        SENTENCE_ALIGNMENT = "sentence_alignment", "Pair-specific sentence alignment"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     edition = models.ForeignKey(Edition, related_name="artifacts", on_delete=models.CASCADE)

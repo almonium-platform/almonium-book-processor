@@ -9,3 +9,4 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "almonium_book_processor.config.
 app = Celery("almonium_book_processor")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
+app.conf.imports = ("almonium_book_processor.catalog.sentence_alignment",)

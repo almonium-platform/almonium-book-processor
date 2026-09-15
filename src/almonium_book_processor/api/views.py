@@ -357,6 +357,12 @@ class PublishedEditionViewSet(viewsets.ReadOnlyModelViewSet):
         except Edition.DoesNotExist as error:
             raise NotFound("Published edition variant not found.") from error
 
+        from almonium_book_processor.catalog.parallel_content import inherited_payload
+
+        inherited = inherited_payload(edition, other)
+        if inherited is not None:
+            return Response(inherited)
+
         alignments = BlockAlignment.objects.filter(
             source_edition=other,
             target_edition=edition,
