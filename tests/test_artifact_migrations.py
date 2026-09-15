@@ -3,18 +3,24 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from almonium_book_processor.artifact_migrations import migrate_artifact_payload
 from almonium_book_processor.models import SCHEMA_VERSION, BookArtifact
 
+# A real schema-1 artifact from the local catalog. data/ is not committed, so this
+# regression runs where the catalog is checked out and is skipped in CI.
+FRANKENSTEIN_ARTIFACT = (
+    Path(__file__).parents[1] / "data" / "normalized-catalog" / "shelley-frankenstein-en-orig.json"
+)
 
+
+@pytest.mark.skipif(
+    not FRANKENSTEIN_ARTIFACT.exists(),
+    reason="needs the local normalized catalog under data/, which is not committed",
+)
 def test_schema_one_frankenstein_artifact_migrates_to_current_schema() -> None:
-    artifact_path = (
-        Path(__file__).parents[1]
-        / "data"
-        / "normalized-catalog"
-        / "shelley-frankenstein-en-orig.json"
-    )
-    legacy_payload = json.loads(artifact_path.read_bytes())
+    legacy_payload = json.loads(FRANKENSTEIN_ARTIFACT.read_bytes())
 
     artifact = BookArtifact.model_validate(migrate_artifact_payload(legacy_payload))
 
