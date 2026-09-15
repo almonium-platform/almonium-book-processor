@@ -69,11 +69,22 @@ def digest(data):
 
 
 @transaction.atomic
-def queue_pilot(edition_id, chapter_id, *, target_edition_id=None, block_ids=None, dispatch=True):
+def queue_pilot(
+    edition_id,
+    chapter_id,
+    *,
+    target_edition_id=None,
+    block_ids=None,
+    dispatch=True,
+    editorial_feedback="",
+):
     from almonium_book_processor.catalog.tasks import adapt_chapter_pilot
 
     if not settings.OPENAI_API_KEY:
         raise ValueError("Configure an OpenAI key to generate a pilot.")
+    editorial_feedback = editorial_feedback.strip()
+    if len(editorial_feedback) > 4000:
+        raise ValueError("Editorial feedback is limited to 4,000 characters.")
     edition = Edition.objects.select_for_update().select_related("work").get(pk=edition_id)
     chapter = Chapter.objects.get(pk=chapter_id, edition=edition)
     source = source_snapshot(chapter, block_ids)
@@ -134,6 +145,13 @@ def queue_pilot(edition_id, chapter_id, *, target_edition_id=None, block_ids=Non
             }
         },
     }
+    if editorial_feedback:
+        body["instructions"] += (
+            "\nEDITORIAL CORRECTIONS FROM THE REVIEWER\n"
+            "Apply these corrections without weakening fidelity or the B2 reading target. "
+            "Generate from the supplied original, not from a previous adaptation.\n"
+            + editorial_feedback
+        )
     input_hash = digest({"request": body, "processor": VERSION, "prompt": prompt.version})
     run, created = PipelineRun.objects.get_or_create(
         idempotency_key=f"{owner.id}:adapt-pilot:{input_hash}",
@@ -149,6 +167,7 @@ def queue_pilot(edition_id, chapter_id, *, target_edition_id=None, block_ids=Non
                 "source_hash": digest(source),
                 "source_edition_id": str(edition.id),
                 "block_ids": block_ids,
+                "editorial_feedback": editorial_feedback,
             },
         },
     )

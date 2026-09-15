@@ -5,6 +5,23 @@ This is a review and delivery plan, not a publication approval.
 
 ## Implementation update — 2026-09-15
 
+### Priority correction — offline alignment and achieved adaptation level
+
+The user explicitly reaffirmed offline/free sentence alignment. The paid preview
+below is historical proof of the interaction, **not the default implementation
+strategy**. No full-book paid sentence alignment was run. The unfinished paid
+full-book expansion was removed before shipping; no source or generated text was
+deleted. Exact identical sentence spans and one-sentence inherited paragraph
+pairs now require no provider call. General N:M semantic alignment still needs an
+offline worker implementation; sentence splitting alone does not establish a
+correspondence. Keep paragraph fallback when uncertain. Phrase alignment comes
+after sentence correspondence, not before it. Paid escalation must be explicit.
+
+Current priority: an acceptable adaptation, not broader paid alignment. See
+[the prompt/judge review](ADAPTATION_PILOT.md#target-level-gate-and-prompt-review--2026-09-15).
+Then deliver offline sentence coverage in the existing clickable reader, followed
+by a deliberate publication round-trip and chapter metadata in the product.
+
 The first R1/R2 slice is implemented across processor, backend and Angular:
 complete inherited-group public pairs, an explicit companion-edition endpoint,
 sibling/level/type discovery, same-language panes, and clickable many-to-many

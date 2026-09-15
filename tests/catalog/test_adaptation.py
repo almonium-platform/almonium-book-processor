@@ -24,6 +24,89 @@ from almonium_book_processor.catalog.purge import purge_edition
 pytestmark = pytest.mark.django_db
 
 
+def test_pilot_blind_assessment_is_cached_and_displayed(chapter):
+    from almonium_book_processor.catalog.pilot_difficulty import assess_pilot
+
+    run = queue_pilot(chapter.edition_id, chapter.id, dispatch=False)
+    run_pilot(run.id, provider=Provider())
+
+    class Judge:
+        calls = 0
+
+        def respond(self, body):
+            self.calls += 1
+            data = json.loads(body["input"])
+            assert "target_level" not in data
+            assert "author" not in data
+            assert "Before dawn, he left." in str(data)
+            result = {
+                "cefr_estimate": "B1",
+                "confidence": 0.7,
+                "archaism_score": 0.0,
+                "modernisation_would_help": False,
+                "evidence": [
+                    {
+                        "block_id": "b1",
+                        "quote": "Before dawn",
+                        "dimension": "syntax",
+                        "explanation": "Direct narration.",
+                    }
+                ],
+                "spoiler_free_description": "A departure.",
+                "recap": "He leaves.",
+                "hard_words": [],
+                "themes": [],
+                "characters": [],
+                "setting": "",
+                "content_flags": [],
+            }
+            return {
+                "status": "completed",
+                "usage": {"input_tokens": 100, "output_tokens": 100},
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": json.dumps(result)}],
+                    }
+                ],
+            }
+
+    judge = Judge()
+    result = assess_pilot(run.id, provider=judge)
+    assert result["cefr_estimate"] == "B1"
+    assert assess_pilot(run.id, provider=judge) == result
+    assert judge.calls == 1
+    run.refresh_from_db()
+    assert run.summary["difficulty_check"] == result
+    assert pilot_context(run)["rows"]
+    chapter.blocks.filter(block_id="b1").update(text="Changed.")
+    with pytest.raises(ValueError, match="source changed"):
+        assess_pilot(run.id, provider=judge)
+
+
+def test_editorial_feedback_is_versioned_without_mutating_source(chapter):
+    first = queue_pilot(chapter.edition_id, chapter.id, dispatch=False)
+    revised = queue_pilot(
+        chapter.edition_id, chapter.id, dispatch=False, editorial_feedback="Keep uncertainty."
+    )
+    assert first.id != revised.id
+    assert (
+        queue_pilot(
+            chapter.edition_id, chapter.id, dispatch=False, editorial_feedback="Keep uncertainty."
+        ).id
+        == revised.id
+    )
+    assert (
+        first.ai_runs.get().request_payload["source"]
+        == revised.ai_runs.get().request_payload["source"]
+    )
+    assert "Keep uncertainty." in revised.ai_runs.get().request_payload["body"]["instructions"]
+    run_pilot(revised.id, provider=Provider())
+    assert pilot_context(revised)["stale"] is False
+    with pytest.raises(ValueError, match="4,000"):
+        queue_pilot(chapter.edition_id, chapter.id, dispatch=False, editorial_feedback="x" * 4001)
+
+
 @pytest.fixture
 def chapter(settings, monkeypatch):
     settings.OPENAI_API_KEY = "fake"

@@ -341,6 +341,10 @@ def publication_blocker(edition: Edition) -> str:
         return "Private imports cannot be published to the public catalog"
     if edition.status not in {Edition.Status.READY, Edition.Status.PUBLISHED}:
         return "Only ready editions can be published."
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_blocker
+
+    if blocker := adaptation_blocker(edition):
+        return blocker
     if has_provisional_slug(edition) or not edition.title or not edition.author:
         return "Confirm the detected metadata before publication."
     if edition.cefr_level is None:

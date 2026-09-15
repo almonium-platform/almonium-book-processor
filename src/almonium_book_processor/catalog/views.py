@@ -278,7 +278,11 @@ def queue_adaptation_pilot(request: HttpRequest, edition_id: str) -> HttpRespons
         return redirect("catalog:edition-detail", edition_id=edition.id)
     chapter = get_object_or_404(edition.chapters, pk=chapter_id)
     try:
-        run = queue_pilot(str(edition.id), str(chapter.id))
+        run = queue_pilot(
+            str(edition.id),
+            str(chapter.id),
+            editorial_feedback=request.POST.get("editorial_feedback", ""),
+        )
     except ValueError as error:
         messages.error(request, str(error))
         return redirect("catalog:edition-detail", edition_id=edition.id)
@@ -391,6 +395,10 @@ def _metadata_state(edition: Edition) -> str:
 def _render_edition_detail(
     request: HttpRequest, edition: Edition, *, metadata_form: EditionMetadataForm | None = None
 ) -> HttpResponse:
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
+
+    assessment = analysis_context(edition)
+    assessment.update(adaptation_quality(edition, assessment))
     blocks = edition.blocks.select_related("chapter").order_by("chapter__sequence", "sequence")[
         :300
     ]
@@ -425,7 +433,7 @@ def _render_edition_detail(
         {
             "edition": edition,
             "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
-            **analysis_context(edition),
+            **assessment,
             "adaptation_pilots": edition.pipeline_runs.filter(
                 stage=PipelineRun.Stage.ADAPT, processor_version=ADAPTATION_PILOT_VERSION
             ),

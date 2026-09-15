@@ -8,6 +8,13 @@
   <p>Original preserved. B2 is the requested target, not an independently verified assessment. This chapter sample is not an edition and cannot be published. Review for ease of reading, lost meaning and literary voice before generating a whole book.</p>
   {% if stale %}<p class="message error">Source has changed. This comparison shows the saved source snapshot, not the current chapter.</p>{% endif %}
   {% if run.error %}<p class="message error">{{ run.error }}</p>{% endif %}
+  {% for finding in run.summary.editorial_findings %}<p class="message warning">{{ finding }}</p>{% endfor %}
+  {% if run.summary.editorial_feedback %}<details><summary>Editorial corrections supplied for this run</summary><p>{{ run.summary.editorial_feedback }}</p></details>{% endif %}
+  {% if run.summary.difficulty_check %}
+  <h2>Blind judge: {{ run.summary.difficulty_check.cefr_estimate }} · target B2</h2>
+  <p>Highest window: {{ run.summary.difficulty_check.max_level }} · judge prompt v{{ run.summary.difficulty_check.prompt_version }} · {{ run.summary.difficulty_check.model }} · ${{ run.summary.difficulty_check.cost_usd }}. Fidelity still needs review.</p>
+  {% for window in run.summary.difficulty_check.windows %}<details><summary>{{ window.cefr_estimate }} — assessment evidence</summary>{% for item in window.evidence %}<p><code>{{ item.block_id }}</code>: “{{ item.quote }}” — {{ item.explanation }}</p>{% endfor %}</details>{% endfor %}
+  {% endif %}
   {% if ai.estimated_cost_usd != None %}<p>Estimated cost: ${{ ai.estimated_cost_usd }} · {{ ai.input_tokens }} input / {{ ai.output_tokens }} output tokens (this attempt).</p>{% endif %}
   {% if rows %}<p>{{ run.summary.kept }} / {{ run.summary.blocks }} blocks kept exactly.</p>{% else %}<p>Reload this page to check progress.</p>{% endif %}
   {% for warning in ai.response_payload.warnings %}<p class="message warning">{{ warning }}</p>{% endfor %}

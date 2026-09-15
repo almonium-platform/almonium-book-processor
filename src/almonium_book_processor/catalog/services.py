@@ -333,6 +333,11 @@ def complete_review(
     if edition.status != Edition.Status.REVIEW:
         raise ValueError("Only editions awaiting review can be completed.")
 
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_blocker
+
+    if blocker := adaptation_blocker(edition):
+        raise ValueError(blocker)
+
     unresolved_warnings = edition.warnings.exclude(severity=QAWarning.Severity.INFO).filter(
         resolved_at=None
     )

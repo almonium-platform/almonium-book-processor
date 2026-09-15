@@ -2,6 +2,18 @@
 
 **Last reviewed:** 2026-09-14
 
+**Priority correction, 2026-09-15:** achieve B2 with fidelity before further
+publication work. Adaptation target, current estimates and per-window evidence
+are visible; missing/stale assessment or any above-target window blocks review
+completion and publication. Editorial CEFR does not bypass this gate. Below-target
+chapters are flagged for review but do not fail an upper-bound reading target.
+Imported adaptations without generation-target provenance are not covered by this
+new target gate. No target is guessed from their title or editorial label.
+See [paid pilots and actual results](ADAPTATION_PILOT.md#target-level-gate-and-prompt-review--2026-09-15).
+Next: offline/free N:M sentence alignment in the existing clickable reader,
+then publication and chapter metadata. No paid full-book sentence job, benchmark
+matrix, or calibration infrastructure is a prerequisite.
+
 2026-09-15: first processor/backend/Angular parallel-reading integration is
 implemented, including same-language edition selection and a paid sentence-preview
 slice. See [implementation and next product deliveries](PARALLEL_READING_NEXT.md#implementation-update--2026-09-15).

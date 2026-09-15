@@ -225,3 +225,100 @@ guards. Neither is human-approved or a verified B2 rating.
 Existing import issues also visible in this source: `c11.p2` starts “I t” and
 `c11.h3` is an illustration quotation tagged as a heading. Source cleanup is
 separate from adaptation. The pilot does not modify those original records.
+# Target-level gate and prompt review — 2026-09-15
+
+The existing full-book draft is **v4**, not v6/v7. No chapter text or published
+edition was overwritten during this review. Its old judge result was 9 B2 / 21 C1.
+The revised blind judge (chapter-analysis prompt v3, operational rubric v2)
+returns **29 B2 / 1 C1**, with Chapter IV (sequence 10) still C1. The book's p75
+therefore becomes B2, but the new adaptation gate still blocks it. This is a
+change in the assessment method, not evidence that unchanged text improved.
+The complete original-control run with the same revised judge returns **18 B2 /
+12 C1, aggregate C1**. Its editorial C1 label and published text remain unchanged.
+
+The previous rubric associated C1 with literary prose and implicit attitudes;
+some evidence confused horror, cultural references and regional spelling with
+language difficulty. The revision asks for representative, recurring linguistic
+barriers, separates content flags from CEFR, and does not give the judge an
+adaptation target. It remains an uncalibrated estimate. The same judge rates
+original Chapter IV C1, v4 Chapter IV C1, and v5/v6 pilot Chapter IV B2. Original
+and v4 Chapter V both rate B2; identical bands do not mean identical reading ease.
+
+Generation v5 relaxes exact phrase preservation when it obstructs sentence-level
+readability. A full Chapter IV pilot reached B2 but agent review rejected its
+"every soul and sensation" and weakened "emaciated" → "thin". v6 added idiom,
+quantifier and intensity checks. Both Chapter IV and Chapter X v6 pilots reached
+B2, but review still found intensity loss and a scope reversal: "which I only do
+not fear" became "which alone do not frighten me". These pilots are **not
+approved**, despite passing the difficulty judge. Their findings remain visible
+on their saved pilot pages. v7 adds explicit semantic-scope, unspecified-sensation
+and historical-unit constraints. Do not regenerate the full book just because
+a pilot receives the requested band.
+
+## What is live
+
+- Edition page shows requested target separately from editorial and computed
+  levels, above/below-target chapters, every window estimate and its cited evidence.
+- Review completion and publication both recheck current difficulty. Missing,
+  stale or partial assessment blocks completion. Any above-target window blocks,
+  including excluded front/back matter; p75 and editorial overrides cannot hide it.
+- Below-target chapters are reported, not rejected: target is an upper reading
+  demand, not a requirement to make accessible text harder.
+- Standalone pilot assessment is bounded, blind, cached and recorded in AIRun.
+  The saved pilot displays judge model/version, cost, evidence and review findings.
+  It does not create an edition or publish anything.
+- The staff pilot form accepts bounded editorial corrections. They are stored
+  in the run and full request, included in its idempotency hash, and shown beside
+  the comparison. Regeneration uses the original, not a previous generated text.
+- Imported adaptations without explicit generation-target provenance are not
+  covered by this gate; adding a persistent target field/editorial workflow for
+  those is still a separate task.
+
+Explicit paid worker operation for an already completed standalone pilot:
+
+```python
+from almonium_book_processor.catalog.pilot_difficulty import assess_pilot
+assessment = assess_pilot(pilot_id)
+```
+
+This is not called by a reader GET or CI. Failed/interrupted pilot assessments
+require ledger inspection before retry, rather than silently charging again.
+
+Prompt changes use clear priorities and explicit success constraints, following
+[OpenAI's prompting guidance](https://developers.openai.com/api/docs/guides/reasoning-best-practices#how-to-prompt-reasoning-models-effectively).
+That guidance does not validate our CEFR classifications or literary fidelity.
+
+## Latest testable candidates
+
+Both v7 + recorded feedback candidates receive B2 from the blind v3 judge:
+
+| Chapter | Pilot ID | Generation + assessment |
+|---|---|---|
+| IV (sequence 10) | `da64bf26-f698-4c8d-b1ce-af83934eda8c` | $0.056235 |
+| X (sequence 16) | `c85ecc02-7b42-453d-ba0e-f999b765ae72` | $0.058204 |
+
+Staff routes are `/editions/da3a845f-572c-4ed3-acf3-3172bbc972f9/adaptation-pilot/{pilot-id}/`.
+Agent review compared both complete chapters against the source. The targeted
+scope, intensity and sensory-interpretation errors are fixed. Chapter X preserves
+and explicitly flags `its dependent mountains` rather than inventing a modern
+interpretation. Chapter IV still has two editorial concerns: `I alone should be
+kept to discover` is awkward, and `hopes` weakens `aspires`. These are **readable
+pilot candidates, not publication approvals**. Generic v7 alone did not solve
+every fidelity issue; keep the generation → blind difficulty → fidelity review →
+bounded correction loop. No existing book text was replaced.
+
+Next useful work:
+
+1. Resolve Chapter IV's remaining wording concerns and apply its accepted result
+   through an audited, revision-aware chapter replacement; re-run downstream
+   sentence, lexical and difficulty artifacts. Do not regenerate 29 chapters
+   merely because they belonged to the earlier draft.
+2. Make bounded fidelity checking/correction a worker workflow, retaining explicit
+   uncertainty rather than promising that a B2 label proves semantic accuracy.
+3. Deliver offline N:M sentence alignment to the existing clickable preview, then
+   verify the approved edition's backend/frontend publication round-trip.
+
+Operational note: a worker replacement interrupted one original-control judge
+request. Its AIRun remains failed with unknown provider charge (not zero); completed
+windows were reused when the control resumed. Subsequent restart used a long
+grace period to let active work finish. No CI request was paid.

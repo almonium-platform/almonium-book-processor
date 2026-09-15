@@ -128,6 +128,51 @@ class Provider:
         return response
 
 
+def test_adaptation_gate_checks_current_windows_not_editorial_label(edition):
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
+    from almonium_book_processor.catalog.services import complete_review
+    from almonium_book_processor.catalog.tasks import publication_blocker
+
+    edition.edition_type = Edition.EditionType.ADAPTATION
+    edition.cefr_level = "B2"
+    edition.save()
+    edition.blocks.update(attributes={"adaptation": {"target_level": "B2"}})
+    assert "current difficulty" in adaptation_quality(edition)["adaptation_blocker"]
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    assert not adaptation_quality(edition)["adaptation_blocker"]
+    # Even a minority above-target window must not disappear in a percentile.
+    context = analysis_context(edition)
+    context["chapter_projections"][1]["difficulty"]["max_level"] = "C1"
+    quality = adaptation_quality(edition, context)
+    assert quality["adaptation_above_chapters"] == [2]
+    assert "not achieved" in quality["adaptation_blocker"]
+    edition.blocks.filter(chapter__sequence=2).update(text="Changed text.")
+    assert "current difficulty" in publication_blocker(edition)
+    edition.status = Edition.Status.REVIEW
+    with pytest.raises(ValueError, match="current difficulty"):
+        complete_review(edition=edition, reviewer=get_user_model().objects.create_user("gate"))
+
+
+def test_adaptation_gate_exposes_evidence_and_below_target(edition):
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
+
+    edition.edition_type = Edition.EditionType.ADAPTATION
+    edition.save()
+    edition.blocks.update(attributes={"adaptation": {"target_level": "B2"}})
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    context = analysis_context(edition)
+    context["chapter_projections"][0]["difficulty"].update(cefr_estimate="B1", max_level="B1")
+    assert adaptation_quality(edition, context)["adaptation_below_chapters"] == [1]
+    client = Client()
+    client.force_login(get_user_model().objects.create_user("quality-ui", is_staff=True))
+    response = client.get(reverse("catalog:edition-detail", args=[edition.id]))
+    assert b"Adaptation target: B2" in response.content
+    assert b"judge evidence" in response.content
+    assert b"An obsolete conjunction" in response.content
+
+
 def test_full_analysis_is_versioned_reusable_and_does_not_change_editorial_level(edition):
     run = queue_analysis(str(edition.id))
     provider = Provider()
