@@ -70,7 +70,10 @@ jobs:
 
   deploy:
     needs: [resolve-image, build]
-    if: needs.resolve-image.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
+    # A supplied digest skips the build, and a job whose `if` names no status function gets an
+    # implicit success() that treats a skipped dependency as a failure; !cancelled() keeps the
+    # explicit checks below in charge so promotion by digest actually deploys.
+    if: ${{ !cancelled() && needs.resolve-image.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     uses: ./.github/workflows/reusable-deploy.yaml
     with:
       environment_name: ${{ inputs.environment_name }}
