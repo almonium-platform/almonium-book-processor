@@ -345,6 +345,16 @@ class PublishedEditionViewSet(viewsets.ReadOnlyModelViewSet):
 
         return Response(public_chapters(self.get_object()))
 
+    @action(detail=True, methods=["get"], url_path=r"chapters/(?P<sequence>\d+)/vocabulary")
+    def chapter_vocabulary(self, request, slug=None, sequence=None):
+        from django.shortcuts import get_object_or_404
+
+        from almonium_book_processor.catalog.public_vocabulary import public_vocabulary
+
+        edition = self.get_object()
+        chapter = get_object_or_404(edition.chapters, sequence=sequence)
+        return Response(public_vocabulary(edition, chapter))
+
     @action(detail=True, methods=["get"])
     def blocks(self, request, slug=None):
         edition = self.get_object()

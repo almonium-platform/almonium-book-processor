@@ -51,6 +51,29 @@ def test_lexical_profile_and_useful_words_are_deterministic(monkeypatch) -> None
     assert [item["lemma"] for item in useful["words"]] == ["lantern", "harbor"]
     assert useful["words"][0]["chapter_count"] == 2
     assert useful["words"][0]["occurrences"][0]["block_id"] == "c1.p1"
+    assert [row["chapter"] for row in useful["words"][0]["chapter_occurrences"]] == [1, 2]
+
+
+def test_chapter_examples_survive_the_book_example_limit_and_exclude_fallbacks(monkeypatch):
+    monkeypatch.setattr(
+        lexical,
+        "_lexical_pipeline",
+        lambda language: LemmaPipeline({"lanterns": "lantern", "harbor": ""}),
+    )
+    monkeypatch.setattr(lexical, "lexical_runtime_signature", lambda language: {"test": True})
+    blocks = [LexicalBlock(f"c{i}.p1", i, "lanterns lanterns harbor harbor") for i in range(1, 6)]
+    _, useful = analyze_lexicon(
+        blocks, "en", frequency_lookup=lambda *_: 3.5, fallback_lemmatizer=lambda word, _: word
+    )
+    words = {word["lemma"]: word for word in useful["words"]}
+    assert len(words["lantern"]["occurrences"]) == 3
+    assert len(words["lantern"]["chapter_occurrences"]) == 5
+    assert words["harbor"]["chapter_occurrences"] == []
+    for occurrence in words["lantern"]["chapter_occurrences"]:
+        assert (
+            blocks[occurrence["chapter"] - 1].text[occurrence["start"] : occurrence["end"]]
+            == "lanterns"
+        )
 
 
 def test_useful_words_exclude_hapaxes_stop_words_and_proper_nouns(monkeypatch) -> None:

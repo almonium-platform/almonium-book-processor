@@ -10,8 +10,8 @@ from typing import Any
 
 from django.conf import settings
 
-LEXICAL_SCHEMA_VERSION = 1
-LEXICAL_PROCESSOR_VERSION = "lexical-v2"
+LEXICAL_SCHEMA_VERSION = 2
+LEXICAL_PROCESSOR_VERSION = "lexical-v3"
 USEFUL_WORD_LIMIT = 50
 
 # Everyday vocabulary a learner already has; the gate and the band label it
@@ -223,6 +223,7 @@ def analyze_lexicon(
     surfaces: dict[str, Counter[str]] = defaultdict(Counter)
     chapters: dict[str, set[int]] = defaultdict(set)
     occurrences: dict[str, list[_Occurrence]] = defaultdict(list)
+    chapter_occurrences: dict[str, dict[int, dict]] = defaultdict(dict)
     excluded: set[str] = set()
     total_tokens = 0
 
@@ -245,6 +246,20 @@ def analyze_lexicon(
             chapters[lemma].add(block.chapter)
             if token.is_stop or _looks_like_proper_name(block.text, token, language):
                 excluded.add(lemma)
+            # Retain one attested model-derived example per chapter in this same
+            # NLP pass. Fallback/surface-only lemmas remain out of the public list.
+            if token.lemma_.strip() and language not in UNINFLECTED_LANGUAGES:
+                chapter_occurrences[lemma].setdefault(
+                    block.chapter,
+                    {
+                        "chapter": block.chapter,
+                        "block_id": block.block_id,
+                        "surface": token.text,
+                        "start": token.idx,
+                        "end": token.idx + len(token.text),
+                        "lemma_source": "spacy_model",
+                    },
+                )
             if len(occurrences[lemma]) < 3:
                 occurrences[lemma].append(
                     _Occurrence(
@@ -286,6 +301,7 @@ def analyze_lexicon(
                 "lemma_zipf_frequency": round(lemma_frequencies[lemma], 3),
                 "frequency_band": _frequency_band(zipf),
                 "score": round(score, 6),
+                "chapter_occurrences": list(chapter_occurrences[lemma].values()),
                 "occurrences": [
                     {
                         "block_id": item.block_id,

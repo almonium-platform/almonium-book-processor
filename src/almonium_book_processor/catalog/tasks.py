@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import importlib.metadata
-import json
 import logging
 import tempfile
 import uuid
@@ -570,18 +569,14 @@ def analyze_edition_lexicon(edition_id: str) -> None:
     """Persist non-blocking lexical artifacts for any normalized edition."""
 
     edition = Edition.objects.get(id=edition_id)
-    content_hash = _edition_content_hash(edition)
+    from almonium_book_processor.catalog.public_vocabulary import lexical_input_hash
+
     try:
         runtime_signature = lexical_runtime_signature(edition.language)
     except LexicalModelUnavailable as error:
         _record_unanalyzable_lexicon(edition, error)
         return
-    input_hash = _text_hash(
-        content_hash,
-        edition.language,
-        json.dumps(runtime_signature, sort_keys=True),
-        LEXICAL_PROCESSOR_VERSION,
-    )
+    input_hash = lexical_input_hash(edition, runtime_signature)
     idempotency_key = f"{edition.id}:{input_hash}:lexical:{LEXICAL_PROCESSOR_VERSION}"
     run, _ = PipelineRun.objects.get_or_create(
         idempotency_key=idempotency_key,
