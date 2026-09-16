@@ -103,3 +103,51 @@ def test_offline_queue_is_staff_post_only(client, pair):  # noqa: F811
     assert not PipelineRun.objects.exists()
     assert client.post(url).status_code == 302
     assert PipelineRun.objects.count() == 1
+
+
+def test_distinct_lower_score_matches_highlight_but_ambiguous_ones_do_not(pair):  # noqa: F811
+    p, s = pair
+    # Both true matches score below the old threshold, with distinct alternatives.
+    with patch(
+        "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+        return_value=[[1, 0, 0], [0, 1, 0], [0.79, 0, 0.613], [0, 0.79, 0.613]],
+    ):
+        payload = correspond(p.blocks.get(), s.blocks.get())
+    assert all(g["certain"] for g in payload["groups"])
+    assert all(g["acceptance"] == "reciprocal_margin" for g in payload["groups"])
+    with patch(
+        "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+        return_value=[[1, 0], [1, 0], [0.79, 0.613], [0.79, 0.613]],
+    ):
+        payload = correspond(p.blocks.get(), s.blocks.get())
+    assert not any(g["certain"] for g in payload["groups"])
+
+
+def test_chunking_preserves_all_text_and_never_exceeds_encoder_window(monkeypatch):
+    from almonium_book_processor.processing import nlp
+
+    class Tokenizer:
+        def __call__(self, text, **kwargs):
+            return {"input_ids": [0] + list(text) + [0]}
+
+        def num_special_tokens_to_add(self):
+            return 2
+
+    class Model:
+        tokenizer = Tokenizer()
+        max_seq_length = 10
+
+        def encode(self, texts, **kwargs):
+            assert all(len(text) + 2 <= self.max_seq_length for text in texts)
+            self.texts = texts
+            return [[1, 0] if "a" in text else [0, 1] for text in texts]
+
+    model = Model()
+    monkeypatch.setattr(nlp, "_embedding_model", lambda _: model)
+    texts = ["aaaaaaaa bbbbbbbb", "cc"]
+    vectors = nlp.embed_texts(texts, chunk_long=True)
+    assert "".join(model.texts) == "".join(texts)
+    assert len(vectors) == 2
+    assert vectors[0][0] > 0 and vectors[0][1] > 0
+    assert sum(v * v for v in vectors[0]) == pytest.approx(1)
+    assert vectors[1] == [0, 1]

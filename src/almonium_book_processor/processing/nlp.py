@@ -69,10 +69,48 @@ def _embedding_model(model_name: str) -> Any:
     return SentenceTransformer(model_name)
 
 
-def embed_texts(texts: list[str], *, reject_truncation: bool = False) -> list[list[float]]:
+def embed_texts(
+    texts: list[str], *, reject_truncation: bool = False, chunk_long: bool = False
+) -> list[list[float]]:
     """Create normalized multilingual embeddings with the configured local model."""
 
     model = _embedding_model(settings.NLP_EMBEDDING_MODEL)
+    if chunk_long:
+        # Split original text, then re-tokenize every leaf, including special tokens.
+        # No decoded-token round trip and no silent encoder truncation.
+        chunks, owners, weights = [], [], []
+
+        def collect(text, owner, depth=0):
+            ids = model.tokenizer(text, truncation=False, padding=False)["input_ids"]
+            if len(ids) <= model.max_seq_length:
+                chunks.append(text)
+                owners.append(owner)
+                weights.append(max(1, len(ids) - model.tokenizer.num_special_tokens_to_add()))
+                return
+            if depth >= 12 or len(text) < 2:
+                raise ValueError("Sentence exceeds embedding token limit")
+            middle = len(text) // 2
+            spaces = [
+                i
+                for i, c in enumerate(text)
+                if c.isspace() and len(text) // 4 <= i <= 3 * len(text) // 4
+            ]
+            split = min(spaces, key=lambda i: abs(i - middle)) + 1 if spaces else middle
+            collect(text[:split], owner, depth + 1)
+            collect(text[split:], owner, depth + 1)
+
+        for owner, text in enumerate(texts):
+            collect(text, owner)
+        if not chunks:
+            return []
+        encoded = model.encode(chunks, normalize_embeddings=True, show_progress_bar=False)
+        result = []
+        for owner in range(len(texts)):
+            parts = [(v, w) for v, w, o in zip(encoded, weights, owners, strict=True) if o == owner]
+            mean = [sum(float(v[d]) * w for v, w in parts) for d in range(len(parts[0][0]))]
+            norm = math.sqrt(sum(v * v for v in mean))
+            result.append([v / norm for v in mean] if norm else mean)
+        return result
     if reject_truncation:
         tokens = model.tokenizer(texts, truncation=False, padding=False)["input_ids"]
         if any(len(ids) > model.max_seq_length for ids in tokens):

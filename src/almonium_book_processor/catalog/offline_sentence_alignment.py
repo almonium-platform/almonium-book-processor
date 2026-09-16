@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from collections import Counter
 
 from django.conf import settings
 from django.db import transaction
@@ -95,6 +96,8 @@ def run_alignment(run_id):
         if _digest(pairs) != run.input_hash:
             raise ValueError("Text or sentence boundaries changed; queue a new alignment")
         highlighted = fallback = 0
+        fallback_reasons = Counter()
+        uncertain_groups = unmatched_sentences = 0
         for index, (primary, secondary) in enumerate(pairs):
             digest = pair_hash(primary, secondary)
             cached = EditionArtifact.objects.filter(
@@ -147,7 +150,19 @@ def run_alignment(run_id):
             highlighted += sum(
                 bool(g["certain"] and g["primary"] and g["secondary"]) for g in payload["groups"]
             )
-            fallback += not any(g["certain"] for g in payload["groups"])
+            paragraph_only = not any(g["certain"] for g in payload["groups"])
+            fallback += paragraph_only
+            if paragraph_only:
+                fallback_reasons[payload.get("fallback_reason", "low_confidence")] += 1
+            uncertain_groups += sum(
+                not g["certain"] and bool(g["primary"] and g["secondary"])
+                for g in payload["groups"]
+            )
+            unmatched_sentences += sum(
+                len(g["primary"]) + len(g["secondary"])
+                for g in payload["groups"]
+                if not g["primary"] or not g["secondary"]
+            )
             PipelineRun.objects.filter(pk=run.id).update(progress=100 * (index + 1) // len(pairs))
         if _digest(_pairs(run.edition_id, run.summary["secondary_id"])) != run.input_hash:
             raise ValueError("Pair changed before completion; queue a new alignment")
@@ -159,6 +174,9 @@ def run_alignment(run_id):
                 "completed_blocks": len(pairs),
                 "highlighted_groups": highlighted,
                 "paragraph_fallback_blocks": fallback,
+                "fallback_reasons": dict(fallback_reasons),
+                "uncertain_groups": uncertain_groups,
+                "unmatched_sentences": unmatched_sentences,
             },
         )
     except Exception as error:
