@@ -146,10 +146,13 @@ is one Batch job with no alignment step.
   serve them with the source's CEFR estimate from the public chapters endpoint.
   Never run the analysis rubric on a machine translation. The Ukrainian
   Frankenstein currently shows no descriptions for this reason.
-- [ ] Requeue chapter analysis, or keep serving descriptions for chapters whose own
-  hash is unchanged, after an approved text correction on a public edition. The
-  drop-cap repair of 2026-09-16 changed eight paragraphs of the English canonical
-  and hid all thirty chapter descriptions.
+- [x] Keep serving each chapter's latest complete description and level from the
+  public chapters endpoint when the run is stale or still running, with a
+  per-chapter `stale` status when that chapter's own text changed (2026-09-17).
+  The drop-cap repair of 2026-09-16 changed eight paragraphs of the English
+  canonical and had hidden all thirty chapter descriptions.
+- [ ] Requeue chapter analysis automatically after an approved text correction on a
+  public edition; only the changed chapters' windows are billed.
 
 **Model choice (blind chapter comparison, English chapter V into French, 2026-08-30):**
 all of `gpt-5.6-sol`, `gpt-5.6-luna`, and `gpt-5.6-terra` returned 28/28 blocks in

@@ -34,6 +34,7 @@ from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.catalog.ai_translation import TRANSLATION_MODEL_PRICING
 from almonium_book_processor.catalog.models import (
     AIRun,
+    Chapter,
     Edition,
     ModelConfiguration,
     PipelineRun,
@@ -83,6 +84,37 @@ def analysis_spec() -> dict:
     }
 
 
+def chapter_blocks(chapter: Chapter) -> list[dict]:
+    """The nonblank text blocks a chapter is analyzed from, in their stored order."""
+    return [
+        {"block_id": b.block_id, "text": b.text, "type": b.block_type}
+        for b in chapter.blocks.all()
+        if b.text.strip()
+    ]
+
+
+def chapter_hash(edition: Edition, chapter: Chapter, blocks: list[dict]) -> str:
+    """Fingerprint of one chapter's analyzable text and identity, independent of the spec."""
+    return _hash(
+        [
+            edition.source_sha256,
+            edition.language,
+            str(chapter.id),
+            chapter.sequence,
+            chapter.title,
+            blocks,
+        ]
+    )
+
+
+def current_chapter_hashes(edition: Edition) -> dict[str, str]:
+    """Each chapter's fingerprint for the text as it is now, keyed by chapter id."""
+    return {
+        str(chapter.id): chapter_hash(edition, chapter, chapter_blocks(chapter))
+        for chapter in edition.chapters.order_by("sequence").prefetch_related("blocks")
+    }
+
+
 def snapshot(edition: Edition, spec: dict) -> dict:
     if edition.work.visibility != Work.Visibility.PUBLIC:
         raise ValueError("Chapter analysis is currently available only for public editions.")
@@ -93,23 +125,10 @@ def snapshot(edition: Edition, spec: dict) -> dict:
     windows = []
     chapters = []
     for chapter in edition.chapters.order_by("sequence").prefetch_related("blocks"):
-        blocks = [
-            {"block_id": b.block_id, "text": b.text, "type": b.block_type}
-            for b in chapter.blocks.all()
-            if b.text.strip()
-        ]
+        blocks = chapter_blocks(chapter)
         if not blocks:
             continue
-        chapter_hash = _hash(
-            [
-                edition.source_sha256,
-                edition.language,
-                str(chapter.id),
-                chapter.sequence,
-                chapter.title,
-                blocks,
-            ]
-        )
+        digest = chapter_hash(edition, chapter, blocks)
         parts, current = [], []
         for block in blocks:
             if len(_json([block]).encode()) > spec["window_bytes"]:
@@ -123,7 +142,7 @@ def snapshot(edition: Edition, spec: dict) -> dict:
             current.append(block)
         if current:
             parts.append(current)
-        chapters.append({"id": str(chapter.id), "hash": chapter_hash, "windows": len(parts)})
+        chapters.append({"id": str(chapter.id), "hash": digest, "windows": len(parts)})
         for index, part in enumerate(parts, 1):
             data = {
                 "language": edition.language,
@@ -137,7 +156,7 @@ def snapshot(edition: Edition, spec: dict) -> dict:
             }
             if len(_json(data).encode()) > spec["request_bytes"]:
                 raise ValueError("Chapter metadata exceeds the analysis request limit.")
-            windows.append({"hash": _hash([spec, chapter_hash, data]), "data": data})
+            windows.append({"hash": _hash([spec, digest, data]), "data": data})
             if len(windows) > spec["max_windows"]:
                 raise ValueError(
                     f"Analysis is limited to {spec['max_windows']} windows per edition."

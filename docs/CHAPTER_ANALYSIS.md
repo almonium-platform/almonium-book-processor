@@ -141,7 +141,14 @@ network failure, but avoids presenting an unknown attempt as free.
 
 Input snapshots are checked before requests and before accepting results.
 Changed text or chapter metadata cancels the old run; queue a new snapshot.
-The staff page rechecks current hashes and hides stale proposals. Text already
+The staff page rechecks current hashes and hides stale proposals. The public
+chapters endpoint does the opposite: a chapter whose current projection is
+missing or incomplete keeps serving its latest complete description and level
+from any earlier run, because a stale description is better for a reader than
+none. Its `analysisStatus` is `complete` when the chapter's own text hash still
+matches and `stale` when that chapter's text changed since. A text correction
+therefore never blanks the book page; requeueing analysis re-bills only the
+windows of the chapters that changed. Text already
 returned by a provider after deletion is discarded; its usage is retained on
 the tombstone ledger without restoring request/response payloads. A broker
 dispatch failure leaves a visible failed run that the same button can requeue.
