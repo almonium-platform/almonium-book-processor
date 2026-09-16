@@ -77,7 +77,7 @@
     </aside>
     <div class="reader-columns">
       <div class="reader-column">
-        {% if parallel_edition %}<p class="column-lang">{{ edition.language|upper }}</p>{% endif %}
+        {% if parallel_edition %}<p class="column-lang">{{ edition.language|upper }}{% if edition.cefr_level %} <span class="column-level">{{ edition.cefr_level|lower }}</span>{% endif %}</p>{% endif %}
         {% if row.block %}
         <p>{{ row.block.text|linebreaksbr|default:"—" }}</p>
         <details><summary>Edit this block</summary><form method="post" action="{% url 'catalog:edit-block-text' edition.id row.block.id %}">
@@ -93,7 +93,7 @@
       </div>
       {% if parallel_edition %}
       <div class="reader-column">
-        <p class="column-lang">{{ parallel_edition.language|upper }}</p>
+        <p class="column-lang">{{ parallel_edition.language|upper }}{% if parallel_edition.cefr_level %} <span class="column-level">{{ parallel_edition.cefr_level|lower }}</span>{% endif %}</p>
         {% for counterpart in row.counterparts %}
         <p>{{ counterpart.text|linebreaksbr|default:"—" }}</p>
         <p class="counterpart-meta"><code>{{ counterpart.block_id }}</code> · chapter {{ counterpart.chapter.sequence }} · <a href="{% url 'catalog:edition-reader' parallel_edition.id %}?chapter={{ counterpart.chapter.sequence }}&parallel={{ edition.id }}#block-{{ counterpart.id }}">edit there</a></p>

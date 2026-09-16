@@ -1161,6 +1161,22 @@ def test_parallel_reader_pairs_blocks_through_the_inherited_group(client) -> Non
     assert "Missing in EN" in content and "Extra in EN" in content and "No group" in content
     assert "Level pending · Original" in content
     assert "This checks structure, not fidelity" in content
+    assert "column-level" not in content
+
+
+def test_parallel_reader_labels_each_column_with_its_cefr_level(client) -> None:
+    canonical, parallel, _, _ = parallel_records()
+    parallel.cefr_level = Edition.CEFRLevel.B1
+    parallel.save(update_fields=["cefr_level"])
+    reader_staff(client, "parallel-reader-level")
+
+    content = client.get(
+        reverse("catalog:edition-reader", args=[parallel.id]),
+        {"chapter": 1, "parallel": str(canonical.id)},
+    ).content.decode()
+
+    assert '<p class="column-lang">UK <span class="column-level">b1</span></p>' in content
+    assert '<p class="column-lang">EN</p>' in content
 
 
 def test_publication_requires_source_release_before_queueing(client, monkeypatch) -> None:
