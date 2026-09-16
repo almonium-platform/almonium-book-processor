@@ -10,6 +10,7 @@ from almonium_book_processor.ai.adaptation import PROMPT_VERSION, SYSTEM_PROMPT,
 from almonium_book_processor.catalog.adaptation import (
     MAX_BLOCKS,
     MAX_CHARS,
+    TARGET_LEVEL,
     digest,
     queue_pilot,
     run_pilot,
@@ -128,7 +129,7 @@ def queue_book(source_id):
             processor_version=VERSION,
             input_hash=input_hash,
             idempotency_key=key,
-            summary={"plan": plan, "spec": spec, "target_level": "B2", "completed": 0},
+            summary={"plan": plan, "spec": spec, "target_level": TARGET_LEVEL, "completed": 0},
         )
     if run.status in {PipelineRun.Status.SUCCEEDED, PipelineRun.Status.RUNNING}:
         return run
@@ -276,7 +277,7 @@ def _materialize(run, results):
                     **block.attributes,
                     "adaptation": {
                         "source_revision": plan["source_hash"],
-                        "target_level": "B2",
+                        "target_level": TARGET_LEVEL,
                         "decision": adapted["decision"],
                         "reason": adapted["reason"],
                         "ai_run_id": adapted["ai_run_id"],

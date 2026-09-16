@@ -209,3 +209,19 @@ def test_staff_route_and_failed_retry_do_not_call_translation(client, source, mo
     assert response.status_code == 302
     run.refresh_from_db()
     assert run.status == "queued"
+
+
+def test_adaptation_panel_is_collapsible_and_absent_from_the_generated_edition(client, source):
+    client.force_login(get_user_model().objects.create_user(username="staff", is_staff=True))
+    target = queue_book(source.id).edition
+    source_page = client.get(reverse("catalog:edition-detail", args=[source.id]))
+    body = source_page.content.decode()
+    assert '<details class="panel collapsible-panel adaptation-panel">' in body
+    assert "Generate B2 pilot (paid)" in body
+    assert "Generate / resume B2 edition (paid)" in body
+    # The generated book must not offer to adapt itself again.
+    target_page = client.get(reverse("catalog:edition-detail", args=[target.id]))
+    body = target_page.content.decode()
+    assert "adaptation-panel" not in body
+    assert "Generate B2 pilot" not in body
+    assert "B2 adaptation — " in body

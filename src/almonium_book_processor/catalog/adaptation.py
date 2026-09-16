@@ -26,6 +26,9 @@ from almonium_book_processor.catalog.models import (
     Work,
 )
 
+# The prompt and processor versions are still written for one level; widening this
+# to a per-request choice means a new prompt version and new processor versions.
+TARGET_LEVEL = "B2"
 VERSION = "b2-chapter-pilot-v1"
 PROMPT_NAME = "literary-b2-adaptation-pilot"
 MAX_CHARS = 40000
@@ -59,7 +62,7 @@ def source_snapshot(chapter, block_ids=None):
         "work": edition.work.title,
         "author": edition.author,
         "source_sha256": edition.source_sha256,
-        "target_level": "B2",
+        "target_level": TARGET_LEVEL,
         "blocks": blocks,
     }
 
@@ -163,7 +166,7 @@ def queue_pilot(
             "summary": {
                 "chapter_id": str(chapter.id),
                 "chapter_title": chapter.title,
-                "target_level": "B2",
+                "target_level": TARGET_LEVEL,
                 "source_hash": digest(source),
                 "source_edition_id": str(edition.id),
                 "block_ids": block_ids,

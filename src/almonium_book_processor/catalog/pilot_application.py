@@ -2,7 +2,7 @@
 
 from django.db import transaction
 
-from almonium_book_processor.catalog.adaptation import digest, source_snapshot
+from almonium_book_processor.catalog.adaptation import TARGET_LEVEL, digest, source_snapshot
 from almonium_book_processor.catalog.chapter_analysis import analysis_spec
 from almonium_book_processor.catalog.chapter_projections import LEVELS
 from almonium_book_processor.catalog.models import (
@@ -79,7 +79,7 @@ def apply_pilot(*, pilot_id, target_id, expected_revision, editor, notes):
     if target.pipeline_runs.filter(status__in=["queued", "running"]).exists():
         raise ValueError("Wait for the adaptation's active jobs to finish.")
     targets = set(target.blocks.values_list("attributes__adaptation__target_level", flat=True))
-    if targets != {"B2"}:
+    if targets != {TARGET_LEVEL}:
         raise ValueError("The target edition must consistently request B2 adaptation.")
     if chapter_revision(target_chapter) != expected_revision:
         raise ValueError("The target chapter changed. Reload and review it before applying.")
@@ -92,7 +92,7 @@ def apply_pilot(*, pilot_id, target_id, expected_revision, editor, notes):
         summary__spec=analysis_spec(),
     ).first()
     level = assessment.summary.get("assessment", {}).get("max_level") if assessment else None
-    if level not in LEVELS or LEVELS.index(level) > LEVELS.index("B2"):
+    if level not in LEVELS or LEVELS.index(level) > LEVELS.index(TARGET_LEVEL):
         raise ValueError("The pilot needs a current, complete assessment at or below B2.")
     generation = AIRun.objects.get(pk=run.summary["ai_run_id"], edition=source, status="succeeded")
     originals = list(chapter.blocks.order_by("sequence"))
@@ -124,7 +124,7 @@ def apply_pilot(*, pilot_id, target_id, expected_revision, editor, notes):
             **block.attributes,
             "adaptation": {
                 **block.attributes.get("adaptation", {}),
-                "target_level": "B2",
+                "target_level": TARGET_LEVEL,
                 "decision": result["decision"],
                 "reason": result["reason"],
                 "ai_run_id": str(generation.id),

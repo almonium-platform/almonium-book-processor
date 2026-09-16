@@ -17,6 +17,9 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from almonium_book_processor.catalog.adaptation import (
+    TARGET_LEVEL as ADAPTATION_TARGET_LEVEL,
+)
+from almonium_book_processor.catalog.adaptation import (
     VERSION as ADAPTATION_PILOT_VERSION,
 )
 from almonium_book_processor.catalog.adaptation import (
@@ -506,6 +509,7 @@ def _render_edition_detail(
             "edition": edition,
             "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
             **assessment,
+            "adaptation_level": ADAPTATION_TARGET_LEVEL,
             "adaptation_pilots": edition.pipeline_runs.filter(
                 stage=PipelineRun.Stage.ADAPT, processor_version=ADAPTATION_PILOT_VERSION
             ),

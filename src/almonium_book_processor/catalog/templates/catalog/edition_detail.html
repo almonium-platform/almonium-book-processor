@@ -160,30 +160,31 @@
 </section>
 {% endif %}
 
-{% if edition.work.visibility == "public" %}
-<section class="panel">
-  <h2>Try a B2 chapter adaptation</h2>
-  <p>Generate a paid, same-language chapter pilot. Keeps accessible wording, simplifies selectively, and never changes the original. B2 is a target, not a verified rating. No separate modernization is required.</p>
+{% if edition.work.visibility == "public" and edition.edition_type != "adaptation" %}
+<details class="panel collapsible-panel adaptation-panel">
+  <summary><span class="summary-title">Level adaptation</span><span class="summary-meta">Target {{ adaptation_level }}{% if adaptation_pilots %} · {{ adaptation_pilots|length }} pilot{{ adaptation_pilots|length|pluralize }}{% endif %}</span></summary>
+  <p class="muted">Paid, same-language rewrite for a target CEFR level. Keeps accessible wording, simplifies selectively, and never changes the original. The target is what the prompt asks for, not a verified rating; a blind judge estimates what came out. Only {{ adaptation_level }} is wired up so far.</p>
   {% if chapter_analysis_enabled %}
+  <h3>Chapter pilot</h3>
   <form method="post" action="{% url 'catalog:queue-adaptation-pilot' edition.id %}">{% csrf_token %}
     <label for="source-chapter-select">Source chapter</label> <select id="source-chapter-select" name="chapter_id">{% for chapter in edition.chapters.all %}<option value="{{ chapter.id }}">{{ chapter.sequence }} — {{ chapter.title }}</option>{% endfor %}</select>
     <label>Optional editorial corrections <textarea name="editorial_feedback" maxlength="4000" rows="3" placeholder="Specific meaning or readability problems to address. The new pilot still uses the original source."></textarea></label>
-    <button class="button button-secondary" type="submit">Generate B2 pilot (paid)</button>
+    <button class="button button-secondary" type="submit">Generate {{ adaptation_level }} pilot (paid)</button>
   </form>
+  {% else %}<p class="muted">Configure an OpenAI key to generate adaptations.</p>{% endif %}
+  {% for pilot in adaptation_pilots %}<p><a href="{% url 'catalog:adaptation-pilot' edition.id pilot.id %}">{{ pilot.summary.chapter_title }} — {{ pilot.summary.target_level|default:adaptation_level }} pilot · {{ pilot.get_status_display }}</a></p>{% endfor %}
+  {% if chapter_analysis_enabled and edition.supports_parallel_reading %}
+  <h3>Full edition</h3>
+  <p>Generates every chapter, then runs sentence splitting, vocabulary and difficulty analysis. The source stays unchanged; the new edition appears beside it in the tree and must be reviewed before publication.</p>
+  <form method="post" action="{% url 'catalog:queue-book-adaptation' edition.id %}">{% csrf_token %}<button class="button" type="submit">Generate / resume {{ adaptation_level }} edition (paid)</button></form>
   {% endif %}
-  {% for pilot in adaptation_pilots %}<p><a href="{% url 'catalog:adaptation-pilot' edition.id pilot.id %}">{{ pilot.summary.chapter_title }} — B2 pilot · {{ pilot.get_status_display }}</a></p>{% endfor %}
-  {% if chapter_analysis_enabled and edition.supports_parallel_reading and not book_adaptation_run %}
-  <h3>Create the full B2 edition</h3>
-  <p>Paid generation of every chapter, followed by sentence splitting, vocabulary and difficulty analysis. The source stays unchanged. The new edition must be reviewed before publication.</p>
-  <form method="post" action="{% url 'catalog:queue-book-adaptation' edition.id %}">{% csrf_token %}<button class="button" type="submit">Generate / resume full B2 book (paid)</button></form>
-  {% endif %}
-</section>
+</details>
 {% endif %}
 
 {% if book_adaptation_run %}
-<section class="panel"><h2>B2 adaptation — {{ book_adaptation_run.get_status_display }}</h2>
+<section class="panel"><h2>{{ book_adaptation_run.summary.target_level }} adaptation — {{ book_adaptation_run.get_status_display }}</h2>
   <p>{{ book_adaptation_run.summary.completed }} / {{ book_adaptation_run.summary.plan.windows|length }} generation chunks complete. {% if book_adaptation_run.summary.blocks %}{{ book_adaptation_run.summary.blocks }} blocks · {{ book_adaptation_run.summary.kept }} kept verbatim.{% endif %}</p>
-  <p>Target B2; editorial level stays unset until confirmed. Source revision: <code>{{ book_adaptation_run.summary.plan.source_hash }}</code>.</p>
+  <p>Target {{ book_adaptation_run.summary.target_level }}; editorial level stays unset until confirmed. Source revision: <code>{{ book_adaptation_run.summary.plan.source_hash }}</code>.</p>
   {% if book_adaptation_run.error %}<p class="message error">{{ book_adaptation_run.error }}</p>{% endif %}
   {% if has_blocks %}<a class="button" href="{% url 'catalog:edition-reader' edition.id %}?parallel={{ edition.source_edition.id }}">Read beside source</a>{% endif %}
 </section>
