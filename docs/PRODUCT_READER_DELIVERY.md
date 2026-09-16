@@ -26,6 +26,13 @@ were approved and no edition was published during this work.
   checked in browser execution of the WebView bridge; Android export passes.
 - Processor web/worker were rebuilt, and the detached backend remains available.
   Heavy builds/browser runs were sequential. No paid calls were needed.
+- Chapter vocabulary now reaches Angular through the typed backend endpoint.
+  Existing lexical artifacts retain source-attested examples with pinned-model
+  lemmas; no separate NLP stage was added. All 30 published-original chapters
+  were refreshed without text edits, review changes or publication. The reader's
+  Vocabulary panel links to Discover with language, excerpt and book/chapter context.
+  See the morning brief for live clicks and screenshots. Backend full verify and
+  Angular lint/274 tests/production build/eight browser cases pass.
 
 ### Next slices
 
@@ -35,10 +42,10 @@ were approved and no edition was published during this work.
 2. **Native-device acceptance** of chapter navigation, companion switching,
    selection, paper/night modes and offline reading. Builds and browser-script
    tests cannot certify native UI behavior.
-3. **Chapter vocabulary in the reader**: expose existing useful-word artifacts
-   through a typed backend contract, then add chapter vocabulary with source
-   context/Discover links in Angular and mobile. Keep this separate from a new
-   whole-library phrase search/IR system.
+3. **Mobile chapter vocabulary**: consume the implemented typed backend contract
+   and preserve source context in the mobile discovery flow. Processor/backend/web
+   are complete; do not invent a new NLP pass. Keep whole-library phrase search/IR
+   separate. Test unavailable/stale data without blocking reading.
 4. **Clause-level alignment** only where sentence groups are too broad. Keep the
    existing safe paragraph fallback and exact-pair provenance; no paid alignment
    needed for the current sentence feature.
@@ -57,7 +64,7 @@ that is not a completed live processor → backend → browser publication test.
 Mobile now selects a companion by edition slug, labels level/type, and consumes
 the same product parallel-edition endpoint. Its WebView uses `data-side` and
 supports grouped sentence highlights in inline/on-demand modes. Native-device
-verification and chapter enrichment remain outstanding.
+verification remains outstanding; optional chapter enrichment is implemented.
 Firebase bearer authentication must remain separate from Angular session cookies.
 
 ## Next sessions, in order
@@ -82,8 +89,9 @@ Firebase bearer authentication must remain separate from Angular session cookies
    and ordered spoiler-free descriptions appear in Angular's chapter navigation.
    Missing enrichment never blocks reading. Review/private editions return 404;
    stale or incomplete estimates are not displayed. Editorial book level remains
-   separate. Vocabulary panels, reader-facing provenance detail and individual
-   chapter SEO routes remain next, not part of this slice. No recaps in defaults.
+   separate. Angular vocabulary is now implemented in the follow-up above;
+   mobile vocabulary, reader-facing provenance detail and individual chapter SEO
+   routes remain next. No recaps in defaults.
    Verification: 313 processor tests; focused backend content tests; 24 Angular
    reader/contract tests, development build and mocked browser test pass. Processor
    rebuilt/restarted; live original chapter endpoint returns 30 chapters. Backend

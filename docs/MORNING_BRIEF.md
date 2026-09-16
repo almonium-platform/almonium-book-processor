@@ -2,6 +2,30 @@
 
 Nothing was editorially approved or published overnight. Those decisions are yours.
 
+## Try the new vocabulary flow first
+
+1. Open the [live original reader](http://localhost:9999/reader/shelley-frankenstein-en-orig).
+2. Click **Vocabulary** in the bottom bar, then select **11 — CHAPTER V.**
+   Expect 21 selected words with actual excerpts: for example, `countenance`,
+   and lemma `endeavour` with the observed form `endeavoured`.
+3. Click **Look up countenance in Discover**. The lookup carries the excerpt,
+   English language and book/chapter context. Discover shows the source and a
+   **Back to book** link. Your preferred learner language is not changed.
+
+All 30 original chapters now have current vocabulary data. This reuses the existing
+offline lexical stage and pinned spaCy lemmas—no new NLP pass or AI calls. It is a
+chapter-filtered selection from the book's useful words, not every chapter word.
+The vocabulary chapter selector is independent of your reading position; returning
+from Discover opens the book, not a guaranteed chapter jump. Mobile vocabulary is
+not implemented yet.
+
+[Real vocabulary screenshot](../../almonium-fe/docs/evidence/reader-20260916/vocabulary-live-original.png)
+· [Discover journey screenshot (test fixture)](../../almonium-fe/docs/evidence/reader-20260916/discover-book-context.png).
+The live chapter request was verified through the backend; the complete Discover
+journey was tested with mocked lookup responses, without a paid live lookup.
+
+## Then review B2, if you want to release it
+
 1. Open the [B2 edition](http://localhost:8000/editions/f0617488-6553-4131-9a13-2e470a62ffa9/).
    Expect target B2 and all 30 chapters estimated B2. Two fidelity-related review
    items remain open. “Level pending” in a companion label means the editorial
@@ -95,20 +119,18 @@ the backend's public original-book endpoint both return 200. No temporary browse
 test server is intentionally left running; the existing Angular dev server was
 left alone. No paid AI calls were needed.
 
-Checks: processor 321 tests plus Ruff/format/migrations/system checks; Angular
-lint, 267 tests, production build and seven browser cases; mobile TypeScript,
-96 tests, ESLint (one generated-file warning) and Android export. The mobile
-`npm run check` executable shim fails in this checkout; equivalent underlying
-checks ran via Node. No native-device acceptance is claimed.
+Vocabulary checks: processor 334 tests plus Ruff/format/migrations/system checks;
+backend Spotless, nine focused tests and full Maven verify; Angular lint, 274 tests,
+production build and eight browser cases. Mobile was unchanged this turn; its
+previous TypeScript, 96 tests, ESLint and Android export passed, but native-device
+acceptance remains pending.
 
-Implementation commits:
+Vocabulary implementation commits:
 
-- Processor `c716f0f`: source-publication prerequisite, clearer staff comparison.
-- Angular `96f050a`: companion provenance/filter; `9c63311`: screenshot capture;
-  `4d999a1`: mutually exclusive menus; `fa55299`: current integration notes;
-  `fa133b7`: unclipped full-book chapter navigation.
-- Mobile `4772728`: companion provenance/filter; `4b0c3e2`: chapter navigation,
-  optional estimates/descriptions and truthful reading-mode labels.
+- Processor `07b0402`: current, source-attested chapter vocabulary contract.
+- Backend `331707ea`: typed public chapter-vocabulary endpoint.
+- Angular `e2767be`: vocabulary panel and source-context Discover links.
 
 See `PRODUCT_READER_DELIVERY.md` for implemented slices, verification and remaining
-work. This brief will be updated with findings from the current walkthrough.
+work. Next bounded implementation slice: mobile vocabulary on the same contract;
+the real public B2/Ukrainian acceptance flow still waits for your release decisions.
