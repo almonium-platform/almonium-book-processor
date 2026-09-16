@@ -704,3 +704,81 @@ def test_the_task_records_what_the_target_answered_when_it_refuses(fake_client):
     run.refresh_from_db()
     assert run.status == PipelineRun.Status.FAILED
     assert run.error == "Promotion to staging failed with HTTP 400 (slug taken)."
+
+
+# --------------------------------------------------------------------------
+# The wire.
+
+
+def test_the_client_names_the_target_and_the_reason_when_the_wire_fails(monkeypatch):
+    from urllib.error import HTTPError, URLError
+
+    from almonium_book_processor.catalog import promotion_client
+
+    target = PromotionTarget(name="staging", base_url="https://staging.example.test/", token="t")
+    client = promotion_client.PromotionClient(target)
+
+    def hang(request, timeout=None):
+        assert request.get_header("Authorization") == "Token t"
+        raise URLError(TimeoutError("timed out"))
+
+    monkeypatch.setattr(promotion_client, "urlopen", hang)
+    with pytest.raises(PromotionError) as failure:
+        client.capabilities(["book-en"])
+    assert str(failure.value) == (
+        "Could not ask staging what it runs: staging.example.test did not answer within 15s."
+    )
+
+    def refuse(code):
+        def opener(request, timeout=None):
+            raise HTTPError(request.full_url, code, "", {}, io.BytesIO(b'{"message": "no"}'))
+
+        return opener
+
+    monkeypatch.setattr(promotion_client, "urlopen", refuse(401))
+    with pytest.raises(PromotionError, match="staging rejected the token \\(HTTP 401\\)"):
+        client.push(b"zip", file_name="book-en.zip", publish=False)
+    monkeypatch.setattr(promotion_client, "urlopen", refuse(404))
+    with pytest.raises(PromotionError, match="does not run a build with promotion support yet"):
+        client.push(b"zip", file_name="book-en.zip", publish=False)
+    monkeypatch.setattr(promotion_client, "urlopen", refuse(400))
+    with pytest.raises(PromotionError, match="Promotion to staging failed with HTTP 400 \\(no\\)"):
+        client.push(b"zip", file_name="book-en.zip", publish=False)
+
+
+def test_the_client_posts_the_bundle_as_multipart_with_the_publish_flag(monkeypatch):
+    from almonium_book_processor.catalog import promotion_client
+
+    target = PromotionTarget(name="staging", base_url="https://staging.example.test", token="t")
+    seen = {}
+
+    class Answer:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return b'{"imported": ["book-en"], "skipped": []}'
+
+    def capture(request, timeout=None):
+        seen["url"] = request.full_url
+        seen["content_type"] = request.get_header("Content-type")
+        seen["body"] = request.data
+        seen["timeout"] = timeout
+        return Answer()
+
+    monkeypatch.setattr(promotion_client, "urlopen", capture)
+
+    answer = promotion_client.PromotionClient(target).push(
+        b"PK-bytes", file_name="book-en.zip", publish=True
+    )
+
+    assert answer == {"imported": ["book-en"], "skipped": []}
+    assert seen["url"] == "https://staging.example.test/api/v1/internal/promotions/"
+    assert seen["content_type"].startswith("multipart/form-data; boundary=")
+    assert seen["timeout"] == promotion_client.IMPORT_TIMEOUT_SECONDS
+    assert b'name="publish"\r\n\r\ntrue\r\n' in seen["body"]
+    assert b'name="bundle"; filename="book-en.zip"' in seen["body"]
+    assert b"PK-bytes" in seen["body"]

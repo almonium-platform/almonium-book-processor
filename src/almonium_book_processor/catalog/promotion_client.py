@@ -66,7 +66,9 @@ class PromotionClient:
             detail = f" ({reason})" if reason else ""
             raise PromotionError(f"{failure} with HTTP {error.code}{detail}.") from error
         except (URLError, TimeoutError) as error:
-            raise PromotionError(f"{failure}: {_describe(error, request.full_url)}.") from error
+            raise PromotionError(
+                f"{failure}: {_describe(error, request.full_url, timeout)}."
+            ) from error
         except json.JSONDecodeError as error:
             raise PromotionError(
                 f"{failure}: {self.target.name} returned a non-JSON body."

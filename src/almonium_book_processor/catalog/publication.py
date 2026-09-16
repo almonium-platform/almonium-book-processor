@@ -51,13 +51,13 @@ class _TimedHTTPSHandler(HTTPSHandler):
 urlopen = build_opener(_TimedHTTPHandler, _TimedHTTPSHandler).open
 
 
-def _describe(error: Exception, url: str) -> str:
+def _describe(error: Exception, url: str, timeout: int = READ_TIMEOUT_SECONDS) -> str:
     """Say what went wrong on the wire, so a firewall reads differently from a crash."""
 
     reason = getattr(error, "reason", error)
     host = urlsplit(url).netloc
     if isinstance(reason, TimeoutError):
-        return f"{host} did not answer within {READ_TIMEOUT_SECONDS}s"
+        return f"{host} did not answer within {timeout}s"
     return f"{host}: {reason}"
 
 
