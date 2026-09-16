@@ -455,10 +455,25 @@ def _render_edition_detail(
 
     assessment = analysis_context(edition)
     assessment.update(adaptation_quality(edition, assessment))
+    if assessment.get("chapter_analysis_run"):
+        # Only calls this run made: windows it reused were billed to earlier runs.
+        assessment["chapter_analysis_spend"] = assessment["chapter_analysis_run"].ai_runs.aggregate(
+            calls=Count("id"),
+            usd=Sum("estimated_cost_usd"),
+            input_tokens=Sum("input_tokens"),
+            output_tokens=Sum("output_tokens"),
+        )
     blocks = edition.blocks.select_related("chapter").order_by("chapter__sequence", "sequence")[
         :300
     ]
-    pipeline_runs = list(edition.pipeline_runs.all())
+    pipeline_runs = list(
+        edition.pipeline_runs.annotate(
+            ai_call_count=Count("ai_runs", distinct=True),
+            ai_cost_usd=Sum("ai_runs__estimated_cost_usd"),
+            ai_input_tokens=Sum("ai_runs__input_tokens"),
+            ai_output_tokens=Sum("ai_runs__output_tokens"),
+        )
+    )
     active_runs = [
         run
         for run in pipeline_runs

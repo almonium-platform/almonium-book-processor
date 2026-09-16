@@ -16,6 +16,7 @@ from rest_framework.test import APIClient
 from almonium_book_processor.catalog.admin import EditionAdminForm, WorkAdminForm
 from almonium_book_processor.catalog.forms import EditionUploadForm
 from almonium_book_processor.catalog.models import (
+    AIRun,
     AlignmentGroupReview,
     BlockAlignment,
     Chapter,
@@ -23,7 +24,9 @@ from almonium_book_processor.catalog.models import (
     ContentBlock,
     ContentBlockRevision,
     Edition,
+    ModelConfiguration,
     PipelineRun,
+    PromptTemplate,
     QAWarning,
     ReviewDecision,
     Work,
@@ -485,7 +488,7 @@ def test_edition_detail_collapses_long_sections_and_limits_processing_history(cl
         severity=QAWarning.Severity.WARNING,
         message="Inspect this source issue.",
     )
-    for sequence in range(5):
+    runs = [
         PipelineRun.objects.create(
             edition=edition,
             stage=PipelineRun.Stage.INGEST,
@@ -493,6 +496,29 @@ def test_edition_detail_collapses_long_sections_and_limits_processing_history(cl
             processor_version="test",
             input_hash=f"{sequence + 1:064d}",
             idempotency_key=f"detail-page-run-{sequence}",
+        )
+        for sequence in range(5)
+    ]
+    configuration = ModelConfiguration.objects.create(
+        name="detail-page-model", provider="openai", model="luna", purpose="chapter_analysis"
+    )
+    template = PromptTemplate.objects.create(
+        name="detail-page-prompt",
+        version=1,
+        purpose="chapter_analysis",
+        system_prompt="s",
+        user_template="u",
+    )
+    for cost, input_tokens, output_tokens in (("0.0125", 4000, 1100), ("0.0100", 3500, 900)):
+        AIRun.objects.create(
+            edition=edition,
+            pipeline_run=runs[-1],
+            model_configuration=configuration,
+            prompt_template=template,
+            status=AIRun.Status.SUCCEEDED,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            estimated_cost_usd=cost,
         )
 
     client.force_login(staff)
@@ -507,6 +533,8 @@ def test_edition_detail_collapses_long_sections_and_limits_processing_history(cl
     assert content.index("Processing history") < content.index("Review items")
     assert content.index("Processing history") < content.index("Content preview")
     assert "Active processing" not in content
+    assert "2 AI calls · $0.0225 · 7500 in / 2000 out" in content
+    assert content.count('class="run-note run-spend"') == 1
 
     PipelineRun.objects.create(
         edition=edition,
