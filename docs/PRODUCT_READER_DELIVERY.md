@@ -17,7 +17,9 @@ were approved and no edition was published during this work.
   editorial fidelity.
 - Both clients offer indirect translations by default with clear lineage and
   an explicit switch to hide them. Angular chapter/companion menus no longer
-  overlap. Six production-bundle browser cases cover both pairs in all modes.
+  overlap. Six production-bundle browser cases cover both pairs in all modes;
+  a seventh checks that 30 enriched chapter entries scroll without being clipped.
+  The real original's desktop contents list was checked after this fix too.
 - Mobile now has local chapter navigation plus optional current CEFR/descriptions
   from the product chapter endpoint. A missing enrichment request never blocks
   reading or navigation. Live original: all 30 headings and Chapter V enrichment

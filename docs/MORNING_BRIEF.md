@@ -72,7 +72,10 @@ an unsaved test staff principal—not your account or browser session. Screensho
 [Ukrainian sentence preview](evidence/reader-20260916/sentences-uk-11.png).
 This verifies rendering and interactions, not staff login or publication.
 [Live Angular original](evidence/reader-20260916/angular-live-original.png) uses
-the actual public backend.
+the actual public backend. Its 30-entry contents list now scrolls instead of
+clipping chapter estimates/descriptions; a
+[full chapter-list regression](../../almonium-fe/docs/evidence/reader-20260916/chapter-navigation.png)
+also checks this.
 
 Real sentence highlights were clicked in chapters 1, 10, 11, 20 and 30 for both
 pairs. The samples preserve simpler English alongside more literary original/UK
@@ -93,7 +96,7 @@ test server is intentionally left running; the existing Angular dev server was
 left alone. No paid AI calls were needed.
 
 Checks: processor 321 tests plus Ruff/format/migrations/system checks; Angular
-lint, 267 tests, production build and six browser cases; mobile TypeScript,
+lint, 267 tests, production build and seven browser cases; mobile TypeScript,
 96 tests, ESLint (one generated-file warning) and Android export. The mobile
 `npm run check` executable shim fails in this checkout; equivalent underlying
 checks ran via Node. No native-device acceptance is claimed.
@@ -102,7 +105,8 @@ Implementation commits:
 
 - Processor `c716f0f`: source-publication prerequisite, clearer staff comparison.
 - Angular `96f050a`: companion provenance/filter; `9c63311`: screenshot capture;
-  `4d999a1`: mutually exclusive menus; `fa55299`: current integration notes.
+  `4d999a1`: mutually exclusive menus; `fa55299`: current integration notes;
+  `fa133b7`: unclipped full-book chapter navigation.
 - Mobile `4772728`: companion provenance/filter; `4b0c3e2`: chapter navigation,
   optional estimates/descriptions and truthful reading-mode labels.
 
