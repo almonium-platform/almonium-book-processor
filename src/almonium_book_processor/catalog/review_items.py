@@ -20,9 +20,9 @@ GUIDANCE = {
         "voice you would put your name to."
     ),
     CHAPTER_REPLACED_CODE: (
-        "A reviewed chapter pilot overwrote this chapter. Read the chapter side by side "
-        "with the source and check the listed corrections; each one is an audited text "
-        "revision below."
+        "A reviewed chapter pilot overwrote this chapter. Read the chapter beside the "
+        "source with word changes shown and check the listed corrections; each one is an "
+        "audited text revision below."
     ),
     DIFFICULTY_CODE: (
         "Current chapter estimates are above target. Revise the cited passages or the "
@@ -31,13 +31,17 @@ GUIDANCE = {
 }
 
 
-def _reader_url(edition: Edition, chapter: int | None = None, block=None) -> str:
+def _reader_url(
+    edition: Edition, chapter: int | None = None, block=None, *, changes: bool = False
+) -> str:
     url = reverse("catalog:edition-reader", args=[edition.id])
     params = []
     if chapter is not None:
         params.append(f"chapter={chapter}")
     if edition.source_edition_id and edition.supports_parallel_reading:
         params.append(f"parallel={edition.source_edition_id}")
+        if changes and edition.source_edition.language == edition.language:
+            params.append("diff=1")
     if params:
         url += "?" + "&".join(params)
     if block is not None:
@@ -95,11 +99,16 @@ def review_item(edition: Edition, warning: QAWarning) -> dict:
         if replaced is not None:
             sequence, title = replaced
             item["links"].append(
-                {"label": f"Read {title} beside the source", "url": _reader_url(edition, sequence)}
+                {
+                    "label": f"Read {title} beside the source",
+                    "url": _reader_url(edition, sequence, changes=True),
+                }
             )
         item["links"].append({"label": "Text corrections", "url": "#text-corrections"})
     elif warning.code == FIDELITY_CODE:
-        item["links"].append({"label": "Read beside the source", "url": _reader_url(edition, 1)})
+        item["links"].append(
+            {"label": "Read beside the source", "url": _reader_url(edition, 1, changes=True)}
+        )
         if edition.supports_parallel_reading and edition.source_edition_id:
             item["links"].append(
                 {

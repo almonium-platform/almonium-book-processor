@@ -215,4 +215,8 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .pilot-text { white-space: pre-wrap; line-height: 1.7; overflow-wrap: anywhere; }
 .pilot-text del { background: rgba(220, 38, 38, .14); text-decoration: none; }
 .pilot-text ins { background: rgba(22, 163, 74, .16); text-decoration: none; }
+.word-diff { white-space: pre-wrap; overflow-wrap: anywhere; }
+.word-diff del, .word-diff-legend del { background: rgba(220, 38, 38, .14); text-decoration: none; }
+.word-diff ins, .word-diff-legend ins { background: rgba(22, 163, 74, .16); text-decoration: none; }
+.reader-block.reader-unchanged .word-diff { color: var(--muted); }
 @media (max-width: 700px) { .pilot-comparison { grid-template-columns: 1fr; } }

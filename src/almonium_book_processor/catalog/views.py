@@ -565,13 +565,20 @@ READER_SEARCH_LIMIT = 200
 
 
 def _reader_redirect(
-    edition_id: str, chapter: str, query: str = "", block_id: str = "", parallel: str = ""
+    edition_id: str,
+    chapter: str,
+    query: str = "",
+    block_id: str = "",
+    parallel: str = "",
+    diff: str = "",
 ) -> HttpResponse:
     url = f"{reverse('catalog:edition-reader', args=[edition_id])}?chapter={chapter}"
     if query:
         url += f"&q={quote(query)}"
     if parallel:
         url += f"&parallel={quote(parallel)}"
+    if diff:
+        url += "&diff=1"
     if block_id:
         url += f"#block-{block_id}"
     return redirect(url)
@@ -663,6 +670,29 @@ def _parallel_rows(
     return rows, sum(1 for row in rows if row["status"] != "paired")
 
 
+def _mark_word_changes(rows: list[dict], edition: Edition, parallel_edition: Edition) -> None:
+    """Attach word-level diff segments to rows that pair one block with one counterpart.
+
+    Only same-language companions can be compared word by word; the adapted side
+    (the edition derived from the other) shows insertions, its source deletions.
+    """
+
+    from almonium_book_processor.catalog.adaptation import word_diff
+
+    this_is_source = parallel_edition.source_edition_id == edition.id
+    for row in rows:
+        if row["block"] is None or len(row["counterparts"]) != 1:
+            continue
+        counterpart = row["counterparts"][0]
+        if this_is_source:
+            counterpart_segments, block_segments = word_diff(row["block"].text, counterpart.text)
+        else:
+            counterpart_segments, block_segments = word_diff(counterpart.text, row["block"].text)
+        row["block_segments"] = block_segments
+        row["counterpart_segments"] = counterpart_segments
+        row["changed"] = any(seg["op"] != "equal" for seg in block_segments + counterpart_segments)
+
+
 @staff_member_required
 def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
     """Read the whole normalized text of any edition and correct blocks in place.
@@ -714,6 +744,11 @@ def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
         (option for option in parallel_options if str(option.id) == requested_parallel), None
     )
     rows, gap_count = _parallel_rows(blocks, parallel_edition, None if query else chapter)
+    diff_available = parallel_edition is not None and parallel_edition.language == edition.language
+    show_diff = diff_available and request.GET.get("diff") == "1"
+    if show_diff:
+        _mark_word_changes(rows, edition, parallel_edition)
+    changed_count = sum(1 for row in rows if row.get("changed"))
 
     positions = {item.sequence: index for index, item in enumerate(chapters)}
     current_index = positions.get(chapter)
@@ -737,7 +772,14 @@ def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
             "rows": rows,
             "parallel_options": parallel_options,
             "parallel_edition": parallel_edition,
-            "parallel_param": f"&parallel={parallel_edition.id}" if parallel_edition else "",
+            "parallel_param": (
+                f"&parallel={parallel_edition.id}{'&diff=1' if show_diff else ''}"
+                if parallel_edition
+                else ""
+            ),
+            "diff_available": diff_available,
+            "show_diff": show_diff,
+            "changed_count": changed_count,
             "gap_count": gap_count,
             "query": query,
             "match_count": match_count,
@@ -771,6 +813,7 @@ def edit_block_text(request: HttpRequest, edition_id: str, block_id: uuid.UUID) 
         request.POST.get("q", ""),
         str(block_id),
         request.POST.get("parallel", ""),
+        request.POST.get("diff", ""),
     )
 
 

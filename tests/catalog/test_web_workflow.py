@@ -1179,6 +1179,94 @@ def test_parallel_reader_labels_each_column_with_its_cefr_level(client) -> None:
     assert '<p class="column-lang">EN</p>' in content
 
 
+def test_parallel_reader_shows_word_changes_for_a_same_language_companion(client) -> None:
+    canonical, parallel, source_blocks, _ = parallel_records()
+    # A same-language adaptation whose first block rewrites one word.
+    adaptation = Edition.objects.create(
+        slug="parallel-work-b2",
+        work=canonical.work,
+        source_edition=canonical,
+        title="Parallel Work",
+        language="en",
+        cefr_level=Edition.CEFRLevel.B2,
+        edition_type=Edition.EditionType.ADAPTATION,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        source_sha256="7" * 64,
+        status=Edition.Status.REVIEW,
+    )
+    chapter = Chapter.objects.create(edition=adaptation, sequence=1, title="One")
+    texts = ["First piece.", "Second block.", "Third block."]
+    for block, text in zip(source_blocks, texts, strict=True):
+        ContentBlock.objects.create(
+            edition=adaptation,
+            chapter=chapter,
+            block_id=block.block_id,
+            sequence=block.sequence,
+            block_type=block.block_type,
+            text=text,
+            align_group=block.align_group,
+        )
+    reader_staff(client, "parallel-reader-diff")
+    url = reverse("catalog:edition-reader", args=[adaptation.id])
+
+    plain = client.get(url, {"chapter": 1, "parallel": str(canonical.id)}).content.decode()
+    assert f'&parallel={canonical.id}&diff=1">Show changes</a>' in plain
+    assert "<ins>" not in plain and "<del>" not in plain
+
+    shown = client.get(
+        url, {"chapter": 1, "parallel": str(canonical.id), "diff": "1"}
+    ).content.decode()
+    assert "Hide changes</a>" in shown
+    assert "1 of 3 rows differs" in shown
+    assert "First <ins>piece.</ins>" in shown
+    assert "First <del>block.</del>" in shown
+    # One marked word per column plus the legend's two samples; unchanged rows stay plain.
+    assert shown.count("<ins>") == 2 and shown.count("<del>") == 2
+    # Navigation and the edit form keep the toggle on.
+    assert f'href="?chapter=1&amp;parallel={canonical.id}&amp;diff=1"' in shown
+    assert '<input type="hidden" name="diff" value="1">' in shown
+
+    # A different-language companion never offers word changes.
+    other = client.get(
+        url, {"chapter": 1, "parallel": str(parallel.id), "diff": "1"}
+    ).content.decode()
+    assert "Show changes" not in other and "<ins>" not in other
+
+
+def test_parallel_reader_diffs_from_the_source_side_too(client) -> None:
+    canonical, _, source_blocks, _ = parallel_records()
+    adaptation = Edition.objects.create(
+        slug="parallel-work-b2",
+        work=canonical.work,
+        source_edition=canonical,
+        title="Parallel Work",
+        language="en",
+        edition_type=Edition.EditionType.ADAPTATION,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        source_sha256="7" * 64,
+        status=Edition.Status.REVIEW,
+    )
+    chapter = Chapter.objects.create(edition=adaptation, sequence=1, title="One")
+    ContentBlock.objects.create(
+        edition=adaptation,
+        chapter=chapter,
+        block_id="c1.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="First piece.",
+        align_group=source_blocks[0].align_group,
+    )
+    reader_staff(client, "parallel-reader-diff-source")
+
+    shown = client.get(
+        reverse("catalog:edition-reader", args=[canonical.id]),
+        {"chapter": 1, "parallel": str(adaptation.id), "diff": "1"},
+    ).content.decode()
+    # Reading the original: its own column shows what the adaptation removed.
+    assert "First <del>block.</del>" in shown
+    assert "First <ins>piece.</ins>" in shown
+
+
 def test_publication_requires_source_release_before_queueing(client, monkeypatch) -> None:
     source, target, _, _ = parallel_records()
     target.work.publication_year = 1818

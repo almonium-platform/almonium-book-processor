@@ -130,9 +130,10 @@ def test_applied_pilot_review_item_points_at_the_replaced_chapter(application, c
     assert warning.message.startswith("Chapter I replaced from pilot")
 
     (item,) = review_items(target)
-    assert "side by side" in item["guidance"]
+    assert "beside the source with word changes" in item["guidance"]
     labels = {link["label"]: link["url"] for link in item["links"]}
     reader = reverse("catalog:edition-reader", args=[target.id])
+    # The pilot target in this fixture is not a parallel edition, so no companion link.
     assert labels["Read Chapter I beside the source"] == f"{reader}?chapter=1"
     assert labels["Text corrections"] == "#text-corrections"
 
@@ -164,7 +165,7 @@ def test_legacy_review_item_recovers_the_pilot_from_its_message(application):
         message="AI B2 adaptation: review fidelity.",
     )
     reader = reverse("catalog:edition-reader", args=[target.id])
-    parallel = f"parallel={target.source_edition_id}"
+    parallel = f"parallel={target.source_edition_id}&diff=1"
 
     links = {link["label"]: link["url"] for link in review_item(target, legacy)["links"]}
     assert links["Read Chapter I beside the source"] == f"{reader}?chapter=1&{parallel}"
