@@ -137,6 +137,19 @@ is one Batch job with no alignment step.
   through the block-revision workflow; 44 other occurrences use the correct form.
 - [ ] Decide the reader-facing labels with the product client, keeping reading mode
   (parallel vs standalone) separate from provenance (human vs AI, disclosed).
+- [ ] Make a complete, current chapter analysis a readiness condition for offering
+  a canonical edition for translation, next to sentences, lexical enrichment and
+  source QA. Decided 2026-09-17; see `CHAPTER_ANALYSIS.md`, "Non-English and
+  parallel editions".
+- [ ] Translate chapter descriptions (and themes, setting, content flags) in the
+  translation job itself, keyed by source chapter hash and analysis spec hash, and
+  serve them with the source's CEFR estimate from the public chapters endpoint.
+  Never run the analysis rubric on a machine translation. The Ukrainian
+  Frankenstein currently shows no descriptions for this reason.
+- [ ] Requeue chapter analysis, or keep serving descriptions for chapters whose own
+  hash is unchanged, after an approved text correction on a public edition. The
+  drop-cap repair of 2026-09-16 changed eight paragraphs of the English canonical
+  and hid all thirty chapter descriptions.
 
 **Model choice (blind chapter comparison, English chapter V into French, 2026-08-30):**
 all of `gpt-5.6-sol`, `gpt-5.6-luna`, and `gpt-5.6-terra` returned 28/28 blocks in

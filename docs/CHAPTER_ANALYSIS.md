@@ -146,6 +146,58 @@ returned by a provider after deletion is discarded; its usage is retained on
 the tombstone ledger without restoring request/response payloads. A broker
 dispatch failure leaves a visible failed run that the same button can requeue.
 
+## Non-English and parallel editions
+
+Decided 2026-09-17, after a chapter-analysis run on the Ukrainian machine
+translation of *Frankenstein* was cancelled at 17 of about 50 windows
+(input 69k tokens, output 21k, $0.036):
+
+- The model reads Ukrainian competently. Every window returned a coherent
+  spoiler-free description, exact hard-word surface strings from the cited
+  blocks with sensible glosses, and evidence quotes present in the text. Levels
+  were C1 for most windows and B2 for four, with confidence 0.93 to 0.98.
+- The prompt is not designed for non-English input. It says "write
+  explanations and summaries in English"; one window (Letter II) came back
+  entirely in Ukrainian, including content flags and hard-word glosses, and
+  nothing in the schema enforces the language. A single run would have mixed
+  two languages of metadata on one edition.
+- The metadata is in the wrong language for the reader regardless: an English
+  description of a Ukrainian chapter helps nobody on the Ukrainian edition.
+- CEFR for the translated text is not what the learner reads for. A parallel
+  translation supports reading of the canonical edition, so the reading demand
+  that matters is the source's. The archaism score did carry one useful
+  signal: the translation chose a period register (`вельми`, `аби`, `на
+  смертному одрі`) and scored 0.5 on almost every window, which is a fact
+  about the translation's style, not about the original.
+
+Therefore chapter analysis is a **canonical-edition stage that precedes
+translation**, and translation jobs carry its reader-facing output across:
+
+1. Chapter analysis must be complete and current on the canonical edition
+   before it is offered for translation. It becomes part of the canonical's
+   publication readiness, alongside sentences, lexical enrichment and source
+   QA, rather than an optional staff button pressed afterwards. A translation
+   order is settled in the product backend by a paying user, so the check
+   belongs where the offer is made, not on the order.
+2. The translation job translates each chapter's `spoiler_free_description`
+   (and the other reader-facing summary fields worth localising: themes,
+   setting, content flags) into the target language in the same job, keyed
+   like the text by the source chapter hash and the summary's
+   `analysis_spec_hash`. No second analysis run is made for a parallel edition,
+   and the rubric is never applied to machine-translated text.
+3. The public chapters endpoint serves a parallel edition its translated
+   descriptions and the **source edition's** `cefrEstimate` and
+   `analysisStatus`. If the canonical analysis is stale or missing, the parallel
+   edition is stale or missing too; it never shows a level of its own.
+4. Standalone non-English editions (a human translation read on its own, or a
+   non-English original) are a separate case and may run analysis on their own
+   text, but only once the output language is an explicit per-run parameter in
+   the prompt and the spec hash. Until then the button is English-only.
+
+Open follow-ups: an approved text correction on a public edition currently
+leaves the analysis stale and hides every chapter description, not only the
+corrected chapters, until staff requeue by hand. See the backlog.
+
 ## Verification
 
 `tests/catalog/test_chapter_analysis.py` exercises full/partial coverage,
