@@ -171,6 +171,8 @@ class EditionMetadataForm(forms.Form):
 
     @classmethod
     def for_edition(cls, edition: Edition, data=None) -> EditionMetadataForm:
+        from almonium_book_processor.catalog.adaptation_quality import adaptation_target
+
         work = edition.work
         return cls(
             data,
@@ -185,7 +187,9 @@ class EditionMetadataForm(forms.Form):
                 "edition_slug": edition.slug,
                 "edition_title": edition.title,
                 "language": edition.language,
-                "cefr_level": edition.cefr_level or "",
+                # An adaptation defaults to the level it was generated for; the
+                # editor still has to confirm it, and may pick another.
+                "cefr_level": edition.cefr_level or adaptation_target(edition) or "",
             },
         )
 

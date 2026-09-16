@@ -333,9 +333,10 @@ def complete_review(
     if edition.status != Edition.Status.REVIEW:
         raise ValueError("Only editions awaiting review can be completed.")
 
-    from almonium_book_processor.catalog.adaptation_quality import adaptation_blocker
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
 
-    if blocker := adaptation_blocker(edition):
+    quality = adaptation_quality(edition)
+    if blocker := quality.get("adaptation_blocker"):
         raise ValueError(blocker)
 
     unresolved_warnings = edition.warnings.exclude(severity=QAWarning.Severity.INFO).filter(
@@ -353,7 +354,15 @@ def complete_review(
         actionable_warning_count=actionable_warning_count,
     )
     edition.status = Edition.Status.READY
-    edition.save(update_fields=["status", "updated_at"])
+    update_fields = ["status", "updated_at"]
+    # The gate just proved every chapter sits at or below the generation
+    # target on a current assessment, so a passing review is the editorial
+    # statement that the text is at that level. Only a label an editor never
+    # set is filled in; an explicit choice stays.
+    if quality.get("adaptation_target") and not edition.cefr_level:
+        edition.cefr_level = quality["adaptation_target"]
+        update_fields.append("cefr_level")
+    edition.save(update_fields=update_fields)
     return decision
 
 

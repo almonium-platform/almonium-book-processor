@@ -133,7 +133,7 @@
   {% if adaptation_target %}<p><strong>Adaptation target: {{ adaptation_target }}</strong>. Estimates below target are shown for editorial review; any above-target window blocks completion, including in excluded chapters.</p>{% endif %}
   {% if adaptation_blocker %}<p class="message warning" role="alert">{{ adaptation_blocker }} The difficulty review item clears automatically after a current, passing reassessment; it cannot be dismissed while the gate fails.</p>{% elif adaptation_target %}<p>Current difficulty check passed. This does not replace fidelity review.</p>{% endif %}
   {% if adaptation_below_chapters %}<p>Below-target chapters: {{ adaptation_below_chapters|join:", " }}. Check for unnecessary simplification.</p>{% endif %}
-  <p>Editorial level: {{ edition.cefr_level|default:"Not set" }}. Analysis never overwrites this value.</p>
+  <p>Editorial level: {{ edition.cefr_level|default:"Not set" }}. Analysis never overwrites this value{% if adaptation_target and not edition.cefr_level %}; completing review sets it to the {{ adaptation_target }} target once the gate passes{% endif %}.</p>
   <p class="muted">Chapter roles: <strong>Substantive chapter</strong> means the main story or content and counts toward the book estimate. <strong>Front matter</strong> means introductory extras, such as a preface or introduction. <strong>Back matter</strong> means end extras, such as appendices or notes. Extras remain readable and keep their own estimates, but do not count toward the overall book level. Storytelling letters and prologues still count as substantive content. Exclusion does not bypass an adaptation's target-level checks.</p>
   {% if chapter_analysis_run %}<div class="button-row"><form method="post" action="{% url 'catalog:refresh-chapter-projections' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Refresh saved assessments (no AI calls)</button></form></div>{% endif %}
   {% if projection_state == "stale" %}<p>Previous assessments are stale. Analyze the current text, or refresh saved assessments after changing chapter roles.</p>{% endif %}
@@ -224,8 +224,9 @@
 <section class="panel review-panel">
   <p class="eyebrow">Editor decision</p>
   <h2>Review before continuing</h2>
-  <p>{% if actionable_warnings %}Resolve the {{ actionable_warnings|length }} remaining review item{{ actionable_warnings|length|pluralize }} before approval.{% else %}All review items are resolved. Completing review records your decision and marks this edition ready; it does not publish it.{% endif %}</p>
-  {% if not actionable_warnings %}
+  <p>{% if actionable_warnings %}Resolve the {{ actionable_warnings|length }} remaining review item{{ actionable_warnings|length|pluralize }} before approval.{% elif adaptation_blocker %}All review items are resolved, but the difficulty gate is not passing.{% else %}All review items are resolved. Completing review records your decision and marks this edition ready{% if adaptation_target and not edition.cefr_level %} and labels it {{ adaptation_target }}, the level it was generated for{% endif %}; it does not publish it.{% endif %}</p>
+  {% if adaptation_blocker and not actionable_warnings %}<p class="message warning" role="alert">{{ adaptation_blocker }}{% if projection_state == "stale" %} The text changed after the last analysis: run “Analyze / resume” above, then come back.{% endif %}</p>{% endif %}
+  {% if not actionable_warnings and not adaptation_blocker %}
   <form method="post" action="{% url 'catalog:complete-edition-review' edition.id %}">
     {% csrf_token %}
     <label><span>Review notes (optional)</span><textarea name="notes" rows="3" placeholder="For example: checked the missing image; it is decorative."></textarea></label>

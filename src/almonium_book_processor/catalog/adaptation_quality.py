@@ -6,9 +6,17 @@ from almonium_book_processor.catalog.models import Edition, PipelineRun
 DIFFICULTY_WARNING = "adaptation_difficulty_gate"
 
 
-def adaptation_quality(edition, analysis=None):
+def adaptation_target(edition) -> str | None:
+    """The single CEFR level an adaptation was generated for, if it has one."""
     if edition.edition_type != Edition.EditionType.ADAPTATION:
-        return {}
+        return None
+    targets = _targets(edition)
+    if len(targets) == 1 and targets.issubset(LEVELS):
+        return next(iter(targets))
+    return None
+
+
+def _targets(edition) -> set:
     targets = {
         value
         for value in edition.pipeline_runs.filter(
@@ -21,6 +29,13 @@ def adaptation_quality(edition, analysis=None):
         for value in edition.blocks.values_list("attributes__adaptation__target_level", flat=True)
         if value
     )
+    return targets
+
+
+def adaptation_quality(edition, analysis=None):
+    if edition.edition_type != Edition.EditionType.ADAPTATION:
+        return {}
+    targets = _targets(edition)
     if not targets:
         # Independently imported adaptations do not yet have a generation target.
         return {"adaptation_target": None}

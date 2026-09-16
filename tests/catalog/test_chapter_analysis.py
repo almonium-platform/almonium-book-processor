@@ -154,6 +154,52 @@ def test_adaptation_gate_checks_current_windows_not_editorial_label(edition):
         complete_review(edition=edition, reviewer=get_user_model().objects.create_user("gate"))
 
 
+def test_passing_review_labels_an_adaptation_with_its_target(edition):
+    from almonium_book_processor.catalog.forms import EditionMetadataForm
+    from almonium_book_processor.catalog.services import complete_review
+
+    edition.edition_type = Edition.EditionType.ADAPTATION
+    edition.cefr_level = None
+    edition.status = Edition.Status.REVIEW
+    edition.save()
+    edition.blocks.update(attributes={"adaptation": {"target_level": "B2"}})
+    # The form proposes the generation target; the row itself stays unlabelled.
+    assert EditionMetadataForm.for_edition(edition).initial["cefr_level"] == "B2"
+    assert Edition.objects.get(id=edition.id).cefr_level is None
+
+    client = Client()
+    client.force_login(get_user_model().objects.create_user("labeller", is_staff=True))
+    response = client.get(reverse("catalog:edition-detail", args=[edition.id]))
+    assert b"difficulty gate is not passing" in response.content
+    review_url = reverse("catalog:complete-edition-review", args=[edition.id]).encode()
+    assert review_url not in response.content
+
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    response = client.get(reverse("catalog:edition-detail", args=[edition.id]))
+    assert b"labels it B2" in response.content
+    assert review_url in response.content
+    complete_review(edition=edition, reviewer=get_user_model().objects.create_user("gate-ok"))
+    edition.refresh_from_db()
+    assert edition.status == Edition.Status.READY
+    assert edition.cefr_level == "B2"
+
+
+def test_passing_review_keeps_an_explicit_editorial_label(edition):
+    from almonium_book_processor.catalog.services import complete_review
+
+    edition.edition_type = Edition.EditionType.ADAPTATION
+    edition.cefr_level = "B1"
+    edition.status = Edition.Status.REVIEW
+    edition.save()
+    edition.blocks.update(attributes={"adaptation": {"target_level": "B2"}})
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    complete_review(edition=edition, reviewer=get_user_model().objects.create_user("keeper"))
+    edition.refresh_from_db()
+    assert edition.cefr_level == "B1"
+
+
 def test_adaptation_gate_exposes_evidence_and_below_target(edition):
     from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
 
