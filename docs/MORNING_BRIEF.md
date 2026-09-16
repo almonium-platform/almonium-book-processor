@@ -16,13 +16,49 @@ All 30 original chapters now have current vocabulary data. This reuses the exist
 offline lexical stage and pinned spaCy lemmas—no new NLP pass or AI calls. It is a
 chapter-filtered selection from the book's useful words, not every chapter word.
 The vocabulary chapter selector is independent of your reading position; returning
-from Discover opens the book, not a guaranteed chapter jump. Mobile vocabulary is
-not implemented yet.
+from Discover opens the book, not a guaranteed chapter jump.
 
 [Real vocabulary screenshot](../../almonium-fe/docs/evidence/reader-20260916/vocabulary-live-original.png)
 · [Discover journey screenshot (test fixture)](../../almonium-fe/docs/evidence/reader-20260916/discover-book-context.png).
 The live chapter request was verified through the backend; the complete Discover
 journey was tested with mocked lookup responses, without a paid live lookup.
+
+### On mobile
+
+Use an updated mobile build: published Frankenstein → reader header's chapter-list
+button → **Vocabulary** under **CHAPTER V.** → **Look up countenance**.
+Expect the same 21 curated words/excerpts. The existing word sheet shows the book,
+chapter and English lookup language even if another learner language is selected.
+**Back to vocabulary** returns to the list; dismissing it keeps your reading place.
+Missing/old chapter data and offline requests show a message without blocking
+reading. The Android export passed, but it does not install the update on a phone.
+
+## Short retrospective and the next slice
+
+- **Done:** full-book offline sentence matching, adaptation difficulty warnings,
+  edition-aware web/mobile companions and chapter navigation, and chapter
+  vocabulary → source-aware lookup in both clients. No extra NLP stage was added.
+- **Verified live:** the published original's vocabulary through the product API
+  and Angular; mobile WebView JavaScript in Chromium found all 30 headings,
+  jumped to Chapter V and mapped its 21 words to English lookup context.
+  Real staff sentence previews were previously spot-checked, not fidelity-approved.
+- **Fixture/unit evidence only:** public B2/original/Ukrainian reader combinations,
+  the full Angular Discover journey, mobile vocabulary states/context helpers and
+  companion-layout browser checks. The mobile tests do not mount native sheets;
+  no live generated-definition lookup or save-card round-trip was performed here.
+- **Needs you:** B2 fidelity review/editorial level, separate B2 and Ukrainian
+  publication, the companion-default decision, and native-device acceptance.
+  Device checks must cover sheet transitions, selection, dark/pressed states,
+  real airplane-mode behavior and saving a looked-up word. Source attribution is
+  preserved during lookup; persistent book/chapter links on saved cards are not
+  implemented by this slice.
+
+**My single next-slice recommendation after the reset:** a device-backed
+read → chapter vocabulary → lookup → save word → resume-reading acceptance pass,
+fixing the concrete problems it reveals. Start with the already-published original;
+include real B2/Ukrainian companions only after your release decisions. This closes
+the largest remaining user-facing verification gap. Defer clause alignment and
+new generation work until this loop is proven on a phone.
 
 ## Then review B2, if you want to release it
 
@@ -121,16 +157,19 @@ left alone. No paid AI calls were needed.
 
 Vocabulary checks: processor 334 tests plus Ruff/format/migrations/system checks;
 backend Spotless, nine focused tests and full Maven verify; Angular lint, 274 tests,
-production build and eight browser cases. Mobile was unchanged this turn; its
-previous TypeScript, 96 tests, ESLint and Android export passed, but native-device
-acceptance remains pending.
+production build and eight browser cases. Mobile: TypeScript, 103 tests, ESLint
+(one existing generated-file warning), Android export and the read-only live
+WebView check passed sequentially via direct Node commands. Native-device
+acceptance remains pending. Reproduce the bridge check with
+`node scripts/check-reader-vocabulary.mjs` in the mobile repository.
 
 Vocabulary implementation commits:
 
 - Processor `07b0402`: current, source-attested chapter vocabulary contract.
 - Backend `331707ea`: typed public chapter-vocabulary endpoint.
 - Angular `e2767be`: vocabulary panel and source-context Discover links.
+- Mobile `8387875`: chapter vocabulary and source-aware in-reader lookup.
 
 See `PRODUCT_READER_DELIVERY.md` for implemented slices, verification and remaining
-work. Next bounded implementation slice: mobile vocabulary on the same contract;
-the real public B2/Ukrainian acceptance flow still waits for your release decisions.
+work. The real public B2/Ukrainian acceptance flow still waits for your release
+decisions; no release or editorial state was changed in the mobile slice.

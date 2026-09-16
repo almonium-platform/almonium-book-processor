@@ -42,10 +42,13 @@ were approved and no edition was published during this work.
 2. **Native-device acceptance** of chapter navigation, companion switching,
    selection, paper/night modes and offline reading. Builds and browser-script
    tests cannot certify native UI behavior.
-3. **Mobile chapter vocabulary**: consume the implemented typed backend contract
-   and preserve source context in the mobile discovery flow. Processor/backend/web
-   are complete; do not invent a new NLP pass. Keep whole-library phrase search/IR
-   separate. Test unavailable/stale data without blocking reading.
+3. **Chapter vocabulary — implemented across processor/backend/web/mobile.** Mobile
+   chapter navigation now opens curated source examples and passes book/chapter
+   context plus source language to its existing lookup sheet. Missing/stale/offline
+   requests preserve reading. Mobile commit `8387875`: TypeScript, 103 tests,
+   ESLint, Android export and read-only live WebView check pass. Native sheet and
+   lookup/save/resume acceptance is the recommended next bounded slice; persistent
+   source links on saved cards and whole-library IR remain separate work.
 4. **Clause-level alignment** only where sentence groups are too broad. Keep the
    existing safe paragraph fallback and exact-pair provenance; no paid alignment
    needed for the current sentence feature.
@@ -89,9 +92,9 @@ Firebase bearer authentication must remain separate from Angular session cookies
    and ordered spoiler-free descriptions appear in Angular's chapter navigation.
    Missing enrichment never blocks reading. Review/private editions return 404;
    stale or incomplete estimates are not displayed. Editorial book level remains
-   separate. Angular vocabulary is now implemented in the follow-up above;
-   mobile vocabulary, reader-facing provenance detail and individual chapter SEO
-   routes remain next. No recaps in defaults.
+   separate. Angular and mobile vocabulary are now implemented in the follow-up
+   above; reader-facing provenance detail and individual chapter SEO routes remain
+   next. No recaps in defaults.
    Verification: 313 processor tests; focused backend content tests; 24 Angular
    reader/contract tests, development build and mocked browser test pass. Processor
    rebuilt/restarted; live original chapter endpoint returns 30 chapters. Backend
