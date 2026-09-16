@@ -130,3 +130,15 @@ def test_an_unexplained_empty_document_still_needs_review(tmp_path) -> None:
         (w.code, w.source_ref) for w in artifact.warnings
     ]
     assert ingestion_warning_severity("empty_spine_document") == IngestionWarningSeverity.WARNING
+
+
+def test_inline_drop_cap_does_not_create_a_space():
+    from almonium_book_processor.ingest.common import normalize_text, parse_html
+
+    for markup, expected in [
+        ('<p><span class="dropcap">I</span>t was dark.</p>', "It was dark."),
+        ('<p><span class="dropcap">W</span>e returned.</p>', "We returned."),
+        ('<p><span class="dropcap">C</span>lerval spoke.</p>', "Clerval spoke."),
+        ('<p><span class="dropcap">I</span> am here.</p>', "I am here."),
+    ]:
+        assert normalize_text(parse_html(markup).p) == expected

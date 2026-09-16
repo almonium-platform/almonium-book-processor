@@ -121,3 +121,41 @@ def test_source_qa_does_not_join_legitimate_or_noninitial_single_letters() -> No
     )
 
     assert findings == []
+
+
+def test_short_drop_caps_and_corpus_attested_name():
+    blocks = [
+        SourceQABlock(str(i), f"c{i}.p2", i, text)
+        for i, text in enumerate(
+            [
+                "I t was dark.",
+                "W e returned.",
+                "O n my return.",
+                "M y life.",
+                "C lerval returned.",
+                "Clerval spoke with Clerval.",
+                "A long road.",
+                "I ran away.",
+            ]
+        )
+    ]
+    frequency = {
+        "it": 6.9,
+        "we": 6.5,
+        "on": 6.9,
+        "my": 6.5,
+        "a long": 6,
+        "along": 5,
+        "i ran": 5,
+        "iran": 4,
+    }
+    findings = analyze_source_quality(
+        blocks, "en", frequency_lookup=lambda t, language: frequency.get(t, 0)
+    )
+    assert [f.suggested_text for f in findings if f.code == "detached_initial"] == [
+        "It",
+        "We",
+        "On",
+        "My",
+        "Clerval",
+    ]

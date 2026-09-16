@@ -171,6 +171,19 @@ def test_parallel_translation_inherits_canonical_block_groups(monkeypatch) -> No
         assert block.align_group == source.blocks.get(block_id=block_id).align_group
     assert edition.chapters.get(sequence=1).title == "Chapitre premier"
     assert blocks["c1.p2"].attributes["translation"]["confidence"] == 0.95
+    assert blocks["c1.p2"].attributes["translation"]["ai_run_id"] == str(ai_run.id)
+    assert (
+        blocks["c1.p2"].attributes["translation"]["prompt_version"]
+        == ai_run.prompt_template.version
+    )
+    from almonium_book_processor.catalog.passage_provenance import passage_provenance
+
+    provenance = passage_provenance(list(blocks.values()))[(edition.id, "c1.p2")]
+    assert provenance["generation_record_scope"] == "Passage-linked"
+    assert provenance["generation_run"] == str(ai_run.id)
+    assert (
+        provenance["prompt"] == f"{ai_run.prompt_template.name} v{ai_run.prompt_template.version}"
+    )
 
 
 def test_translation_retry_uses_register_even_after_credit_is_edited(monkeypatch) -> None:

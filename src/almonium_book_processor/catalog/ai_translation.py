@@ -381,6 +381,7 @@ def _materialize_chapter(
     chapter_manifest: dict[str, Any],
     *,
     model: str,
+    ai_run: AIRun | None = None,
 ) -> dict[str, Any]:
     """Persist one translated chapter, inheriting canonical block groups."""
 
@@ -425,6 +426,14 @@ def _materialize_chapter(
                 source_ref=f"{edition.source_edition.slug}:{source_block.block_id}",
                 attributes={
                     "translation": {
+                        **(
+                            {
+                                "ai_run_id": str(ai_run.id),
+                                "prompt_version": ai_run.prompt_template.version,
+                            }
+                            if ai_run
+                            else {}
+                        ),
                         "model": model,
                         "confidence": translated.confidence,
                         "sentence_count_changed": translated.sentence_count_changed,

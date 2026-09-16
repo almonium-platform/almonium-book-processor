@@ -58,7 +58,10 @@ def inherited_pairs(edition, other):
 
 
 def inherited_payload(edition, other):
-    from almonium_book_processor.catalog.offline_sentence_alignment import processor_version
+    from almonium_book_processor.catalog.offline_sentence_alignment import (
+        available_models,
+        processor_version,
+    )
 
     pairs = inherited_pairs(edition, other)
     if not pairs:
@@ -68,13 +71,29 @@ def inherited_payload(edition, other):
         kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,
         is_current=True,
         processor_version__in=[
-            processor_version(),
+            *[processor_version(model) for model in available_models()],
             f"sentence-pair-v2:{settings.OPENAI_TRANSLATION_QUALITY_MODEL}",
         ],
     ).order_by("created_at", "id")
     artifacts = {
-        a.input_hash: a.payload
-        for a in sorted(candidates, key=lambda a: a.processor_version == processor_version())
+        a.input_hash: {
+            **a.payload,
+            "provenance": {
+                "artifact_id": str(a.id),
+                "processor_version": a.processor_version,
+                "model": a.payload.get("model", "Not recorded"),
+                "created_at": a.created_at.isoformat(),
+                "input_hash": a.input_hash,
+                "pipeline_run_id": str(a.pipeline_run_id) if a.pipeline_run_id else None,
+                "segmentation": a.payload.get("segmentation", "sentences"),
+            },
+        }
+        for a in sorted(
+            candidates,
+            key=lambda a: (
+                a.processor_version in [processor_version(model) for model in available_models()]
+            ),
+        )
     }
     return {
         "schema_version": 2,
@@ -94,8 +113,13 @@ def inherited_payload(edition, other):
                 "secondary_block_id": s.block_id,
                 "primary_text": p.text,
                 "secondary_text": s.text,
-                "primary_sentences": p.sentences,
-                "secondary_sentences": s.sentences,
+                "primary_sentences": aligned_data(artifacts, p, s).get(
+                    "primary_spans", p.sentences
+                ),
+                "secondary_sentences": aligned_data(artifacts, p, s).get(
+                    "secondary_spans", s.sentences
+                ),
+                "alignment_provenance": aligned_data(artifacts, p, s).get("provenance"),
                 "revision": pair_hash(p, s),
                 "sentence_alignment": sentence_groups(artifacts, p, s),
             }
@@ -104,14 +128,25 @@ def inherited_payload(edition, other):
     }
 
 
-def sentence_groups(artifacts, primary, secondary):
+def aligned_data(artifacts, primary, secondary):
     direct = artifacts.get(pair_hash(primary, secondary))
-    if direct is not None:
-        return direct.get("groups", [])
-    # Inversion is exact; unlike composing through a third edition it makes
-    # no new semantic inference and needs no paid call.
     reverse = artifacts.get(pair_hash(secondary, primary), {})
-    return [
-        {"primary": group["secondary"], "secondary": group["primary"], "certain": group["certain"]}
-        for group in reverse.get("groups", [])
-    ]
+    if direct is not None and direct.get("provenance", {}).get("created_at", "") >= reverse.get(
+        "provenance", {}
+    ).get("created_at", ""):
+        return direct
+    result = {
+        **reverse,
+        "groups": [
+            {**group, "primary": group["secondary"], "secondary": group["primary"]}
+            for group in reverse.get("groups", [])
+        ],
+    }
+    if "primary_spans" in reverse:
+        result["primary_spans"] = reverse["secondary_spans"]
+        result["secondary_spans"] = reverse["primary_spans"]
+    return result
+
+
+def sentence_groups(artifacts, primary, secondary):
+    return aligned_data(artifacts, primary, secondary).get("groups", [])

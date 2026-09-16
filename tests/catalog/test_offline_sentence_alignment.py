@@ -151,3 +151,117 @@ def test_chunking_preserves_all_text_and_never_exceeds_encoder_window(monkeypatc
     assert vectors[0][0] > 0 and vectors[0][1] > 0
     assert sum(v * v for v in vectors[0]) == pytest.approx(1)
     assert vectors[1] == [0, 1]
+
+
+def test_semicolon_clauses_refine_without_changing_text_or_sentence_spans():
+    from almonium_book_processor.processing.sentence_correspondence import clause_spans
+
+    p = SimpleNamespace(
+        text="Yellow skin; black hair; white teeth.", sentences=[{"start": 0, "end": 36}]
+    )
+    s = SimpleNamespace(
+        text="Жовта шкіра; чорне волосся; білі зуби.", sentences=[{"start": 0, "end": 36}]
+    )
+    # Use exact lengths, not byte lengths for Unicode.
+    p.sentences[0]["end"] = len(p.text)
+    s.sentences[0]["end"] = len(s.text)
+    spans = clause_spans(p)
+    assert [p.text[x["start"] : x["end"]] for x in spans] == [
+        "Yellow skin;",
+        "black hair;",
+        "white teeth.",
+    ]
+    with patch(
+        "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+        return_value=[[1, 0, 0], [0, 1, 0], [0, 0, 1]] * 2,
+    ):
+        result = correspond(p, s, model_name="sentence-transformers/LaBSE")
+    assert len(result["groups"]) == 3
+    assert all(g["certain"] and g["granularity"] == "clause" for g in result["groups"])
+    assert len(p.sentences) == 1
+    with patch(
+        "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+        return_value=[[1, 0]] * 3 + [[0, 1]] * 3,
+    ):
+        result = correspond(p, s)
+    assert len(result["groups"]) == 1
+    assert result["groups"][0]["certain"]
+    assert result["groups"][0]["primary"] == [0, 1, 2]
+    assert result["groups"][0]["granularity"] == "sentence"
+
+
+def test_model_selection_is_versioned_and_invalid_model_rejected(pair):  # noqa: F811
+    p, s = pair
+    first = queue_alignment(p.id, s.id)
+    second = queue_alignment(p.id, s.id, model="sentence-transformers/LaBSE")
+    assert first.processor_version != second.processor_version
+    assert first.id != second.id
+    assert second.summary["model"] == "sentence-transformers/LaBSE"
+    with pytest.raises(ValueError, match="supported"):
+        queue_alignment(p.id, s.id, model="https://arbitrary-model")
+
+
+def test_clause_spans_invert_and_edits_invalidate(pair):  # noqa: F811
+    from almonium_book_processor.catalog.models import EditionArtifact
+    from almonium_book_processor.catalog.offline_sentence_alignment import processor_version
+    from almonium_book_processor.catalog.parallel_content import pair_hash
+
+    p, s = pair
+    a, b = p.blocks.get(), s.blocks.get()
+    EditionArtifact.objects.create(
+        edition=p,
+        kind="sentence_alignment",
+        input_hash=pair_hash(a, b),
+        processor_version=processor_version(),
+        payload={
+            "model": "test-model",
+            "primary_spans": [{"start": 0, "end": len(a.text)}],
+            "secondary_spans": b.sentences,
+            "groups": [{"primary": [0], "secondary": [0, 1], "certain": True}],
+        },
+    )
+    reverse = inherited_payload(s, p)["blocks"][0]
+    assert reverse["primary_sentences"] == b.sentences
+    assert reverse["secondary_sentences"] == [{"start": 0, "end": len(a.text)}]
+    assert reverse["sentence_alignment"][0]["primary"] == [0, 1]
+    assert reverse["alignment_provenance"]["model"] == "test-model"
+    p.blocks.update(text="New text.")
+    assert inherited_payload(s, p)["blocks"][0]["alignment_provenance"] is None
+
+
+def test_newer_reverse_model_result_wins_over_older_direct(pair):  # noqa: F811
+    from almonium_book_processor.catalog.parallel_content import aligned_data, pair_hash
+
+    p, s = (e.blocks.get() for e in pair)
+    artifacts = {
+        pair_hash(p, s): {"groups": [], "provenance": {"created_at": "2026-09-15"}},
+        pair_hash(s, p): {
+            "groups": [{"primary": [0, 1], "secondary": [0], "certain": True}],
+            "provenance": {"created_at": "2026-09-16"},
+        },
+    }
+    result = aligned_data(artifacts, p, s)
+    assert result["groups"][0]["primary"] == [0]
+    assert result["provenance"]["created_at"] == "2026-09-16"
+
+
+def test_one_uncertain_clause_does_not_hide_other_confident_clauses():
+    p = SimpleNamespace(text="Yellow skin; black hair; white teeth.", sentences=[])
+    s = SimpleNamespace(text="Жовта шкіра; чорне волосся; білі зуби.", sentences=[])
+    for block in [p, s]:
+        block.sentences = [{"start": 0, "end": len(block.text)}]
+    with patch(
+        "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+        return_value=[
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 0.70, 0.714],
+        ],
+    ):
+        result = correspond(p, s)
+    assert len(result["groups"]) == 3
+    assert [g["certain"] for g in result["groups"]] == [True, True, False]
+    assert result["groups"][0]["primary"] == [0]

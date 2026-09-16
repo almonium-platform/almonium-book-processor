@@ -84,6 +84,7 @@
         {% if parallel_edition %}<p class="column-lang">{{ edition.language|upper }}{% if edition.cefr_level %} <span class="column-level">{{ edition.cefr_level|lower }}</span>{% endif %}</p>{% endif %}
         {% if row.block %}
         {% if row.block_segments %}<p class="word-diff">{% for segment in row.block_segments %}{% if segment.op == "equal" %}{{ segment.text }}{% elif segment.op == "insert" %}<ins>{{ segment.text }}</ins>{% else %}<del>{{ segment.text }}</del>{% endif %}{% endfor %}</p>{% else %}<p>{{ row.block.text|linebreaksbr|default:"—" }}</p>{% endif %}
+        {% include "catalog/passage_provenance.html" with provenance=row.block.passage_provenance %}
         <details><summary>Edit this block</summary><form method="post" action="{% url 'catalog:edit-block-text' edition.id row.block.id %}">
           {% csrf_token %}<input type="hidden" name="chapter" value="{{ row.block.chapter.sequence }}"><input type="hidden" name="q" value="{{ query }}">
           {% if parallel_edition %}<input type="hidden" name="parallel" value="{{ parallel_edition.id }}">{% endif %}{% if show_diff %}<input type="hidden" name="diff" value="1">{% endif %}
@@ -99,6 +100,7 @@
       <div class="reader-column">
         <p class="column-lang">{{ parallel_edition.language|upper }}{% if parallel_edition.cefr_level %} <span class="column-level">{{ parallel_edition.cefr_level|lower }}</span>{% endif %}</p>
         {% for counterpart in row.counterparts %}
+        {% include "catalog/passage_provenance.html" with provenance=counterpart.passage_provenance %}
         {% if row.counterpart_segments %}<p class="word-diff">{% for segment in row.counterpart_segments %}{% if segment.op == "equal" %}{{ segment.text }}{% elif segment.op == "insert" %}<ins>{{ segment.text }}</ins>{% else %}<del>{{ segment.text }}</del>{% endif %}{% endfor %}</p>{% else %}<p>{{ counterpart.text|linebreaksbr|default:"—" }}</p>{% endif %}
         <p class="counterpart-meta"><code>{{ counterpart.block_id }}</code> · chapter {{ counterpart.chapter.sequence }} · <a href="{% url 'catalog:edition-reader' parallel_edition.id %}?chapter={{ counterpart.chapter.sequence }}&parallel={{ edition.id }}#block-{{ counterpart.id }}">edit there</a></p>
         {% empty %}

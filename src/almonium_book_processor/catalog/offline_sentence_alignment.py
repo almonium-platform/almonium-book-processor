@@ -19,8 +19,13 @@ from almonium_book_processor.catalog.parallel_content import inherited_pairs, pa
 from almonium_book_processor.processing.sentence_correspondence import VERSION, correspond
 
 
-def processor_version():
-    return f"{VERSION}:{hashlib.sha256(settings.NLP_EMBEDDING_MODEL.encode()).hexdigest()[:12]}"
+def available_models():
+    return list(dict.fromkeys([settings.NLP_EMBEDDING_MODEL, "sentence-transformers/LaBSE"]))
+
+
+def processor_version(model=None):
+    digest = hashlib.sha256((model or settings.NLP_EMBEDDING_MODEL).encode()).hexdigest()[:12]
+    return f"{VERSION}:{digest}"
 
 
 def _pairs(primary_id, secondary_id):
@@ -41,11 +46,14 @@ def _digest(pairs):
 
 
 @transaction.atomic
-def queue_alignment(primary_id, secondary_id):
+def queue_alignment(primary_id, secondary_id, model=None):
     from almonium_book_processor.catalog.tasks import align_edition_sentences
 
+    model = model or settings.NLP_EMBEDDING_MODEL
+    if model not in available_models():
+        raise ValueError("Choose a supported offline model")
     pairs = _pairs(primary_id, secondary_id)
-    digest, version = _digest(pairs), processor_version()
+    digest, version = _digest(pairs), processor_version(model)
     run, created = PipelineRun.objects.get_or_create(
         idempotency_key=f"{version}:{digest}",
         defaults={
@@ -55,7 +63,7 @@ def queue_alignment(primary_id, secondary_id):
             "input_hash": digest,
             "summary": {
                 "secondary_id": str(secondary_id),
-                "model": settings.NLP_EMBEDDING_MODEL,
+                "model": model,
                 "method": VERSION,
                 "total_blocks": len(pairs),
             },
@@ -90,7 +98,8 @@ def run_alignment(run_id):
         return
     run = PipelineRun.objects.get(pk=run_id)
     try:
-        if run.processor_version != processor_version():
+        model = run.summary["model"]
+        if model not in available_models() or run.processor_version != processor_version(model):
             raise ValueError("Embedding model changed; queue a new alignment")
         pairs = _pairs(run.edition_id, run.summary["secondary_id"])
         if _digest(pairs) != run.input_hash:
@@ -110,8 +119,8 @@ def run_alignment(run_id):
                 cached.payload
                 if cached
                 else {
-                    **correspond(primary, secondary),
-                    "model": settings.NLP_EMBEDDING_MODEL,
+                    **correspond(primary, secondary, model_name=model),
+                    "model": model,
                 }
             )
             # Match text-revision lock order: blocks first, then editions.

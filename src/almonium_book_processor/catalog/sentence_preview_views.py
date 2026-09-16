@@ -5,7 +5,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from almonium_book_processor.catalog.models import Edition, Work
+from almonium_book_processor.catalog.offline_sentence_alignment import available_models
 from almonium_book_processor.catalog.parallel_content import inherited_payload
+from almonium_book_processor.catalog.passage_provenance import passage_provenance
 from almonium_book_processor.processing.sentence_correspondence import VERSION
 
 
@@ -22,7 +24,7 @@ def sentence_preview(request, edition_id, other_id):
         from almonium_book_processor.catalog.offline_sentence_alignment import queue_alignment
 
         try:
-            run = queue_alignment(primary.id, secondary.id)
+            run = queue_alignment(primary.id, secondary.id, model=request.POST.get("model") or None)
             messages.success(
                 request,
                 f"Offline sentence alignment: {run.get_status_display()}. No paid API calls.",
@@ -36,11 +38,19 @@ def sentence_preview(request, edition_id, other_id):
     except ValueError:
         raise Http404("Invalid chapter") from None
     payload["blocks"] = [b for b in payload["blocks"] if b["chapter"] == chapter]
+    provenance = passage_provenance(
+        list(primary.blocks.filter(chapter__sequence=chapter))
+        + list(secondary.blocks.filter(chapter__sequence=chapter))
+    )
+    for block in payload["blocks"]:
+        block["primary_provenance"] = provenance[(primary.id, block["primary_block_id"])]
+        block["secondary_provenance"] = provenance[(secondary.id, block["secondary_block_id"])]
     return render(
         request,
         "catalog/sentence_preview.html",
         {
             "payload": payload,
+            "models": available_models(),
             "primary": primary,
             "secondary": secondary,
             "chapters": chapters,

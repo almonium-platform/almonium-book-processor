@@ -70,11 +70,15 @@ def _embedding_model(model_name: str) -> Any:
 
 
 def embed_texts(
-    texts: list[str], *, reject_truncation: bool = False, chunk_long: bool = False
+    texts: list[str],
+    *,
+    reject_truncation: bool = False,
+    chunk_long: bool = False,
+    model_name: str | None = None,
 ) -> list[list[float]]:
     """Create normalized multilingual embeddings with the configured local model."""
 
-    model = _embedding_model(settings.NLP_EMBEDDING_MODEL)
+    model = _embedding_model(model_name or settings.NLP_EMBEDDING_MODEL)
     if chunk_long:
         # Split original text, then re-tokenize every leaf, including special tokens.
         # No decoded-token round trip and no silent encoder truncation.

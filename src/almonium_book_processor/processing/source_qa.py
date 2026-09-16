@@ -3,19 +3,20 @@ from __future__ import annotations
 import hashlib
 import re
 import unicodedata
+from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
 from typing import Any
 
 SOURCE_QA_SCHEMA_VERSION = 1
-SOURCE_QA_PROCESSOR_VERSION = "source-qa-v2"
+SOURCE_QA_PROCESSOR_VERSION = "source-qa-v3"
 
 WORD_PAIR = re.compile(
     r"(?=(\b(?P<left>[^\W\d_]{2,})[ \t]+(?P<right>[^\W\d_]{2,})\b))",
     re.UNICODE,
 )
 DETACHED_INITIAL = re.compile(
-    r"^(?:[\"'\u2018\u201c])?(?P<left>[^\W\d_])[ \t]+(?P<right>[^\W\d_]{2,})\b",
+    r"^(?:[\"'\u2018\u201c])?(?P<left>[^\W\d_])[ \t]+(?P<right>[^\W\d_]+)\b",
     re.UNICODE,
 )
 BROKEN_HYPHEN = re.compile(
@@ -138,6 +139,9 @@ def analyze_source_quality(
     """Return conservative deterministic findings without changing book text."""
 
     blocks = list(blocks)
+    attested = Counter(
+        word for block in blocks for word in re.findall(r"\b[^\W\d_]+\b", block.text)
+    )
     findings: list[SourceQAFinding] = []
     duplicate_blocks: dict[str, SourceQABlock] = {}
     for block in blocks:
@@ -201,6 +205,25 @@ def analyze_source_quality(
                     minimum_gain=0.5,
                     minimum_combined_frequency=2.0,
                 )
+                if finding is None and left not in {"A", "I"} and len(right) >= 3:
+                    combined = left + right
+                    # A recurring name can be absent from the frequency dictionary.
+                    # Require direct spelling evidence elsewhere in this edition.
+                    if attested[combined] >= 2 and frequency_lookup(right, language) < 2:
+                        finding = SourceQAFinding(
+                            block_id=block.id,
+                            stable_block_id=block.block_id,
+                            code="detached_initial",
+                            start_offset=detached_initial.start("left"),
+                            end_offset=detached_initial.end("right"),
+                            original_text=block.text[
+                                detached_initial.start("left") : detached_initial.end("right")
+                            ],
+                            suggested_text=combined,
+                            confidence=0.98,
+                            message=f"Detached initial; {combined!r} is attested elsewhere.",
+                            evidence={"attested_joined_occurrences": attested[combined]},
+                        )
                 if finding:
                     findings.append(finding)
         for match in WORD_PAIR.finditer(block.text):

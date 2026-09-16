@@ -748,6 +748,14 @@ def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
     show_diff = diff_available and request.GET.get("diff") == "1"
     if show_diff:
         _mark_word_changes(rows, edition, parallel_edition)
+    from almonium_book_processor.catalog.passage_provenance import passage_provenance
+
+    visible_blocks = [
+        b for row in rows for b in ([row["block"]] if row["block"] else []) + row["counterparts"]
+    ]
+    provenance = passage_provenance(visible_blocks)
+    for block in visible_blocks:
+        block.passage_provenance = provenance[(block.edition_id, block.block_id)]
     changed_count = sum(1 for row in rows if row.get("changed"))
 
     positions = {item.sequence: index for index, item in enumerate(chapters)}
