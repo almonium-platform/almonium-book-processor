@@ -62,7 +62,8 @@
   {% if edition.parallel_role == "canonical" %}
     <p>This is the original text and the root of the parallel tree. Every generated edition copies its block groups, so all languages stay synchronised through this edition.</p>
   {% elif edition.parallel_role == "parallel" %}
-    <p>Generated block-for-block from <a href="{% url 'catalog:edition-detail' edition.source_edition.id %}">{{ edition.source_edition.title }} ({{ edition.source_edition.language|upper }})</a>. It shares that edition's block groups, so it is <strong>aligned by construction</strong> — there is no alignment step to run and no alignment queue to review.</p>
+    <p>Generated block-for-block from <a href="{% url 'catalog:edition-detail' edition.source_edition.id %}">{{ edition.source_edition.title }} ({{ edition.source_edition.language|upper }})</a>. Paragraph groups are inherited; sentence correspondence is estimated separately. Neither structural pairing nor sentence highlights replace fidelity review.</p>
+    <p class="muted">Publish the source first, then this edition after review. Other companions must be published separately; publishing this edition does not approve or release them. Current sentence correspondences become available through the reader API when both editions are published.</p>
     <p class="muted">Disclose this as a machine translation in the reader. Translator field: {{ edition.translator|default:"AI" }}.</p>
   {% else %}
     <p>An independently sourced edition. It is complete and readable on its own, but it is <strong>not</strong> block-synchronised with the original, so it is not offered for parallel reading.</p>

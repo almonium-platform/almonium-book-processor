@@ -1,7 +1,8 @@
 {% extends "catalog/base.html" %}
 {% block content %}
 <h1>Sentence alignment preview</h1>
-<p>{{ primary.title }} ({{ primary.language }}) ↔ {{ secondary.title }} ({{ secondary.language }})</p>
+<p>{{ primary.title }} ({{ primary.language|upper }} · {{ primary.cefr_level|default:"Level pending" }} · {{ primary.get_edition_type_display }}) ↔ {{ secondary.title }} ({{ secondary.language|upper }} · {{ secondary.cefr_level|default:"Level pending" }} · {{ secondary.get_edition_type_display }})</p>
+<p><a href="{% url 'catalog:edition-detail' primary.id %}">Back to edition review</a> · <a href="{% url 'catalog:edition-reader' primary.id %}?chapter={{ chapter }}&parallel={{ secondary.id }}">Open editable paragraph comparison</a></p>
 <p>Automatic correspondence, not editorial certification. The full-book job uses the local multilingual embedding model, not a paid AI API. Click or focus a highlighted sentence to see its counterpart. Uncertain or unsupported passages remain paragraph-aligned. Nothing is published by this preview.</p>
 <form method="get"><label>Chapter <select name="chapter">{% for item in chapters %}<option value="{{ item.sequence }}"{% if item.sequence == chapter %} selected{% endif %}>{{ item.sequence }} — {{ item.title }}</option>{% endfor %}</select></label><button class="button button-secondary" type="submit">Open chapter</button></form>
 <form method="post">{% csrf_token %}<button class="button" type="submit">Align all chapters offline (no API cost)</button></form>

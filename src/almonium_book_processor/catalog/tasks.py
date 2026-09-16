@@ -366,6 +366,8 @@ def publication_blocker(edition: Edition) -> str:
         return "A CEFR level is required before publication."
     if edition.work.publication_year is None:
         return "A publication year is required before publication."
+    if edition.source_edition_id and edition.source_edition.status != Edition.Status.PUBLISHED:
+        return "Publish the source edition first: " + edition.source_edition.slug + "."
     spacy_model = settings.NLP_SPACY_MODELS.get(edition.language, "blank")
     sentence_input_hash = _text_hash(
         edition.source_sha256,

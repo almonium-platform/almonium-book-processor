@@ -30,17 +30,20 @@
   <div class="parallel-picker-options">
     <a class="{% if not parallel_edition %}current{% endif %}" href="?{% if query %}q={{ query|urlencode }}{% else %}chapter={{ chapter|default:1 }}{% endif %}">Off</a>
     {% for option in parallel_options %}
-    <a class="{% if parallel_edition.id == option.id %}current{% endif %}" href="?{% if query %}q={{ query|urlencode }}{% else %}chapter={{ chapter|default:1 }}{% endif %}&parallel={{ option.id }}">{{ option.language|upper }}</a>
+    <a class="{% if parallel_edition.id == option.id %}current{% endif %}" href="?{% if query %}q={{ query|urlencode }}{% else %}chapter={{ chapter|default:1 }}{% endif %}&parallel={{ option.id }}">{{ option.language|upper }} · {{ option.cefr_level|default:"Level pending" }} · {{ option.get_edition_type_display }}</a>
     {% endfor %}
   </div>
   {% if parallel_edition %}
   <a class="button button-secondary" href="{% url 'catalog:sentence-preview' edition.id parallel_edition.id %}?chapter={{ chapter|default:11 }}">Sentence alignment preview</a>
-  <p class="muted">Blocks pair through the canonical group they inherit, so correspondence here is exact rather than inferred. Anything that fails to pair is a defect in the generated text, and every one is shown as its own row.</p>
+  <p class="muted">Blocks pair through inherited canonical groups. This checks structure, not fidelity: paired passages still need editorial review. Sentence highlights are estimated separately; uncertain matches remain paragraph-only.</p>
+  {% if edition.edition_type == "adaptation" and parallel_edition.source_edition_id and parallel_edition.source_edition_id != edition.id %}
+  <p class="muted">This companion was created from another edition, not from this adaptation. Its wording and difficulty may differ from the adapted text.</p>
+  {% endif %}
   <p class="{% if gap_count %}gap-summary gap-summary-bad{% else %}gap-summary gap-summary-clean{% endif %}">
     {% if gap_count %}{{ gap_count }} unpaired row{{ gap_count|pluralize }} {% if query %}in these results{% else %}in this chapter{% endif %}.{% else %}Every block {% if query %}in these results pairs{% else %}in this chapter pairs{% endif %} one to one.{% endif %}
   </p>
   {% else %}
-  <p class="muted">Pick a language to read this edition side by side with it and check the pairing block by block.</p>
+  <p class="muted">Pick a companion edition to compare passages, including editions in the same language.</p>
   {% endif %}
 </nav>
 {% endif %}

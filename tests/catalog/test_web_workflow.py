@@ -36,6 +36,7 @@ from almonium_book_processor.catalog.tasks import (
     process_book_pipeline,
     process_normalized_edition,
     process_source_edition,
+    publication_blocker,
     publish_edition,
     refresh_edition_after_revision,
     split_edition_sentences,
@@ -1158,6 +1159,31 @@ def test_parallel_reader_pairs_blocks_through_the_inherited_group(client) -> Non
     content = page.content.decode()
     assert "First block." in content and "Перший блок." in content
     assert "Missing in EN" in content and "Extra in EN" in content and "No group" in content
+    assert "Level pending · Original" in content
+    assert "This checks structure, not fidelity" in content
+
+
+def test_publication_requires_source_release_before_queueing(client, monkeypatch) -> None:
+    source, target, _, _ = parallel_records()
+    target.work.publication_year = 1818
+    target.work.save(update_fields=["publication_year"])
+    target.status = Edition.Status.READY
+    target.cefr_level = Edition.CEFRLevel.B2
+    target.save(update_fields=["status", "cefr_level"])
+    reader_staff(client, "source-publication-gate")
+    queued = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.views.publish_edition.delay", queued.append
+    )
+    assert publication_blocker(target) == f"Publish the source edition first: {source.slug}."
+    response = client.post(reverse("catalog:publish-edition", args=[target.id]), follow=True)
+    assert "Publish the source edition first" in response.content.decode()
+    assert queued == []
+    source.status = Edition.Status.PUBLISHED
+    source.save(update_fields=["status"])
+    target.refresh_from_db()
+    # Publishing the parent unlocks this prerequisite, not the remaining NLP gates.
+    assert "sentence splitting" in publication_blocker(target)
 
 
 def test_parallel_reader_flags_a_group_claimed_by_two_blocks(client) -> None:
