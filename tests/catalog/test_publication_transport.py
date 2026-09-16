@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from urllib.error import URLError
+import io
+import json
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -25,6 +27,42 @@ def test_a_refused_connection_names_the_host_and_the_reason(monkeypatch):
     assert str(failure.value) == (
         "Publication failed: api.example.test:9998: [Errno 111] Connection refused."
     )
+
+
+def _http_error(code: int, body: bytes) -> HTTPError:
+    return HTTPError("http://api.example.test:9998/x", code, "", {}, io.BytesIO(body))
+
+
+def test_a_refusal_quotes_the_api_message(monkeypatch):
+    body = json.dumps(
+        {"success": False, "message": "Invalid publication request: sourceHash must not be blank"}
+    ).encode()
+    monkeypatch.setattr(
+        publication,
+        "urlopen",
+        lambda request, timeout=None: (_ for _ in ()).throw(_http_error(400, body)),
+    )
+
+    with pytest.raises(publication.PublicationError) as failure:
+        publication._signed_post("/internal/books/publications", {}, failure="Publication failed")
+
+    assert str(failure.value) == (
+        "Publication failed with HTTP 400 "
+        "(Invalid publication request: sourceHash must not be blank)."
+    )
+
+
+def test_a_refusal_without_a_body_keeps_the_status_only(monkeypatch):
+    monkeypatch.setattr(
+        publication,
+        "urlopen",
+        lambda request, timeout=None: (_ for _ in ()).throw(_http_error(500, b"")),
+    )
+
+    with pytest.raises(publication.PublicationError) as failure:
+        publication._signed_post("/internal/books/publications", {}, failure="Publication failed")
+
+    assert str(failure.value) == "Publication failed with HTTP 500."
 
 
 def test_a_timeout_says_so_in_seconds(monkeypatch):

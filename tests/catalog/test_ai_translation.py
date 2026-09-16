@@ -161,6 +161,9 @@ def test_parallel_translation_inherits_canonical_block_groups(monkeypatch) -> No
 
     edition.refresh_from_db()
     assert edition.status == Edition.Status.READY
+    # A generated edition is keyed by its own text: publication refuses a blank hash.
+    assert len(edition.source_sha256) == 64
+    assert edition.source_sha256 != source.source_sha256
     blocks = {block.block_id: block for block in edition.blocks.all()}
     assert set(blocks) == {"c1.h1", "c1.p2"}
     # This is the whole architecture: alignment by construction.

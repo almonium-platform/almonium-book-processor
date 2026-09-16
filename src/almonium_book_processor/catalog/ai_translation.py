@@ -450,6 +450,17 @@ def _materialize_chapter(
     }
 
 
+def _content_hash(edition: Edition) -> str:
+    """Hash the materialized text the way adapted editions are hashed.
+
+    A generated edition has no uploaded file, so its ``source_sha256`` is the
+    digest of its own blocks: publication and every derived artifact key on it.
+    """
+
+    rows = [[block.block_id, block.text] for block in edition.blocks.all()]
+    return hashlib.sha256(json.dumps(rows, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
 def _record_chapter_warnings(edition: Edition, summary: dict[str, Any]) -> int:
     """Emit reviewable QA for one translated chapter; return actionable count."""
 
@@ -611,13 +622,14 @@ def _complete_translation_batch_locked(
         for custom_id in sorted(validated, key=lambda key: manifest[key]["chapter_sequence"]):
             chapter_summaries.append(
                 _materialize_chapter(
-                    edition, validated[custom_id], manifest[custom_id], model=model
+                    edition, validated[custom_id], manifest[custom_id], model=model, ai_run=ai_run
                 )
             )
         actionable = sum(_record_chapter_warnings(edition, item) for item in chapter_summaries)
+        edition.source_sha256 = _content_hash(edition)
         edition.word_count = sum(item["word_count"] for item in chapter_summaries)
         edition.status = Edition.Status.REVIEW if actionable else Edition.Status.READY
-        edition.save(update_fields=["word_count", "status", "updated_at"])
+        edition.save(update_fields=["source_sha256", "word_count", "status", "updated_at"])
 
     summary = {
         "chapters": len(chapter_summaries),

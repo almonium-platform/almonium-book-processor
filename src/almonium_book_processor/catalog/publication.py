@@ -61,6 +61,23 @@ def _describe(error: Exception, url: str) -> str:
     return f"{host}: {reason}"
 
 
+def _response_reason(error: HTTPError) -> str:
+    """Return the API's own explanation of a refusal, if it sent one."""
+
+    try:
+        body = error.read().decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+    try:
+        parsed = json.loads(body)
+    except json.JSONDecodeError:
+        return body.strip()[:300]
+    if isinstance(parsed, dict):
+        message = parsed.get("message") or parsed.get("error") or ""
+        return str(message).strip()[:300]
+    return ""
+
+
 def _signed_post(path: str, payload: dict[str, Any], *, failure: str) -> Any:
     """POST a signed body to the product API's internal books surface."""
 
@@ -89,7 +106,9 @@ def _signed_post(path: str, payload: dict[str, Any], *, failure: str) -> Any:
         with urlopen(request, timeout=READ_TIMEOUT_SECONDS) as response:  # noqa: S310
             return json.loads(response.read())
     except HTTPError as error:
-        raise PublicationError(f"{failure} with HTTP {error.code}.") from error
+        reason = _response_reason(error)
+        detail = f" ({reason})" if reason else ""
+        raise PublicationError(f"{failure} with HTTP {error.code}{detail}.") from error
     except (URLError, TimeoutError) as error:
         raise PublicationError(f"{failure}: {_describe(error, request.full_url)}.") from error
     except json.JSONDecodeError as error:
