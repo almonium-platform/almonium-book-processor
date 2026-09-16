@@ -148,7 +148,7 @@
   {% for row in chapter_projections %}
   <details class="chapter-row">
     <summary>Chapter {{ row.chapter.sequence }} — {{ row.chapter.title }} · {{ row.difficulty.cefr_estimate|default:"Pending" }}{% if row.above_adaptation_target %} · ABOVE TARGET{% endif %}{% if not row.difficulty.complete %} (partial){% endif %} · {{ row.difficulty.windows_completed }}/{{ row.difficulty.windows_total }} windows</summary>
-    <form class="chapter-role-form" method="post" action="{% url 'catalog:update-chapter-role' edition.id row.chapter.id %}">{% csrf_token %}<label><span>Contribution to book estimate</span><select name="analysis_role">{% for value, label in chapter_role_choices %}<option value="{{ value }}"{% if row.chapter.analysis_role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><button class="button button-secondary" type="submit">Save chapter role</button></form>
+    <form class="chapter-role-form" method="post" action="{% url 'catalog:update-chapter-role' edition.id row.chapter.id %}">{% csrf_token %}<div class="chapter-role-field"><label for="analysis-role-{{ row.chapter.id }}">Contribution to book estimate</label><select id="analysis-role-{{ row.chapter.id }}" name="analysis_role">{% for value, label in chapter_role_choices %}<option value="{{ value }}"{% if row.chapter.analysis_role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div><button class="button button-secondary" type="submit">Save chapter role</button></form>
     {% if row.difficulty.cefr_estimate %}<p>Window range: {{ row.difficulty.min_level }}–{{ row.difficulty.max_level }} · archaism rating: {{ row.difficulty.archaism_score }} / 1.</p>{% endif %}
     {% for window in row.difficulty.windows %}<details><summary>Window {{ window.window }} · {{ window.cefr_estimate }} · judge evidence</summary>{% for item in window.evidence %}<p><code>{{ item.block_id }}</code> · {{ item.dimension }}: “{{ item.quote }}” — {{ item.explanation }}</p>{% endfor %}</details>{% endfor %}
     {% for section in row.summary.sections %}<p><strong>Window {{ section.window }}</strong> {{ section.spoiler_free_description }}</p>{% endfor %}
@@ -166,7 +166,7 @@
   <p>Generate a paid, same-language chapter pilot. Keeps accessible wording, simplifies selectively, and never changes the original. B2 is a target, not a verified rating. No separate modernization is required.</p>
   {% if chapter_analysis_enabled %}
   <form method="post" action="{% url 'catalog:queue-adaptation-pilot' edition.id %}">{% csrf_token %}
-    <label>Source chapter <select name="chapter_id">{% for chapter in edition.chapters.all %}<option value="{{ chapter.id }}">{{ chapter.sequence }} — {{ chapter.title }}</option>{% endfor %}</select></label>
+    <label for="source-chapter-select">Source chapter</label> <select id="source-chapter-select" name="chapter_id">{% for chapter in edition.chapters.all %}<option value="{{ chapter.id }}">{{ chapter.sequence }} — {{ chapter.title }}</option>{% endfor %}</select>
     <label>Optional editorial corrections <textarea name="editorial_feedback" maxlength="4000" rows="3" placeholder="Specific meaning or readability problems to address. The new pilot still uses the original source."></textarea></label>
     <button class="button button-secondary" type="submit">Generate B2 pilot (paid)</button>
   </form>

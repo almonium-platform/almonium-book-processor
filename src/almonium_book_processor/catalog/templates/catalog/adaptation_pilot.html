@@ -22,7 +22,7 @@
   <h2>Apply this chapter to a draft</h2>
   <p>Replaces this chapter only, with revision history. The original is untouched. Requires a current B2-or-lower pilot assessment. Fresh analysis runs after applying; publication still requires review.</p>
   <form method="post" action="{% url 'catalog:apply-adaptation-pilot' run.edition_id run.id %}">{% csrf_token %}
-    <label>Target adaptation <select name="target_choice">{% for choice in application_targets %}<option value="{{ choice.value }}">{{ choice.edition.title }} — {{ choice.edition.slug }}</option>{% endfor %}</select></label>
+    <label for="target-choice-select">Target adaptation</label> <select id="target-choice-select" name="target_choice">{% for choice in application_targets %}<option value="{{ choice.value }}">{{ choice.edition.title }} — {{ choice.edition.slug }}</option>{% endfor %}</select>
     <label>Fidelity review and remaining concerns <textarea name="notes" required maxlength="4000" rows="3"></textarea></label>
     <button class="button" type="submit">Apply chapter and re-analyze</button>
   </form>
