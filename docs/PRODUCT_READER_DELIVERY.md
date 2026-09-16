@@ -2,6 +2,45 @@
 
 Updated 2026-09-16. This is the next visible product work, not a calibration project.
 
+## Morning handoff update
+
+Start with [MORNING_BRIEF.md](MORNING_BRIEF.md): click order, screenshots and the
+owner's decisions (fidelity, publication, companion default). No fidelity warnings
+were approved and no edition was published during this work.
+
+- Publication now requires the source edition to be published first, matching
+  the backend prerequisite. Publishing one edition never silently releases its
+  companions. Existing current sentence correspondences become readable when
+  both editions are public.
+- Staff comparison labels distinguish same-language editions and explain the
+  difference between inherited paragraph groups, estimated sentence matches and
+  editorial fidelity.
+- Both clients offer indirect translations by default with clear lineage and
+  an explicit switch to hide them. Angular chapter/companion menus no longer
+  overlap. Six production-bundle browser cases cover both pairs in all modes.
+- Mobile now has local chapter navigation plus optional current CEFR/descriptions
+  from the product chapter endpoint. A missing enrichment request never blocks
+  reading or navigation. Live original: all 30 headings and Chapter V enrichment
+  checked in browser execution of the WebView bridge; Android export passes.
+- Processor web/worker were rebuilt, and the detached backend remains available.
+  Heavy builds/browser runs were sequential. No paid calls were needed.
+
+### Next slices
+
+1. **Owner-only editorial release**, then the actual public B2/original/Ukrainian
+   round-trip. Fixture browser tests and read-only staff snapshots do not replace
+   this acceptance test; do not publish or dismiss warnings on the owner's behalf.
+2. **Native-device acceptance** of chapter navigation, companion switching,
+   selection, paper/night modes and offline reading. Builds and browser-script
+   tests cannot certify native UI behavior.
+3. **Chapter vocabulary in the reader**: expose existing useful-word artifacts
+   through a typed backend contract, then add chapter vocabulary with source
+   context/Discover links in Angular and mobile. Keep this separate from a new
+   whole-library phrase search/IR system.
+4. **Clause-level alignment** only where sentence groups are too broad. Keep the
+   existing safe paragraph fallback and exact-pair provenance; no paid alignment
+   needed for the current sentence feature.
+
 ## Current boundary
 
 The processor owns source text, editions, chapter review, adaptation targets and
