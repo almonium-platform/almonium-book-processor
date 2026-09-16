@@ -307,6 +307,7 @@ def _materialize(run, results):
     )
     QAWarning.objects.create(
         edition=target,
+        pipeline_run=run,
         code=REVIEW_CODE,
         severity=QAWarning.Severity.WARNING,
         message="AI B2 adaptation: review fidelity, literary voice and achieved difficulty. "

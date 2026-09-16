@@ -62,6 +62,7 @@ from almonium_book_processor.catalog.models import (
     Work,
 )
 from almonium_book_processor.catalog.purge import purge_edition, removal_blocker
+from almonium_book_processor.catalog.review_items import review_items
 from almonium_book_processor.catalog.services import (
     BULK_DETACHED_INITIAL_MIN_CONFIDENCE,
     apply_high_confidence_detached_initials,
@@ -482,6 +483,7 @@ def _render_edition_detail(
         if tree_root is not None
         else Edition.objects.none()
     )
+    open_review_items = review_items(edition)
     return render(
         request,
         "catalog/edition_detail.html",
@@ -511,11 +513,8 @@ def _render_edition_detail(
             "pipeline_run_count": len(pipeline_runs),
             "recent_pipeline_runs": pipeline_runs[:3],
             "older_pipeline_runs": pipeline_runs[3:],
-            "actionable_warnings": [
-                warning
-                for warning in edition.warnings.all()
-                if warning.severity != QAWarning.Severity.INFO and warning.resolved_at is None
-            ],
+            "actionable_warnings": [item["warning"] for item in open_review_items],
+            "review_items": open_review_items,
             "import_notices": [
                 warning
                 for warning in edition.warnings.all()

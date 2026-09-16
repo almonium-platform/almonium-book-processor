@@ -141,11 +141,13 @@ def apply_pilot(*, pilot_id, target_id, expected_revision, editor, notes):
     target.save(update_fields=["status", "auto_publish", "updated_at"])
     QAWarning.objects.create(
         edition=target,
+        pipeline_run=run,
         code="adaptation_chapter_replaced",
         severity="warning",
-        message=f"Chapter {chapter.sequence} replaced from pilot {run.id}. "
+        message=f"{chapter.title or f'Chapter {chapter.sequence}'} replaced from pilot {run.id}. "
         "Check the complete edition and refreshed difficulty before completing review. "
         f"Recorded review: {notes.strip()}",
+        source_ref=f"pilot:{run.id}",
     )
     _finish_text_revision(target, changed)
     from almonium_book_processor.catalog.tasks import reassess_applied_pilot

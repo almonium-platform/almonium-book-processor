@@ -112,6 +112,70 @@ def test_apply_whole_pilot_preserves_identity_audit_and_review_gate(application)
     )
 
 
+def test_applied_pilot_review_item_points_at_the_replaced_chapter(application, client):
+    from almonium_book_processor.catalog.pilot_application import apply_pilot, chapter_revision
+    from almonium_book_processor.catalog.review_items import review_items
+
+    run, target, chapter = application
+    apply_pilot(
+        pilot_id=run.id,
+        target_id=target.id,
+        expected_revision=chapter_revision(chapter),
+        editor=None,
+        notes="Reviewed for fidelity.",
+    )
+    warning = target.warnings.get(code="adaptation_chapter_replaced")
+    assert warning.pipeline_run_id == run.id
+    assert warning.source_ref == f"pilot:{run.id}"
+    assert warning.message.startswith("Chapter I replaced from pilot")
+
+    (item,) = review_items(target)
+    assert "side by side" in item["guidance"]
+    labels = {link["label"]: link["url"] for link in item["links"]}
+    reader = reverse("catalog:edition-reader", args=[target.id])
+    assert labels["Read Chapter I beside the source"] == f"{reader}?chapter=1"
+    assert labels["Text corrections"] == "#text-corrections"
+
+    staff = get_user_model().objects.create_user("staff", is_staff=True)
+    client.force_login(staff)
+    content = client.get(reverse("catalog:edition-detail", args=[target.id])).content.decode()
+    assert '<article class="review-item review-item-warning">' in content
+    assert f'<a href="{reader}?chapter=1">Read Chapter I beside the source</a>' in content
+    assert 'id="text-corrections"' in content
+
+
+def test_legacy_review_item_recovers_the_pilot_from_its_message(application):
+    from almonium_book_processor.catalog.models import QAWarning
+    from almonium_book_processor.catalog.review_items import review_item
+
+    run, target, chapter = application
+    target.parallel_role = Edition.ParallelRole.PARALLEL
+    target.save(update_fields=["parallel_role"])
+    legacy = QAWarning.objects.create(
+        edition=target,
+        code="adaptation_chapter_replaced",
+        severity="warning",
+        message=f"Chapter IV replaced from reviewed pilot {run.id}. Check it.",
+    )
+    fidelity = QAWarning.objects.create(
+        edition=target,
+        code="adaptation_fidelity_review",
+        severity="warning",
+        message="AI B2 adaptation: review fidelity.",
+    )
+    reader = reverse("catalog:edition-reader", args=[target.id])
+    parallel = f"parallel={target.source_edition_id}"
+
+    links = {link["label"]: link["url"] for link in review_item(target, legacy)["links"]}
+    assert links["Read Chapter I beside the source"] == f"{reader}?chapter=1&{parallel}"
+
+    item = review_item(target, fidelity)
+    assert "Nothing automated judges fidelity" in item["guidance"]
+    links = {link["label"]: link["url"] for link in item["links"]}
+    assert links["Read beside the source"] == f"{reader}?chapter=1&{parallel}"
+    assert links["Paired review workspace"] == reverse("catalog:alignment-review", args=[target.id])
+
+
 @pytest.mark.parametrize(
     "problem",
     [
