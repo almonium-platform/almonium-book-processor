@@ -288,6 +288,25 @@
 {% else %}
   {% if edition.status == "ready" %}<section class="panel review-complete"><h2>Ready to publish</h2><p>Publishing sends this reviewed edition to the Almonium product API. It becomes visible on the website only after that hand-off succeeds.</p>{% if publish_blocked %}<p class="publish-blocked">{{ publish_blocked }}</p>{% endif %}<form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit"{% if publish_blocked %} disabled{% endif %}>Publish to Almonium</button></form></section>{% elif edition.status == "published" %}<section class="panel review-complete"><h2>Published to Almonium</h2><p>Published {{ edition.published_at }}{% if edition.published_book_id %} · Almonium book ID {{ edition.published_book_id }}{% endif %}</p></section>{% endif %}
 {% endif %}
+{% if show_promotion %}
+<details class="panel collapsible-panel promotion-panel"{% if promotion_runs %} open{% endif %}>
+  <summary><span class="summary-title">Promote to another environment</span><span class="summary-meta">{% with run=promotion_runs.0 %}{% if run %}Last: {{ run.summary.target }} · <span class="status status-{{ run.status }}">{{ run.get_status_display }}</span>{% else %}Never promoted{% endif %}{% endwith %}</span></summary>
+  <p class="muted">Copies this edition{% if promotion_chain_slugs %} together with {{ promotion_chain_slugs|join:", " }}, which it was generated from,{% endif %} with every block, artifact, alignment and review decision, so nothing is recomputed there and no model call is paid twice. The AI spend ledger stays here. Publication is that environment's own step; tick the box to queue it there once the copy lands. Promoting again replaces what an earlier promotion left.</p>
+  {% if not promotion_targets %}
+    <p class="muted">No promotion targets are configured. Add one under <a href="{% url 'admin:catalog_promotiontarget_changelist' %}">Promotion targets</a> with a token issued on the target's admin site.</p>
+  {% elif promotion_blocked %}
+    <p class="publish-blocked">{{ promotion_blocked }}</p>
+  {% else %}
+  <form class="promotion-form" method="post" action="{% url 'catalog:promote-edition' edition.id %}">
+    {% csrf_token %}
+    <label><span>Target</span><select name="target">{% for target in promotion_targets %}<option value="{{ target.id }}">{{ target.name }} · {{ target.base_url }}</option>{% endfor %}</select></label>
+    <label class="checkbox-label"><input type="checkbox" name="publish"> Publish there after the copy lands</label>
+    <button class="button" type="submit">Promote</button>
+  </form>
+  {% endif %}
+  {% for run in promotion_runs %}<div class="run-row"><span>{{ run.summary_note }}{% if run.error %}<small class="run-note run-error">{{ run.error }}</small>{% endif %}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{{ run.created_at }}</span></div>{% endfor %}
+</details>
+{% endif %}
 <details class="panel collapsible-panel danger-zone">
   <summary><span class="summary-title">Remove this book</span><span class="summary-meta">{% if edition.status == "published" %}Withdraw from Almonium{% else %}Irreversible{% endif %}</span></summary>
   {% if edition.status == "published" %}

@@ -185,6 +185,13 @@ class Edition(TimestampedModel):
         choices=RemovalReason.choices,
         blank=True,
     )
+    # An edition promoted from another environment was processed there, not
+    # here: its artifacts arrived in a bundle and no model run here paid for
+    # them. The fingerprint is the bundle section that produced the current
+    # rows, so promoting the same content again is a no-op.
+    promoted_from = models.CharField(max_length=200, blank=True)
+    promoted_at = models.DateTimeField(null=True, blank=True)
+    promotion_fingerprint = models.CharField(max_length=64, blank=True)
 
     class Meta:
         ordering = ["work__author", "work__title", "language"]
@@ -492,6 +499,7 @@ class PipelineRun(TimestampedModel):
         TRANSLATE = "translate", "Translation"
         ADAPT = "adapt", "Level adaptation"
         PUBLISH = "publish", "Publication"
+        PROMOTE = "promote", "Promotion"
 
     class Status(models.TextChoices):
         QUEUED = "queued", "Queued"
@@ -527,6 +535,8 @@ class PipelineRun(TimestampedModel):
         named the book rather than the file header.
         """
 
+        if self.stage == self.Stage.PROMOTE:
+            return self._promotion_note()
         if self.stage != self.Stage.METADATA or not self.summary:
             return ""
         provenance = self.summary.get("provenance") or {}
@@ -547,6 +557,19 @@ class PipelineRun(TimestampedModel):
         elif self.summary.get("ai_status") != AIRun.Status.SUCCEEDED:
             parts.append("the model call did not complete")
         return " · ".join(parts) or "nothing detected"
+
+    def _promotion_note(self) -> str:
+        result = self.summary.get("result") or {}
+        parts = [f"to {self.summary.get('target') or 'an unnamed target'}"]
+        if result.get("imported"):
+            parts.append("copied " + ", ".join(result["imported"]))
+        if result.get("skipped"):
+            parts.append("already current there: " + ", ".join(result["skipped"]))
+        if result.get("publish_queued"):
+            parts.append("publication queued there for " + ", ".join(result["publish_queued"]))
+        elif self.summary.get("publish") and result:
+            parts.append("nothing left to publish there")
+        return " · ".join(parts)
 
 
 class EditionArtifact(TimestampedModel):
@@ -930,3 +953,32 @@ class UserErrorReport(TimestampedModel):
 
     class Meta:
         ordering = ["status", "-created_at"]
+
+
+class PromotionTarget(TimestampedModel):
+    """Another deployment of this service that finished editions are copied to.
+
+    Each environment runs its own processor and its product API reads book
+    text from that processor alone, so a book tested locally has to be carried
+    to staging as data. The token is an API token issued by a staff account on
+    the target; it authorises writing whole editions there, so it is never the
+    product API's publisher secret.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.SlugField(max_length=40, unique=True)
+    base_url = models.URLField(
+        max_length=500,
+        help_text="The target's origin, such as https://staging.books.almonium.com",
+    )
+    token = models.CharField(
+        max_length=200,
+        help_text="An API token created under Auth Token on the target's admin site.",
+    )
+    enabled = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name

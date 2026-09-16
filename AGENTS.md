@@ -47,6 +47,12 @@ Cross-service integration uses an explicit HTTP or messaging contract.
 - Offline sentence splitting and multilingual embedding alignment are book
   worker responsibilities. The separately discussed low-latency NLP HTTP
   service is not required for the initial admin application.
+- Editions move between environments as promotion bundles, never by
+  reprocessing (see `docs/PROMOTION.md`). The AI run ledger and publication
+  state stay in the environment that produced them. A column added to a
+  promoted model does not travel until it is named in
+  `catalog/promotion.py`, and a manifest change bumps the bundle schema
+  version.
 
 ## Working agreement
 

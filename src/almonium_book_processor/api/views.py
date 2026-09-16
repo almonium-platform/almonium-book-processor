@@ -7,7 +7,7 @@ from django.http import FileResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import mixins, permissions, status, viewsets
-from rest_framework.authentication import SessionAuthentication
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -32,6 +32,12 @@ from almonium_book_processor.catalog.models import (
     EditionTombstone,
     PipelineRun,
     Work,
+)
+from almonium_book_processor.catalog.promotion import (
+    PromotionError,
+    capabilities,
+    import_bundle,
+    queue_publications,
 )
 from almonium_book_processor.catalog.purge import purge_edition
 from almonium_book_processor.catalog.services import create_library_ingest
@@ -289,6 +295,43 @@ class InternalAiSpendView(APIView):
         if since >= until:
             raise ValidationError({"since": "must be before until"})
         return Response(ai_spend(since, until))
+
+
+class PromotionCapabilitiesView(APIView):
+    """What this deployment runs, so a source can tell whether its bundle fits."""
+
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        return Response(capabilities(request.query_params.getlist("slug")))
+
+
+class PromotionImportView(APIView):
+    """Land an edition bundle another deployment pushed here.
+
+    The whole bundle is written in one transaction before the response, so a
+    2xx means the edition is readable here and a 4xx means nothing changed.
+    """
+
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [permissions.IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        upload = request.FILES.get("bundle")
+        if upload is None:
+            return Response(
+                {"message": "An edition bundle is required."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        publish = str(request.data.get("publish", "")).lower() in {"1", "true", "yes", "on"}
+        try:
+            result = import_bundle(upload.read())
+        except PromotionError as error:
+            return Response({"message": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        if publish:
+            result["publish_queued"] = queue_publications(result["imported"] + result["skipped"])
+        return Response(result)
 
 
 def _aware_datetime(value, name):

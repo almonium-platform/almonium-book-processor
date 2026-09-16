@@ -12,6 +12,8 @@ from almonium_book_processor.api.views import (
     PrivateImportMetadataView,
     PrivateImportSourceView,
     PrivateImportView,
+    PromotionCapabilitiesView,
+    PromotionImportView,
     PublishedEditionViewSet,
     TranslationEstimateView,
     TranslationJobCancelView,
@@ -27,6 +29,12 @@ router.register("public/editions", PublishedEditionViewSet, basename="published-
 urlpatterns = [
     path("", include(router.urls)),
     path("internal/ai-spend/", InternalAiSpendView.as_view(), name="internal-ai-spend"),
+    path(
+        "internal/promotions/capabilities/",
+        PromotionCapabilitiesView.as_view(),
+        name="promotion-capabilities",
+    ),
+    path("internal/promotions/", PromotionImportView.as_view(), name="promotion-import"),
     path("internal/imports/", PrivateImportView.as_view(), name="private-import"),
     path(
         "internal/imports/<uuid:import_id>/",

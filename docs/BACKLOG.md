@@ -233,7 +233,8 @@ alignment remains an explicit staff action and records its audit and cost data.
 
 - [ ] Import the sixteen legacy artifacts into production only after the cheap NLP
   calibration and review gates are trusted.
-- [ ] Populate staging with representative editions rather than the full catalogue.
+- [x] Populate staging with representative editions rather than the full catalogue:
+  promote reviewed editions from the edition page (`docs/PROMOTION.md`).
 - [ ] Activate and verify the production Books route and its Porkbun certificate.
 - [ ] Define source and derivative-media retention/deletion as one audited operation.
 - [ ] Add model-cache warm-up or an operational first-run procedure so the first

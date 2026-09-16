@@ -16,6 +16,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from almonium_book_processor import __version__
 from almonium_book_processor.catalog.adaptation import (
     TARGET_LEVEL as ADAPTATION_TARGET_LEVEL,
 )
@@ -60,10 +61,12 @@ from almonium_book_processor.catalog.models import (
     Edition,
     EditionTombstone,
     PipelineRun,
+    PromotionTarget,
     QAWarning,
     TextQualityFinding,
     Work,
 )
+from almonium_book_processor.catalog.promotion import promotion_blocker, promotion_chain
 from almonium_book_processor.catalog.purge import purge_edition, removal_blocker
 from almonium_book_processor.catalog.review_items import review_items
 from almonium_book_processor.catalog.services import (
@@ -91,6 +94,7 @@ from almonium_book_processor.catalog.tasks import (
     prepare_translation,
     process_book_pipeline,
     process_normalized_edition,
+    promote_edition,
     publication_blocker,
     publish_edition,
     translate_edition_inline,
@@ -526,6 +530,7 @@ def _render_edition_detail(
             "publish_blocked": (
                 publication_blocker(edition) if edition.status == Edition.Status.READY else ""
             ),
+            **_promotion_context(edition, pipeline_runs),
             "has_blocks": edition.blocks.exists(),
             "blocks": blocks,
             "active_runs": active_runs,
@@ -1412,6 +1417,61 @@ def complete_edition_review(request: HttpRequest, edition_id: str) -> HttpRespon
         messages.error(request, str(error))
     else:
         messages.success(request, "Review completed. This edition is ready for the next step.")
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+def _promotion_context(edition: Edition, pipeline_runs) -> dict:
+    """The card that carries a finished edition to another environment.
+
+    It appears once the edition could travel or has travelled before; a draft
+    has nothing to carry yet, and a page without configured targets only says
+    where to add one.
+    """
+
+    promotion_runs = [run for run in pipeline_runs if run.stage == PipelineRun.Stage.PROMOTE]
+    eligible = edition.work.visibility == Work.Visibility.PUBLIC and (
+        edition.status in {Edition.Status.READY, Edition.Status.PUBLISHED} or promotion_runs
+    )
+    if not eligible:
+        return {"promotion_targets": [], "promotion_runs": [], "show_promotion": False}
+    return {
+        "show_promotion": True,
+        "promotion_targets": list(PromotionTarget.objects.filter(enabled=True)),
+        "promotion_blocked": promotion_blocker(edition),
+        "promotion_runs": promotion_runs[:5],
+        "promotion_chain_slugs": [
+            item.slug for item in promotion_chain(edition) if item.id != edition.id
+        ],
+    }
+
+
+@staff_member_required
+@require_POST
+def promote_edition_view(request: HttpRequest, edition_id: str) -> HttpResponse:
+    edition = get_object_or_404(
+        Edition.objects.select_related("work", "source_edition"), id=edition_id
+    )
+    target = PromotionTarget.objects.filter(id=request.POST.get("target"), enabled=True).first()
+    if target is None:
+        messages.error(request, "Choose a configured promotion target.")
+    elif blocked := promotion_blocker(edition):
+        messages.error(request, blocked)
+    else:
+        publish = request.POST.get("publish") == "on"
+        run = PipelineRun.objects.create(
+            edition=edition,
+            stage=PipelineRun.Stage.PROMOTE,
+            processor_version=__version__,
+            input_hash="",
+            idempotency_key=f"{edition.id}:promote:{target.name}:{uuid.uuid4().hex}",
+            summary={"target": target.name, "target_id": str(target.id), "publish": publish},
+        )
+        promote_edition.delay(str(run.id), publish=publish)
+        messages.success(
+            request,
+            f"Promotion to {target.name} queued. The processing history shows when it lands"
+            + (" and whether publication was queued there." if publish else "."),
+        )
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
 

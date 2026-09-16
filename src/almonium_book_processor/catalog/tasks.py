@@ -28,10 +28,19 @@ from almonium_book_processor.catalog.models import (
     Edition,
     EditionArtifact,
     PipelineRun,
+    PromotionTarget,
     QAWarning,
     TextQualityFinding,
     Work,
 )
+from almonium_book_processor.catalog.promotion import (
+    PromotionError,
+    bundle_hash,
+    compatibility_problem,
+    export_bundle,
+    promotion_chain,
+)
+from almonium_book_processor.catalog.promotion_client import PromotionClient
 from almonium_book_processor.catalog.publication import (
     publish_to_almonium,
     withdraw_from_almonium,
@@ -449,6 +458,55 @@ def publish_edition(edition_id: str) -> None:
         run.progress = 100
         run.finished_at = timezone.now()
         run.summary = {"almonium_book_id": book_id}
+        run.save(update_fields=["status", "progress", "finished_at", "summary", "updated_at"])
+    except Exception as error:
+        run.status = PipelineRun.Status.FAILED
+        run.finished_at = timezone.now()
+        run.error = str(error)[:10000]
+        run.save(update_fields=["status", "finished_at", "error", "updated_at"])
+        raise
+
+
+@shared_task
+def promote_edition(run_id: str, *, publish: bool = False) -> None:
+    """Carry an edition to another environment and record what happened.
+
+    The run was created by the view so the page shows it as queued at once;
+    the bundle is built here, off the request, and the target is asked what
+    it runs before anything is sent, so a stale deployment refuses cleanly
+    instead of half-reading a newer bundle.
+    """
+
+    run = PipelineRun.objects.select_related("edition__work", "edition__source_edition").get(
+        id=run_id
+    )
+    edition = run.edition
+    run.status = PipelineRun.Status.RUNNING
+    run.started_at = timezone.now()
+    run.error = ""
+    run.save(update_fields=["status", "started_at", "error", "updated_at"])
+    try:
+        target = PromotionTarget.objects.get(id=run.summary["target_id"])
+        bundle = export_bundle(edition)
+        digest = bundle_hash(bundle)
+        run.input_hash = digest
+        run.save(update_fields=["input_hash", "updated_at"])
+        client = PromotionClient(target)
+        remote = client.capabilities([item.slug for item in promotion_chain(edition)])
+        problem = compatibility_problem(remote)
+        if problem:
+            raise PromotionError(problem)
+        result = client.push(bundle, file_name=f"{edition.slug}.zip", publish=publish)
+        run.summary = {
+            **run.summary,
+            "bundle_hash": digest,
+            "bundle_bytes": len(bundle),
+            "target_version": remote.get("processor_version"),
+            "result": result,
+        }
+        run.status = PipelineRun.Status.SUCCEEDED
+        run.progress = 100
+        run.finished_at = timezone.now()
         run.save(update_fields=["status", "progress", "finished_at", "summary", "updated_at"])
     except Exception as error:
         run.status = PipelineRun.Status.FAILED
