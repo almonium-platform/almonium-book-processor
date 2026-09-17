@@ -227,4 +227,5 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .promotion-panel .promotion-form { display: grid; gap: .8rem; max-width: 34rem; margin: 1rem 0; }
 .promotion-panel .promotion-form label { display: grid; gap: .35rem; font-size: .82rem; font-weight: 700; }
 .promotion-panel .promotion-form .checkbox-label { display: flex; align-items: center; gap: .5rem; font-weight: 500; }
+.promotion-panel .promotion-form .checkbox-label input { width: auto; margin: 0; }
 .promotion-panel .promotion-form button { justify-self: start; }
