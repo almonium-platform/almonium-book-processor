@@ -1,0 +1,334 @@
+"""The editorial catalogue, grouped by work.
+
+The unit of the catalogue is the work, not the edition. Four Frankenstein cards
+in a grid make an editor read titles to find out that two of them are the same
+book; one panel per work with an edition row inside says it at a glance. Rows
+sit in the order an editor reads a parallel tree: the canonical original, then
+the parallel editions by language, then the standalone ones. Works are ordered
+by the most urgent status inside them, so the panel that needs a person comes
+first, and by author surname after that.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+
+from django.db.models import Count, Q
+
+from almonium_book_processor.catalog.models import Edition, PipelineRun, QAWarning, Work
+
+# Most urgent first. Failed and review need a person; processing and queued
+# need time; draft needs an upload to finish; ready and published need nothing.
+STATUS_URGENCY: tuple[str, ...] = (
+    Edition.Status.FAILED,
+    Edition.Status.REVIEW,
+    Edition.Status.PROCESSING,
+    Edition.Status.QUEUED,
+    Edition.Status.DRAFT,
+    Edition.Status.READY,
+    Edition.Status.PUBLISHED,
+)
+
+# Statuses a work's rollup does not mention: nothing is waiting on anyone.
+SETTLED_STATUSES = frozenset({Edition.Status.READY, Edition.Status.PUBLISHED})
+
+# Statuses the rollup reports as "processing" in muted text rather than a pill.
+IN_FLIGHT_STATUSES = frozenset({Edition.Status.PROCESSING, Edition.Status.QUEUED})
+
+ROLE_ORDER: tuple[str, ...] = (
+    Edition.ParallelRole.CANONICAL,
+    Edition.ParallelRole.PARALLEL,
+    Edition.ParallelRole.STANDALONE,
+)
+
+# Inside a work panel the word "edition" is implied by the row, so the role
+# reads as one word. The edition page keeps the model's long form.
+SHORT_ROLE_LABELS = {
+    Edition.ParallelRole.CANONICAL: "Canonical",
+    Edition.ParallelRole.PARALLEL: "Parallel",
+    Edition.ParallelRole.STANDALONE: "Standalone",
+}
+
+# Function words that stay lower-case inside a title once a shouting source
+# title is calmed down. A few languages' worth is enough: the goal is to stop
+# "FRANKENSTEIN, OU LE PROMÉTHÉE MODERNE" reading as a design decision, not to
+# reproduce every house style.
+_SMALL_WORDS = frozenset(
+    # English
+    ("a", "an", "the", "of", "and", "or", "nor", "but", "in", "on", "at", "to", "for", "by")
+    + ("with", "from", "as")
+    # French
+    + ("le", "la", "les", "l", "un", "une", "des", "du", "de", "d", "et", "ou", "à", "au")
+    + ("aux", "en", "sur")
+    # German
+    + ("der", "die", "das", "ein", "eine", "und", "oder", "von", "im", "am", "zu", "für")
+    # Spanish and Italian
+    + ("el", "los", "las", "y", "o", "del", "il", "lo", "gli", "e", "di", "della", "dei")
+    + ("degli",)
+    # Ukrainian and Russian
+    + ("і", "й", "та", "або", "чи", "на", "в", "у", "з", "із", "до", "и", "или", "с", "из", "к")
+)
+
+_WORD = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*", re.UNICODE)
+
+
+def display_title(title: str) -> str:
+    """Render a source title for display, calming an all-capitals one.
+
+    Sources shout titles often enough that the catalogue would otherwise mix
+    "Bleak House" with "FRANKENSTEIN, OU LE PROMÉTHÉE MODERNE". A title with any
+    lower-case letter is left exactly as it came: it already carries its own
+    casing, and re-casing it would only lose information.
+    """
+
+    if not title or any(character.islower() for character in title):
+        return title
+    lowered = title.lower()
+    first_start = None
+    match = _WORD.search(lowered)
+    if match:
+        first_start = match.start()
+
+    def capitalise(match: re.Match[str]) -> str:
+        word = match.group(0)
+        if match.start() != first_start and word in _SMALL_WORDS:
+            return word
+        return word[0].upper() + word[1:]
+
+    return _WORD.sub(capitalise, lowered)
+
+
+def word_count_label(count: int) -> str:
+    """A word count as the catalogue prints it: thousands spaced, unit named."""
+
+    number = f"{count:,}".replace(",", "\u202f")
+    return f"{number} word" if count == 1 else f"{number} words"
+
+
+def warning_count_label(count: int) -> str:
+    return f"{count} warning" if count == 1 else f"{count} warnings"
+
+
+@dataclass
+class EditionRow:
+    edition: Edition
+    # The edition's own title, or None when it is the work's and would repeat
+    # the panel header. A parallel translation still waiting for its name is
+    # the empty string, which the template renders as "Title pending".
+    title: str | None
+    type_label: str
+    role_label: str
+    warning_count: int
+    # The language this edition is generated from, when it is a block-for-block
+    # translation whose word count is really its source's.
+    source_language: str | None
+    # The run that is working on this edition right now, if any; the row draws
+    # the stage and its progress in place of a status pill.
+    run: PipelineRun | None
+
+    @property
+    def status(self) -> str:
+        return self.edition.status
+
+    @property
+    def status_label(self) -> str:
+        return self.edition.get_status_display()
+
+    @property
+    def language(self) -> str:
+        return self.edition.language.upper()
+
+    @property
+    def role(self) -> str:
+        return self.edition.parallel_role
+
+    @property
+    def cefr_level(self) -> str | None:
+        return self.edition.cefr_level
+
+    @property
+    def words_label(self) -> str:
+        if self.source_language:
+            return f"from {self.source_language}"
+        return word_count_label(self.edition.word_count)
+
+    @property
+    def warnings_label(self) -> str:
+        return warning_count_label(self.warning_count)
+
+    @property
+    def warnings_urgent(self) -> bool:
+        """Whether the warning count is the reason this row needs opening."""
+
+        return self.warning_count > 0 and self.edition.status in {
+            Edition.Status.REVIEW,
+            Edition.Status.FAILED,
+        }
+
+    @property
+    def needs_review(self) -> bool:
+        return self.edition.status == Edition.Status.REVIEW
+
+
+@dataclass
+class Rollup:
+    """What a work panel says about its editions at the right end of its header.
+
+    A pill for the worst status that is waiting on a person, muted text when
+    the worst thing happening is that a run is still going, and nothing when
+    every edition is ready or published.
+    """
+
+    status: str
+    count: int
+
+    @property
+    def in_flight(self) -> bool:
+        return self.status in IN_FLIGHT_STATUSES
+
+    @property
+    def label(self) -> str:
+        if self.in_flight:
+            return f"{self.count} processing"
+        return f"{self.count} {Edition.Status(self.status).label.lower()}"
+
+
+@dataclass
+class WorkGroup:
+    work: Work
+    rows: list[EditionRow] = field(default_factory=list)
+
+    @property
+    def title(self) -> str:
+        return display_title(self.work.title)
+
+    @property
+    def author(self) -> str:
+        return self.work.author
+
+    @property
+    def edition_count_label(self) -> str:
+        count = len(self.rows)
+        return f"{count} edition" if count == 1 else f"{count} editions"
+
+    @property
+    def urgency(self) -> int:
+        return min(STATUS_URGENCY.index(row.status) for row in self.rows)
+
+    @property
+    def rollup(self) -> Rollup | None:
+        open_statuses = [row.status for row in self.rows if row.status not in SETTLED_STATUSES]
+        if not open_statuses:
+            return None
+        worst = min(open_statuses, key=STATUS_URGENCY.index)
+        if worst in IN_FLIGHT_STATUSES:
+            count = sum(1 for status in open_statuses if status in IN_FLIGHT_STATUSES)
+        else:
+            count = open_statuses.count(worst)
+        return Rollup(status=worst, count=count)
+
+
+@dataclass
+class CatalogueSummary:
+    work_count: int
+    edition_count: int
+    failed: int
+    review: int
+    processing: int
+
+    @property
+    def label(self) -> str:
+        parts = [
+            f"{self.work_count} work" if self.work_count == 1 else f"{self.work_count} works",
+            (
+                f"{self.edition_count} edition"
+                if self.edition_count == 1
+                else f"{self.edition_count} editions"
+            ),
+        ]
+        if self.failed:
+            parts.append(f"{self.failed} failed")
+        if self.review:
+            parts.append(f"{self.review} needs review")
+        if self.processing:
+            parts.append(f"{self.processing} processing")
+        return " · ".join(parts)
+
+
+def _surname(author: str) -> str:
+    parts = author.split()
+    return parts[-1].casefold() if parts else ""
+
+
+def _active_runs(visibility: str) -> dict:
+    """The newest queued or running run per edition, keyed by edition id."""
+
+    runs: dict = {}
+    active = PipelineRun.objects.filter(
+        status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING],
+        edition__work__visibility=visibility,
+    ).order_by("-created_at")
+    for run in active:
+        runs.setdefault(run.edition_id, run)
+    return runs
+
+
+def _row(edition: Edition, run: PipelineRun | None) -> EditionRow:
+    work_title = display_title(edition.work.title)
+    title = display_title(edition.title)
+    return EditionRow(
+        edition=edition,
+        title=None if title and title == work_title else title,
+        type_label=edition.get_edition_type_display(),
+        role_label=SHORT_ROLE_LABELS[edition.parallel_role],
+        warning_count=edition.warning_count,
+        source_language=(
+            edition.source_edition.language.upper() if edition.is_parallel_translation else None
+        ),
+        run=run,
+    )
+
+
+def catalogue_groups(visibility: str) -> list[WorkGroup]:
+    """Every work of the given visibility with its editions as rows."""
+
+    editions = (
+        Edition.objects.filter(work__visibility=visibility)
+        .select_related("work", "source_edition")
+        .annotate(
+            warning_count=Count(
+                "warnings",
+                filter=Q(
+                    warnings__severity__in=[
+                        QAWarning.Severity.WARNING,
+                        QAWarning.Severity.ERROR,
+                    ],
+                    warnings__resolved_at__isnull=True,
+                ),
+                distinct=True,
+            )
+        )
+    )
+    runs = _active_runs(visibility)
+    groups: dict = {}
+    for edition in editions:
+        group = groups.setdefault(edition.work_id, WorkGroup(work=edition.work))
+        group.rows.append(_row(edition, runs.get(edition.id)))
+    for group in groups.values():
+        group.rows.sort(key=lambda row: (ROLE_ORDER.index(row.role), row.edition.language))
+    return sorted(
+        groups.values(),
+        key=lambda group: (group.urgency, _surname(group.work.author), group.title.casefold()),
+    )
+
+
+def catalogue_summary(groups: list[WorkGroup]) -> CatalogueSummary:
+    rows = [row for group in groups for row in group.rows]
+    return CatalogueSummary(
+        work_count=len(groups),
+        edition_count=len(rows),
+        failed=sum(1 for row in rows if row.status == Edition.Status.FAILED),
+        review=sum(1 for row in rows if row.status == Edition.Status.REVIEW),
+        processing=sum(1 for row in rows if row.status in IN_FLIGHT_STATUSES),
+    )

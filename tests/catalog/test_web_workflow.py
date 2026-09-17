@@ -1668,8 +1668,10 @@ def test_public_catalogue_and_user_imports_are_separate(client) -> None:
 
     assert "Public List Work" in public_page
     # An uploaded original roots the parallel tree; it is not itself a parallel
-    # edition, and the card must not read as if it were.
-    assert "Canonical original" in public_page
+    # edition, and the row must not read as if it were. Inside a work panel the
+    # role is one word: the row already says it is an edition.
+    assert 'class="role-badge role-badge-canonical">Canonical<' in public_page
+    assert "role-badge-parallel" not in public_page
     assert "Private List Work" not in public_page
     assert "Private List Work" in imports_page
     assert str(private_work.owner_id) in imports_page

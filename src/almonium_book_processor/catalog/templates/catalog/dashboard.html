@@ -2,28 +2,37 @@
 {% block title %}Public catalogue · Almonium Books{% endblock %}
 {% block content %}
 <div class="page-heading">
-  <div><p class="eyebrow">Editorial catalogue</p><h1>Public books</h1><p class="muted">Staff-managed editions that can be published for every reader.</p></div>
+  <div><p class="eyebrow">Editorial catalogue</p><h1>Public books</h1><p class="muted">{{ summary.label }}</p></div>
   <a class="button" href="{% url 'catalog:upload' %}">Upload source</a>
 </div>
 
-{% if active_runs %}
-<section class="panel">
-  <h2>Active processing</h2>
-  {% for run in active_runs %}
-    <div class="run-row"><strong>{{ run.edition.title|default:"Untitled upload" }}</strong><span>{{ run.get_stage_display }}</span><progress value="{{ run.progress }}" max="100"></progress></div>
-  {% endfor %}
-</section>
-{% endif %}
-
-<section class="edition-grid">
-  {% for edition in editions %}
-    <a class="edition-card" href="{% url 'catalog:edition-detail' edition.id %}">
-      <div><span class="status status-{{ edition.status }}">{{ edition.get_status_display }}</span><span class="language">{{ edition.language|upper }}</span></div>
-      <h2>{{ edition.title|default:"Untitled upload" }}</h2>
-      <p>{{ edition.author|default:"Author pending" }} · {{ edition.get_edition_type_display }}</p>
-      <p><span class="role-badge role-badge-{{ edition.parallel_role }}">{{ edition.get_parallel_role_display }}</span>{% if edition.cefr_level %} <span class="level-chip">{{ edition.cefr_level }}</span>{% endif %}</p>
-      <dl><div><dt>Words</dt><dd>{{ edition.word_count }}</dd></div><div><dt>Warnings</dt><dd>{{ edition.warning_count }}</dd></div><div><dt>Runs</dt><dd>{{ edition.run_count }}</dd></div></dl>
-    </a>
+<section class="work-list">
+  {% for group in groups %}
+    <article class="work-group">
+      <header class="work-header">
+        <div>
+          <h2>{{ group.title }}</h2>
+          <span class="work-meta">{{ group.author }} · {{ group.edition_count_label }}</span>
+        </div>
+        {% if group.rollup %}
+          {% if group.rollup.in_flight %}<span class="rollup-stage">{{ group.rollup.label }}</span>{% else %}<span class="status status-{{ group.rollup.status }}">{{ group.rollup.label }}</span>{% endif %}
+        {% endif %}
+      </header>
+      {% for row in group.rows %}
+        <a class="edition-row{% if row.needs_review %} edition-row-review{% endif %}" href="{% url 'catalog:edition-detail' row.edition.id %}">
+          <span class="edition-lang">{{ row.language }}</span>
+          <span class="edition-title">
+            {% if row.title is None %}{{ row.type_label }}{% elif row.title %}<span>{{ row.title }}</span><small>{{ row.type_label }}</small>{% else %}<span class="edition-title-pending">Title pending</span><small>{{ row.type_label }}</small>{% endif %}
+          </span>
+          <span class="edition-chips"><span class="role-badge role-badge-{{ row.role }}">{{ row.role_label }}</span>{% if row.cefr_level %}<span class="level-chip">{{ row.cefr_level }}</span>{% endif %}</span>
+          <span class="edition-words{% if row.source_language %} edition-source{% endif %}">{{ row.words_label }}</span>
+          <span class="edition-warnings{% if row.warnings_urgent %} edition-warnings-urgent{% endif %}">{% if not row.run %}{{ row.warnings_label }}{% endif %}</span>
+          <span class="edition-state">
+            {% if row.run %}<span class="run-stage"><span>{{ row.run.get_stage_display }}</span><span class="run-bar"><span style="width:{{ row.run.progress }}%"></span></span></span>{% else %}<span class="status status-{{ row.status }}">{{ row.status_label }}</span>{% endif %}
+          </span>
+        </a>
+      {% endfor %}
+    </article>
   {% empty %}
     <div class="empty"><h2>No public editions yet</h2><p>Upload an EPUB or TEI XML file, or import the normalized migration artifacts.</p></div>
   {% endfor %}

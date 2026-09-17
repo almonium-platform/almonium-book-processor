@@ -30,6 +30,7 @@ from almonium_book_processor.catalog.ai_translation import (
     last_translation_mode,
     last_translation_tier,
 )
+from almonium_book_processor.catalog.catalogue import catalogue_groups, catalogue_summary
 from almonium_book_processor.catalog.chapter_analysis import analysis_context, queue_analysis
 from almonium_book_processor.catalog.chapter_projections import (
     queue_projection_refresh,
@@ -128,16 +129,11 @@ def _edition_cards(visibility: str):
 
 @staff_member_required
 def dashboard(request: HttpRequest) -> HttpResponse:
+    groups = catalogue_groups(Work.Visibility.PUBLIC)
     return render(
         request,
         "catalog/dashboard.html",
-        {
-            "editions": _edition_cards(Work.Visibility.PUBLIC),
-            "active_runs": PipelineRun.objects.filter(
-                status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING],
-                edition__work__visibility=Work.Visibility.PUBLIC,
-            ).select_related("edition")[:20],
-        },
+        {"groups": groups, "summary": catalogue_summary(groups)},
     )
 
 
