@@ -1,4 +1,4 @@
-"""Bounded, staff-only B2 chapter pilots. Never mutates or publishes an edition."""
+"""Bounded, staff-only B1/B2 chapter pilots. Never mutates or publishes an edition."""
 
 import difflib
 import hashlib
@@ -10,7 +10,10 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from almonium_book_processor.ai.adaptation import PROMPT_VERSION, SYSTEM_PROMPT, ChapterAdaptation
+from almonium_book_processor.ai.adaptation import (
+    ChapterAdaptation,
+    pilot_prompt,
+)
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
 from almonium_book_processor.catalog.ai_translation import (
     TRANSLATION_MODEL_PRICING,
@@ -26,16 +29,18 @@ from almonium_book_processor.catalog.models import (
     Work,
 )
 
-# The prompt and processor versions are still written for one level; widening this
-# to a per-request choice means a new prompt version and new processor versions.
+# Full-book generation retains its B2 default and immutable identity.
 TARGET_LEVEL = "B2"
 VERSION = "b2-chapter-pilot-v1"
 PROMPT_NAME = "literary-b2-adaptation-pilot"
+B1_VERSION = "b1-chapter-pilot-v1"
+PILOT_VERSIONS = (VERSION, B1_VERSION)
 MAX_CHARS = 40000
 MAX_BLOCKS = 100
 
 
-def source_snapshot(chapter, block_ids=None):
+def source_snapshot(chapter, block_ids=None, *, target_level=TARGET_LEVEL):
+    pilot_prompt(target_level)
     edition = chapter.edition
     if edition.work.visibility != Work.Visibility.PUBLIC:
         raise ValueError("Adaptation pilots currently support public catalogue sources only.")
@@ -62,7 +67,7 @@ def source_snapshot(chapter, block_ids=None):
         "work": edition.work.title,
         "author": edition.author,
         "source_sha256": edition.source_sha256,
-        "target_level": TARGET_LEVEL,
+        "target_level": target_level,
         "blocks": blocks,
     }
 
@@ -77,12 +82,18 @@ def queue_pilot(
     chapter_id,
     *,
     target_edition_id=None,
+    target_level=TARGET_LEVEL,
     block_ids=None,
     dispatch=True,
     editorial_feedback="",
 ):
     from almonium_book_processor.catalog.tasks import adapt_chapter_pilot
 
+    prompt_version, system_prompt = pilot_prompt(target_level)
+    processor_version = B1_VERSION if target_level == "B1" else VERSION
+    prompt_name = "literary-b1-adaptation-pilot" if target_level == "B1" else PROMPT_NAME
+    if target_level == "B1" and target_edition_id is not None:
+        raise ValueError("B1 currently supports standalone chapter pilots only.")
     if not settings.OPENAI_API_KEY:
         raise ValueError("Configure an OpenAI key to generate a pilot.")
     editorial_feedback = editorial_feedback.strip()
@@ -90,7 +101,7 @@ def queue_pilot(
         raise ValueError("Editorial feedback is limited to 4,000 characters.")
     edition = Edition.objects.select_for_update().select_related("work").get(pk=edition_id)
     chapter = Chapter.objects.get(pk=chapter_id, edition=edition)
-    source = source_snapshot(chapter, block_ids)
+    source = source_snapshot(chapter, block_ids, target_level=target_level)
     owner = edition
     if target_edition_id is not None:
         owner = Edition.objects.select_for_update().get(
@@ -116,20 +127,20 @@ def queue_pilot(
     )
     schema = ChapterAdaptation.model_json_schema()
     prompt, _ = PromptTemplate.objects.get_or_create(
-        name=PROMPT_NAME,
-        version=PROMPT_VERSION,
+        name=prompt_name,
+        version=prompt_version,
         defaults={
             "purpose": "level_adaptation",
-            "system_prompt": SYSTEM_PROMPT,
+            "system_prompt": system_prompt,
             "user_template": "{source_json}",
             "output_schema": schema,
             "active": True,
         },
     )
-    if prompt.system_prompt != SYSTEM_PROMPT or prompt.output_schema != schema:
+    if prompt.system_prompt != system_prompt or prompt.output_schema != schema:
         # The saved version is what past runs were hashed against; an edit must be a new version.
         raise ValueError(
-            f"Prompt v{PROMPT_VERSION} is already saved with different text or schema. "
+            f"Prompt v{prompt_version} is already saved with different text or schema. "
             "Bump PROMPT_VERSION instead of editing a saved prompt."
         )
     body = {
@@ -151,22 +162,23 @@ def queue_pilot(
     if editorial_feedback:
         body["instructions"] += (
             "\nEDITORIAL CORRECTIONS FROM THE REVIEWER\n"
-            "Apply these corrections without weakening fidelity or the B2 reading target. "
+            "Apply these corrections without weakening fidelity or the "
+            f"{target_level} reading target. "
             "Generate from the supplied original, not from a previous adaptation.\n"
             + editorial_feedback
         )
-    input_hash = digest({"request": body, "processor": VERSION, "prompt": prompt.version})
+    input_hash = digest({"request": body, "processor": processor_version, "prompt": prompt.version})
     run, created = PipelineRun.objects.get_or_create(
         idempotency_key=f"{owner.id}:adapt-pilot:{input_hash}",
         defaults={
             "edition": owner,
             "stage": PipelineRun.Stage.ADAPT,
-            "processor_version": VERSION,
+            "processor_version": processor_version,
             "input_hash": input_hash,
             "summary": {
                 "chapter_id": str(chapter.id),
                 "chapter_title": chapter.title,
-                "target_level": TARGET_LEVEL,
+                "target_level": target_level,
                 "source_hash": digest(source),
                 "source_edition_id": str(edition.id),
                 "block_ids": block_ids,
@@ -199,7 +211,11 @@ def queue_pilot(
             prompt_template=prompt,
             input_hash=input_hash,
             idempotency_key=f"{run.id}:{uuid.uuid4()}",
-            request_payload={"body": body, "source": source, "processor_version": VERSION},
+            request_payload={
+                "body": body,
+                "source": source,
+                "processor_version": processor_version,
+            },
         )
     )
     run.status = PipelineRun.Status.QUEUED
@@ -265,7 +281,10 @@ def run_pilot(run_id, *, provider=None):
         chapter = Chapter.objects.select_related("edition__work").get(
             pk=source["chapter_id"], edition_id=source_edition_id
         )
-        if digest(source_snapshot(chapter, block_ids)) != run.summary["source_hash"]:
+        if (
+            digest(source_snapshot(chapter, block_ids, target_level=source["target_level"]))
+            != run.summary["source_hash"]
+        ):
             raise ValueError("Source changed before generation. Queue a new pilot.")
         ai.status = AIRun.Status.SUBMITTED
         ai.started_at = timezone.now()
@@ -288,7 +307,10 @@ def run_pilot(run_id, *, provider=None):
             chapter = Chapter.objects.select_related("edition__work").get(
                 pk=source["chapter_id"], edition_id=source_edition_id
             )
-            if digest(source_snapshot(chapter, block_ids)) != run.summary["source_hash"]:
+            if (
+                digest(source_snapshot(chapter, block_ids, target_level=source["target_level"]))
+                != run.summary["source_hash"]
+            ):
                 raise ValueError(
                     "Source changed during generation. Result retained only in AI history."
                 )
@@ -388,7 +410,13 @@ def pilot_context(run):
     try:
         stale = (
             not chapter
-            or digest(source_snapshot(chapter, run.summary.get("block_ids")))
+            or digest(
+                source_snapshot(
+                    chapter,
+                    run.summary.get("block_ids"),
+                    target_level=source.get("target_level", TARGET_LEVEL),
+                )
+            )
             != run.summary["source_hash"]
         )
     except ValueError:

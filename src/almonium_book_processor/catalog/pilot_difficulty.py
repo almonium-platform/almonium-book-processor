@@ -2,6 +2,7 @@
 
 from django.utils import timezone
 
+from almonium_book_processor.catalog.adaptation import PILOT_VERSIONS
 from almonium_book_processor.catalog.chapter_analysis import (
     _attempt,
     _configuration,
@@ -16,7 +17,7 @@ from almonium_book_processor.catalog.models import AIRun, PipelineRun
 
 def assess_pilot(pilot_id, *, provider=None):
     pilot = PipelineRun.objects.select_related("edition__work").get(pk=pilot_id)
-    if pilot.processor_version != "b2-chapter-pilot-v1" or pilot.status != "succeeded":
+    if pilot.processor_version not in PILOT_VERSIONS or pilot.status != "succeeded":
         raise ValueError("A completed chapter pilot is required.")
     generation = AIRun.objects.get(pk=pilot.summary["ai_run_id"], edition=pilot.edition)
     spec = analysis_spec()
@@ -28,7 +29,11 @@ def assess_pilot(pilot_id, *, provider=None):
 
     chapter = pilot.edition.chapters.get(pk=source["chapter_id"])
     if (
-        digest(source_snapshot(chapter, pilot.summary.get("block_ids")))
+        digest(
+            source_snapshot(
+                chapter, pilot.summary.get("block_ids"), target_level=source["target_level"]
+            )
+        )
         != pilot.summary["source_hash"]
     ):
         raise ValueError("Pilot source changed; generate a current pilot first.")

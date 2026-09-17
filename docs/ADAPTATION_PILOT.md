@@ -328,3 +328,24 @@ Operational note: a worker replacement interrupted one original-control judge
 request. Its AIRun remains failed with unknown provider charge (not zero); completed
 windows were reused when the control resumed. Subsequent restart used a long
 grace period to let active work finish. No CI request was paid.
+
+## B1 chapter pilots — 2026-09-17
+
+The staff chapter-pilot form now offers B1 alongside B2. B1 uses its own prompt
+v1 (`literary-b1-adaptation-pilot`) and processor (`b1-chapter-pilot-v1`). The
+existing B2 v7 prompt and full-book generation identities remain unchanged.
+B1 inherits the fidelity and protected-block rules, with explicit guidance for
+common vocabulary, natural word order, shallow clause structure and connected
+prose. Necessary qualifications, uncertainty, imagery and adult tone must survive;
+remaining barriers that cannot be simplified faithfully belong in review notes.
+
+Generate B1 and B2 siblings from the same approved source. Start with the reviewed
+Frankenstein IV and X passages to compare reflective syntax, narrative action and
+known fidelity traps. Review the source/B1 comparison, then use the existing blind
+pilot assessment; a requested B1 label does not establish achieved difficulty.
+The assessment is still an estimate and does not replace fidelity review.
+
+This change enables standalone B1 pilots only. Full-book generation and applying
+pilots to draft editions remain B2-only. No paid generation or assessment was run
+as part of this implementation; fake-provider tests verify workflow behavior,
+not the model's B1 output quality.

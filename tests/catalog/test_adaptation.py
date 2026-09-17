@@ -249,10 +249,11 @@ def test_apply_pilot_staff_post(application, client):
     assert target.block_revisions.get().editor == editor
 
 
-def test_pilot_blind_assessment_is_cached_and_displayed(chapter):
+@pytest.mark.parametrize("target_level", ["B1", "B2"])
+def test_pilot_blind_assessment_is_cached_and_displayed(chapter, target_level):
     from almonium_book_processor.catalog.pilot_difficulty import assess_pilot
 
-    run = queue_pilot(chapter.edition_id, chapter.id, dispatch=False)
+    run = queue_pilot(chapter.edition_id, chapter.id, dispatch=False, target_level=target_level)
     run_pilot(run.id, provider=Provider())
 
     class Judge:
@@ -572,3 +573,76 @@ def test_edited_prompt_text_must_bump_version(chapter):
     PromptTemplate.objects.filter(name=PROMPT_NAME).update(system_prompt="edited")
     with pytest.raises(ValueError, match="Bump PROMPT_VERSION"):
         queue_pilot(chapter.edition_id, chapter.id)
+
+
+def test_b1_pilot_identity_prompt_and_preview(chapter, client):
+    from almonium_book_processor.ai.adaptation import B1_SYSTEM_PROMPT, SYSTEM_PROMPT
+
+    b2 = queue_pilot(chapter.edition_id, chapter.id, dispatch=False)
+    b1 = queue_pilot(
+        chapter.edition_id,
+        chapter.id,
+        target_level="B1",
+        dispatch=False,
+        editorial_feedback="Preserve uncertainty.",
+    )
+    assert b1.id != b2.id
+    assert (
+        queue_pilot(
+            chapter.edition_id,
+            chapter.id,
+            target_level="B1",
+            dispatch=False,
+            editorial_feedback="Preserve uncertainty.",
+        ).id
+        == b1.id
+    )
+    ai = b1.ai_runs.get()
+    assert ai.prompt_template.version == 1
+    assert ai.prompt_template.system_prompt == B1_SYSTEM_PROMPT
+    assert "For B1, prefer common vocabulary" in B1_SYSTEM_PROMPT
+    assert "B2" not in B1_SYSTEM_PROMPT
+    assert "B1" not in SYSTEM_PROMPT
+    assert "B1 reading target" in ai.request_payload["body"]["instructions"]
+    assert ai.request_payload["source"]["target_level"] == "B1"
+    run_pilot(b1.id, provider=Provider())
+    b1.refresh_from_db()
+    assert b1.status == "succeeded"
+    assert not pilot_context(b1)["stale"]
+    client.force_login(get_user_model().objects.create_user("b1staff", is_staff=True))
+    response = client.get(reverse("catalog:adaptation-pilot", args=[chapter.edition_id, b1.id]))
+    assert response.status_code == 200
+    assert "B1 adaptation pilot" in response.content.decode()
+    assert not response.context["application_targets"]
+
+
+@pytest.mark.parametrize("target_level", ["A2", "C1", "b1", ""])
+def test_pilot_rejects_unsupported_targets(chapter, target_level):
+    with pytest.raises(ValueError, match="Choose B1 or B2"):
+        queue_pilot(chapter.edition_id, chapter.id, target_level=target_level, dispatch=False)
+    assert not AIRun.objects.exists()
+
+
+def test_b1_cannot_generate_into_an_edition(chapter):
+    with pytest.raises(ValueError, match="standalone"):
+        queue_pilot(
+            chapter.edition_id,
+            chapter.id,
+            target_level="B1",
+            target_edition_id=chapter.edition_id,
+            dispatch=False,
+        )
+    assert not AIRun.objects.exists()
+
+
+def test_staff_can_queue_b1_from_pilot_form(chapter, client, monkeypatch):
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.adapt_chapter_pilot.delay", lambda _: None
+    )
+    client.force_login(get_user_model().objects.create_user("b1editor", is_staff=True))
+    response = client.post(
+        reverse("catalog:queue-adaptation-pilot", args=[chapter.edition_id]),
+        {"chapter_id": str(chapter.id), "target_level": "B1"},
+    )
+    assert response.status_code == 302
+    assert AIRun.objects.get().request_payload["source"]["target_level"] == "B1"

@@ -18,14 +18,15 @@ from django.views.decorators.http import require_POST
 
 from almonium_book_processor import __version__
 from almonium_book_processor.catalog.adaptation import (
+    PILOT_VERSIONS,
+    pilot_context,
+    queue_pilot,
+)
+from almonium_book_processor.catalog.adaptation import (
     TARGET_LEVEL as ADAPTATION_TARGET_LEVEL,
 )
 from almonium_book_processor.catalog.adaptation import (
     VERSION as ADAPTATION_PILOT_VERSION,
-)
-from almonium_book_processor.catalog.adaptation import (
-    pilot_context,
-    queue_pilot,
 )
 from almonium_book_processor.catalog.ai_translation import (
     create_parallel_translation,
@@ -298,6 +299,7 @@ def queue_adaptation_pilot(request: HttpRequest, edition_id: str) -> HttpRespons
         run = queue_pilot(
             str(edition.id),
             str(chapter.id),
+            target_level=request.POST.get("target_level", "B2"),
             editorial_feedback=request.POST.get("editorial_feedback", ""),
         )
     except ValueError as error:
@@ -313,14 +315,19 @@ def adaptation_pilot(request: HttpRequest, edition_id: str, run_id: str) -> Http
         pk=run_id,
         edition_id=edition_id,
         edition__work__visibility=Work.Visibility.PUBLIC,
-        processor_version=ADAPTATION_PILOT_VERSION,
+        processor_version__in=PILOT_VERSIONS,
         stage=PipelineRun.Stage.ADAPT,
     )
     from almonium_book_processor.catalog.pilot_application import chapter_revision
 
     context = pilot_context(run)
     choices = []
-    if not context["stale"] and run.status == "succeeded" and run.summary.get("block_ids") is None:
+    if (
+        run.processor_version == ADAPTATION_PILOT_VERSION
+        and not context["stale"]
+        and run.status == "succeeded"
+        and run.summary.get("block_ids") is None
+    ):
         source_chapter = run.edition.chapters.filter(pk=run.summary["chapter_id"]).first()
         if source_chapter:
             for edition in run.edition.derived_editions.filter(
@@ -524,7 +531,7 @@ def _render_edition_detail(
             **assessment,
             "adaptation_level": ADAPTATION_TARGET_LEVEL,
             "adaptation_pilots": edition.pipeline_runs.filter(
-                stage=PipelineRun.Stage.ADAPT, processor_version=ADAPTATION_PILOT_VERSION
+                stage=PipelineRun.Stage.ADAPT, processor_version__in=PILOT_VERSIONS
             ),
             "book_adaptation_run": edition.pipeline_runs.filter(
                 stage=PipelineRun.Stage.ADAPT, processor_version="b2-book-v1"

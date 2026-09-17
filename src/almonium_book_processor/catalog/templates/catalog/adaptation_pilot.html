@@ -1,17 +1,17 @@
 {% extends "catalog/base.html" %}
-{% block title %}B2 pilot — {{ run.edition.title }}{% endblock %}
+{% block title %}{{ run.summary.target_level|default:"B2" }} pilot — {{ run.edition.title }}{% endblock %}
 {% block content %}
 <section class="panel">
   <a href="{% url 'catalog:edition-detail' run.edition.id %}">Back to original edition</a>
-  <h1>{{ run.summary.chapter_title }} — B2 adaptation pilot</h1>
+  <h1>{{ run.summary.chapter_title }} — {{ run.summary.target_level|default:"B2" }} adaptation pilot</h1>
   <p>{{ run.get_status_display }} · {{ ai.request_payload.body.model }} · prompt v{{ ai.prompt_template.version }} · {{ run.processor_version }}</p>
-  <p>Original preserved. B2 is the requested target, not an independently verified assessment. This chapter sample is not an edition and cannot be published. Review for ease of reading, lost meaning and literary voice before generating a whole book.</p>
+  <p>Original preserved. {{ run.summary.target_level|default:"B2" }} is the requested target, not an independently verified assessment. This chapter sample is not an edition and cannot be published. Review for ease of reading, lost meaning and literary voice before generating a whole book.</p>
   {% if stale %}<p class="message error">Source has changed. This comparison shows the saved source snapshot, not the current chapter.</p>{% endif %}
   {% if run.error %}<p class="message error">{{ run.error }}</p>{% endif %}
   {% for finding in run.summary.editorial_findings %}<p class="message warning">{{ finding }}</p>{% endfor %}
   {% if run.summary.editorial_feedback %}<details><summary>Editorial corrections supplied for this run</summary><p>{{ run.summary.editorial_feedback }}</p></details>{% endif %}
   {% if run.summary.difficulty_check %}
-  <h2>Blind judge: {{ run.summary.difficulty_check.cefr_estimate }} · target B2</h2>
+  <h2>Blind judge: {{ run.summary.difficulty_check.cefr_estimate }} · target {{ run.summary.target_level|default:"B2" }}</h2>
   <p>Highest window: {{ run.summary.difficulty_check.max_level }} · judge prompt v{{ run.summary.difficulty_check.prompt_version }} · {{ run.summary.difficulty_check.model }} · ${{ run.summary.difficulty_check.cost_usd }}. Fidelity still needs review.</p>
   {% for window in run.summary.difficulty_check.windows %}<details><summary>{{ window.cefr_estimate }} — assessment evidence</summary>{% for item in window.evidence %}<p><code>{{ item.block_id }}</code>: “{{ item.quote }}” — {{ item.explanation }}</p>{% endfor %}</details>{% endfor %}
   {% endif %}
@@ -20,7 +20,7 @@
   {% for warning in ai.response_payload.warnings %}<p class="message warning">{{ warning }}</p>{% endfor %}
   {% if application_targets %}
   <h2>Apply this chapter to a draft</h2>
-  <p>Replaces this chapter only, with revision history. The original is untouched. Requires a current B2-or-lower pilot assessment. Fresh analysis runs after applying; publication still requires review.</p>
+  <p>Replaces this chapter only, with revision history. The original is untouched. Requires a current {{ run.summary.target_level|default:"B2" }}-or-lower pilot assessment. Fresh analysis runs after applying; publication still requires review.</p>
   <form method="post" action="{% url 'catalog:apply-adaptation-pilot' run.edition_id run.id %}">{% csrf_token %}
     <label for="target-choice-select">Target adaptation</label> <select id="target-choice-select" name="target_choice">{% for choice in application_targets %}<option value="{{ choice.value }}">{{ choice.edition.title }} — {{ choice.edition.slug }}</option>{% endfor %}</select>
     <label>Fidelity review and remaining concerns <textarea name="notes" required maxlength="4000" rows="3"></textarea></label>
@@ -33,7 +33,7 @@
   <p><code>{{ row.source.block_id }}</code> · {{ row.target.decision }}</p>
   <div class="pilot-comparison">
     <div><h3>Original</h3><div class="pilot-text">{% for segment in row.source_segments %}{% if segment.op == "equal" %}{{ segment.text }}{% else %}<del>{{ segment.text }}</del>{% endif %}{% endfor %}</div></div>
-    <div><h3>B2 target</h3><div class="pilot-text">{% for segment in row.target_segments %}{% if segment.op == "equal" %}{{ segment.text }}{% else %}<ins>{{ segment.text }}</ins>{% endif %}{% endfor %}</div></div>
+    <div><h3>{{ run.summary.target_level|default:"B2" }} target</h3><div class="pilot-text">{% for segment in row.target_segments %}{% if segment.op == "equal" %}{{ segment.text }}{% else %}<ins>{{ segment.text }}</ins>{% endif %}{% endfor %}</div></div>
   </div>
   {% if row.target.reason %}<p class="muted">Change: {{ row.target.reason }}</p>{% endif %}
 </section>

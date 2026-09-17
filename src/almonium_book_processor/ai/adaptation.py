@@ -108,3 +108,32 @@ verified.
 Finally read the output on its own: it must be grammatical, idiomatic continuous prose,
 not a sequence of literal substitutions. Correct awkward phrasing before returning it.
 """
+
+
+# B2 v7 remains immutable: existing full-book specs and saved pilots use it.
+B1_PROMPT_VERSION = 1
+B1_SYSTEM_PROMPT = SYSTEM_PROMPT.replace("B2", "B1").replace(
+    "B1 is not elementary: allow varied\nsentences and contextual inference. "
+    "Do not flatten every sentence.",
+    """For B1, prefer common vocabulary in its familiar senses and straightforward,
+connected sentences. Use natural subject-verb order and shallow clause structure.
+Split nested clauses and long participial constructions within the same block.
+Make the sequence of actions and explicit logical relationships easy to follow;
+retain conditions, contrasts, uncertainty and qualifications in full.
+Replace idioms and abstract circumlocutions with familiar, precise expressions.
+Preserve imagery through accessible wording, and keep necessary uncommon terms
+when no faithful simpler equivalent exists, with clear surrounding syntax.
+Do not impose a mechanical sentence-length or word-frequency cap. Retain natural
+rhythm, adult tone and character voice; do not turn reflective passages into a
+plot summary or explain their implications. Already accessible B1 prose stays
+unchanged. When fidelity prevents B1 accessibility, preserve meaning and flag the
+remaining barrier in review_notes rather than silently omitting it.""",
+)
+
+
+def pilot_prompt(target_level):
+    if target_level == "B1":
+        return B1_PROMPT_VERSION, B1_SYSTEM_PROMPT
+    if target_level == "B2":
+        return PROMPT_VERSION, SYSTEM_PROMPT
+    raise ValueError("Choose B1 or B2 for a chapter pilot.")
