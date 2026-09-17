@@ -12,6 +12,10 @@ on:
       image_digest:
         required: false
         type: string
+    outputs:
+      deployed_image_digest:
+        description: The immutable image digest that was deployed
+        value: ${{ jobs.deploy.outputs.deployed_image_digest }}
     secrets:
       INFRA_REPO_CHECKOUT_KEY:
         required: true

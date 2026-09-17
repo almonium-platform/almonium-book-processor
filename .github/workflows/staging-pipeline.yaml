@@ -1,5 +1,10 @@
 name: Deploy Books to Staging
 
+# Every push to `develop` deploys staging, and production follows with the same image once
+# staging is up, so nothing is built or tested twice. Set the repository variable
+# PROD_FOLLOWS_STAGING to anything but `true` to hold production back; pushes then stop at
+# staging until it is set again or `Deploy Books to Production` is dispatched by hand.
+
 on:
   push:
     branches: [develop]
@@ -15,10 +20,19 @@ permissions:
   packages: write
 
 jobs:
-  run-pipeline:
+  staging:
     uses: ./.github/workflows/reusable-build-and-deploy.yaml
     with:
       environment_name: staging
       source_branch: develop
       image_digest: ${{ inputs.image_digest }}
+    secrets: inherit
+
+  prod:
+    needs: staging
+    if: github.event_name == 'push' && vars.PROD_FOLLOWS_STAGING == 'true'
+    uses: ./.github/workflows/reusable-deploy.yaml
+    with:
+      environment_name: prod
+      image_digest: ${{ needs.staging.outputs.deployed_image_digest }}
     secrets: inherit

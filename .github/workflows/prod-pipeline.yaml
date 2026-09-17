@@ -1,5 +1,9 @@
 name: Deploy Books to Production
 
+# Production normally follows staging from the staging pipeline. This is the manual path:
+# re-deploy a known digest to roll back, or build the current `develop` head while
+# PROD_FOLLOWS_STAGING is off.
+
 on:
   workflow_dispatch:
     inputs:
@@ -17,6 +21,6 @@ jobs:
     uses: ./.github/workflows/reusable-build-and-deploy.yaml
     with:
       environment_name: prod
-      source_branch: main
+      source_branch: develop
       image_digest: ${{ inputs.image_digest }}
     secrets: inherit
