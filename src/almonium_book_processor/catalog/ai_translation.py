@@ -22,10 +22,14 @@ from django.utils import timezone
 
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
 from almonium_book_processor.ai.translation import (
+    TITLE_PAGE_OUTPUT_SCHEMA,
+    TITLE_PAGE_SYSTEM_PROMPT,
+    TITLE_PAGE_USER_TEMPLATE,
     TRANSLATION_OUTPUT_SCHEMA,
     TRANSLATION_SYSTEM_PROMPT,
     TRANSLATION_USER_TEMPLATE,
     ChapterTranslation,
+    TitlePageTranslation,
     render_source_block,
 )
 from almonium_book_processor.catalog.models import (
@@ -42,9 +46,18 @@ from almonium_book_processor.languages import LANGUAGES
 PROMPT_NAME = "literary-block-translation"
 PROMPT_VERSION = 1
 
+# The title page rides in the same run as the chapters: a translated edition is
+# named in its own language from the moment it exists, not after an editor
+# notices. Its prompt is versioned on its own so the chapter prompt's key, and
+# every run made under it, stays untouched.
+TITLE_PAGE_PROMPT_NAME = "literary-title-page"
+TITLE_PAGE_PROMPT_VERSION = 1
+TITLE_PAGE_CUSTOM_ID = "title-page"
+
 LOW_CONFIDENCE_WARNING = "translation_low_confidence"
 LENGTH_RATIO_WARNING = "translation_length_ratio"
 STRUCTURE_WARNING = "translation_structure"
+TITLE_PAGE_WARNING = "translation_title_page"
 
 BLOCK_CONFIDENCE_FLOOR = 0.70
 CHAPTER_LENGTH_MIN_RATIO = 0.60
@@ -105,6 +118,21 @@ def _configuration(tier: str) -> tuple[ModelConfiguration, PromptTemplate]:
     return configuration, prompt
 
 
+def _title_page_template() -> PromptTemplate:
+    prompt, _ = PromptTemplate.objects.get_or_create(
+        name=TITLE_PAGE_PROMPT_NAME,
+        version=TITLE_PAGE_PROMPT_VERSION,
+        defaults={
+            "purpose": "literary_translation",
+            "system_prompt": TITLE_PAGE_SYSTEM_PROMPT,
+            "user_template": TITLE_PAGE_USER_TEMPLATE,
+            "output_schema": TITLE_PAGE_OUTPUT_SCHEMA,
+            "active": True,
+        },
+    )
+    return prompt
+
+
 def _unique_slug(base: str) -> str:
     slug = base
     suffix = 2
@@ -153,7 +181,13 @@ def create_parallel_translation(
 
 
 def _response_request(
-    model: str, system_prompt: str, user_prompt: str, custom_id: str
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    custom_id: str,
+    *,
+    schema_name: str = "chapter_translation",
+    schema: dict[str, Any] = TRANSLATION_OUTPUT_SCHEMA,
 ) -> dict[str, Any]:
     return {
         "custom_id": custom_id,
@@ -167,9 +201,9 @@ def _response_request(
             "text": {
                 "format": {
                     "type": "json_schema",
-                    "name": "chapter_translation",
+                    "name": schema_name,
                     "strict": True,
-                    "schema": TRANSLATION_OUTPUT_SCHEMA,
+                    "schema": schema,
                 }
             },
             "store": False,
@@ -245,16 +279,31 @@ def _prepare_translation_run(
         return ai_run
 
     year = source.work.publication_year
-    system_prompt = prompt_template.system_prompt.format(
-        source_language_name=language_name(source.language),
-        target_language_name=language_name(edition.language),
-        work_title=source.work.title,
-        author=source.author,
-        year_clause=f", published {year}" if year else "",
-        register=register,
-    )
+    naming = {
+        "source_language_name": language_name(source.language),
+        "target_language_name": language_name(edition.language),
+        "work_title": source.work.title,
+        "author": source.author,
+        "year_clause": f", published {year}" if year else "",
+    }
+    system_prompt = prompt_template.system_prompt.format(**naming, register=register)
 
-    requests = []
+    title_page_template = _title_page_template()
+    requests = [
+        _response_request(
+            configuration.model,
+            title_page_template.system_prompt.format(**naming),
+            title_page_template.user_template.format(
+                title=source.title,
+                author=source.author,
+                source_language=source.language,
+                target_language=edition.language,
+            ),
+            TITLE_PAGE_CUSTOM_ID,
+            schema_name="title_page",
+            schema=title_page_template.output_schema,
+        )
+    ]
     manifest = {}
     for chapter in chapters:
         rows = blocks_by_chapter.get(chapter.id)
@@ -287,6 +336,11 @@ def _prepare_translation_run(
         "register": register,
         "request_count": len(requests),
         "manifest": manifest,
+        "title_page": {
+            "prompt": f"{title_page_template.name} v{title_page_template.version}",
+            "title": source.title,
+            "author": source.author,
+        },
     }
     ai_run.save(update_fields=["status", "started_at", "error", "request_payload", "updated_at"])
     return ai_run, requests
@@ -526,6 +580,29 @@ def _record_chapter_warnings(edition: Edition, summary: dict[str, Any]) -> int:
     return actionable
 
 
+def _apply_title_page(edition: Edition, title_page: TitlePageTranslation | None, error: str) -> int:
+    """Name the edition in its own language; return the actionable count if it could not be."""
+
+    edition.warnings.filter(code=TITLE_PAGE_WARNING, resolved_at=None).delete()
+    if title_page is not None:
+        edition.title = title_page.title.strip()[:500]
+        edition.author = title_page.author.strip()[:300]
+        return 0
+    if not error:
+        return 0
+    QAWarning.objects.create(
+        edition=edition,
+        code=TITLE_PAGE_WARNING,
+        source_ref="title-page",
+        severity=QAWarning.Severity.WARNING,
+        message=(
+            "The title and author are still in the source language: the title page "
+            f"was not translated ({error[:300]}). Set both in the metadata form."
+        ),
+    )
+    return 1
+
+
 def complete_translation_batch(
     ai_run: AIRun, output_lines: list[dict[str, Any]], *, discounted: bool = True
 ) -> dict[str, Any]:
@@ -558,11 +635,13 @@ def _complete_translation_batch_locked(
     validated: dict[str, ChapterTranslation] = {}
     invalid: dict[str, str] = {}
     seen: set[str] = set()
+    title_page: TitlePageTranslation | None = None
+    title_page_error = ""
     input_tokens = cached_tokens = output_tokens = reasoning_tokens = 0
 
     for line in output_lines:
         custom_id = line["custom_id"]
-        if custom_id not in manifest:
+        if custom_id != TITLE_PAGE_CUSTOM_ID and custom_id not in manifest:
             raise ValueError(f"Unknown Batch custom_id: {custom_id}")
         if custom_id in seen:
             raise ValueError(f"Duplicate Batch custom_id: {custom_id}")
@@ -577,15 +656,26 @@ def _complete_translation_batch_locked(
         try:
             if response.get("status_code") != 200:
                 raise ValueError(f"Batch request failed with HTTP {response.get('status_code')}")
+            if custom_id == TITLE_PAGE_CUSTOM_ID:
+                title_page = TitlePageTranslation.model_validate_json(_output_text(body))
+                continue
             translation = ChapterTranslation.model_validate_json(_output_text(body))
             _validate_chapter(translation, manifest[custom_id])
         except ValueError as error:
+            if custom_id == TITLE_PAGE_CUSTOM_ID:
+                # A book without a title page is still a book: the chapters
+                # materialize, and an editor names it in the metadata form.
+                title_page_error = str(error)[:2000]
+                continue
             invalid[custom_id] = str(error)[:2000]
             continue
         validated[custom_id] = translation
 
     for custom_id in sorted(set(manifest) - seen):
         invalid[custom_id] = "Batch output omitted this request"
+    expects_title_page = "title_page" in ai_run.request_payload
+    if expects_title_page and title_page is None and not title_page_error:
+        title_page_error = "Batch output omitted the title page"
 
     ai_run.add_attempt_usage(
         input_tokens=input_tokens,
@@ -635,10 +725,13 @@ def _complete_translation_batch_locked(
                 )
             )
         actionable = sum(_record_chapter_warnings(edition, item) for item in chapter_summaries)
+        actionable += _apply_title_page(edition, title_page, title_page_error)
         edition.source_sha256 = _content_hash(edition)
         edition.word_count = sum(item["word_count"] for item in chapter_summaries)
         edition.status = Edition.Status.REVIEW if actionable else Edition.Status.READY
-        edition.save(update_fields=["source_sha256", "word_count", "status", "updated_at"])
+        edition.save(
+            update_fields=["title", "author", "source_sha256", "word_count", "status", "updated_at"]
+        )
 
     summary = {
         "chapters": len(chapter_summaries),
@@ -646,6 +739,11 @@ def _complete_translation_batch_locked(
         "actionable_warnings": actionable,
         "word_count": edition.word_count,
         "chapter_summaries": chapter_summaries,
+        "title_page": (
+            {"title": edition.title, "author": edition.author, "note": title_page.note}
+            if title_page
+            else {"error": title_page_error}
+        ),
     }
     ai_run.status = AIRun.Status.SUCCEEDED
     ai_run.response_payload = {

@@ -40,6 +40,19 @@ class ChapterTranslation(BaseModel):
 
 TRANSLATION_OUTPUT_SCHEMA = ChapterTranslation.model_json_schema()
 
+
+class TitlePageTranslation(BaseModel):
+    """How the work and its author are named in the target language."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1)
+    author: str = Field(min_length=1)
+    note: str
+
+
+TITLE_PAGE_OUTPUT_SCHEMA = TitlePageTranslation.model_json_schema()
+
 TRANSLATION_SYSTEM_PROMPT = """You are a literary translator working from {source_language_name} \
 into {target_language_name}.
 You are translating "{work_title}" by {author}{year_clause}.
@@ -80,6 +93,34 @@ Target language: {target_language}
 
 SOURCE BLOCKS
 {source_blocks}
+"""
+
+
+TITLE_PAGE_SYSTEM_PROMPT = """You are a literary translator and cataloguer working from \
+{source_language_name} into {target_language_name}.
+You are asked for the title page of "{work_title}" by {author}{year_clause}: how this work and
+its author are named in {target_language_name}. A translated edition is catalogued under these
+values beside the original's, so they must be the ones a {target_language_name} reader knows.
+
+RULES
+- Give the title under which the work is established in {target_language_name} when published
+  translations exist. Otherwise translate the title faithfully, keeping its shape: a subtitle
+  stays a subtitle.
+- Give the author's name as it is customarily written in {target_language_name}: transliterated
+  into the target script where the scripts differ, in the form {target_language_name}
+  publishers use, never a phonetic experiment.
+- Follow {target_language_name} conventions for the capitalisation and punctuation of a title.
+- Never add a level, an edition label, a series name or a translator's credit.
+- Set "note" only when established titles compete and you chose one; otherwise leave it empty.
+
+Return only the required structured result."""
+
+TITLE_PAGE_USER_TEMPLATE = """Title page
+
+Title: {title}
+Author: {author}
+Source language: {source_language}
+Target language: {target_language}
 """
 
 

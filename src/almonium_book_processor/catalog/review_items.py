@@ -10,6 +10,7 @@ from almonium_book_processor.catalog.models import Edition, PipelineRun, QAWarni
 FIDELITY_CODE = "adaptation_fidelity_review"
 CHAPTER_REPLACED_CODE = "adaptation_chapter_replaced"
 DIFFICULTY_CODE = "adaptation_difficulty_gate"
+TITLE_PAGE_CODE = "translation_title_page"
 
 _UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
@@ -27,6 +28,10 @@ GUIDANCE = {
     DIFFICULTY_CODE: (
         "Current chapter estimates are above target. Revise the cited passages or the "
         "assessment; this item clears itself when a reassessment passes."
+    ),
+    TITLE_PAGE_CODE: (
+        "A translated edition is catalogued under the title and author a reader of its "
+        "language knows. Enter both in the metadata form and confirm it, then resolve."
     ),
 }
 
@@ -118,6 +123,8 @@ def review_item(edition: Edition, warning: QAWarning) -> dict:
             )
     elif warning.code == DIFFICULTY_CODE:
         item["links"].append({"label": "Chapter estimates", "url": "#chapter-analysis"})
+    elif warning.code == TITLE_PAGE_CODE:
+        item["links"].append({"label": "Metadata form", "url": "#metadata"})
     return item
 
 

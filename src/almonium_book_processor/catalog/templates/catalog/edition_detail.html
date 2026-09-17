@@ -30,7 +30,7 @@
   <div><strong>{{ actionable_warnings|length }}</strong><span>review items</span></div>
 </section>
 {% if not is_private %}
-<details class="panel collapsible-panel metadata-panel"{% if metadata_state != "confirmed" or metadata_form.errors %} open{% endif %}>
+<details id="metadata" class="panel collapsible-panel metadata-panel"{% if metadata_state != "confirmed" or metadata_form.errors %} open{% endif %}>
   <summary>
     <span class="summary-title">Metadata</span>
     <span class="summary-meta">{% if metadata_state == "confirmed" %}<span class="status status-ready">Confirmed</span> {{ edition.work.metadata_confirmed_at|date:"Y-m-d H:i" }}{% elif metadata_state == "detected" %}<span class="status status-review">Detected · check and confirm</span>{% else %}<span class="status status-queued">Detection pending</span>{% endif %}</span>
@@ -164,7 +164,7 @@
 {% if edition.work.visibility == "public" and edition.edition_type != "adaptation" %}
 <details class="panel collapsible-panel adaptation-panel">
   <summary><span class="summary-title">Level adaptation</span><span class="summary-meta">Target {{ adaptation_level }}{% if adaptation_pilots %} · {{ adaptation_pilots|length }} pilot{{ adaptation_pilots|length|pluralize }}{% endif %}</span></summary>
-  <p class="muted">Paid, same-language rewrite for a target CEFR level. Keeps accessible wording, simplifies selectively, and never changes the original. The target is what the prompt asks for, not a verified rating; a blind judge estimates what came out. Chapter pilots support B1 and B2; full-book generation supports B2.</p>
+  <p class="muted">Paid, same-language rewrite for a target CEFR level. Keeps accessible wording, simplifies selectively, and never changes the original. The target is what the prompt asks for, not a verified rating; a blind judge estimates what came out. Chapter samples and full-book generation support B1 and B2.</p>
   {% if chapter_analysis_enabled %}
   <h3>Chapter pilot</h3>
   <form method="post" action="{% url 'catalog:queue-adaptation-pilot' edition.id %}">{% csrf_token %}
@@ -178,7 +178,7 @@
   {% if chapter_analysis_enabled and edition.supports_parallel_reading %}
   <h3>Full edition</h3>
   <p>Generates every chapter, then runs sentence splitting, vocabulary and difficulty analysis. The source stays unchanged; the new edition appears beside it in the tree and must be reviewed before publication.</p>
-  <form method="post" action="{% url 'catalog:queue-book-adaptation' edition.id %}">{% csrf_token %}<button class="button" type="submit">Generate / resume {{ adaptation_level }} edition (paid)</button></form>
+  <form method="post" action="{% url 'catalog:queue-book-adaptation' edition.id %}">{% csrf_token %}<button class="button" type="submit" name="target_level" value="B2">Generate / resume B2 edition (paid)</button> <button class="button" type="submit" name="target_level" value="B1">Generate / resume B1 edition (paid)</button></form>
   {% endif %}
 </details>
 {% endif %}
