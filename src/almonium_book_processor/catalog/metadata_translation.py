@@ -274,7 +274,7 @@ def _call(edition, run, key, configuration, template, body, model_class, provide
     except Exception as error:
         AIRun.objects.filter(pk=ai_run.id).update(
             status=AIRun.Status.FAILED,
-            error=str(error)[:2000],
+            error=_describe(error)[:2000],
             finished_at=timezone.now(),
             updated_at=timezone.now(),
         )
@@ -375,6 +375,18 @@ def _naming(edition: Edition) -> dict:
     }
 
 
+def _describe(error: Exception) -> str:
+    """What went wrong, in words a retry decision can be made from, never book text."""
+
+    if isinstance(error, ValueError):
+        return str(error)[:1000]
+    response = getattr(error, "response", None)
+    if response is not None and getattr(response, "status_code", None):
+        detail = getattr(response, "text", "") or ""
+        return f"Provider answered HTTP {response.status_code}: {detail[:300]}".strip()
+    return f"{type(error).__name__}: {str(error)[:300]}".strip(": ")
+
+
 def run_metadata_translation(run_id: str, *, provider=None) -> None:
     if not PipelineRun.objects.filter(pk=run_id, status=PipelineRun.Status.QUEUED).update(
         status=PipelineRun.Status.RUNNING, started_at=timezone.now(), progress=1
@@ -437,7 +449,7 @@ def run_metadata_translation(run_id: str, *, provider=None) -> None:
                 ]
             )
     except Exception as error:
-        message = str(error)[:1000] if isinstance(error, ValueError) else type(error).__name__
+        message = _describe(error)
         PipelineRun.objects.filter(pk=run.id).update(
             status=PipelineRun.Status.FAILED,
             error=message,
