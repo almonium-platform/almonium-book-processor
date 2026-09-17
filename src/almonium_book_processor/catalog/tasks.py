@@ -28,7 +28,6 @@ from almonium_book_processor.catalog.models import (
     Edition,
     EditionArtifact,
     PipelineRun,
-    PromotionTarget,
     QAWarning,
     TextQualityFinding,
     Work,
@@ -39,6 +38,7 @@ from almonium_book_processor.catalog.promotion import (
     compatibility_problem,
     export_bundle,
     promotion_chain,
+    promotion_target,
 )
 from almonium_book_processor.catalog.promotion_client import PromotionClient
 from almonium_book_processor.catalog.publication import (
@@ -486,7 +486,11 @@ def promote_edition(run_id: str, *, publish: bool = False) -> None:
     run.error = ""
     run.save(update_fields=["status", "started_at", "error", "updated_at"])
     try:
-        target = PromotionTarget.objects.get(id=run.summary["target_id"])
+        target = promotion_target(run.summary.get("target"))
+        if target is None:
+            raise PromotionError(
+                f"No promotion target named {run.summary.get('target')!r} is configured here."
+            )
         bundle = export_bundle(edition)
         digest = bundle_hash(bundle)
         run.input_hash = digest

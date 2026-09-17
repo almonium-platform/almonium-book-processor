@@ -11,7 +11,6 @@ from django.core.files.base import ContentFile
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
-from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from almonium_book_processor.catalog import promotion
@@ -25,7 +24,6 @@ from almonium_book_processor.catalog.models import (
     Edition,
     EditionArtifact,
     PipelineRun,
-    PromotionTarget,
     QAWarning,
     ReviewDecision,
     TextQualityFinding,
@@ -35,6 +33,7 @@ from almonium_book_processor.catalog.promotion import (
     BUNDLE_SCHEMA_VERSION,
     MANIFEST_NAME,
     PromotionError,
+    PromotionTarget,
     bundle_hash,
     capabilities,
     compatibility_problem,
@@ -43,14 +42,27 @@ from almonium_book_processor.catalog.promotion import (
     promotion_blocker,
     promotion_chain,
 )
+from almonium_book_processor.catalog.promotion_client import TOKEN_HEADER
 from almonium_book_processor.catalog.tasks import promote_edition
+
+ACCEPTED = "accepted-secret-of-this-environment"
+AUTH = {"HTTP_" + TOKEN_HEADER.upper().replace("-", "_"): ACCEPTED}
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture(autouse=True)
-def media_root(settings, tmp_path):
+def media_root(settings, tmp_path, monkeypatch):
     settings.MEDIA_ROOT = tmp_path / "media"
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TOKEN", ACCEPTED)
+    monkeypatch.delenv("ALMONIUM_BOOKS_PROMOTION_TARGETS", raising=False)
+
+
+@pytest.fixture
+def staging_target(monkeypatch) -> PromotionTarget:
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TARGETS", "staging=https://staging.example.test/")
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TOKEN_STAGING", "secret")
+    return PromotionTarget(name="staging", base_url="https://staging.example.test", token="secret")
 
 
 def make_user(username: str = "reviewer", *, staff: bool = False):
@@ -475,20 +487,20 @@ def test_capabilities_describe_what_this_environment_holds():
 # The target's endpoints.
 
 
-def test_the_endpoints_take_a_staff_token_only():
-    make_user("outsider")
-    outsider_token = Token.objects.create(user=make_user("outsider2"))
-    staff_token = Token.objects.create(user=make_user("staff", staff=True))
+def test_the_endpoints_take_the_deployed_promotion_token_only(monkeypatch):
     client = APIClient()
 
-    assert client.get(reverse("promotion-capabilities")).status_code == 401
-    client.credentials(HTTP_AUTHORIZATION=f"Token {outsider_token.key}")
     assert client.get(reverse("promotion-capabilities")).status_code == 403
-    client.credentials(HTTP_AUTHORIZATION=f"Token {staff_token.key}")
-    response = client.get(reverse("promotion-capabilities"), {"slug": ["book-en"]})
-
+    wrong = {next(iter(AUTH)): "not-it"}
+    assert client.get(reverse("promotion-capabilities"), **wrong).status_code == 403
+    response = client.get(reverse("promotion-capabilities"), {"slug": ["book-en"]}, **AUTH)
     assert response.status_code == 200
     assert response.json()["bundle_schema_version"] == BUNDLE_SCHEMA_VERSION
+
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TOKEN", "")
+    assert client.get(reverse("promotion-capabilities"), **AUTH).status_code == 403, (
+        "an environment deployed without a token accepts nobody"
+    )
 
 
 def test_the_import_endpoint_lands_the_bundle_and_queues_publication_in_order(monkeypatch):
@@ -514,14 +526,13 @@ def test_the_import_endpoint_lands_the_bundle_and_queues_publication_in_order(mo
             queued.append([signature.args[0] for signature in self.signatures])
 
     monkeypatch.setattr("celery.chain", FakeChain)
-    token = Token.objects.create(user=make_user("staff", staff=True))
     client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
 
     response = client.post(
         reverse("promotion-import"),
         {"bundle": ContentFile(bundle, name="book-uk.zip"), "publish": "true"},
         format="multipart",
+        **AUTH,
     )
 
     assert response.status_code == 200, response.content
@@ -533,15 +544,14 @@ def test_the_import_endpoint_lands_the_bundle_and_queues_publication_in_order(mo
 
 
 def test_the_import_endpoint_explains_a_refusal():
-    token = Token.objects.create(user=make_user("staff", staff=True))
     client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
 
-    missing = client.post(reverse("promotion-import"), {}, format="multipart")
+    missing = client.post(reverse("promotion-import"), {}, format="multipart", **AUTH)
     garbage = client.post(
         reverse("promotion-import"),
         {"bundle": ContentFile(b"nope", name="x.zip")},
         format="multipart",
+        **AUTH,
     )
 
     assert missing.status_code == 400
@@ -564,9 +574,8 @@ def test_the_page_offers_promotion_and_the_form_queues_a_run(monkeypatch):
     assert page.status_code == 200
     assert b"No promotion targets are configured" in page.content
 
-    target = PromotionTarget.objects.create(
-        name="staging", base_url="https://staging.example.test", token="secret"
-    )
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TARGETS", "staging=https://staging.example.test")
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TOKEN_STAGING", "secret")
     page = client.get(reverse("catalog:edition-detail", args=[edition.id]))
     assert b"staging \xc2\xb7 https://staging.example.test" in page.content
     assert b"Never promoted" in page.content
@@ -578,24 +587,25 @@ def test_the_page_offers_promotion_and_the_form_queues_a_run(monkeypatch):
     )
     response = client.post(
         reverse("catalog:promote-edition", args=[edition.id]),
-        {"target": str(target.id), "publish": "on"},
+        {"target": "staging", "publish": "on"},
     )
 
     assert response.status_code == 302
     run = PipelineRun.objects.get(stage=PipelineRun.Stage.PROMOTE)
     assert run.edition_id == edition.id
-    assert run.summary == {"target": "staging", "target_id": str(target.id), "publish": True}
+    assert run.summary == {
+        "target": "staging",
+        "target_url": "https://staging.example.test",
+        "publish": True,
+    }
     assert queued == [(str(run.id), True)]
     page = client.get(reverse("catalog:edition-detail", args=[edition.id]))
     assert b"Last: staging" in page.content
 
 
-def test_the_form_refuses_a_blocked_edition_and_an_unknown_target(monkeypatch):
+def test_the_form_refuses_a_blocked_edition_and_an_unknown_target(monkeypatch, staging_target):
     staff = make_user("staff", staff=True)
     edition = build_edition(slug="book-en", status=Edition.Status.REVIEW)
-    target = PromotionTarget.objects.create(
-        name="staging", base_url="https://staging.example.test", token="secret"
-    )
     client = Client()
     client.force_login(staff)
     monkeypatch.setattr(
@@ -603,10 +613,10 @@ def test_the_form_refuses_a_blocked_edition_and_an_unknown_target(monkeypatch):
         lambda *args, **kwargs: pytest.fail("nothing should be queued"),
     )
 
-    client.post(reverse("catalog:promote-edition", args=[edition.id]), {"target": str(target.id)})
-    client.post(
-        reverse("catalog:promote-edition", args=[edition.id]), {"target": str(uuid.uuid4())}
-    )
+    client.post(reverse("catalog:promote-edition", args=[edition.id]), {"target": "staging"})
+    edition.status = Edition.Status.READY
+    edition.save(update_fields=["status"])
+    client.post(reverse("catalog:promote-edition", args=[edition.id]), {"target": "prod"})
 
     assert not PipelineRun.objects.filter(stage=PipelineRun.Stage.PROMOTE).exists()
 
@@ -636,7 +646,7 @@ def promotion_run(edition: Edition, target: PromotionTarget, *, publish=True) ->
         processor_version="0.2.0",
         input_hash="",
         idempotency_key=f"{edition.id}:promote:{target.name}:{uuid.uuid4().hex}",
-        summary={"target": target.name, "target_id": str(target.id), "publish": publish},
+        summary={"target": target.name, "target_url": target.base_url, "publish": publish},
     )
 
 
@@ -649,12 +659,9 @@ def fake_client(monkeypatch):
     return FakeClient
 
 
-def test_the_task_checks_the_target_then_pushes_and_records_the_answer(fake_client):
+def test_the_task_checks_the_target_then_pushes_and_records_the_answer(fake_client, staging_target):
     edition = build_edition(slug="book-en")
-    target = PromotionTarget.objects.create(
-        name="staging", base_url="https://staging.example.test", token="secret"
-    )
-    run = promotion_run(edition, target)
+    run = promotion_run(edition, staging_target)
 
     promote_edition(str(run.id), publish=True)
 
@@ -673,13 +680,12 @@ def test_the_task_checks_the_target_then_pushes_and_records_the_answer(fake_clie
     )
 
 
-def test_the_task_refuses_a_target_on_another_build_without_sending_anything(fake_client):
+def test_the_task_refuses_a_target_on_another_build_without_sending_anything(
+    fake_client, staging_target
+):
     fake_client.remote = {"catalog_migration": "0001_initial"}
     edition = build_edition(slug="book-en")
-    target = PromotionTarget.objects.create(
-        name="staging", base_url="https://staging.example.test", token="secret"
-    )
-    run = promotion_run(edition, target)
+    run = promotion_run(edition, staging_target)
 
     with pytest.raises(PromotionError):
         promote_edition(str(run.id), publish=False)
@@ -690,13 +696,10 @@ def test_the_task_refuses_a_target_on_another_build_without_sending_anything(fak
     assert fake_client.pushed == []
 
 
-def test_the_task_records_what_the_target_answered_when_it_refuses(fake_client):
+def test_the_task_records_what_the_target_answered_when_it_refuses(fake_client, staging_target):
     fake_client.fail_push = "Promotion to staging failed with HTTP 400 (slug taken)."
     edition = build_edition(slug="book-en")
-    target = PromotionTarget.objects.create(
-        name="staging", base_url="https://staging.example.test", token="secret"
-    )
-    run = promotion_run(edition, target)
+    run = promotion_run(edition, staging_target)
 
     with pytest.raises(PromotionError):
         promote_edition(str(run.id), publish=False)
@@ -719,7 +722,8 @@ def test_the_client_names_the_target_and_the_reason_when_the_wire_fails(monkeypa
     client = promotion_client.PromotionClient(target)
 
     def hang(request, timeout=None):
-        assert request.get_header("Authorization") == "Token t"
+        # urllib stores header names capitalized.
+        assert request.get_header(TOKEN_HEADER.capitalize()) == "t"
         raise URLError(TimeoutError("timed out"))
 
     monkeypatch.setattr(promotion_client, "urlopen", hang)
@@ -782,3 +786,33 @@ def test_the_client_posts_the_bundle_as_multipart_with_the_publish_flag(monkeypa
     assert b'name="publish"\r\n\r\ntrue\r\n' in seen["body"]
     assert b'name="bundle"; filename="book-en.zip"' in seen["body"]
     assert b"PK-bytes" in seen["body"]
+
+
+def test_a_task_for_a_target_this_environment_no_longer_knows_fails_plainly(fake_client):
+    edition = build_edition(slug="book-en")
+    run = promotion_run(
+        edition, PromotionTarget(name="gone", base_url="https://gone.example.test", token="x")
+    )
+
+    with pytest.raises(PromotionError, match="No promotion target named 'gone'"):
+        promote_edition(str(run.id), publish=False)
+
+    run.refresh_from_db()
+    assert run.status == PipelineRun.Status.FAILED
+    assert fake_client.pushed == []
+
+
+def test_targets_come_from_the_environment_and_need_their_token(monkeypatch):
+    from almonium_book_processor.catalog.promotion import promotion_target, promotion_targets
+
+    monkeypatch.setenv(
+        "ALMONIUM_BOOKS_PROMOTION_TARGETS",
+        " staging = https://staging.example.test/ , prod=https://books.example.test, broken",
+    )
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TOKEN_STAGING", "s")
+
+    assert promotion_targets() == [
+        PromotionTarget(name="staging", base_url="https://staging.example.test", token="s")
+    ], "prod has no token here, so this environment cannot push to it"
+    assert promotion_target("prod") is None
+    assert promotion_target("staging").token == "s"

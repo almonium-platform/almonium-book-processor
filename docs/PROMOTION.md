@@ -77,17 +77,25 @@ them, and the dependent edition has to be promoted again.
 
 ## Configuration
 
-Authentication is an API token issued by a staff account on the **target**:
+Promotion is deployment configuration, like the product API's publisher
+secret, so which environments may write to which is decided in the
+infrastructure vaults and never on a page:
 
-1. On the target's admin site, open **Auth Token › Tokens**, add a token for a
-   staff user, and copy the key.
-2. On the source's admin site, open **Promotion targets** and add the target's
-   name, origin (for example `https://staging.books.almonium.com`) and that
-   token.
+- `ALMONIUM_BOOKS_PROMOTION_TOKEN` is the token this environment accepts from
+  a source that pushes here. An environment deployed without one accepts
+  nobody.
+- `ALMONIUM_BOOKS_PROMOTION_TARGETS` names where this environment may push, as
+  comma-separated `name=https://host` pairs, and
+  `ALMONIUM_BOOKS_PROMOTION_TOKEN_<NAME>` holds each target's token. A target
+  without its token is not offered.
 
-No deployment configuration or vault change is needed. Configure production as
-a target on staging only, so a bundle reaches production through a build that
-staging already served.
+The tokens live in `almonium-infra` under `books.promotion_secrets` in the
+shared vault, one per environment. Staging is deployed with production as a
+target; production has no targets. A laptop's `.env` carries staging's token,
+so a bundle reaches production only through a build that staging already
+served. The promotion token is deliberately not the publisher secret: that
+one guards what the product API may do on its processor, and it would
+otherwise have to be copied to every machine that promotes.
 
 ## Manual transfer
 

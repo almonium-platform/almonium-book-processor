@@ -26,7 +26,9 @@ import hashlib
 import io
 import json
 import logging
+import os
 import zipfile
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -71,6 +73,47 @@ LOCAL_RUN_STAGES = (PipelineRun.Stage.PUBLISH, PipelineRun.Stage.PROMOTE)
 
 class PromotionError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class PromotionTarget:
+    """Another deployment of this service that finished editions are copied to.
+
+    Targets are deployment configuration, like the product API's publisher
+    secret: ``ALMONIUM_BOOKS_PROMOTION_TARGETS`` names them as
+    ``name=https://host`` pairs and ``ALMONIUM_BOOKS_PROMOTION_TOKEN_<NAME>``
+    holds the token that target accepts. Which environments may write to which
+    is therefore decided in the infrastructure vaults, never on a page.
+    """
+
+    name: str
+    base_url: str
+    token: str
+
+
+def promotion_targets() -> list[PromotionTarget]:
+    """The targets this environment is configured to push to, tokens present."""
+
+    targets = []
+    for entry in os.getenv("ALMONIUM_BOOKS_PROMOTION_TARGETS", "").split(","):
+        name, _, base_url = entry.strip().partition("=")
+        name, base_url = name.strip(), base_url.strip().rstrip("/")
+        if not name or not base_url:
+            continue
+        token = os.getenv(f"ALMONIUM_BOOKS_PROMOTION_TOKEN_{name.upper()}", "")
+        if token:
+            targets.append(PromotionTarget(name=name, base_url=base_url, token=token))
+    return targets
+
+
+def promotion_target(name: str | None) -> PromotionTarget | None:
+    return next((target for target in promotion_targets() if target.name == name), None)
+
+
+def accepted_promotion_token() -> str:
+    """The token this environment requires from a source that pushes here."""
+
+    return os.getenv("ALMONIUM_BOOKS_PROMOTION_TOKEN", "")
 
 
 # --------------------------------------------------------------------------

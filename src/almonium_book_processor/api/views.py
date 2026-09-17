@@ -7,7 +7,7 @@ from django.http import FileResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import mixins, permissions, status, viewsets
-from rest_framework.authentication import SessionAuthentication, TokenAuthentication
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -35,10 +35,12 @@ from almonium_book_processor.catalog.models import (
 )
 from almonium_book_processor.catalog.promotion import (
     PromotionError,
+    accepted_promotion_token,
     capabilities,
     import_bundle,
     queue_publications,
 )
+from almonium_book_processor.catalog.promotion_client import TOKEN_HEADER as PROMOTION_TOKEN_HEADER
 from almonium_book_processor.catalog.purge import purge_edition
 from almonium_book_processor.catalog.services import create_library_ingest
 from almonium_book_processor.catalog.spend import ai_spend
@@ -297,11 +299,25 @@ class InternalAiSpendView(APIView):
         return Response(ai_spend(since, until))
 
 
+class PromotionPermission(permissions.BasePermission):
+    """The token this deployment was given for promotions, and nothing else.
+
+    It is deliberately not the publisher secret: that one guards what the
+    product API may do here, and it would otherwise have to be copied to every
+    machine that promotes.
+    """
+
+    def has_permission(self, request, view):
+        expected = accepted_promotion_token()
+        provided = request.headers.get(PROMOTION_TOKEN_HEADER, "")
+        return bool(expected and provided and hmac.compare_digest(expected, provided))
+
+
 class PromotionCapabilitiesView(APIView):
     """What this deployment runs, so a source can tell whether its bundle fits."""
 
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [permissions.IsAdminUser]
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [PromotionPermission]
 
     def get(self, request):
         return Response(capabilities(request.query_params.getlist("slug")))
@@ -314,8 +330,8 @@ class PromotionImportView(APIView):
     2xx means the edition is readable here and a 4xx means nothing changed.
     """
 
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [permissions.IsAdminUser]
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [PromotionPermission]
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):

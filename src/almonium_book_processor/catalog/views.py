@@ -61,12 +61,16 @@ from almonium_book_processor.catalog.models import (
     Edition,
     EditionTombstone,
     PipelineRun,
-    PromotionTarget,
     QAWarning,
     TextQualityFinding,
     Work,
 )
-from almonium_book_processor.catalog.promotion import promotion_blocker, promotion_chain
+from almonium_book_processor.catalog.promotion import (
+    promotion_blocker,
+    promotion_chain,
+    promotion_target,
+    promotion_targets,
+)
 from almonium_book_processor.catalog.purge import purge_edition, removal_blocker
 from almonium_book_processor.catalog.review_items import review_items
 from almonium_book_processor.catalog.services import (
@@ -1436,7 +1440,7 @@ def _promotion_context(edition: Edition, pipeline_runs) -> dict:
         return {"promotion_targets": [], "promotion_runs": [], "show_promotion": False}
     return {
         "show_promotion": True,
-        "promotion_targets": list(PromotionTarget.objects.filter(enabled=True)),
+        "promotion_targets": promotion_targets(),
         "promotion_blocked": promotion_blocker(edition),
         "promotion_runs": promotion_runs[:5],
         "promotion_chain_slugs": [
@@ -1451,7 +1455,7 @@ def promote_edition_view(request: HttpRequest, edition_id: str) -> HttpResponse:
     edition = get_object_or_404(
         Edition.objects.select_related("work", "source_edition"), id=edition_id
     )
-    target = PromotionTarget.objects.filter(id=request.POST.get("target"), enabled=True).first()
+    target = promotion_target(request.POST.get("target"))
     if target is None:
         messages.error(request, "Choose a configured promotion target.")
     elif blocked := promotion_blocker(edition):
@@ -1464,7 +1468,7 @@ def promote_edition_view(request: HttpRequest, edition_id: str) -> HttpResponse:
             processor_version=__version__,
             input_hash="",
             idempotency_key=f"{edition.id}:promote:{target.name}:{uuid.uuid4().hex}",
-            summary={"target": target.name, "target_id": str(target.id), "publish": publish},
+            summary={"target": target.name, "target_url": target.base_url, "publish": publish},
         )
         promote_edition.delay(str(run.id), publish=publish)
         messages.success(

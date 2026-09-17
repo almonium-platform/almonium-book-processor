@@ -953,32 +953,3 @@ class UserErrorReport(TimestampedModel):
 
     class Meta:
         ordering = ["status", "-created_at"]
-
-
-class PromotionTarget(TimestampedModel):
-    """Another deployment of this service that finished editions are copied to.
-
-    Each environment runs its own processor and its product API reads book
-    text from that processor alone, so a book tested locally has to be carried
-    to staging as data. The token is an API token issued by a staff account on
-    the target; it authorises writing whole editions there, so it is never the
-    product API's publisher secret.
-    """
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.SlugField(max_length=40, unique=True)
-    base_url = models.URLField(
-        max_length=500,
-        help_text="The target's origin, such as https://staging.books.almonium.com",
-    )
-    token = models.CharField(
-        max_length=200,
-        help_text="An API token created under Auth Token on the target's admin site.",
-    )
-    enabled = models.BooleanField(default=True)
-
-    class Meta:
-        ordering = ["name"]
-
-    def __str__(self) -> str:
-        return self.name

@@ -14,7 +14,6 @@ from almonium_book_processor.catalog.models import (
     EditionTombstone,
     ModelConfiguration,
     PipelineRun,
-    PromotionTarget,
     PromptTemplate,
     QAWarning,
     ReviewDecision,
@@ -172,26 +171,6 @@ admin.site.register(AlignmentGroupReview)
 admin.site.register(ContentBlockRevision)
 admin.site.register(EditionArtifact)
 admin.site.register(TextQualityFinding)
-
-
-class PromotionTargetAdminForm(forms.ModelForm):
-    token = forms.CharField(
-        widget=forms.PasswordInput(render_value=True),
-        help_text="An API token created under Auth Token on the target's admin site.",
-    )
-
-    class Meta:
-        model = PromotionTarget
-        fields = "__all__"
-
-
-@admin.register(PromotionTarget)
-class PromotionTargetAdmin(admin.ModelAdmin):
-    """Where finished editions can be carried to; the token never appears in a list."""
-
-    form = PromotionTargetAdminForm
-    list_display = ("name", "base_url", "enabled", "updated_at")
-    fields = ("name", "base_url", "token", "enabled")
 
 
 @admin.register(EditionTombstone)

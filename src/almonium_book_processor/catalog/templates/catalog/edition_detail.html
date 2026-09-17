@@ -293,13 +293,13 @@
   <summary><span class="summary-title">Promote to another environment</span><span class="summary-meta">{% with run=promotion_runs.0 %}{% if run %}Last: {{ run.summary.target }} · <span class="status status-{{ run.status }}">{{ run.get_status_display }}</span>{% else %}Never promoted{% endif %}{% endwith %}</span></summary>
   <p class="muted">Copies this edition{% if promotion_chain_slugs %} together with {{ promotion_chain_slugs|join:", " }}, which it was generated from,{% endif %} with every block, artifact, alignment and review decision, so nothing is recomputed there and no model call is paid twice. The AI spend ledger stays here. Publication is that environment's own step; tick the box to queue it there once the copy lands. Promoting again replaces what an earlier promotion left.</p>
   {% if not promotion_targets %}
-    <p class="muted">No promotion targets are configured. Add one under <a href="{% url 'admin:catalog_promotiontarget_changelist' %}">Promotion targets</a> with a token issued on the target's admin site.</p>
+    <p class="muted">No promotion targets are configured for this environment. They are deployment configuration: <code>ALMONIUM_BOOKS_PROMOTION_TARGETS</code> names them and <code>ALMONIUM_BOOKS_PROMOTION_TOKEN_&lt;NAME&gt;</code> holds each target's token.</p>
   {% elif promotion_blocked %}
     <p class="publish-blocked">{{ promotion_blocked }}</p>
   {% else %}
   <form class="promotion-form" method="post" action="{% url 'catalog:promote-edition' edition.id %}">
     {% csrf_token %}
-    <label><span>Target</span><select name="target">{% for target in promotion_targets %}<option value="{{ target.id }}">{{ target.name }} · {{ target.base_url }}</option>{% endfor %}</select></label>
+    <label><span>Target</span><select name="target">{% for target in promotion_targets %}<option value="{{ target.name }}">{{ target.name }} · {{ target.base_url }}</option>{% endfor %}</select></label>
     <label class="checkbox-label"><input type="checkbox" name="publish"> Publish there after the copy lands</label>
     <button class="button" type="submit">Promote</button>
   </form>

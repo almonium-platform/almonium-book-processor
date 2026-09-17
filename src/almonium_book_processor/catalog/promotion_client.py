@@ -1,8 +1,8 @@
 """Pushing an edition bundle to another deployment of this service.
 
 The source pushes, because a laptop is not reachable from the server while
-every deployed processor has a public host. The token is one a staff account
-issued on the target, so the target's own admin decides who may write to it.
+every deployed processor has a public host. The token is the one the target
+was deployed with, so the infrastructure decides who may write to it.
 """
 
 from __future__ import annotations
@@ -14,10 +14,10 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request
 
-from almonium_book_processor.catalog.models import PromotionTarget
-from almonium_book_processor.catalog.promotion import PromotionError
+from almonium_book_processor.catalog.promotion import PromotionError, PromotionTarget
 from almonium_book_processor.catalog.publication import _describe, _response_reason, urlopen
 
+TOKEN_HEADER = "X-Almonium-Books-Promotion-Token"
 CAPABILITIES_PATH = "/api/v1/internal/promotions/capabilities/"
 IMPORT_PATH = "/api/v1/internal/promotions/"
 # A small answer about what the target runs; and a whole edition landing in
@@ -47,7 +47,7 @@ class PromotionClient:
         self.base_url = target.base_url.rstrip("/")
 
     def _request(self, request: Request, *, timeout: int, failure: str) -> Any:
-        request.add_header("Authorization", f"Token {self.target.token}")
+        request.add_header(TOKEN_HEADER, self.target.token)
         request.add_header("Accept", "application/json")
         try:
             with urlopen(request, timeout=timeout) as response:  # noqa: S310
