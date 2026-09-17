@@ -380,6 +380,50 @@ def test_a_bundle_lands_with_the_same_ids_and_lands_again_as_a_no_op():
     assert again["skipped"] == ["book-en", "book-uk"]
 
 
+def test_retired_artifacts_stay_behind_unless_a_finding_still_names_them():
+    edition = build_edition(slug="book-en")
+    chapter = edition.chapters.get()
+    run = edition.pipeline_runs.get(stage=PipelineRun.Stage.SENTENCES)
+    current = EditionArtifact.objects.get(edition=edition)
+    retired = EditionArtifact.objects.create(
+        edition=edition,
+        chapter=chapter,
+        pipeline_run=run,
+        kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,
+        input_hash="1" * 64,
+        processor_version="align-v1",
+        payload={"pairs": ["stale"] * 1000},
+        is_current=False,
+    )
+    still_named = EditionArtifact.objects.create(
+        edition=edition,
+        chapter=chapter,
+        pipeline_run=run,
+        kind=EditionArtifact.Kind.SOURCE_QA,
+        input_hash="2" * 64,
+        processor_version="qa-v1",
+        payload={"findings": 1},
+        is_current=False,
+    )
+    finding = TextQualityFinding.objects.get(edition=edition)
+    finding.artifact = still_named
+    finding.save(update_fields=["artifact"])
+
+    manifest = json.loads(zipfile.ZipFile(io.BytesIO(export_bundle(edition))).read(MANIFEST_NAME))
+    carried = {row["id"] for row in manifest["editions"][0]["artifacts"]}
+    assert carried == {str(current.id), str(still_named.id)}
+
+    # Source and target share a database here, so landing the bundle shows
+    # what happens to a retired artifact an earlier promotion left behind.
+    result = import_bundle(export_bundle(edition), origin="laptop")
+
+    assert result["imported"] == ["book-en"]
+    assert not EditionArtifact.objects.filter(id=retired.id).exists()
+    assert EditionArtifact.objects.filter(id=still_named.id).exists()
+    finding.refresh_from_db()
+    assert finding.artifact_id == still_named.id
+
+
 def test_a_changed_edition_replaces_what_the_last_promotion_left():
     original = build_edition(slug="book-en")
     first = export_bundle(original)

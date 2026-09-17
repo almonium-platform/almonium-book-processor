@@ -13,6 +13,12 @@ findings, warnings, review decisions and alignments. Primary keys travel with
 the rows, because artifact payloads and alignment groups refer to blocks and
 chapters by id, so the same edition has the same ids in every environment.
 
+Only current artifacts travel. Every text revision retires the edition's
+artifacts and the refresh regenerates them, so an edited edition accumulates
+retired lexical profiles and sentence alignments that nothing reads but that
+would dominate the bundle. A retired artifact still travels while a quality
+finding points at it, because the finding's row names it.
+
 Two things stay behind on purpose. The AI run ledger records what this
 environment paid, and each product API sums its own processor's ledger, so a
 copied ledger would count the same money twice. And publication state belongs
@@ -39,6 +45,7 @@ from django.core.files.base import ContentFile
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import connection, transaction
 from django.db.migrations.recorder import MigrationRecorder
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -63,7 +70,7 @@ logger = logging.getLogger(__name__)
 
 # Bump when the manifest's shape changes. A target running an older build
 # refuses a newer bundle instead of silently dropping what it does not know.
-BUNDLE_SCHEMA_VERSION = 1
+BUNDLE_SCHEMA_VERSION = 2
 MANIFEST_NAME = "manifest.json"
 
 # Runs that describe what an environment did with its own product API, or
@@ -447,6 +454,10 @@ def _edition_section(edition: Edition) -> dict[str, Any]:
         queryset = model.objects.filter(**{scope: edition.id}).order_by("id")
         if model is PipelineRun:
             queryset = queryset.exclude(stage__in=LOCAL_RUN_STAGES)
+        if model is EditionArtifact:
+            queryset = queryset.filter(
+                Q(is_current=True) | Q(text_quality_findings__edition_id=edition.id)
+            ).distinct()
         if user_field:
             queryset = queryset.select_related(user_field)
         section[key] = [_row(item, fields, user_field) for item in queryset]

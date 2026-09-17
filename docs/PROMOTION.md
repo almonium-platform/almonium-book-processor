@@ -16,15 +16,21 @@ files. The manifest carries the edition, every edition it was generated from
 - chapters and content blocks, with their primary keys;
 - block revisions, text-quality findings, warnings, review decisions and
   alignment-group reviews, with the reviewer recorded by username;
-- pipeline runs and edition artifacts (current and historical);
+- pipeline runs and current edition artifacts;
 - block and chapter alignments whose target is the edition.
 
 Primary keys are preserved, because artifact payloads and alignment groups
 refer to blocks and chapters by id. The same edition has the same ids in every
 environment.
 
-Two things stay behind on purpose:
+Three things stay behind on purpose:
 
+- **Retired artifacts.** A text revision retires the edition's artifacts and
+  the refresh regenerates them, so an edited edition piles up lexical profiles
+  and sentence alignments that nothing reads. They would dominate the bundle,
+  so only current artifacts travel, plus any retired one a text-quality
+  finding still points at. Block revisions do travel: they are small and are
+  the only record that an editor overrode the source text.
 - **The AI run ledger.** It records what this environment paid, and each
   product API sums its own processor's ledger for its spend report. A copied
   ledger would count the same money twice. A promoted edition shows no AI
