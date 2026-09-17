@@ -9,30 +9,42 @@
   </div>
 </div>
 
-{% if active_runs %}
-<section class="panel">
-  <h2>Active processing</h2>
-  {% for run in active_runs %}
-    <div class="run-row"><strong>{{ run.edition.title }}</strong><span>Owner {{ run.edition.work.owner_id }}</span><progress value="{{ run.progress }}" max="100"></progress></div>
+{% if rows %}
+<section class="work-group import-table">
+  <div class="import-head"><span></span><span>Book</span><span>Owner</span><span>Uploaded</span><span>Warnings</span><span>Status</span></div>
+  {% for row in rows %}
+    <a class="edition-row{% if row.is_failed %} edition-row-failed{% elif row.needs_review %} edition-row-review{% endif %}" href="{% url 'catalog:edition-detail' row.edition.id %}">
+      <span class="edition-lang">{{ row.language }}</span>
+      <span class="edition-title">
+        {% if row.title %}<span>{{ row.title }}</span>{% else %}<span class="edition-title-pending">Title pending</span>{% endif %}
+        <small>{{ row.author|default:"Author pending" }}{% if row.source_format %} · {{ row.source_format }}{% endif %}</small>
+      </span>
+      <span class="import-owner">
+        {% if row.owner_label %}<span>{{ row.owner_label }}</span>{% endif %}
+        {% if row.owner_id %}<span class="import-owner-id" title="{{ row.owner_id }}" data-copy="{{ row.owner_id }}">{{ row.owner_id_short }}</span>{% endif %}
+      </span>
+      <span class="import-date">{{ row.uploaded_label }}</span>
+      <span class="edition-warnings{% if row.warnings_urgent %} edition-warnings-urgent{% endif %}">{% if not row.run %}{{ row.warnings_label }}{% endif %}</span>
+      <span class="edition-state">
+        {% if row.run %}<span class="run-stage"><span>{{ row.run.get_stage_display }}</span><span class="run-bar"><span style="width:{{ row.run.progress }}%"></span></span></span>{% else %}<span class="status status-{{ row.status }}">{{ row.status_label }}</span>{% endif %}
+      </span>
+    </a>
   {% endfor %}
 </section>
+{% else %}
+<div class="empty"><h2>No user imports yet</h2><p>Private uploads will appear here when a premium user submits one in Almonium.</p></div>
 {% endif %}
 
-<section class="edition-grid">
-  {% for edition in editions %}
-    <a class="edition-card" href="{% url 'catalog:edition-detail' edition.id %}">
-      <div>
-        {% if edition.status == "ready" %}<span class="status status-ready">Available</span>{% else %}<span class="status status-{{ edition.status }}">{{ edition.get_status_display }}</span>{% endif %}
-        <span class="language">{{ edition.language|upper }}</span>
-      </div>
-      <h2>{{ edition.title|default:"Untitled upload" }}</h2>
-      <p>{{ edition.author|default:"Author pending" }}</p>
-      <p class="import-owner"><strong>Owner</strong> {% if edition.work.owner_label %}@{{ edition.work.owner_label }} · {% endif %}{{ edition.work.owner_id }}</p>
-      <p class="import-date"><strong>Uploaded</strong> {{ edition.created_at }}</p>
-      <dl><div><dt>Words</dt><dd>{{ edition.word_count }}</dd></div><div><dt>Warnings</dt><dd>{{ edition.warning_count }}</dd></div><div><dt>Runs</dt><dd>{{ edition.run_count }}</dd></div></dl>
-    </a>
-  {% empty %}
-    <div class="empty"><h2>No user imports yet</h2><p>Private uploads will appear here when a premium user submits one in Almonium.</p></div>
-  {% endfor %}
-</section>
+<script>
+  // The whole row is a link; the owner id copies instead of navigating.
+  document.addEventListener("click", function (event) {
+    var cell = event.target.closest(".import-owner-id");
+    if (!cell || !navigator.clipboard) return;
+    event.preventDefault();
+    navigator.clipboard.writeText(cell.dataset.copy).then(function () {
+      cell.classList.add("copied");
+      setTimeout(function () { cell.classList.remove("copied"); }, 1200);
+    });
+  });
+</script>
 {% endblock %}

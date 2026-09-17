@@ -256,7 +256,10 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .edition-row .level-chip { background: #e9e1d4; color: var(--ink); letter-spacing: 0; }
 .edition-words, .edition-warnings { color: var(--muted); font-size: .82rem; }
 .edition-source { color: #a39a90; }
+.edition-row-failed { background: #fbe9e6; }
+.edition-row-failed:hover { background: #f8e0dc; }
 .edition-warnings-urgent { color: var(--amber); font-weight: 600; }
+.edition-row-failed .edition-warnings-urgent { color: var(--red); }
 .edition-state { justify-self: end; }
 .run-stage { display: flex; flex-direction: column; align-items: flex-end; gap: .3rem; min-width: 120px; color: var(--muted); font-size: .75rem; }
 .run-bar { display: block; width: 120px; height: 4px; border-radius: 2px; background: #e9e1d4; overflow: hidden; }
@@ -266,4 +269,18 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
   .edition-chips, .edition-words, .edition-warnings { grid-column: 2; }
   .edition-state { grid-column: 3; grid-row: 1; }
   .work-header { flex-direction: column; align-items: flex-start; }
+}
+
+/* User imports: one flat table, the owner beside the book */
+.import-table .edition-row, .import-table .import-head { grid-template-columns: 44px 1fr 200px 150px 90px 120px; }
+.import-head { display: grid; gap: 0 1rem; padding: .75rem 1.5rem; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.import-head span:last-child { justify-self: end; }
+.import-owner { display: grid; gap: .1rem; min-width: 0; }
+.import-owner-id { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .7rem; color: #a39a90; cursor: copy; }
+.import-owner-id.copied { color: var(--green); }
+.import-date { color: var(--muted); font-size: .82rem; }
+@media (max-width: 900px) {
+  .import-head { display: none; }
+  .import-table .edition-row { grid-template-columns: 44px 1fr auto; }
+  .import-owner, .import-date { grid-column: 2; }
 }

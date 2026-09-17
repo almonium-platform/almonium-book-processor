@@ -30,7 +30,11 @@ from almonium_book_processor.catalog.ai_translation import (
     last_translation_mode,
     last_translation_tier,
 )
-from almonium_book_processor.catalog.catalogue import catalogue_groups, catalogue_summary
+from almonium_book_processor.catalog.catalogue import (
+    catalogue_groups,
+    catalogue_summary,
+    import_rows,
+)
 from almonium_book_processor.catalog.chapter_analysis import analysis_context, queue_analysis
 from almonium_book_processor.catalog.chapter_projections import (
     queue_projection_refresh,
@@ -106,27 +110,6 @@ from almonium_book_processor.catalog.tasks import (
 )
 
 
-def _edition_cards(visibility: str):
-    return (
-        Edition.objects.filter(work__visibility=visibility)
-        .select_related("work")
-        .annotate(
-            warning_count=Count(
-                "warnings",
-                filter=Q(
-                    warnings__severity__in=[
-                        QAWarning.Severity.WARNING,
-                        QAWarning.Severity.ERROR,
-                    ],
-                    warnings__resolved_at__isnull=True,
-                ),
-                distinct=True,
-            ),
-            run_count=Count("pipeline_runs", distinct=True),
-        )
-    )
-
-
 @staff_member_required
 def dashboard(request: HttpRequest) -> HttpResponse:
     groups = catalogue_groups(Work.Visibility.PUBLIC)
@@ -139,17 +122,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 
 @staff_member_required
 def private_imports(request: HttpRequest) -> HttpResponse:
-    return render(
-        request,
-        "catalog/private_imports.html",
-        {
-            "editions": _edition_cards(Work.Visibility.PRIVATE).order_by("-created_at"),
-            "active_runs": PipelineRun.objects.filter(
-                status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING],
-                edition__work__visibility=Work.Visibility.PRIVATE,
-            ).select_related("edition", "edition__work")[:20],
-        },
-    )
+    return render(request, "catalog/private_imports.html", {"rows": import_rows()})
 
 
 @staff_member_required

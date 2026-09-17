@@ -7,14 +7,20 @@ sit in the order an editor reads a parallel tree: the canonical original, then
 the parallel editions by language, then the standalone ones. Works are ordered
 by the most urgent status inside them, so the panel that needs a person comes
 first, and by author surname after that.
+
+User imports are the other list. A private import is always one edition per
+work and the owner is what an operator scans for, so there is nothing to
+group: one flat table, newest upload first, in the same row grammar.
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from django.db.models import Count, Q
+from django.utils import timezone
 
 from almonium_book_processor.catalog.models import Edition, PipelineRun, QAWarning, Work
 
@@ -170,6 +176,10 @@ class EditionRow:
     def needs_review(self) -> bool:
         return self.edition.status == Edition.Status.REVIEW
 
+    @property
+    def is_failed(self) -> bool:
+        return self.edition.status == Edition.Status.FAILED
+
 
 @dataclass
 class Rollup:
@@ -274,6 +284,26 @@ def _active_runs(visibility: str) -> dict:
     return runs
 
 
+def _editions(visibility: str):
+    return (
+        Edition.objects.filter(work__visibility=visibility)
+        .select_related("work", "source_edition")
+        .annotate(
+            warning_count=Count(
+                "warnings",
+                filter=Q(
+                    warnings__severity__in=[
+                        QAWarning.Severity.WARNING,
+                        QAWarning.Severity.ERROR,
+                    ],
+                    warnings__resolved_at__isnull=True,
+                ),
+                distinct=True,
+            )
+        )
+    )
+
+
 def _row(edition: Edition, run: PipelineRun | None) -> EditionRow:
     work_title = display_title(edition.work.title)
     title = display_title(edition.title)
@@ -293,26 +323,9 @@ def _row(edition: Edition, run: PipelineRun | None) -> EditionRow:
 def catalogue_groups(visibility: str) -> list[WorkGroup]:
     """Every work of the given visibility with its editions as rows."""
 
-    editions = (
-        Edition.objects.filter(work__visibility=visibility)
-        .select_related("work", "source_edition")
-        .annotate(
-            warning_count=Count(
-                "warnings",
-                filter=Q(
-                    warnings__severity__in=[
-                        QAWarning.Severity.WARNING,
-                        QAWarning.Severity.ERROR,
-                    ],
-                    warnings__resolved_at__isnull=True,
-                ),
-                distinct=True,
-            )
-        )
-    )
     runs = _active_runs(visibility)
     groups: dict = {}
-    for edition in editions:
+    for edition in _editions(visibility):
         group = groups.setdefault(edition.work_id, WorkGroup(work=edition.work))
         group.rows.append(_row(edition, runs.get(edition.id)))
     for group in groups.values():
@@ -332,3 +345,84 @@ def catalogue_summary(groups: list[WorkGroup]) -> CatalogueSummary:
         review=sum(1 for row in rows if row.status == Edition.Status.REVIEW),
         processing=sum(1 for row in rows if row.status in IN_FLIGHT_STATUSES),
     )
+
+
+SOURCE_FORMATS = {".epub": "EPUB", ".xml": "TEI"}
+
+
+def source_format(edition: Edition) -> str:
+    """EPUB or TEI, from the uploaded file's extension; blank when there is none."""
+
+    if not edition.source_file:
+        return ""
+    return SOURCE_FORMATS.get(Path(edition.source_file.name).suffix.lower(), "")
+
+
+def uploaded_label(moment) -> str:
+    """When an import arrived, as an operator reads it: today by time, else by date."""
+
+    local = timezone.localtime(moment)
+    if local.date() == timezone.localdate():
+        return f"Today, {local:%H:%M}"
+    return f"{local:%b} {local.day}, {local:%H:%M}"
+
+
+@dataclass
+class ImportRow(EditionRow):
+    """One user import: the same row grammar as the catalogue, plus its owner."""
+
+    @property
+    def status_label(self) -> str:
+        # A ready import is released to its owner rather than published.
+        if self.edition.status == Edition.Status.READY:
+            return "Available"
+        return self.edition.get_status_display()
+
+    @property
+    def author(self) -> str:
+        return display_title(self.edition.author)
+
+    @property
+    def source_format(self) -> str:
+        return source_format(self.edition)
+
+    @property
+    def owner_label(self) -> str:
+        label = self.edition.work.owner_label
+        return f"@{label}" if label else ""
+
+    @property
+    def owner_id(self) -> str:
+        return str(self.edition.work.owner_id or "")
+
+    @property
+    def owner_id_short(self) -> str:
+        owner_id = self.edition.work.owner_id
+        if owner_id is None:
+            return ""
+        return f"{owner_id.hex[:4]}\u2026{owner_id.hex[-4:]}"
+
+    @property
+    def uploaded_label(self) -> str:
+        return uploaded_label(self.edition.created_at)
+
+
+def import_rows(visibility: str = Work.Visibility.PRIVATE) -> list[ImportRow]:
+    """Every user import as a flat list, newest upload first."""
+
+    runs = _active_runs(visibility)
+    rows = []
+    for edition in _editions(visibility).order_by("-created_at"):
+        row = _row(edition, runs.get(edition.id))
+        rows.append(
+            ImportRow(
+                edition=row.edition,
+                title=display_title(edition.title),
+                type_label=row.type_label,
+                role_label=row.role_label,
+                warning_count=row.warning_count,
+                source_language=row.source_language,
+                run=row.run,
+            )
+        )
+    return rows

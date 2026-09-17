@@ -19,7 +19,7 @@
         {% endif %}
       </header>
       {% for row in group.rows %}
-        <a class="edition-row{% if row.needs_review %} edition-row-review{% endif %}" href="{% url 'catalog:edition-detail' row.edition.id %}">
+        <a class="edition-row{% if row.needs_review %} edition-row-review{% elif row.is_failed %} edition-row-failed{% endif %}" href="{% url 'catalog:edition-detail' row.edition.id %}">
           <span class="edition-lang">{{ row.language }}</span>
           <span class="edition-title">
             {% if row.title is None %}{{ row.type_label }}{% elif row.title %}<span>{{ row.title }}</span><small>{{ row.type_label }}</small>{% else %}<span class="edition-title-pending">Title pending</span><small>{{ row.type_label }}</small>{% endif %}

@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import datetime
+import uuid
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 
 from almonium_book_processor.catalog.catalogue import (
     catalogue_groups,
     catalogue_summary,
     display_title,
+    import_rows,
+    uploaded_label,
     word_count_label,
 )
 from almonium_book_processor.catalog.models import Edition, PipelineRun, QAWarning, Work
@@ -214,3 +220,68 @@ def test_an_empty_catalogue_still_offers_the_upload(client, staff):
     assert "No public editions yet" in page
     assert "0 works · 0 editions" in page
     assert "Upload source" in page
+
+
+def _private_work(slug, title, author, label):
+    return Work.objects.create(
+        slug=slug,
+        title=title,
+        author=author,
+        original_language="en",
+        visibility=Work.Visibility.PRIVATE,
+        owner_id=uuid.UUID("8c2f0000-0000-4000-8000-00000000" + "91be"),
+        owner_label=label,
+    )
+
+
+def test_user_imports_are_a_flat_list_newest_first_with_the_owner(client, staff):
+    older = _private_work("monte-cristo", "Le Comte de Monte-Cristo", "Alexandre Dumas", "marc")
+    failed = _edition(older, "fr", Edition.Status.FAILED)
+    failed.source_file.name = "sources/x/monte-cristo.epub"
+    failed.save(update_fields=["source_file"])
+    QAWarning.objects.create(edition=failed, code="x", message="broken")
+    newer = _private_work("pending-import", "", "", "lena.k")
+    pending = _edition(newer, "de", Edition.Status.PROCESSING, title="", author="")
+    pending.source_file.name = "sources/y/upload.xml"
+    pending.save(update_fields=["source_file"])
+    PipelineRun.objects.create(
+        edition=pending,
+        stage=PipelineRun.Stage.CHAPTER_ANALYSIS,
+        status=PipelineRun.Status.RUNNING,
+        progress=62,
+        processor_version="test",
+        input_hash="x",
+        idempotency_key="pending:chapter_analysis",
+    )
+    released = _private_work("all-quiet", "All Quiet on the Western Front", "E. M. Remarque", "")
+    _edition(released, "en", Edition.Status.READY)
+
+    rows = import_rows()
+    assert [row.language for row in rows] == ["EN", "DE", "FR"]
+    assert rows[1].title == "" and rows[1].source_format == "TEI"
+    assert rows[1].owner_label == "@lena.k" and rows[1].owner_id_short == "8c2f…91be"
+    assert rows[2].source_format == "EPUB" and rows[2].status_label == "Failed"
+    assert rows[0].status_label == "Available" and rows[0].owner_label == ""
+    assert all(row.uploaded_label.startswith("Today, ") for row in rows)
+
+    page = client.get(reverse("catalog:private-imports")).content.decode()
+
+    assert page.count('class="edition-row') == 3
+    assert page.index("All Quiet") < page.index("Title pending") < page.index("Monte-Cristo")
+    assert "<small>Author pending · TEI</small>" in page
+    assert "<small>Alexandre Dumas · EPUB</small>" in page
+    assert 'title="8c2f0000-0000-4000-8000-0000000091be"' in page
+    assert ">8c2f…91be<" in page
+    assert 'class="edition-row edition-row-failed"' in page
+    assert 'edition-warnings edition-warnings-urgent">1 warning<' in page
+    assert 'style="width:62%"' in page
+    assert "Active processing" not in page
+    assert "Runs" not in page and "words" not in page
+    assert '<span class="status status-ready">Available</span>' in page
+
+
+def test_uploaded_label_is_relative_only_for_today():
+    now = timezone.now()
+    assert uploaded_label(now) == f"Today, {timezone.localtime(now):%H:%M}"
+    earlier = datetime.datetime(2026, 9, 13, 21, 28, tzinfo=datetime.UTC)
+    assert uploaded_label(earlier) == "Sep 13, 21:28"
