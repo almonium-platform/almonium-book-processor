@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 
 from django.conf import settings
 from django.db import transaction
@@ -244,6 +245,25 @@ def queue_for_translations_of(source: Edition) -> list[PipelineRun]:
     return runs
 
 
+# The provider has answered a bare, empty 404 to a request it completes a
+# moment later. Its own client retries 408/409/429 and 5xx; these are ours.
+TRANSIENT_STATUSES = {404, 408, 409, 429, 500, 502, 503, 504}
+RETRY_DELAYS = (2, 8)
+
+
+def _respond(provider, body: dict) -> dict:
+    for attempt, delay in enumerate((*RETRY_DELAYS, None)):
+        try:
+            return provider.respond(body)
+        except Exception as error:
+            status = getattr(error, "status_code", None)
+            if delay is None or status not in TRANSIENT_STATUSES:
+                raise
+            logger.warning("Provider answered HTTP %s; retry %d", status, attempt + 1)
+            time.sleep(delay)
+    raise AssertionError("unreachable")
+
+
 def _call(edition, run, key, configuration, template, body, model_class, provider):
     """One checkpointed direct call: a finished result is reused, never paid for again."""
 
@@ -266,7 +286,7 @@ def _call(edition, run, key, configuration, template, body, model_class, provide
     ai_run.error = ""
     ai_run.save(update_fields=["status", "pipeline_run", "started_at", "error", "updated_at"])
     try:
-        response = provider.respond(body)
+        response = _respond(provider, body)
         record_response(ai_run.id, response)
         if response.get("status") != "completed":
             raise ValueError("Provider did not complete the request.")

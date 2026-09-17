@@ -143,16 +143,26 @@ def ukrainian(source):
     return edition
 
 
+class Flaky(Exception):
+    """An HTTP error as the OpenAI client raises it: a status, no body."""
+
+    status_code = 404
+
+
 class Provider:
     """Answers each request from its schema name; counts what it was asked."""
 
-    def __init__(self, *, fail_chapter=None):
+    def __init__(self, *, fail_chapter=None, flaky_calls=0):
         self.calls = []
         self.fail_chapter = fail_chapter
+        self.flaky_calls = flaky_calls
 
     def respond(self, body):
         name = body["text"]["format"]["name"]
         self.calls.append(name)
+        if self.flaky_calls:
+            self.flaky_calls -= 1
+            raise Flaky("Error code: 404")
         if name == "title_page":
             assert "Title: Frankenstein; or, the Modern Prometheus" in body["input"]
             assert "A young scientist creates" in body["input"]
@@ -301,6 +311,34 @@ def test_a_failed_run_flags_the_edition_and_a_retry_reuses_finished_calls(source
     assert provider.calls == ["chapter_summary"]
     assert ukrainian.title == "Франкенштейн, або Сучасний Прометей"
     assert not ukrainian.warnings.filter(code="translation_title_page", resolved_at=None).exists()
+
+
+def test_a_transient_provider_error_is_retried_within_the_call(source, ukrainian, monkeypatch):
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.metadata_translation.time.sleep", lambda _: None
+    )
+    analysed(source, 1, ["Walton writes home."])
+    run = queue_metadata_translation(str(ukrainian.id))
+    provider = Provider(flaky_calls=2)
+
+    run_metadata_translation(run.id, provider=provider)
+
+    run.refresh_from_db()
+    ukrainian.refresh_from_db()
+    assert run.status == PipelineRun.Status.SUCCEEDED
+    # Two empty 404s on the title page, then the answer; the chapter went first time.
+    assert provider.calls == ["title_page", "title_page", "title_page", "chapter_summary"]
+    assert ukrainian.title == "Франкенштейн, або Сучасний Прометей"
+
+    # A third refusal is the provider's answer, not a blip: the run fails and says so.
+    source.artifacts.filter(chapter__sequence=1).update(is_current=False)
+    analysed(source, 1, ["Walton writes to his sister."])
+    rerun = queue_metadata_translation(str(ukrainian.id))
+    with pytest.raises(Flaky):
+        run_metadata_translation(rerun.id, provider=Provider(flaky_calls=3))
+    rerun.refresh_from_db()
+    assert rerun.status == PipelineRun.Status.FAILED
+    assert rerun.error.startswith("Flaky: Error code: 404")
 
 
 def test_only_a_parallel_translation_is_named_from_its_source(source, ukrainian):
