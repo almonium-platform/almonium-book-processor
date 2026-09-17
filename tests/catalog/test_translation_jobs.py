@@ -622,6 +622,8 @@ def test_the_publication_payload_names_the_edition_and_the_job_that_asked_for_it
     assert sent["path"] == "/internal/books/publications"
     assert sent["payload"]["editionId"] == str(edition.id)
     assert sent["payload"]["externalJobId"] == str(edition.external_job_id)
+    # The count a shelf says "chapter 3 of 24" against comes from here, not from a client.
+    assert sent["payload"]["chapterCount"] == edition.chapters.count()
 
     edition.external_job_id = None
     publish_to_almonium(edition)

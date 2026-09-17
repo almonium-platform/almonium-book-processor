@@ -152,6 +152,8 @@ def publish_to_almonium(edition: Edition) -> str:
         "coverUrl": edition.work.cover_url or None,
         "cefrLevel": edition.cefr_level,
         "wordCount": edition.word_count,
+        # What every shelf says "chapter 3 of 24" against; the processor is its one source.
+        "chapterCount": edition.chapters.count(),
         "editionId": str(edition.id),
         "externalJobId": str(edition.external_job_id) if edition.external_job_id else None,
     }
