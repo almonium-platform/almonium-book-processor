@@ -84,3 +84,38 @@ jobs:
             --extra-vars deploy_image_digest=${{ inputs.image_digest }}
             --extra-vars deploy_gh_actor=${{ github.actor }}
             --extra-vars deploy_gh_token=${{ secrets.GITHUB_TOKEN }}
+
+  # `main` is a pointer this pipeline owns: it marks the commit production runs, so a rollback
+  # by digest moves it back. Nothing merges into it; the commit comes from the image's
+  # revision label, which is why a digest re-deploy can still find it.
+  record-main:
+    needs: deploy
+    if: inputs.environment_name == 'prod'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Point main at the deployed commit
+        env:
+          IMAGE: ghcr.io/almonium-platform/almonium-book-processor
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Attestations sit beside the platform image in the index, so .Image is either the
+          # one image or a map keyed by platform.
+          sha="$(docker buildx imagetools inspect "$IMAGE@$IMAGE_DIGEST" --format '{{json .Image}}' \
+            | jq -r '(if has("config") then . else [.[] | select(.config != null)][0] end).config.Labels["org.opencontainers.image.revision"]')"
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "The deployed image carries no org.opencontainers.image.revision label: '$sha'" >&2
+            exit 1
+          fi
+          gh api --method PATCH "repos/$GH_REPO/git/refs/heads/main" -f sha="$sha" -F force=true > /dev/null
+          echo "- \`main\` now points at \`$sha\`, the commit production runs" >> "$GITHUB_STEP_SUMMARY"
