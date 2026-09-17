@@ -509,6 +509,10 @@ def analyze_chapters(run_id: str, *, provider=None) -> None:
             updated_at=timezone.now(),
         )
         raise
+    # The descriptions changed; each companion's contents are translated from them.
+    from almonium_book_processor.catalog.metadata_translation import queue_for_translations_of
+
+    queue_for_translations_of(run.edition)
 
 
 def analysis_context(edition: Edition) -> dict:

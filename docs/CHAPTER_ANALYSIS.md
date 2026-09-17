@@ -201,6 +201,18 @@ translation**, and translation jobs carry its reader-facing output across:
    text, but only once the output language is an explicit per-run parameter in
    the prompt and the spec hash. Until then the button is English-only.
 
+Points 2 and 3 are implemented (2026-09-17) as a run of their own rather than
+inside the translation job: `catalog/metadata_translation.py` names a parallel
+translation (title, author and blurb, from the source's) and translates the
+source's current chapter descriptions, one small direct call per chapter, each
+keyed by what it translates and reused on retry. It is queued when a
+translation completes and again when the source's analysis completes, and staff
+can queue it from the edition page. The public chapters endpoint serves a
+parallel translation the source's level and status with these descriptions,
+and says "pending" rather than showing the source language while a
+description is untranslated. Publication of a parallel translation requires
+its title page to be current. Point 1, the readiness condition, is still open.
+
 Open follow-ups: an approved text correction on a public edition currently
 leaves the analysis stale and hides every chapter description, not only the
 corrected chapters, until staff requeue by hand. See the backlog.

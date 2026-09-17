@@ -106,38 +106,6 @@ def output_line(custom_id: str, blocks: list[dict]) -> dict:
     }
 
 
-def title_page_line(title: str, author: str) -> dict:
-    """The title-page output; its usage is nil so chapter token sums stay legible."""
-
-    return {
-        "custom_id": "title-page",
-        "response": {
-            "status_code": 200,
-            "body": {
-                "output": [
-                    {
-                        "type": "message",
-                        "content": [
-                            {
-                                "type": "output_text",
-                                "text": json.dumps(
-                                    {"title": title, "author": author, "note": ""},
-                                    ensure_ascii=False,
-                                ),
-                            }
-                        ],
-                    }
-                ],
-                "usage": {"input_tokens": 0, "output_tokens": 0},
-            },
-        },
-    }
-
-
-def chapter_request(sink: dict) -> dict:
-    return next(request for request in sink["requests"] if request["custom_id"] != "title-page")
-
-
 def translated(block_id: str, text: str, **overrides) -> dict:
     return {
         "block_id": block_id,
@@ -149,7 +117,9 @@ def translated(block_id: str, text: str, **overrides) -> dict:
     }
 
 
-def test_parallel_translation_inherits_canonical_block_groups(monkeypatch) -> None:
+def test_parallel_translation_inherits_canonical_block_groups(
+    monkeypatch, django_capture_on_commit_callbacks
+) -> None:
     source = canonical_edition()
     edition = create_parallel_translation(
         source_edition=source,
@@ -163,48 +133,44 @@ def test_parallel_translation_inherits_canonical_block_groups(monkeypatch) -> No
 
     sink: dict = {}
     fake_provider(monkeypatch, sink)
+    named: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.metadata_translation.queue_metadata_translation",
+        named.append,
+    )
     ai_run = submit_translation_batch(str(edition.id), tier="quality")
 
     assert ai_run.status == AIRun.Status.SUBMITTED
-    # One request per chapter, plus the title page: the edition is named in
-    # its own language by the same run that fills it.
-    assert [request["custom_id"] for request in sink["requests"]] == ["title-page", "chapter-1"]
-    body = chapter_request(sink)["body"]
+    assert len(sink["requests"]) == 1
+    body = sink["requests"][0]["body"]
     assert "dreary night of November" in body["input"]
     # The register and work metadata must reach the model, not just the blocks.
     assert "period-faithful" in body["instructions"]
     assert "published 1818" in body["instructions"]
-    title_page = sink["requests"][0]["body"]
-    assert "Title: Translation Work\nAuthor: Ada Author" in title_page["input"]
-    assert title_page["text"]["format"]["name"] == "title_page"
-    assert "into French" in title_page["instructions"]
 
-    custom_id = chapter_request(sink)["custom_id"]
-    complete_translation_batch(
-        ai_run,
-        [
-            title_page_line("Œuvre de traduction", "Ada Autrice"),
-            output_line(
-                custom_id,
-                [
-                    translated("c1.h1", "Chapitre premier"),
-                    translated(
-                        "c1.p2",
-                        "Ce fut par une lugubre nuit de novembre que je contemplai "
-                        "l'accomplissement de mes travaux.",
-                    ),
-                ],
-            ),
-        ],
-    )
+    custom_id = sink["requests"][0]["custom_id"]
+    with django_capture_on_commit_callbacks(execute=True):
+        complete_translation_batch(
+            ai_run,
+            [
+                output_line(
+                    custom_id,
+                    [
+                        translated("c1.h1", "Chapitre premier"),
+                        translated(
+                            "c1.p2",
+                            "Ce fut par une lugubre nuit de novembre que je contemplai "
+                            "l'accomplissement de mes travaux.",
+                        ),
+                    ],
+                )
+            ],
+        )
 
     edition.refresh_from_db()
     assert edition.status == Edition.Status.READY
-    assert (edition.title, edition.author) == ("Œuvre de traduction", "Ada Autrice")
-    # The work itself keeps its name; only this edition is titled in French.
-    assert (edition.work.title, edition.work.author) == ("Translation Work", "Ada Author")
-    ai_run.refresh_from_db()
-    assert ai_run.response_payload["summary"]["title_page"]["title"] == "Œuvre de traduction"
+    # The text is in French; its name, blurb and contents follow from the same event.
+    assert named == [str(edition.id)]
     # A generated edition is keyed by its own text: publication refuses a blank hash.
     assert len(edition.source_sha256) == 64
     assert edition.source_sha256 != source.source_sha256
@@ -248,7 +214,7 @@ def test_translation_retry_uses_register_even_after_credit_is_edited(monkeypatch
     retried = submit_translation_batch(str(edition.id))
     assert retried.id == first.id
     assert retried.request_payload["register"] == "period-faithful"
-    assert "Target register: period-faithful" in chapter_request(sink)["body"]["instructions"]
+    assert "Target register: period-faithful" in sink["requests"][0]["body"]["instructions"]
 
 
 @pytest.mark.parametrize("register", ["", "unknown"])
@@ -313,7 +279,7 @@ def test_missing_block_fails_the_run_without_materializing(monkeypatch) -> None:
     sink: dict = {}
     fake_provider(monkeypatch, sink)
     ai_run = submit_translation_batch(str(edition.id), tier="quality")
-    custom_id = chapter_request(sink)["custom_id"]
+    custom_id = sink["requests"][0]["custom_id"]
 
     with pytest.raises(ValueError):
         complete_translation_batch(
@@ -337,7 +303,7 @@ def test_a_retried_run_keeps_what_the_failed_attempt_cost(monkeypatch) -> None:
     sink: dict = {}
     fake_provider(monkeypatch, sink)
     ai_run = submit_translation_batch(str(edition.id), tier="quality")
-    custom_id = chapter_request(sink)["custom_id"]
+    custom_id = sink["requests"][0]["custom_id"]
     with pytest.raises(ValueError):
         complete_translation_batch(
             ai_run, [output_line(custom_id, [translated("c1.h1", "Chapitre premier")])]
@@ -353,7 +319,6 @@ def test_a_retried_run_keeps_what_the_failed_attempt_cost(monkeypatch) -> None:
     complete_translation_batch(
         retried,
         [
-            title_page_line("Œuvre de traduction", "Ada Autrice"),
             output_line(
                 custom_id,
                 [
@@ -364,7 +329,7 @@ def test_a_retried_run_keeps_what_the_failed_attempt_cost(monkeypatch) -> None:
                         "de mes travaux.",
                     ),
                 ],
-            ),
+            )
         ],
     )
 
@@ -387,7 +352,7 @@ def test_length_and_confidence_gates_send_edition_to_review(monkeypatch) -> None
     sink: dict = {}
     fake_provider(monkeypatch, sink)
     ai_run = submit_translation_batch(str(edition.id), tier="quality")
-    custom_id = chapter_request(sink)["custom_id"]
+    custom_id = sink["requests"][0]["custom_id"]
 
     complete_translation_batch(
         ai_run,
@@ -410,49 +375,6 @@ def test_length_and_confidence_gates_send_edition_to_review(monkeypatch) -> None
     assert edition.warnings.filter(
         code="translation_low_confidence", severity=QAWarning.Severity.WARNING
     ).exists()
-
-
-def test_a_missing_title_page_keeps_the_book_and_asks_the_editor_to_name_it(monkeypatch) -> None:
-    source = canonical_edition()
-    edition = create_parallel_translation(
-        source_edition=source,
-        target_language="fr",
-        register="period-faithful",
-        tier="quality",
-    )
-    sink: dict = {}
-    fake_provider(monkeypatch, sink)
-    ai_run = submit_translation_batch(str(edition.id), tier="quality")
-    custom_id = chapter_request(sink)["custom_id"]
-
-    complete_translation_batch(
-        ai_run,
-        [
-            output_line(
-                custom_id,
-                [
-                    translated("c1.h1", "Chapitre premier"),
-                    translated(
-                        "c1.p2",
-                        "Ce fut par une lugubre nuit de novembre que je contemplai "
-                        "l'accomplissement de mes travaux.",
-                    ),
-                ],
-            )
-        ],
-    )
-
-    edition.refresh_from_db()
-    ai_run.refresh_from_db()
-    assert ai_run.status == AIRun.Status.SUCCEEDED
-    assert edition.blocks.count() == 2
-    # The chapters are a book; the name is the editor's to give, and it says so.
-    assert edition.status == Edition.Status.REVIEW
-    assert (edition.title, edition.author) == ("Translation Work", "Ada Author")
-    warning = edition.warnings.get(code="translation_title_page", resolved_at=None)
-    assert warning.severity == QAWarning.Severity.WARNING
-    assert "omitted the title page" in warning.message
-    assert "omitted the title page" in ai_run.response_payload["summary"]["title_page"]["error"]
 
 
 def test_translation_requires_a_canonical_source() -> None:
@@ -545,4 +467,4 @@ def test_interrupted_direct_run_can_restart(monkeypatch) -> None:
     ai_run.save(update_fields=["request_payload"])
     prepared = _prepare_translation_run(str(edition.id), tier="quality")
     assert isinstance(prepared, tuple)
-    assert [request["custom_id"] for request in prepared[1]] == ["title-page", "chapter-1"]
+    assert len(prepared[1]) == 1

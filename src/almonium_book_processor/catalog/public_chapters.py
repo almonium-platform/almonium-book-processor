@@ -51,7 +51,9 @@ def retained_projections(edition) -> dict[str, tuple[dict, dict]]:
     return retained
 
 
-def public_chapters(edition):
+def chapter_rows(edition) -> list[dict]:
+    """Each chapter's reader-facing analysis, with the hashes it was made for."""
+
     context = analysis_context(edition)
     projections = {row["chapter"].id: row for row in context.get("chapter_projections", [])}
     state = context.get("projection_state", "pending")
@@ -85,6 +87,61 @@ def public_chapters(edition):
                 ]
                 if summary.get("complete")
                 else [],
+                "chapter_hash": summary.get("chapter_hash"),
+                "analysis_spec_hash": summary.get("analysis_spec_hash"),
+            }
+        )
+    return chapters
+
+
+PUBLIC_KEYS = ("id", "sequence", "title", "analysisStatus", "cefrEstimate", "descriptions")
+
+
+def public_chapters(edition):
+    if edition.is_parallel_translation:
+        return _translated_chapters(edition)
+    return [{key: row[key] for key in PUBLIC_KEYS} for row in chapter_rows(edition)]
+
+
+def _translated_chapters(edition):
+    """A parallel translation's contents: the source's level, its own descriptions.
+
+    The rubric is never applied to translated text, so the reading demand
+    shown is the source's. A description appears only once it is translated
+    from the source's current analysis; until then the chapter says so
+    rather than showing the source language.
+    """
+
+    from almonium_book_processor.catalog.adaptation import digest
+    from almonium_book_processor.catalog.metadata_translation import translated_summaries
+
+    source_rows = {row["sequence"]: row for row in chapter_rows(edition.source_edition)}
+    translated = translated_summaries(edition)
+    chapters = []
+    for chapter in edition.chapters.order_by("sequence"):
+        row = source_rows.get(chapter.sequence)
+        status, level, descriptions = "pending", None, []
+        if row is not None:
+            status, level = row["analysisStatus"], row["cefrEstimate"]
+            summary = translated.get(row["id"])
+            if (
+                summary
+                and row["descriptions"]
+                and summary["chapter_hash"] == row["chapter_hash"]
+                and summary["analysis_spec_hash"] == row["analysis_spec_hash"]
+                and summary["source_descriptions_hash"] == digest(row["descriptions"])
+            ):
+                descriptions = summary["descriptions"]
+            elif row["descriptions"]:
+                status = "pending"
+        chapters.append(
+            {
+                "id": str(chapter.id),
+                "sequence": chapter.sequence,
+                "title": chapter.title,
+                "analysisStatus": status,
+                "cefrEstimate": level,
+                "descriptions": descriptions,
             }
         )
     return chapters

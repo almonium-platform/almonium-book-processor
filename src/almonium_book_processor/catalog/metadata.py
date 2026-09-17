@@ -118,6 +118,9 @@ def form_provenance(edition: Edition) -> dict[str, str]:
         # The same decision named the work and this edition.
         fields["edition_title"] = "title"
         fields["language"] = "language"
+    else:
+        # A derived edition's blurb is its own; the work's provenance is not its story.
+        fields.pop("description")
     return {name: provenance[key] for name, key in fields.items() if provenance.get(key)}
 
 
@@ -297,9 +300,11 @@ def confirm_metadata(
         if owns_work:
             work.author = edition.author
         provenance["author"] = PROVENANCE_USER
-    if description is not None:
+    if description is not None and owns_work:
         work.description = description.strip()
         provenance["description"] = PROVENANCE_USER
+    elif description is not None:
+        edition.description = description.strip()
     if language and language != edition.language:
         edition.language = language
         if owns_work and original_language is None:
@@ -351,6 +356,7 @@ def confirm_metadata(
                 "slug",
                 "title",
                 "author",
+                "description",
                 "language",
                 "cefr_level",
                 "status",

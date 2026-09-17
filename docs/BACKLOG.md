@@ -141,11 +141,14 @@ is one Batch job with no alignment step.
   a canonical edition for translation, next to sentences, lexical enrichment and
   source QA. Decided 2026-09-17; see `CHAPTER_ANALYSIS.md`, "Non-English and
   parallel editions".
-- [ ] Translate chapter descriptions (and themes, setting, content flags) in the
-  translation job itself, keyed by source chapter hash and analysis spec hash, and
-  serve them with the source's CEFR estimate from the public chapters endpoint.
-  Never run the analysis rubric on a machine translation. The Ukrainian
-  Frankenstein currently shows no descriptions for this reason.
+- [x] Translate chapter descriptions for a parallel translation, keyed by source
+  chapter hash, analysis spec hash and the source wording, and serve them with the
+  source's CEFR estimate from the public chapters endpoint. Done 2026-09-17 as the
+  metadata-translation run (`catalog/metadata_translation.py`), which also names
+  the edition (title, author, blurb) in its language; it runs after translation
+  and again when the source's analysis completes. The rubric is never run on a
+  machine translation. Themes, setting and content flags are not translated: no
+  reader surface shows them yet.
 - [x] Keep serving each chapter's latest complete description and level from the
   public chapters endpoint when the run is stale or still running, with a
   per-chapter `stale` status when that chapter's own text changed (2026-09-17).

@@ -25,9 +25,6 @@ from almonium_book_processor.catalog.adaptation import (
 from almonium_book_processor.catalog.adaptation import (
     TARGET_LEVEL as ADAPTATION_TARGET_LEVEL,
 )
-from almonium_book_processor.catalog.adaptation import (
-    VERSION as ADAPTATION_PILOT_VERSION,
-)
 from almonium_book_processor.catalog.ai_translation import (
     create_parallel_translation,
     last_translation_mode,
@@ -275,12 +272,14 @@ def queue_book_adaptation(request: HttpRequest, edition_id: str) -> HttpResponse
 
     edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
     try:
-        run = queue_book(edition.id)
+        run = queue_book(edition.id, target_level=request.POST.get("target_level", "B2"))
     except ValueError as error:
         messages.error(request, str(error))
         return redirect("catalog:edition-detail", edition_id=edition.id)
     messages.success(
-        request, "B2 edition queued. Completed chunks are reused; publication requires review."
+        request,
+        f"{run.summary['target_level']} edition queued. Completed chunks are reused; "
+        "publication requires review.",
     )
     return redirect("catalog:edition-detail", edition_id=run.edition_id)
 
@@ -322,12 +321,7 @@ def adaptation_pilot(request: HttpRequest, edition_id: str, run_id: str) -> Http
 
     context = pilot_context(run)
     choices = []
-    if (
-        run.processor_version == ADAPTATION_PILOT_VERSION
-        and not context["stale"]
-        and run.status == "succeeded"
-        and run.summary.get("block_ids") is None
-    ):
+    if not context["stale"] and run.status == "succeeded" and run.summary.get("block_ids") is None:
         source_chapter = run.edition.chapters.filter(pk=run.summary["chapter_id"]).first()
         if source_chapter:
             for edition in run.edition.derived_editions.filter(
@@ -337,7 +331,9 @@ def adaptation_pilot(request: HttpRequest, edition_id: str, run_id: str) -> Http
                 withdrawal_requested_at__isnull=True,
             ):
                 chapter = edition.chapters.filter(sequence=source_chapter.sequence).first()
-                if chapter:
+                from almonium_book_processor.catalog.adaptation_quality import adaptation_target
+
+                if chapter and adaptation_target(edition) == run.summary.get("target_level"):
                     choices.append(
                         {"edition": edition, "value": f"{edition.id}:{chapter_revision(chapter)}"}
                     )
@@ -355,7 +351,7 @@ def apply_adaptation_pilot(request: HttpRequest, edition_id: str, run_id: str) -
         pk=run_id,
         edition_id=edition_id,
         edition__work__visibility="public",
-        processor_version=ADAPTATION_PILOT_VERSION,
+        processor_version__in=PILOT_VERSIONS,
     )
     try:
         target_id, revision = request.POST.get("target_choice", "").split(":", 1)
@@ -379,6 +375,30 @@ def apply_adaptation_pilot(request: HttpRequest, edition_id: str, run_id: str) -
         f"Applied {count} block changes. The edition remains in review; fresh analysis is queued.",
     )
     return redirect("catalog:edition-detail", edition_id=target_id)
+
+
+@staff_member_required
+@require_POST
+def queue_metadata_translation_view(request: HttpRequest, edition_id: str) -> HttpResponse:
+    """Name and describe a parallel translation from its source, in its own language."""
+
+    from almonium_book_processor.catalog.metadata_translation import queue_metadata_translation
+
+    edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
+    try:
+        run = queue_metadata_translation(str(edition.id))
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request,
+            "The title page and chapter descriptions are already translated from the "
+            "source's current values."
+            if run.status == PipelineRun.Status.SUCCEEDED
+            else "Metadata translation queued. Finished calls are reused; only what "
+            "changed at the source is paid for again.",
+        )
+    return redirect("catalog:edition-detail", edition_id=edition.id)
 
 
 @staff_member_required
@@ -534,7 +554,7 @@ def _render_edition_detail(
                 stage=PipelineRun.Stage.ADAPT, processor_version__in=PILOT_VERSIONS
             ),
             "book_adaptation_run": edition.pipeline_runs.filter(
-                stage=PipelineRun.Stage.ADAPT, processor_version="b2-book-v1"
+                stage=PipelineRun.Stage.ADAPT, processor_version__in=("b1-book-v1", "b2-book-v1")
             ).first(),
             "chapter_role_choices": Chapter.AnalysisRole.choices,
             "metadata_form": metadata_form or EditionMetadataForm.for_edition(edition),
@@ -547,6 +567,11 @@ def _render_edition_detail(
                 publication_blocker(edition) if edition.status == Edition.Status.READY else ""
             ),
             "publication_stale": publication_stale(edition),
+            "is_parallel_translation": edition.is_parallel_translation,
+            "metadata_translation_run": next(
+                (run for run in pipeline_runs if run.stage == PipelineRun.Stage.TRANSLATE_METADATA),
+                None,
+            ),
             **_promotion_context(edition, pipeline_runs),
             "has_blocks": edition.blocks.exists(),
             "blocks": blocks,
@@ -1572,12 +1597,16 @@ def retry_failed_edition(request: HttpRequest, edition_id: str) -> HttpResponse:
         messages.error(request, "Only failed editions can be retried.")
     elif (
         edition.edition_type == Edition.EditionType.ADAPTATION
-        and edition.pipeline_runs.filter(processor_version="b2-book-v1").exists()
+        and edition.pipeline_runs.filter(
+            processor_version__in=("b1-book-v1", "b2-book-v1")
+        ).exists()
     ):
         from almonium_book_processor.catalog.book_adaptation import queue_book
 
         try:
-            run = queue_book(edition.source_edition_id)
+            from almonium_book_processor.catalog.adaptation_quality import adaptation_target
+
+            run = queue_book(edition.source_edition_id, target_level=adaptation_target(edition))
         except ValueError as error:
             messages.error(request, str(error))
         else:

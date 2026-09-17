@@ -29,6 +29,8 @@ class EditionSerializer(serializers.ModelSerializer):
     # canonical and parallel editions share canonical block groups.
     supports_parallel_reading = serializers.BooleanField(read_only=True)
     machine_generated = serializers.BooleanField(source="is_machine_generated", read_only=True)
+    # The blurb in the edition's language, or the work's when it has none of its own.
+    description = serializers.CharField(source="public_description", read_only=True)
 
     class Meta:
         model = Edition
@@ -39,6 +41,7 @@ class EditionSerializer(serializers.ModelSerializer):
             "source_edition_id",
             "title",
             "author",
+            "description",
             "language",
             "edition_type",
             "parallel_role",

@@ -54,6 +54,11 @@ urlpatterns = [
         name="queue-chapter-analysis",
     ),
     path(
+        "editions/<uuid:edition_id>/metadata/translate/",
+        views.queue_metadata_translation_view,
+        name="queue-metadata-translation",
+    ),
+    path(
         "editions/<uuid:edition_id>/metadata/confirm/",
         views.confirm_edition_metadata,
         name="confirm-edition-metadata",

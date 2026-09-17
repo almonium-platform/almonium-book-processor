@@ -172,15 +172,19 @@ class EditionMetadataForm(forms.Form):
     @classmethod
     def for_edition(cls, edition: Edition, data=None) -> EditionMetadataForm:
         from almonium_book_processor.catalog.adaptation_quality import adaptation_target
+        from almonium_book_processor.catalog.metadata import _edition_owns_work
 
         work = edition.work
-        return cls(
+        owns_work = _edition_owns_work(edition)
+        form = cls(
             data,
             initial={
                 "work_slug": work.slug,
                 "work_title": work.title,
                 "author": edition.author,
-                "description": work.description,
+                # A derived edition describes itself in its own language; the
+                # work's blurb is what readers see while it has none.
+                "description": work.description if owns_work else edition.description,
                 "original_language": work.original_language,
                 "publication_year": work.publication_year,
                 "cover_url": work.cover_url,
@@ -192,6 +196,12 @@ class EditionMetadataForm(forms.Form):
                 "cefr_level": edition.cefr_level or adaptation_target(edition) or "",
             },
         )
+        if not owns_work:
+            form.fields["description"].label = "Description (this edition)"
+            form.fields[
+                "description"
+            ].help_text = "In this edition's language. Blank shows the work's description."
+        return form
 
 
 class MultipleFileInput(forms.ClearableFileInput):

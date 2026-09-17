@@ -30,8 +30,9 @@ GUIDANCE = {
         "assessment; this item clears itself when a reassessment passes."
     ),
     TITLE_PAGE_CODE: (
-        "A translated edition is catalogued under the title and author a reader of its "
-        "language knows. Enter both in the metadata form and confirm it, then resolve."
+        "A translated edition is catalogued under the title, author and blurb a reader of "
+        "its language knows. Run the metadata translation again, or enter them in the "
+        "metadata form and confirm it; this item clears itself when a run succeeds."
     ),
 }
 
@@ -124,6 +125,7 @@ def review_item(edition: Edition, warning: QAWarning) -> dict:
     elif warning.code == DIFFICULTY_CODE:
         item["links"].append({"label": "Chapter estimates", "url": "#chapter-analysis"})
     elif warning.code == TITLE_PAGE_CODE:
+        item["links"].append({"label": "Metadata translation", "url": "#metadata-translation"})
         item["links"].append({"label": "Metadata form", "url": "#metadata"})
     return item
 

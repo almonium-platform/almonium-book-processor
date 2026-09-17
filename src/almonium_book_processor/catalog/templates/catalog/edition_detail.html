@@ -40,7 +40,7 @@
     {% csrf_token %}
     <div class="form-grid">
       {% for field in metadata_form %}
-        <label><span>{{ field.label }}{% with source=metadata_provenance|get_item:field.name %}{% if source %} <em class="provenance provenance-{{ source }}">{% if source == "ai" %}AI{% elif source == "source" %}file{% else %}editor{% endif %}</em>{% endif %}{% endwith %}</span>{{ field }}{{ field.errors }}</label>
+        <label><span>{{ field.label }}{% with source=metadata_provenance|get_item:field.name %}{% if source %} <em class="provenance provenance-{{ source }}">{% if source == "ai" %}AI{% elif source == "source" %}file{% else %}editor{% endif %}</em>{% endif %}{% endwith %}</span>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>
       {% endfor %}
     </div>
     <button class="button" type="submit">Confirm metadata</button>
@@ -114,7 +114,16 @@
       </div>
       <form method="post" action="{% url 'catalog:queue-lexical-analysis' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Analyse</button></form>
     </div>
-    {% if not is_private %}
+    {% if is_parallel_translation %}
+    <div class="action-row" id="metadata-translation">
+      <div>
+        <strong>Translate the title page and contents</strong>
+        <p class="muted">Names this edition as {{ edition.get_language_display }} readers know it — title, author and blurb — and translates the source's chapter descriptions for its contents. Reading difficulty stays the source's: the rubric is never applied to a machine translation. Runs by itself after translation and after the source is analysed; finished calls are reused.</p>
+        {% if metadata_translation_run %}<p class="muted">Last run: <span class="status status-{{ metadata_translation_run.status }}">{{ metadata_translation_run.get_status_display }}</span> · {{ metadata_translation_run.summary.chapters|default:0 }} / {{ metadata_translation_run.summary.chapters_available|default:0 }} chapters{% if metadata_translation_run.summary.note %} · {{ metadata_translation_run.summary.note }}{% endif %}{% if metadata_translation_run.error %} · {{ metadata_translation_run.error }}{% endif %}</p>{% endif %}
+      </div>
+      {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-metadata-translation' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Translate</button></form>{% else %}<p class="muted">Configure an OpenAI key to translate metadata.</p>{% endif %}
+    </div>
+    {% elif not is_private %}
     <div class="action-row">
       <div>
         <strong>Analyze chapters with AI</strong>
@@ -128,6 +137,13 @@
 {% endif %}
 
 {% if not is_private and has_blocks %}
+{% if is_parallel_translation %}
+<section class="panel assessment-panel">
+  <p class="eyebrow">Reading difficulty · borrowed from the source</p>
+  <h2>Assessed on <a href="{% url 'catalog:edition-detail' edition.source_edition.id %}">{{ edition.source_edition.title }} ({{ edition.source_edition.language|upper }})</a></h2>
+  <p class="muted">A parallel translation is read beside its source, so the reading demand that matters is the source's, and the rubric is never applied to machine-translated text. Readers of this edition see the source's chapter levels with descriptions translated into {{ edition.get_language_display }} by the metadata translation above.</p>
+</section>
+{% else %}
 <section class="panel assessment-panel">
   <p class="eyebrow">Reading difficulty · {{ projection_state|default:"pending" }}</p>
   <h2>Computed estimate: {{ book_difficulty.cefr_estimate|default:"Pending" }}</h2>
@@ -159,6 +175,7 @@
   {% endfor %}
   {% endif %}
 </section>
+{% endif %}
 {% endif %}
 
 {% if edition.work.visibility == "public" and edition.edition_type != "adaptation" %}

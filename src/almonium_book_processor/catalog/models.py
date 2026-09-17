@@ -121,6 +121,10 @@ class Edition(TimestampedModel):
     )
     title = models.CharField(max_length=500)
     author = models.CharField(max_length=300)
+    description = models.TextField(
+        blank=True,
+        help_text="The blurb in this edition's language; blank means the work's own.",
+    )
     language = models.CharField(max_length=35, choices=LANGUAGE_CHOICES)
     edition_type = models.CharField(
         max_length=32,
@@ -221,6 +225,27 @@ class Edition(TimestampedModel):
     @property
     def is_canonical(self) -> bool:
         return self.parallel_role == self.ParallelRole.CANONICAL
+
+    @property
+    def public_description(self) -> str:
+        return self.description or self.work.description
+
+    @property
+    def is_parallel_translation(self) -> bool:
+        """A block-for-block companion in another language than its source.
+
+        Such an edition is read beside its source, so its reading demand is
+        the source's; what it needs of its own is a name and descriptions in
+        its language. An adaptation shares the language and has its own text
+        to assess; an independently imported translation has its own
+        chapters and is a separate case.
+        """
+
+        return (
+            self.source_edition_id is not None
+            and self.parallel_role == self.ParallelRole.PARALLEL
+            and self.language != self.source_edition.language
+        )
 
     @property
     def supports_parallel_reading(self) -> bool:
@@ -497,6 +522,7 @@ class PipelineRun(TimestampedModel):
         LEXICAL = "lexical", "Lexical analysis"
         SOURCE_QA = "source_qa", "Source text QA"
         TRANSLATE = "translate", "Translation"
+        TRANSLATE_METADATA = "translate_metadata", "Metadata translation"
         ADAPT = "adapt", "Level adaptation"
         PUBLISH = "publish", "Publication"
         PROMOTE = "promote", "Promotion"
@@ -582,6 +608,10 @@ class EditionArtifact(TimestampedModel):
         DIFFICULTY = "difficulty", "Difficulty assessment"
         DESCRIPTION = "description", "Generated description"
         CHAPTER_SUMMARY = "chapter_summary", "Chapter summary"
+        CHAPTER_SUMMARY_TRANSLATION = (
+            "chapter_summary_translation",
+            "Translated chapter summary",
+        )
         QUIZ = "quiz", "Quiz"
         SENTENCE_ALIGNMENT = "sentence_alignment", "Pair-specific sentence alignment"
 

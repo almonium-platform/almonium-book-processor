@@ -106,6 +106,13 @@ def analyze_edition_chapters(self, run_id: str) -> None:
 
 
 @shared_task(acks_late=True)
+def translate_edition_metadata(run_id: str) -> None:
+    from almonium_book_processor.catalog.metadata_translation import run_metadata_translation
+
+    run_metadata_translation(run_id)
+
+
+@shared_task(acks_late=True)
 def adapt_book(run_id: str) -> None:
     from almonium_book_processor.catalog.book_adaptation import run_book
 
@@ -394,6 +401,11 @@ def publication_blocker(edition: Edition) -> str:
         input_hash__in=valid_sentence_hashes,
     ).exists():
         return "Current sentence splitting must succeed before publication."
+    if edition.is_parallel_translation:
+        from almonium_book_processor.catalog.metadata_translation import title_page_current
+
+        if not title_page_current(edition):
+            return "Translate the title, author and blurb from the source before publication."
     if edition.source_edition_id:
         if not edition.requires_inferred_alignment:
             from almonium_book_processor.catalog.parallel_content import inherited_pairs
@@ -420,6 +432,7 @@ def publication_input_hash(edition: Edition) -> str:
         edition.work.slug,
         edition.title,
         edition.author,
+        edition.public_description,
         edition.work.original_language,
         edition.language,
         edition.edition_type,
