@@ -100,6 +100,7 @@ from almonium_book_processor.catalog.tasks import (
     process_normalized_edition,
     promote_edition,
     publication_blocker,
+    publication_stale,
     publish_edition,
     translate_edition_inline,
     withdraw_edition,
@@ -232,11 +233,15 @@ def confirm_edition_metadata(request: HttpRequest, edition_id: str) -> HttpRespo
         cefr_level=data["cefr_level"] or None,
         clear_cefr_level=not data["cefr_level"],
     )
-    messages.success(
-        request,
-        "Metadata confirmed."
-        + (" Sentence splitting is re-running for the new language." if language_changed else ""),
-    )
+    note = ""
+    if language_changed:
+        note = " Sentence splitting is re-running for the new language."
+    elif publication_stale(edition) and not publication_blocker(edition):
+        # A published book keeps the old title on the website until it is
+        # sent again; the editor confirmed, so send it now.
+        publish_edition.delay(str(edition.id))
+        note = " Almonium is being updated with these values."
+    messages.success(request, "Metadata confirmed." + note)
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
 
@@ -534,6 +539,7 @@ def _render_edition_detail(
             "publish_blocked": (
                 publication_blocker(edition) if edition.status == Edition.Status.READY else ""
             ),
+            "publication_stale": publication_stale(edition),
             **_promotion_context(edition, pipeline_runs),
             "has_blocks": edition.blocks.exists(),
             "blocks": blocks,
@@ -1487,10 +1493,15 @@ def publish_edition_to_almonium(request: HttpRequest, edition_id: str) -> HttpRe
     )
     if edition.work.visibility != Work.Visibility.PUBLIC:
         messages.error(request, "Private imports are released to their owner, not published.")
-    elif edition.status != Edition.Status.READY:
+    elif edition.status == Edition.Status.PUBLISHED and not publication_stale(edition):
+        messages.info(request, "Almonium already has the current metadata of this edition.")
+    elif edition.status not in {Edition.Status.READY, Edition.Status.PUBLISHED}:
         messages.error(request, "Complete review before publishing this edition.")
     elif blocked := publication_blocker(edition):
         messages.error(request, blocked)
+    elif edition.status == Edition.Status.PUBLISHED:
+        publish_edition.delay(str(edition.id))
+        messages.success(request, "Update queued. Almonium takes the current metadata shortly.")
     else:
         publish_edition.delay(str(edition.id))
         messages.success(

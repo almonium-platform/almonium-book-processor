@@ -10,6 +10,11 @@ a { color: inherit; }
 .page-heading { display: flex; justify-content: space-between; align-items: end; margin-bottom: 2rem; }
 .page-heading h1 { margin: .15rem 0; font-size: clamp(2rem, 5vw, 3.6rem); }
 .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: .72rem; color: var(--accent); font-weight: 700; }
+/* The work's own title, shown once under an edition titled differently (a translation). */
+.original-title { margin: -.1rem 0 .4rem; color: var(--muted); font-family: Georgia, serif; font-size: 1.15rem; }
+/* The level is a field on the edition; every page shows it as this chip, never inside a title. */
+.level-chip { display: inline-block; border-radius: 999px; padding: .2rem .55rem; background: #f0e2d6; color: var(--accent); font-size: .72rem; font-weight: 700; letter-spacing: .04em; vertical-align: middle; }
+.level-chip-pending { background: #e9e1d4; color: var(--muted); }
 .button { display: inline-block; border: 0; border-radius: 999px; background: var(--accent); color: white; text-decoration: none; padding: .8rem 1.25rem; cursor: pointer; font-weight: 700; }
 .button-secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
 .button-row { display: flex; flex-wrap: wrap; gap: .75rem; }

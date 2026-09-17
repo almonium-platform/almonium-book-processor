@@ -113,7 +113,9 @@ def queue_book(source_id):
             work=source.work,
             source_edition=source,
             slug=_unique_slug(f"{source.slug[:155]}-b2"),
-            title=f"{source.title[:480]} — B2 adaptation",
+            # The level is a field on the edition and a chip in every UI; it
+            # never rides inside the title.
+            title=source.title,
             author=source.author,
             language=source.language,
             edition_type=Edition.EditionType.ADAPTATION,

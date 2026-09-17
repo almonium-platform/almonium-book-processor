@@ -4,9 +4,10 @@
 {% block content %}
 <div class="page-heading">
   <div>
-    <p class="eyebrow">{% if is_private %}Private user import{% else %}{{ edition.work.title }} · {{ edition.language|upper }} · {{ edition.cefr_level|default:"Level pending" }}{% endif %}</p>
+    <p class="eyebrow">{% if is_private %}Private user import{% else %}{{ edition.get_edition_type_display }} · {{ edition.language|upper }}{% endif %}</p>
     <h1>{{ edition.title|default:"Untitled upload" }}</h1>
-    <p>{{ edition.author|default:"Author pending" }} · {{ edition.get_edition_type_display }}</p>
+    {% if edition.work.title and edition.work.title != edition.title %}<p class="original-title">{{ edition.work.title }}</p>{% endif %}
+    <p>{{ edition.author|default:"Author pending" }}{% if is_private %} · {{ edition.get_edition_type_display }}{% endif %}{% if edition.cefr_level or not is_private %} <span class="level-chip{% if not edition.cefr_level %} level-chip-pending{% endif %}">{{ edition.cefr_level|default:"Level pending" }}</span>{% endif %}</p>
     {% if is_private %}<p class="muted">Owner {% if edition.work.owner_label %}@{{ edition.work.owner_label }} · {% endif %}{{ edition.work.owner_id }} · Uploaded {{ edition.created_at }} · Last updated {{ edition.updated_at }}</p>{% endif %}
   </div>
   <div class="button-row">
@@ -286,7 +287,7 @@
     </section>
   {% endif %}
 {% else %}
-  {% if edition.status == "ready" %}<section class="panel review-complete"><h2>Ready to publish</h2><p>Publishing sends this reviewed edition to the Almonium product API. It becomes visible on the website only after that hand-off succeeds.</p>{% if publish_blocked %}<p class="publish-blocked">{{ publish_blocked }}</p>{% endif %}<form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit"{% if publish_blocked %} disabled{% endif %}>Publish to Almonium</button></form></section>{% elif edition.status == "published" %}<section class="panel review-complete"><h2>Published to Almonium</h2><p>Published {{ edition.published_at }}{% if edition.published_book_id %} · Almonium book ID {{ edition.published_book_id }}{% endif %}</p></section>{% endif %}
+  {% if edition.status == "ready" %}<section class="panel review-complete"><h2>Ready to publish</h2><p>Publishing sends this reviewed edition to the Almonium product API. It becomes visible on the website only after that hand-off succeeds.</p>{% if publish_blocked %}<p class="publish-blocked">{{ publish_blocked }}</p>{% endif %}<form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit"{% if publish_blocked %} disabled{% endif %}>Publish to Almonium</button></form></section>{% elif edition.status == "published" %}<section class="panel review-complete"><h2>Published to Almonium</h2><p>Published {{ edition.published_at }}{% if edition.published_book_id %} · Almonium book ID {{ edition.published_book_id }}{% endif %}</p>{% if publication_stale %}<p>Almonium still shows the metadata this edition was published with. Its title, author, level or another published value has changed since.</p><form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit">Update in Almonium</button></form>{% endif %}</section>{% endif %}
 {% endif %}
 {% if show_promotion %}
 <details class="panel collapsible-panel promotion-panel"{% if promotion_runs %} open{% endif %}>

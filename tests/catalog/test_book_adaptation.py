@@ -89,6 +89,8 @@ def test_complete_book_is_separate_aligned_review_only_and_idempotent(source):
     assert target.blocks.count() == source.blocks.count()
     assert target.chapters.count() == source.chapters.count()
     assert target.cefr_level is None
+    # The level is a field and a chip; the title is the work's, untouched.
+    assert target.title == source.title and target.author == source.author
     assert target.status == "review"
     assert target.auto_publish is False
     assert target.edition_type == "adaptation"

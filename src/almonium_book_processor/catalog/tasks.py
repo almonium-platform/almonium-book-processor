@@ -411,13 +411,10 @@ def publication_blocker(edition: Edition) -> str:
     return ""
 
 
-@shared_task(acks_late=True)
-def publish_edition(edition_id: str) -> None:
-    edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
-    blocked = publication_blocker(edition)
-    if blocked:
-        raise ValueError(blocked)
-    input_hash = _text_hash(
+def publication_input_hash(edition: Edition) -> str:
+    """Everything the product API is told about an edition, in one key."""
+
+    return _text_hash(
         edition.source_sha256,
         edition.slug,
         edition.work.slug,
@@ -433,6 +430,33 @@ def publish_edition(edition_id: str) -> None:
         edition.cefr_level,
         edition.word_count,
     )
+
+
+def publication_stale(edition: Edition) -> bool:
+    """Whether Almonium serves older metadata than this published edition holds.
+
+    A title, author or level corrected after publication stays here until the
+    edition is published again; the publish run is keyed by what was sent, so
+    a publish history with no successful run for the current key is exactly
+    that gap. An edition with no publish history at all was not published
+    from here, and nothing here says what Almonium has for it.
+    """
+
+    if edition.status != Edition.Status.PUBLISHED:
+        return False
+    runs = edition.pipeline_runs.filter(
+        stage=PipelineRun.Stage.PUBLISH, status=PipelineRun.Status.SUCCEEDED
+    )
+    return runs.exists() and not runs.filter(input_hash=publication_input_hash(edition)).exists()
+
+
+@shared_task(acks_late=True)
+def publish_edition(edition_id: str) -> None:
+    edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
+    blocked = publication_blocker(edition)
+    if blocked:
+        raise ValueError(blocked)
+    input_hash = publication_input_hash(edition)
     run, _ = PipelineRun.objects.get_or_create(
         idempotency_key=f"{edition.id}:{input_hash}:publish:almonium-v2",
         defaults={
