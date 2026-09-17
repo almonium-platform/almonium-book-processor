@@ -189,11 +189,9 @@ def _plan(edition: Edition) -> dict:
 def queue_metadata_translation(edition_id: str, *, dispatch: bool = True) -> PipelineRun:
     from almonium_book_processor.catalog.tasks import translate_edition_metadata
 
-    edition = (
-        Edition.objects.select_for_update()
-        .select_related("source_edition__work", "work")
-        .get(pk=edition_id)
-    )
+    # Lock only this row: source_edition is nullable, and PostgreSQL refuses
+    # FOR UPDATE across the outer join a joined fetch would make.
+    edition = Edition.objects.select_for_update(of=("self",)).get(pk=edition_id)
     if not edition.is_parallel_translation:
         raise ValueError("Only a parallel translation is named and described from its source.")
     if not settings.OPENAI_API_KEY:
