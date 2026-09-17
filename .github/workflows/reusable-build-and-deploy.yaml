@@ -30,9 +30,8 @@ on:
       ANSIBLE_VAULT_PASSWORD_ALMONIUM_STAGING:
         required: true
 
-permissions:
-  contents: read
-  packages: write
+# No permissions block: a called workflow can only narrow what its caller granted, and the prod
+# caller grants contents: write so record-main can move main. Jobs inherit the caller's token.
 
 jobs:
   resolve-image:
