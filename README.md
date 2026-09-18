@@ -13,18 +13,23 @@ OpenAPI document is available at `/api/schema/`.
 - Django and server-rendered HTML provide the staff-only admin panel.
 - Django REST Framework exposes staff orchestration endpoints and read-only
   public book endpoints.
-- Celery workers ingest EPUB and TEI P5 sources, then run local sentence splitting,
-  hierarchical embedding alignment, and optional OpenAI Batch adjudication. They
-  will later own translation and adaptation jobs.
+- Celery workers ingest EPUB and TEI P5 sources, run local sentence splitting
+  and embedding alignment, and own every paid job: metadata detection, chapter
+  difficulty analysis, translation and metadata translation, same-language
+  adaptation, fidelity audits and floor probes. Requests go to the Responses
+  API directly; the Batch path exists but is not the default (see the backlog).
 - PostgreSQL stores normalized works, editions, chapters, blocks, runs,
   warnings, prompts, and model metadata.
 - Uploaded source files are files, not database blobs. Local development uses a Docker
   volume; deployment uses an environment-specific persistent host directory.
 - spaCy provides local sentence segmentation. Sentence Transformers provides
   multilingual embeddings used by the monotonic alignment candidate builder.
-- AI calls sit behind a provider interface. Alignment uses a project-scoped
-  `OPENAI_API_KEY`, GPT-5.6 Luna for the primary Batch pass, and GPT-5.6 Terra
-  only for automatic escalation of uncertain chapter windows.
+- AI calls sit behind a provider interface with a project-scoped
+  `OPENAI_API_KEY`. The model is chosen per job in `config/settings.py`: Luna
+  for the cheaper tiers (alignment's primary pass, metadata, chapter analysis,
+  draft translation) and Terra for text a reader will see (quality translation,
+  adaptation, fidelity audit). Every call is an `AIRun` with its prompt
+  version, token usage and estimated cost.
 
 Internal identifiers are UUIDs. Public edition slugs are the human-readable URL
 identifier. Private user imports deliberately have no public slug contract and
@@ -87,11 +92,14 @@ python3.12 -m venv .venv
 .venv/bin/pytest
 .venv/bin/ruff check src tests
 .venv/bin/ruff format --check src tests
+.venv/bin/python manage.py makemigrations --check --dry-run
+.venv/bin/python manage.py check
 ```
 
-Install `.[worker]` when running NLP locally. The first embedding request may
-download the configured model; CI unit tests never download language or
-embedding models and never call paid APIs.
+Install `.[worker]` when running NLP locally; it pins one spaCy model per
+supported language, and `manage.py check --tag nlp` proves each loads and
+lemmatizes. The first embedding request may download the configured model; CI
+installs only `.[dev]`, never downloads models and never calls paid APIs.
 
 ## Migrated catalogue
 
@@ -119,10 +127,9 @@ reprocessed with a fixed importer, a new processor version, or a later review
 decision. The database stores the relative file name and SHA-256; the file
 itself is stored under `MEDIA_ROOT/sources/`. In production and staging,
 `../almonium-infra` mounts a persistent host directory into both the web and
-worker containers. There is no source-retention/deletion control in the
-application yet, so a future deletion policy must explicitly cover the source
-file, derivative media, and the audit record together. Do not delete sources
-just because normalisation succeeded.
+worker containers. Removal is one audited operation described under *Removing
+a book* below: a purge destroys the source file together with the text and
+leaves a tombstone. Do not delete sources just because normalisation succeeded.
 
 Edition state is intentionally separate from individual pipeline-run state:
 
@@ -195,6 +202,15 @@ reader-facing contract and owns the public book UUID, progress, favourites, and
 rendered reader artifact. The processor keeps the normalized edition and the
 source file as its provenance/reprocessing record.
 
+Beyond the original, the worker derives further editions and artifacts, each
+a staff action on the edition page with its own review gate: a paid chapter
+difficulty analysis (`docs/CHAPTER_ANALYSIS.md`), block-for-block machine
+translation with a title page and chapter descriptions in the target language,
+same-language CEFR adaptation with a fidelity audit and a per-book floor found
+from evidence (`docs/ADAPTATION_PILOT.md`), and offline sentence alignment for
+parallel reading. Finished editions move to staging and production as
+promotion bundles (`docs/PROMOTION.md`), never by reprocessing.
+
 Premium user imports take the reverse route: the Almonium backend enforces the
 subscription allowance and ownership, then sends the EPUB or TEI source to this
 service using the existing books shared secret. Processing is asynchronous.
@@ -237,6 +253,16 @@ is a withdrawal that never completed.
 - `GET /api/v1/editions/` and `/api/v1/runs/` — staff operations.
 - `GET /api/v1/public/editions/` — published editions only.
 - `GET /api/v1/public/editions/{slug}/blocks/` — normalized public content.
+- `GET /api/v1/public/editions/{slug}/chapters/` and
+  `.../chapters/{sequence}/vocabulary/` — chapter list with current difficulty
+  and descriptions; attested chapter vocabulary (`docs/CHAPTER_VOCABULARY.md`).
+- `GET /api/v1/public/editions/{slug}/parallel/{other_slug}/` — block pairing
+  and sentence correspondence for a parallel companion.
+- `POST /api/v1/internal/translations/` and `/internal/library-ingests/` —
+  service-authenticated translation orders and library ingests from the backend.
+- `POST /api/v1/internal/promotions/` — receives a promotion bundle from
+  another environment (`docs/PROMOTION.md`).
+- `GET /api/v1/internal/ai-spend/` — the AI ledger for the backend's spend report.
 - `POST /api/v1/internal/imports/` — service-authenticated private EPUB/TEI import.
 - `GET /api/v1/internal/imports/{uuid}/blocks/?owner_id={uuid}` — service-authenticated,
   owner-scoped private normalized content.
@@ -256,14 +282,14 @@ deployment to `../almonium-infra`, where PostgreSQL/PgBouncer, RabbitMQ,
 Traefik/Porkbun TLS, persistent media, and blue/green web and worker containers
 are configured.
 
-Porkbun DNS still needs records for both hostnames pointing at the existing
-Oracle host. Traefik's Porkbun DNS challenge obtains certificates; it does not
-create the public address records.
+Both hostnames are routed. A push to `develop` deploys staging and, unless
+`PROD_FOLLOWS_STAGING` is off, production behind it; `prod-pipeline.yaml` is
+the manual path for re-deploying a known digest. Editions reach staging and
+production as promotion bundles (`docs/PROMOTION.md`), never by reprocessing.
 
 Infrastructure vault values must be populated before the first deployment.
 Never commit `.env`, provider keys, Django secrets, or database credentials.
 
-See [`AGENTS.md`](AGENTS.md) for cross-repository boundaries and
-[`docs/ALMONIUM_EBOOK_PIPELINE.md`](docs/ALMONIUM_EBOOK_PIPELINE.md) for the
-longer processing roadmap. [`docs/BACKLOG.md`](docs/BACKLOG.md) tracks the
-audited implementation status and next milestones.
+See [`AGENTS.md`](AGENTS.md) for cross-repository boundaries,
+[`docs/README.md`](docs/README.md) for what each document is for, and
+[`docs/BACKLOG.md`](docs/BACKLOG.md) for what is open.

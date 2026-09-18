@@ -2,6 +2,12 @@
 
 Updated 2026-09-16. This is the next visible product work, not a calibration project.
 
+Status 2026-09-18: the B2 adaptation and the Ukrainian translation are
+published in the source environment and reach staging and production by
+promotion ([PROMOTION.md](PROMOTION.md)); the published B2's fidelity findings
+were applied ([BACKLOG.md](BACKLOG.md)). Of the slices below, owner-only
+editorial release and native-device acceptance are the open ones.
+
 ## Morning handoff update
 
 Start with [MORNING_BRIEF.md](MORNING_BRIEF.md): click order, screenshots and the

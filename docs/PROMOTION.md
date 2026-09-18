@@ -17,7 +17,10 @@ files. The manifest carries the edition, every edition it was generated from
 - block revisions, text-quality findings, warnings, review decisions and
   alignment-group reviews, with the reviewer recorded by username;
 - pipeline runs and current edition artifacts;
-- block and chapter alignments whose target is the edition.
+- block and chapter alignments whose target is the edition;
+- the work's `adapts_to` and the evidence behind it (bundle schema 4): the
+  floor was found where the judge and audit ran, and the target keeps it
+  rather than recomputing it from a ledger it does not have.
 
 Primary keys are preserved, because artifact payloads and alignment groups
 refer to blocks and chapters by id. The same edition has the same ids in every

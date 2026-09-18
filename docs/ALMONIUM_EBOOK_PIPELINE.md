@@ -4,6 +4,14 @@
 **Scope:** ingestion, normalisation, translation, adaptation, alignment, QA,
 audio, and the admin surface around all of it.
 
+**Status (2026-09-18):** historical design document. The service became a
+Django web application with Celery workers rather than a CLI beside a FastAPI
+NLP service (§1); the prompts in §15 were replaced by the versioned prompts in
+`src/almonium_book_processor/ai/`; and the build order in §16 has run through
+step 6. Read [ALMONIUM_PIPELINE_DECISIONS.md](ALMONIUM_PIPELINE_DECISIONS.md)
+for what was decided and [BACKLOG.md](BACKLOG.md) for what is open. This file
+is kept for the reasoning behind the original shape.
+
 ---
 
 ## 1. Architecture

@@ -1,5 +1,11 @@
 # Morning brief — 18 September 2026, afternoon checkpoint
 
+> Superseded later the same day: the 45 audit findings were applied from the
+> page or left for the editor and `adapts_to = B2` was recorded
+> ([BACKLOG.md](BACKLOG.md), "Now: the adaptation floor as data"); the later
+> Ukrainian live check is in `evidence/ukrainian-20260918/`. Kept as the
+> checkpoint it was; the figures below are as of that afternoon.
+
 B2 is Frankenstein's observed difficulty floor under the tested fidelity constraint.
 Published B2 judges B2 in 32/32 windows; the original is C1 in 13/32 (47% of words).
 Both direct v1–v5 and completed B2→B1 generation remain B2; the latter adds material drift.

@@ -182,6 +182,17 @@ both Angular and Expo. Do not build the public reader in the processor.
 | P5-1 | processor + backend + clients; P2-3 | Evaluate N:M sentence then phrase alignment on demanded pairs; versioned bounded jobs, discontinuous spans, uncertainty fallback and Unicode-safe rendering. No all-pairs catalogue generation. |
 | P5-2 | processor + infra | Audited source/media retention, derivative invalidation, operational budgets and production routing; coordinated separate infra commit. Audio and quizzes remain optional follow-on pilots. |
 
+**Status, 2026-09-18.** P2-2 is closed by decision 13: B2 is Frankenstein's
+floor, B1 is not a product, and "add B1 after B2 review" no longer applies.
+P2-3 is partly delivered: both clients list a work's editions with the levels
+they reach (`adaptsTo`); provenance detail per edition remains. P3-2's first
+slice is the published chapter vocabulary endpoint
+([CHAPTER_VOCABULARY.md](CHAPTER_VOCABULARY.md)); lemma occurrence lookup for
+Discover remains. P5-2's production routing is done (deploys follow staging,
+promotion bundles carry editions) and retention is the purge/withdrawal
+workflow in the README. P0-3 (language-mismatch and chapter-size warnings)
+and P4-3 (`UserErrorReport` workflow) are still open.
+
 Suggested next sessions: [R1–R3: parallel reading delivery](PARALLEL_READING_NEXT.md).
 The first inherited-group public-reader integration and paid sentence-preview
 slice are implemented across processor/backend/Angular. Next: a deliberate

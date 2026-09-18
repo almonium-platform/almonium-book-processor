@@ -347,6 +347,26 @@ sure the schema allows multiple ranges per side from the start.
 | No chapter-size gate | Split failures publish silently |
 | Register stored inside the translator string and re-parsed | Make it a column |
 
+Status, 2026-09-18: the register is a column (`Edition.literary_register`,
+migration 0021) and the editorial level is separate from the computed estimate
+(P1-2). The language-mismatch and chapter-size gates and the `UserErrorReport`
+workflow are still open. The `cefrLevel` nullability and the republication
+overwrite need a check against the current backend before they are closed.
+
+---
+
+## 12. The thing worth saying plainly
+
+The pipeline is now more finished than the reader.
+
+Frankenstein exists in Ukrainian at 815 of 815 aligned blocks, with provenance,
+cost accounting, and a tombstone if you delete it. There is no public page
+where a stranger can read a single paragraph of it.
+
+Everything in this document is correct work. None of it is the next work. The
+next work is one server-rendered chapter page with that Ukrainian text beside
+the English, indexable, with a sign-up card at the bottom.
+
 ---
 
 ## 13. The adaptation floor is found per book, never promised
@@ -380,17 +400,3 @@ Consequences:
 - **Abridged retellings are a different product**, if we ever want them:
   disclosed as retellings, judged on readability and coverage rather than
   fidelity, chosen for books whose content suits it. Not on the roadmap.
-
----
-
-## 12. The thing worth saying plainly
-
-The pipeline is now more finished than the reader.
-
-Frankenstein exists in Ukrainian at 815 of 815 aligned blocks, with provenance,
-cost accounting, and a tombstone if you delete it. There is no public page
-where a stranger can read a single paragraph of it.
-
-Everything in this document is correct work. None of it is the next work. The
-next work is one server-rendered chapter page with that Ukrainian text beside
-the English, indexable, with a sign-up card at the bottom.

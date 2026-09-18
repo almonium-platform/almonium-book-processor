@@ -1,55 +1,26 @@
 # Almonium Book Processor backlog
 
-The next cross-product sessions are tracked in
-[Processor → backend → web → mobile delivery](PRODUCT_READER_DELIVERY.md).
-Reviewed whole-chapter pilot application is now implemented; live publication,
-typed chapter metadata and mobile edition-based companions remain explicit work.
+**Last reviewed:** 2026-09-18. The [docs index](README.md) says what each
+document is for; this file says what is open. Dated paragraphs that used to
+sit here are folded into the sections below or into the documents they cited.
 
-**Last reviewed:** 2026-09-14
+Where things stand:
 
-**Priority correction, 2026-09-15:** achieve B2 with fidelity before further
-publication work. Adaptation target, current estimates and per-window evidence
-are visible; missing/stale assessment or any above-target window blocks review
-completion and publication. Editorial CEFR does not bypass this gate. Below-target
-chapters are flagged for review but do not fail an upper-bound reading target.
-Imported adaptations without generation-target provenance are not covered by this
-new target gate. No target is guessed from their title or editorial label.
-See [paid pilots and actual results](ADAPTATION_PILOT.md#target-level-gate-and-prompt-review--2026-09-15).
-Next: offline/free N:M sentence alignment in the existing clickable reader,
-then publication and chapter metadata. No paid full-book sentence job, benchmark
-matrix, or calibration infrastructure is a prerequisite.
-
-2026-09-15: first processor/backend/Angular parallel-reading integration is
-implemented, including same-language edition selection and a paid sentence-preview
-slice. See [implementation and next product deliveries](PARALLEL_READING_NEXT.md#implementation-update--2026-09-15).
-Chapter metadata/CEFR/vocabulary projection and a deliberate live publication
-round-trip remain next; do not treat all processor artifacts as integrated yet.
-
-The current implementation sequence and acceptance criteria are in
-[Pipeline review and delivery plan](PIPELINE_REVIEW_AND_DELIVERY.md#delivery-tickets).
-Use its P0–P5 tickets for new sessions. The sections below retain historical
-calibration details; their original ordering is superseded by that plan.
-
-P1-1 is implemented: staff-triggered, resumable chapter analysis with bounded
-requests and versioned window results. See [Chapter analysis](CHAPTER_ANALYSIS.md)
-for operation and limits. P1-2 is also implemented: independently versioned chapter
-artifacts, provisional book aggregation, coverage and free projection refresh.
-Full-book B2 generation is implemented: bounded parallel chapter chunks,
-resumable paid results, atomic aligned-edition creation, then sentence/lexical/
-difficulty enrichment. The full Frankenstein draft has 815 aligned blocks, but
-reassessment still estimates 21 chapters C1 / 9 B2 (aggregate C1). Next: close the
-public-reader pairing gap and preview clickable sentence correspondence; see
-[the actual pairing review and R1–R3 acceptance criteria](PARALLEL_READING_NEXT.md).
-Continue targeted revision of genuine reading barriers and fidelity review; do not
-publish it as verified B2. The original C1 edition stays
-available; no prerequisite C1 modernization. See [B2 adaptation](ADAPTATION_PILOT.md).
-Calibration infrastructure is
-deferred, not a prerequisite to this pilot. Corpus-derived first-encounter
-vocabulary remains useful subsequent work.
-
-This backlog records the gap between the executable service and the longer
-pipeline roadmap. The current priority is useful reader-facing editions, with
-paid chapter trials and direct editorial review before full-book generation.
+- Frankenstein exists as an original (C1), a published B2 adaptation whose
+  floor is recorded from evidence (`adapts_to = B2`), a Ukrainian machine
+  translation with its own title page and chapter descriptions, and a French
+  human translation still in review. B1 was tried five ways and is not a
+  product (decision 13, [ADAPTATION_PILOT.md](ADAPTATION_PILOT.md)).
+- The adaptation floor is found per book by the blind judge and the fidelity
+  audit, never promised; the library shows what a book actually has.
+- Reader delivery across backend, web and mobile is tracked in
+  [PRODUCT_READER_DELIVERY.md](PRODUCT_READER_DELIVERY.md), parallel reading
+  coverage in [PARALLEL_READING_NEXT.md](PARALLEL_READING_NEXT.md). The P0–P5
+  tickets in [PIPELINE_REVIEW_AND_DELIVERY.md](PIPELINE_REVIEW_AND_DELIVERY.md#delivery-tickets)
+  remain the session ids; the status note under the table says which are closed.
+- Every prompt is language-parameterised and gated offline as of 2026-09-18,
+  but no non-English adaptation has been judged or audited. See "Open: other
+  languages".
 
 ## Current baseline
 
@@ -64,9 +35,11 @@ adaptations, alignment, lexical data, source polishing, summaries, and quizzes
 are downstream editions or non-blocking versioned artifacts, never prerequisites
 for the original to be a valid book.
 
-Staging is deployed with a web process and worker. Production routing has not
-yet been activated. The public staging catalogue is empty until editions are
-reviewed and deliberately published.
+Staging and production each run a web process and a worker. A push to
+`develop` deploys staging and production follows it (`846f386`; hold switch
+`PROD_FOLLOWS_STAGING`). Editions reach both as promotion bundles from the
+environment that did the work (`PROMOTION.md`); nothing is reprocessed on the
+target.
 
 ## Now: the adaptation floor as data (decision 13, 2026-09-18)
 
@@ -99,6 +72,36 @@ Implemented 2026-09-18 in the processor; see
       promote so the floor reaches staging and production.
 - [ ] Remove the last level promises from onboarding and plan copy across
       web and mobile (web landing/Premium done in `b07c669`; audit mobile).
+
+## Now: operator visibility
+
+- [x] AI spend per edition and per work (2026-09-18): a tile and an "AI
+  spend" panel on the edition page (per purpose and model, then per edition
+  of the work, purged editions included through their tombstones), and the
+  work's total beside its name on the catalogue. Only this environment's
+  ledger: promoted editions were paid for where they were processed.
+- [x] Where readers are behind (2026-09-18): the edition page opens with a
+  "Readers are behind" table, one row for this environment's Almonium and
+  one per promotion target. Almonium reads text live from this service, so
+  here only metadata can be behind; a target is behind when the edition or
+  anything in its chain gained a correction or artifact after the last
+  successful bundle. The catalogue shows a "Behind: …" chip per edition.
+
+## Open: other languages (2026-09-18)
+
+- [x] Chapter analysis, metadata and metadata translation write in the edition
+  language and are rejected offline when they do not (`a20ca38`, `3bd8a63`).
+- [x] Adaptation prompts for languages other than English (B2 v8, B1 v6) and a
+  language gate on adapted blocks and audit corrections (`c23951e`).
+- [ ] Judge and audit one non-English adaptation (the Ukrainian Frankenstein
+  is the candidate) before `adapts_to` is recorded for a non-English work.
+  The English verdicts do not transfer, and the localized prompts have no
+  evidence yet.
+- [ ] Calibration fixtures cover `en`, `de` and `uk` only, with no non-English
+  reference ratings.
+- [ ] Eleven registry languages have no pinned spaCy model (`bg cs et ga hu is
+  lv mt sk sr tr`): analysis refuses them. Decide whether they stay selectable
+  for ingestion or are hidden until a model exists.
 
 ## Now: deterministic NLP and alignment
 
@@ -176,8 +179,9 @@ is one Batch job with no alignment step.
   QA gates, forfeiting the 50% Batch discount: $2.06 instead of ~$1.03 per book.
 - [ ] Re-test Batch once the provider resolves file access, then make it the default
   again for cost.
-- [ ] Fix the one-off `Тоєї` (should be `Тієї`) in the Ukrainian creation scene
-  through the block-revision workflow; 44 other occurrences use the correct form.
+- [x] Fix the one-off `Тоєї` (should be `Тієї`) in the Ukrainian creation scene.
+  No occurrence remains in the source environment (checked 2026-09-18); the
+  correction travels with the next promotion.
 - [ ] Decide the reader-facing labels with the product client, keeping reading mode
   (parallel vs standalone) separate from provenance (human vs AI, disclosed).
 - [ ] Make a complete, current chapter analysis a readiness condition for offering
@@ -233,21 +237,26 @@ remaining deterministic QA gates should be added before AI adjudication.
   frequency provenance, and source occurrences.
 - [ ] Calibrate the useful-word ranking on at least one English and one German
   novel; adjust recurrence and frequency bounds from real output.
-- [ ] Publish lexical artifacts through an explicit backend contract and render
-  the useful-word SEO page server-side.
+- [x] Publish lexical artifacts through an explicit backend contract: the
+  chapter vocabulary endpoint (`07b0402`, `CHAPTER_VOCABULARY.md`) reaches
+  Angular and mobile.
+- [ ] Render the useful-word SEO page server-side.
 - [x] Add conservative deterministic source QA for Gutenberg boilerplate,
   malformed Unicode, repeated blocks, broken line hyphenation, and probable
   split words.
 - [x] Show findings for originals and derived editions; allow staff to edit and
   apply a suggested replacement or dismiss it without changing the text.
-- [ ] Add chapter-size and per-chapter language-mismatch findings after choosing
-  a reliable offline detector and calibrating front-matter exceptions.
+- [ ] Add chapter-size and per-chapter language-mismatch findings. The detector
+  is chosen (langid plus Lingua in `ai/output_language.py`, gating generated
+  prose since 2026-09-18); front-matter and verse exceptions still need
+  calibrating before it runs on source text.
 - [ ] Add AI adjudication for flagged source windows only. It proposes findings;
   an operator approves every text mutation through `ContentBlockRevision`.
 - [x] Mark current edition artifacts stale after an approved source revision and
   regenerate sentence, lexical, and source-QA results.
-- [ ] Define whether a text-only correction should recompute embedding alignment
-  or retain reviewed stable-block correspondence with refreshed provenance.
+- [x] Decided 2026-09-18 (`055b2af`): a text correction keeps the inherited
+  block groups, re-queues the offline sentence alignment of every companion
+  pair, and never recomputes inferred embedding alignment.
 
 ## Then: AI for exceptional cases
 
@@ -281,22 +290,25 @@ alignment remains an explicit staff action and records its audit and cost data.
   calibration and review gates are trusted.
 - [x] Populate staging with representative editions rather than the full catalogue:
   promote reviewed editions from the edition page (`docs/PROMOTION.md`).
-- [ ] Activate and verify the production Books route and its Porkbun certificate.
-- [ ] Define source and derivative-media retention/deletion as one audited operation.
+- [x] Production Books route: routed, and deploys follow staging (2026-09-17).
+- [x] Retention as one audited operation: purge and withdrawal, with a tombstone
+  and the AI ledger pointed at it (README, "Removing a book"). Covers and audio
+  do not exist yet, so nothing else needs covering.
 - [ ] Add model-cache warm-up or an operational first-run procedure so the first
   alignment job does not surprise an operator with a large download.
-- [ ] Add a real-model smoke test outside CI; unit tests should remain offline.
+- [x] `manage.py check --tag nlp` loads every pinned spaCy model and lemmatizes
+  with it; the worker image is only as good as that check.
+- [ ] A provider smoke test outside CI (one cheap real call per job type) is
+  still missing; unit tests remain offline.
 
 ## Decisions and user-supplied inputs
 
-Nothing secret is needed for sentence splitting and embedding alignment. Before
-the first paid AI pilot, decide and record:
-
-- provider and candidate models;
-- source and target language, book, and chapter;
-- target literary register;
-- maximum pilot spend;
-- acceptable automatic-confidence threshold and human-review policy.
+Nothing secret is needed for sentence splitting and embedding alignment. The
+inputs each paid pilot needed (provider and models, languages and book,
+register, spend ceiling, confidence and review policy) are recorded where they
+were decided: models in the blind comparison above and in
+`ALMONIUM_PIPELINE_DECISIONS.md`, spend and verdicts per run in
+`ADAPTATION_PILOT.md`.
 
 Provider secrets belong in local ignored environment files or encrypted
 infrastructure vaults. They must never be committed, printed in logs, or stored
