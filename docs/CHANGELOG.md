@@ -13,7 +13,8 @@ keeps only what is open. Cross-repository work names its repository.
   canonical edition, is never re-run on ingest or after a revision, and gates
   neither review completion nor publication. The French Frankenstein, whose
   $0.667 adjudication had been orphaned by such a rebuild, was detached and
-  its inferred alignment cleared.
+  its inferred alignment cleared. A rebuild now keeps every reviewed group,
+  restored from the block ids on its review, and re-infers only the rest.
 - Confirming metadata with a blank blurb or year no longer pins the field, so
   a later "Detect with AI" still fills it (`ae4a21a`).
 - Other languages get adaptation prompts of their own (B2 v8, B1 v6) with the

@@ -2142,6 +2142,91 @@ def test_inferred_alignment_is_built_on_demand_and_groups_split_blocks(monkeypat
     assert not target.warnings.exists()
 
 
+def test_rebuilding_inferred_alignment_keeps_every_reviewed_group(monkeypatch) -> None:
+    """A review is keyed by block ids: a rebuild restores its group and re-infers the rest."""
+
+    from almonium_book_processor.catalog.services import review_alignment_group
+
+    work = Work.objects.create(slug="settled-work", title="Settled Work", author="A. Author")
+    source = Edition.objects.create(
+        slug="settled-work-en", work=work, title="Settled Work", language="en"
+    )
+    target = Edition.objects.create(
+        slug="settled-work-fr",
+        work=work,
+        title="Œuvre réglée",
+        language="fr",
+        edition_type=Edition.EditionType.HUMAN_TRANSLATION,
+    )
+    source_chapter = Chapter.objects.create(edition=source, sequence=1)
+    target_chapter = Chapter.objects.create(edition=target, sequence=1)
+    source_blocks = [
+        ContentBlock.objects.create(
+            edition=source,
+            chapter=source_chapter,
+            block_id=f"c1.p{sequence}",
+            sequence=sequence,
+            block_type=ContentBlock.BlockType.PARAGRAPH,
+            text=text,
+        )
+        for sequence, text in enumerate(("First.", "Second.", "Third."), start=1)
+    ]
+    target_blocks = [
+        ContentBlock.objects.create(
+            edition=target,
+            chapter=target_chapter,
+            block_id=f"c1.p{sequence}",
+            sequence=sequence,
+            block_type=ContentBlock.BlockType.PARAGRAPH,
+            text=text,
+        )
+        for sequence, text in enumerate(("Premier.", "Deuxième.", "Troisième."), start=1)
+    ]
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.split_sentences", lambda text, language: [text]
+    )
+    # The embeddings pair each block with its counterpart, but only weakly
+    # for the second one, so it lands in the review queue.
+    strong, weak, third = [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.embed_texts",
+        lambda texts: [strong, [0.0, 0.6, 0.8] if "Deux" in texts[1] else weak, third][
+            : len(texts)
+        ],
+    )
+    reviewer = get_user_model().objects.create_user("aligner", is_staff=True)
+
+    align_edition_to_source.run(str(target.id))
+    weak_group = BlockAlignment.objects.get(target_block=target_blocks[1]).group_id
+    assert target.warnings.filter(code="alignment_low_confidence").count() == 1
+    review = review_alignment_group(edition=target, group_id=weak_group, reviewer=reviewer)
+    assert review.target_block_ids == [str(target_blocks[1].id)]
+
+    # A source correction changes the inputs; the rebuild must not undo the review.
+    source_blocks[0].text = "First, corrected."
+    source_blocks[0].save(update_fields=["text", "updated_at"])
+    align_edition_to_source.run(str(target.id))
+
+    kept = BlockAlignment.objects.get(target_block=target_blocks[1])
+    assert kept.group_id == weak_group
+    assert kept.source_block == source_blocks[1]
+    assert AlignmentGroupReview.objects.get(target_edition=target).group_id == weak_group
+    assert not target.warnings.filter(code="alignment_low_confidence").exists()
+    assert BlockAlignment.objects.filter(target_edition=target).count() == 3
+    run = target.pipeline_runs.filter(stage=PipelineRun.Stage.ALIGN).order_by("-created_at")[0]
+    assert (run.summary["settled_groups"], run.summary["dropped_reviews"]) == (1, 0)
+
+    # A review whose block was since removed no longer describes the text and goes.
+    target_blocks[1].delete()
+    source_blocks[2].text = "Third, corrected."
+    source_blocks[2].save(update_fields=["text", "updated_at"])
+    align_edition_to_source.run(str(target.id))
+
+    assert not AlignmentGroupReview.objects.filter(target_edition=target).exists()
+    run = target.pipeline_runs.filter(stage=PipelineRun.Stage.ALIGN).order_by("-created_at")[0]
+    assert (run.summary["settled_groups"], run.summary["dropped_reviews"]) == (0, 1)
+
+
 def test_inferred_alignment_raises_a_review_item_for_a_low_confidence_group(monkeypatch) -> None:
     monkeypatch.setattr(
         "almonium_book_processor.catalog.tasks.analyze_edition_lexicon.delay",

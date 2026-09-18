@@ -6,6 +6,7 @@ import logging
 import tempfile
 import uuid
 from pathlib import Path
+from typing import NamedTuple
 
 from celery import shared_task
 from django.conf import settings
@@ -22,6 +23,7 @@ from almonium_book_processor.catalog.metadata import (
 )
 from almonium_book_processor.catalog.models import (
     AIRun,
+    AlignmentGroupReview,
     BlockAlignment,
     ChapterAlignment,
     ContentBlock,
@@ -961,6 +963,71 @@ def refresh_edition_after_revision(edition_id: str) -> None:
         logger.exception("Could not refresh sentence alignment after revision to %s", edition_id)
 
 
+class SettledAlignment(NamedTuple):
+    """Groups a reviewer or the adjudicator settled, restored on every rebuild.
+
+    A review is keyed by the block ids it covers, which survive text edits
+    and rebuilds; the group id is kept so the review row stays attached.
+    """
+
+    rows: list[BlockAlignment]
+    source_indices: set[int]
+    target_indices: set[int]
+    dropped_reviews: int
+
+
+def _settled_alignment(
+    edition: Edition,
+    source_edition: Edition,
+    source_blocks: list[ContentBlock],
+    target_blocks: list[ContentBlock],
+) -> SettledAlignment:
+    source_index = {str(block.id): index for index, block in enumerate(source_blocks)}
+    target_index = {str(block.id): index for index, block in enumerate(target_blocks)}
+    current = {}
+    for row in BlockAlignment.objects.filter(target_edition=edition):
+        current.setdefault(row.group_id, (row.confidence, row.strategy))
+    rows: list[BlockAlignment] = []
+    settled_source: set[int] = set()
+    settled_target: set[int] = set()
+    dropped = 0
+    for review in AlignmentGroupReview.objects.filter(target_edition=edition):
+        source_ids = [str(block_id) for block_id in review.source_block_ids]
+        target_ids = [str(block_id) for block_id in review.target_block_ids]
+        blocks_exist = (
+            source_ids
+            and target_ids
+            and all(block_id in source_index for block_id in source_ids)
+            and all(block_id in target_index for block_id in target_ids)
+        )
+        overlaps = blocks_exist and (
+            any(source_index[i] in settled_source for i in source_ids)
+            or any(target_index[i] in settled_target for i in target_ids)
+        )
+        if not blocks_exist or overlaps:
+            # The text it judged is gone, or a later review superseded it.
+            review.delete()
+            dropped += 1
+            continue
+        confidence, strategy = current.get(review.group_id, (1.0, "review-restored-v1"))
+        for source_id in source_ids:
+            settled_source.add(source_index[source_id])
+            for target_id in target_ids:
+                settled_target.add(target_index[target_id])
+                rows.append(
+                    BlockAlignment(
+                        source_edition=source_edition,
+                        target_edition=edition,
+                        source_block=source_blocks[source_index[source_id]],
+                        target_block=target_blocks[target_index[target_id]],
+                        group_id=review.group_id,
+                        confidence=confidence,
+                        strategy=strategy,
+                    )
+                )
+    return SettledAlignment(rows, settled_source, settled_target, dropped)
+
+
 @shared_task(acks_late=True)
 def align_edition_to_source(edition_id: str) -> None:
     """Infer which blocks of a standalone edition correspond to the canonical text.
@@ -968,6 +1035,10 @@ def align_edition_to_source(edition_id: str) -> None:
     Built on demand for an independently imported text, never on ingest or
     after a revision. A canonical or parallel edition is aligned by
     construction and is refused here, so every caller can funnel through.
+
+    A rebuild recomputes only what nobody has settled: every group a
+    reviewer or the adjudicator accepted is restored from the block ids on
+    its review, and the embeddings decide the rest.
     """
 
     edition = Edition.objects.select_related("work").get(id=edition_id)
@@ -1075,10 +1146,17 @@ def align_edition_to_source(edition_id: str) -> None:
             ]
             candidates.extend(global_candidates)
             block_candidates_by_chapter_group.append((chapter_candidate, global_candidates))
-        matched_source_indices = {
+        settled = _settled_alignment(edition, source_edition, source_blocks, target_blocks)
+        candidates = [
+            candidate
+            for candidate in candidates
+            if settled.source_indices.isdisjoint(candidate.source_indices)
+            and settled.target_indices.isdisjoint(candidate.target_indices)
+        ]
+        matched_source_indices = settled.source_indices | {
             index for candidate in candidates for index in candidate.source_indices
         }
-        matched_target_indices = {
+        matched_target_indices = settled.target_indices | {
             index for candidate in candidates for index in candidate.target_indices
         }
         source_coverage = len(matched_source_indices) / len(source_blocks) if source_blocks else 0.0
@@ -1129,7 +1207,7 @@ def align_edition_to_source(edition_id: str) -> None:
                             )
                         )
             ChapterAlignment.objects.bulk_create(chapter_alignment_rows, batch_size=500)
-            alignment_rows = []
+            alignment_rows = list(settled.rows)
             for candidate in candidates:
                 group_id = uuid.uuid4()
                 for source_index in candidate.source_indices:
@@ -1211,6 +1289,8 @@ def align_edition_to_source(edition_id: str) -> None:
         run.summary = {
             "source_blocks": len(source_blocks),
             "target_blocks": len(target_blocks),
+            "settled_groups": len({row.group_id for row in settled.rows}),
+            "dropped_reviews": settled.dropped_reviews,
             "chapter_groups": len(chapter_alignment_candidates),
             "chapter_mappings": chapter_mapping_summary,
             "alignment_groups": len(candidates),

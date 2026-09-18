@@ -124,9 +124,9 @@ on demand against the work's canonical edition, never on ingest or after a
 revision, and it gates nothing: no reader surface depends on it. `source_edition`
 means "generated from, block for block" and is set on parallel editions only; an
 imported text names its work and nothing else (`PIPELINE_REVIEW_AND_DELIVERY.md`,
-principle 2). Still open: a rebuild regenerates group ids and orphans the
-`AlignmentGroupReview` rows, so paid adjudication does not survive a rebuild;
-key reviews by block ids before reviving this path for real.
+principle 2). A rebuild restores every reviewed group from the block ids on its
+review and re-infers only the rest, so a human decision or a paid adjudication
+survives a source correction; a review whose block was removed is dropped.
 
 ## Decided: the parallel tree is built by translation, not inference
 
