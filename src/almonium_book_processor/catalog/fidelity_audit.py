@@ -612,7 +612,7 @@ def excerpt(text: str, quote: str, *, whole: bool = False) -> tuple[str, str, st
             reverse=True,
         )
         for piece in pieces:
-            if len(piece) >= 12 and (located := _locate(text, piece)) is not None:
+            if len(piece) >= 8 and (located := _locate(text, piece)) is not None:
                 break
     if located is None:
         return (text if whole or len(text) <= 320 else text[:300].rsplit(" ", 1)[0] + " …"), "", ""
@@ -624,6 +624,28 @@ def excerpt(text: str, quote: str, *, whole: bool = False) -> tuple[str, str, st
     rights = [i for i in (text.find(stop, end) for stop in (". ", "! ", "? ")) if i >= 0]
     right = min(rights) + 1 if rights else len(text)
     return text[left:start], text[start:end], text[end:right]
+
+
+def change_preview(text: str, quote: str, suggestion: str) -> tuple[list[dict], bool]:
+    """The adapted sentence as it would read with the suggestion in: old span out, new wording in.
+
+    Returns the segments and whether the suggestion could be placed; when it
+    could not, the sentence the quote pointed at is struck as a whole and the
+    suggestion follows it, so the reviewer still sees what would change.
+    """
+
+    before, span, after = excerpt(text, quote)
+    suggestion = _bare(suggestion)
+    if span:
+        segments = [
+            {"op": "equal", "text": before},
+            {"op": "delete", "text": span},
+            {"op": "insert", "text": suggestion},
+            {"op": "equal", "text": after},
+        ]
+    else:
+        segments = [{"op": "delete", "text": before}, {"op": "insert", "text": " " + suggestion}]
+    return [segment for segment in segments if segment["text"]], bool(span)
 
 
 def open_findings(edition: Edition):

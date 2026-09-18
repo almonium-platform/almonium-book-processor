@@ -318,8 +318,9 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .fidelity-side-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 700; }
 .fidelity-text { font-size: .92rem; }
 .fidelity-text mark { background: #ffe9a8; padding: 0 .1em; }
-.fidelity-suggested { margin-top: .4rem !important; }
-.fidelity-suggested ins { text-decoration: none; background: #dff2dd; padding: 0 .1em; }
+.fidelity-change { grid-column: 1 / -1; background: white; }
+.fidelity-change del { color: #a33; background: #fde2e2; text-decoration: line-through; padding: 0 .1em; }
+.fidelity-change ins { text-decoration: none; background: #dff2dd; padding: 0 .1em; }
 .fidelity-edit { grid-area: edit; font-size: .85rem; }
 .fidelity-edit > summary { cursor: pointer; color: var(--accent); }
 .fidelity-edit form { display: grid; gap: .5rem; margin-top: .5rem; max-width: 48rem; }

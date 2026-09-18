@@ -659,3 +659,22 @@ def test_a_dismissal_can_be_reopened_and_an_unplaceable_finding_closed_by_hand(a
     assert minor.status == "applied"
     assert adaptation.blocks.get(block_id="c2.b1").text == "He was terrified."
     assert adaptation.block_revisions.get().notes == "Kept the stronger word."
+
+
+def test_the_change_preview_shows_what_the_sentence_becomes():
+    from almonium_book_processor.catalog.fidelity_audit import change_preview
+    from almonium_book_processor.catalog.templatetags.catalog_extras import (
+        change_preview as tag,
+    )
+
+    text = "Before dawn, he left. He was afraid."
+    segments, placed = change_preview(text, '"he left"', "he had already left")
+    assert placed
+    assert "".join(s["text"] for s in segments if s["op"] != "delete") == (
+        "Before dawn, he had already left."
+    )
+    assert [s["op"] for s in segments] == ["equal", "delete", "insert", "equal"]
+    html = tag(text, "he left", "he had already left")
+    assert html == "Before dawn, <del>he left</del><ins>he had already left</ins>."
+    segments, placed = change_preview(text, "not there ... at all", "He was terrified.")
+    assert not placed and any(s["op"] == "delete" for s in segments)
