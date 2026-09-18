@@ -705,13 +705,12 @@ def test_the_change_preview_shows_what_the_sentence_becomes():
     assert "".join(s["text"] for s in segments if s["op"] != "delete") == (
         "Before dawn, he had already left."
     )
-    assert [s["op"] for s in segments] == ["equal", "delete", "insert", "equal"]
-    html = tag(text, "he left", "he had already left")
-    assert html == "Before dawn, <del>he left</del><ins>he had already left</ins>."
+    assert tag(text, "he left", "he had already left") == (
+        "Before dawn, he <ins>had already </ins>left."
+    )
     segments, placed = change_preview(text, "not there ... at all", "He was terrified.")
     assert not placed and any(s["op"] == "delete" for s in segments)
-    # The preview uses the span the apply will use, so a clause-wide correction is
-    # shown replacing the clause, never pasted beside it.
+    # Word by word inside the clause the apply will replace: two changes, not one blot.
     text = (
         "I have promised that someone will watch for it and give him immediate notice "
         "if any new object appears in sight. Then we parted."
@@ -720,12 +719,17 @@ def test_the_change_preview_shows_what_the_sentence_becomes():
         "I have promised that someone will watch for the other traveller and give him "
         "immediate notice if anything new appears in sight."
     )
-    segments, placed = change_preview(text, "I have promised that someone will watch for it", fix)
-    assert placed
-    assert "".join(s["text"] for s in segments if s["op"] != "delete") == fix
-    assert (
-        "".join(s["text"] for s in segments if s["op"] != "insert")
-        == text[: len(text) - len(" Then we parted.")]
+    assert tag(text, "I have promised that someone will watch for it", fix) == (
+        "I have promised that someone will watch for <del>it</del><ins>the other traveller</ins> "
+        "and give him immediate notice if <del>any new object</del><ins>anything new</ins> "
+        "appears in sight."
+    )
+    # A rewritten clause with a stray word in common still reads as one replacement.
+    text = "He listened to all my arguments in favour of my possible success, and more."
+    fix = "arguments that I would eventually succeed"
+    assert tag(text, "arguments in favour of my possible success", fix) == (
+        "He listened to all my arguments <del>in favour of my possible success,</del>"
+        "<ins>that I would eventually succeed,</ins> and more."
     )
 
 

@@ -786,30 +786,70 @@ def side_excerpt(text: str, quote: str, counterpart: str = "") -> list[dict]:
     return [s for s in segments if s["text"]]
 
 
-def change_preview(text: str, quote: str, suggestion: str) -> tuple[list[dict], bool]:
-    """The adapted sentence as it would read with the suggestion in: old span out, new wording in.
+def _word_changes(current: str, revised: str) -> list[dict]:
+    """Word-level segments from current to revised; equal runs of two words or fewer
+    caught between two changes are folded into them, so a rewritten clause reads as
+    one replacement instead of a scatter of single words."""
 
-    Returns the segments and whether the suggestion could be placed; when it
-    could not, the sentence the quote pointed at is struck as a whole and the
-    suggestion follows it, so the reviewer still sees what would change.
+    import difflib
+
+    a = re.findall(r"\s+|\S+", current)
+    b = re.findall(r"\s+|\S+", revised)
+    chunks: list[list] = []  # ["equal", text] or ["change", deleted, inserted]
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if op == "equal":
+            chunks.append(["equal", "".join(a[i1:i2])])
+        else:
+            chunks.append(["change", "".join(a[i1:i2]), "".join(b[j1:j2])])
+    merged = True
+    while merged:
+        merged = False
+        for i in range(1, len(chunks) - 1):
+            middle = chunks[i]
+            if (
+                middle[0] == "equal"
+                and len(re.findall(r"\S+", middle[1])) <= 2
+                and chunks[i - 1][0] == "change"
+                and chunks[i + 1][0] == "change"
+            ):
+                left, right = chunks[i - 1], chunks[i + 1]
+                chunks[i - 1 : i + 2] = [
+                    ["change", left[1] + middle[1] + right[1], left[2] + middle[1] + right[2]]
+                ]
+                merged = True
+                break
+    segments = []
+    for chunk in chunks:
+        if chunk[0] == "equal":
+            segments.append({"op": "equal", "text": chunk[1]})
+        else:
+            if chunk[1]:
+                segments.append({"op": "delete", "text": chunk[1]})
+            if chunk[2]:
+                segments.append({"op": "insert", "text": chunk[2]})
+    return [seg for seg in segments if seg["text"]]
+
+
+def change_preview(text: str, quote: str, suggestion: str) -> tuple[list[dict], bool]:
+    """The adapted sentence as it would read with the suggestion in, word by word.
+
+    Uses the span the apply will use. Returns the segments and whether the
+    suggestion could be placed; when it could not, the sentence the quote
+    pointed at is diffed against the suggestion so the reviewer still sees
+    what the editor meant to change.
     """
 
     before, span, after = excerpt(text, quote)
     suggestion = _bare(suggestion)
     if span:
-        # The same span the apply will use: grown to the clause the correction rewrites.
         start = text.index(before + span + after) + len(before)
         s, e, words = replacement_span(text, start, start + len(span), suggestion)
         left, right = _sentence_bounds(text, s, e)
-        segments = [
-            {"op": "equal", "text": text[left:s]},
-            {"op": "delete", "text": text[s:e]},
-            {"op": "insert", "text": words},
-            {"op": "equal", "text": text[e:right]},
-        ]
+        current = text[left:right]
+        revised = text[left:s] + words + text[e:right]
     else:
-        segments = [{"op": "delete", "text": before}, {"op": "insert", "text": " " + suggestion}]
-    return [segment for segment in segments if segment["text"]], bool(span)
+        current, revised = before, suggestion
+    return _word_changes(current, revised), bool(span)
 
 
 def open_findings(edition: Edition):
