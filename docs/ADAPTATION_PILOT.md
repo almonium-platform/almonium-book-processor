@@ -574,7 +574,7 @@ for slug in ("shelley-frankenstein-en-orig", "shelley-frankenstein-en-orig-b2"):
         summary__spec__prompt_version=3,
     ).order_by("-created_at").first()
     counts, words, confidence = Counter(), Counter(), []
-    for ai in AIRun.objects.filter(pipeline_run=run, status="succeeded"):
+    for ai in AIRun.objects.filter(id__in=run.summary["results"], status="succeeded"):
         result = ai.response_payload["analysis"]
         level = result["cefr_estimate"]
         counts[level] += 1
@@ -610,3 +610,8 @@ follow that gate, not this prose verdict. Counts can be reproduced with
 `AIRun.objects.filter(pipeline_run_id=...).aggregate(Sum("estimated_cost_usd"))`
 and `TextQualityFinding.objects.filter(pipeline_run_id=...).values("code",
 "status").annotate(n=Count("id"))`.
+
+Rechecked against retained run result IDs: original run `9afa2373` has 36,299
+C1 words / 77,706 total (46.71%); B2 run `08243895` has 76,295 B2 words /
+76,295 total. Use the run's result IDs rather than only `pipeline_run=run`,
+because successful window reuse can retain an AIRun owned by an earlier run.
