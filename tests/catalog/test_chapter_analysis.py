@@ -258,7 +258,8 @@ def test_worker_difficulty_warning_cannot_be_dismissed_and_clears_after_reassess
     assert edition.warnings.filter(code=DIFFICULTY_WARNING).count() == 1
 
 
-def test_full_analysis_is_versioned_reusable_and_does_not_change_editorial_level(edition):
+def test_full_analysis_is_versioned_reusable_and_labels_the_edition(edition):
+    # The upload-time C1 was a guess nobody claimed; a complete analysis replaces it.
     run = queue_analysis(str(edition.id))
     provider = Provider()
     analyze_chapters(str(run.id), provider=provider)
@@ -270,7 +271,8 @@ def test_full_analysis_is_versioned_reusable_and_does_not_change_editorial_level
     assert run.status == "succeeded"
     assert run.progress == 100
     assert run.summary["completed_windows"] == 2
-    assert edition.cefr_level == "C1"
+    assert edition.cefr_level == "B2"
+    assert edition.cefr_level_source == Edition.LevelSource.ANALYSIS
     assert edition.status == "ready"
     assert edition.artifacts.filter(is_current=True).count() == 5
     ai = run.ai_runs.first()
@@ -283,6 +285,70 @@ def test_full_analysis_is_versioned_reusable_and_does_not_change_editorial_level
     assert body["store"] is False
     assert "untrusted data" in body["instructions"]
     assert list(analysis_context(edition)["chapter_analysis_results"])
+
+
+def test_editor_level_survives_analysis_until_cleared(edition):
+    from almonium_book_processor.catalog.metadata import confirm_metadata
+
+    confirm_metadata(edition, cefr_level="C2")
+    assert edition.cefr_level_source == Edition.LevelSource.EDITOR
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    edition.refresh_from_db()
+    assert (edition.cefr_level, edition.cefr_level_source) == ("C2", "editor")
+    # Confirming the form with the same level does not turn an analysed
+    # label into an editorial one.
+    edition.cefr_level_source = Edition.LevelSource.ANALYSIS
+    edition.save(update_fields=["cefr_level_source"])
+    confirm_metadata(edition, cefr_level="C2")
+    assert edition.cefr_level_source == Edition.LevelSource.ANALYSIS
+    # Clearing the level hands it back to the analysis already on file.
+    confirm_metadata(edition, cefr_level="B1")
+    assert edition.cefr_level_source == Edition.LevelSource.EDITOR
+    confirm_metadata(edition, clear_cefr_level=True)
+    edition.refresh_from_db()
+    assert (edition.cefr_level, edition.cefr_level_source) == ("B2", "analysis")
+
+
+def test_analysis_level_follows_to_parallel_translations(edition):
+    translation = Edition.objects.create(
+        work=edition.work,
+        slug="analysis-uk",
+        language="uk",
+        source_edition=edition,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+        cefr_level="C1",
+    )
+    pinned = Edition.objects.create(
+        work=edition.work,
+        slug="analysis-de",
+        language="de",
+        source_edition=edition,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+        cefr_level="A2",
+        cefr_level_source=Edition.LevelSource.EDITOR,
+    )
+    adaptation = Edition.objects.create(
+        work=edition.work,
+        slug="analysis-en-a2",
+        language="en",
+        source_edition=edition,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        edition_type=Edition.EditionType.ADAPTATION,
+        cefr_level="A2",
+        cefr_level_source=Edition.LevelSource.TARGET,
+    )
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    translation.refresh_from_db()
+    pinned.refresh_from_db()
+    adaptation.refresh_from_db()
+    assert (translation.cefr_level, translation.cefr_level_source) == ("B2", "analysis")
+    assert (pinned.cefr_level, pinned.cefr_level_source) == ("A2", "editor")
+    # An adaptation generated from this text is labelled for its own target.
+    assert (adaptation.cefr_level, adaptation.cefr_level_source) == ("A2", "target")
 
 
 def test_retry_reuses_success_and_keeps_failed_response_cost(edition):
@@ -781,8 +847,11 @@ def test_partial_failed_run_keeps_complete_chapters_and_coverage(edition):
     context = analysis_context(edition)
     assert context["projection_state"] == "failed"
     assert len(context["chapter_projections"]) == 2
+    # A provisional estimate is shown, never written to the label.
+    assert Edition.objects.get(id=edition.id).cefr_level_source == ""
     analyze_chapters(str(run.id), provider=Provider())
     assert analysis_context(edition)["projection_state"] == "complete"
+    assert Edition.objects.get(id=edition.id).cefr_level_source == "analysis"
 
 
 def test_partial_chapter_never_counts_as_complete_in_book_percentile(edition):

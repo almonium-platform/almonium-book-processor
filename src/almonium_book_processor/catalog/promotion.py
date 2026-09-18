@@ -70,7 +70,7 @@ logger = logging.getLogger(__name__)
 
 # Bump when the manifest's shape changes. A target running an older build
 # refuses a newer bundle instead of silently dropping what it does not know.
-BUNDLE_SCHEMA_VERSION = 4
+BUNDLE_SCHEMA_VERSION = 5
 MANIFEST_NAME = "manifest.json"
 
 # Runs that describe what an environment did with its own product API, or
@@ -162,6 +162,7 @@ EDITION_FIELDS = [
     "translator",
     "literary_register",
     "cefr_level",
+    "cefr_level_source",
     "parallel_role",
     "schema_version",
     "status",

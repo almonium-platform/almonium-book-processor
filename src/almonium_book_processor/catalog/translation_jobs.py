@@ -179,10 +179,20 @@ def start_translation_job(
         )
         edition.external_job_id = job_id
         edition.auto_publish = auto_publish
-        # A machine translation reads at about its source's level; an editor may
-        # still change it before publication.
+        # A machine translation reads at about its source's level and follows
+        # it as chapter analysis re-labels the source; an editor may still
+        # change it before publication.
         edition.cefr_level = source.cefr_level
-        edition.save(update_fields=["external_job_id", "auto_publish", "cefr_level", "updated_at"])
+        edition.cefr_level_source = source.cefr_level_source
+        edition.save(
+            update_fields=[
+                "external_job_id",
+                "auto_publish",
+                "cefr_level",
+                "cefr_level_source",
+                "updated_at",
+            ]
+        )
         if mode == "batch":
             transaction.on_commit(lambda: prepare_translation.delay(str(edition.id), tier=tier))
         else:

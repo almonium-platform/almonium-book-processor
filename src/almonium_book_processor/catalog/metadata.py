@@ -339,8 +339,15 @@ def confirm_metadata(
     if cover_url is not None:
         work.cover_url = cover_url.strip()
         provenance["cover_url"] = PROVENANCE_USER
-    if cefr_level or clear_cefr_level:
-        edition.cefr_level = cefr_level or None
+    # A level the editor picked is theirs until they clear it; clearing hands
+    # the label back to chapter analysis, which fills it again from a
+    # complete estimate it already has.
+    if cefr_level and cefr_level != edition.cefr_level:
+        edition.cefr_level = cefr_level
+        edition.cefr_level_source = Edition.LevelSource.EDITOR
+    elif clear_cefr_level:
+        edition.cefr_level = None
+        edition.cefr_level_source = ""
     work.metadata_provenance = provenance
     work.metadata_confirmed_at = timezone.now()
 
@@ -372,12 +379,18 @@ def confirm_metadata(
                 "description",
                 "language",
                 "cefr_level",
+                "cefr_level_source",
                 "status",
                 "updated_at",
             ]
         )
         if language_changed:
             edition.artifacts.filter(is_current=True).update(is_current=False)
+        elif clear_cefr_level:
+            from almonium_book_processor.catalog.chapter_analysis import analysis_context
+            from almonium_book_processor.catalog.chapter_projections import apply_analysis_level
+
+            apply_analysis_level(edition, analysis_context(edition).get("book_difficulty"))
     return language_changed
 
 

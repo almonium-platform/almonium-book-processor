@@ -162,7 +162,12 @@ class EditionMetadataForm(forms.Form):
     edition_title = forms.CharField(max_length=500)
     language = forms.ChoiceField(choices=LANGUAGE_CHOICES)
     cefr_level = forms.ChoiceField(
-        choices=(CEFR_PENDING_CHOICE, *Edition.CEFRLevel.choices), required=False
+        choices=(CEFR_PENDING_CHOICE, *Edition.CEFRLevel.choices),
+        required=False,
+        help_text=(
+            "Chapter analysis sets this when it completes. Choosing another level "
+            "overrides it until you pick “Estimate later” again."
+        ),
     )
 
     @classmethod

@@ -7,6 +7,7 @@ import re
 from collections import Counter
 
 from django.db import transaction
+from django.utils import timezone
 
 from almonium_book_processor.catalog.models import (
     AIRun,
@@ -253,6 +254,42 @@ def refresh_projections(run_id: str, *, token: str | None = None) -> None:
             from almonium_book_processor.catalog.adaptation_quality import sync_difficulty_warning
 
             sync_difficulty_warning(edition, run)
+            apply_analysis_level(edition, book)
+
+
+def apply_analysis_level(edition: Edition, book: dict | None) -> bool:
+    """Label the edition with a complete book estimate; return whether it changed.
+
+    Chapter analysis is the authority on an original's level: it runs on the
+    whole text under a pinned rubric, and nobody re-reads a book to second-guess
+    it. An editor may still pick a level, and that choice stands until they
+    clear it. An adaptation is labelled with the level it was generated for
+    when its review passes, not with the estimate, which the gate keeps at or
+    below that target. A parallel translation borrows the level with its source.
+    """
+
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_target
+
+    if not book or not book.get("complete") or book.get("cefr_estimate") not in LEVELS:
+        return False
+    if edition.cefr_level_source == Edition.LevelSource.EDITOR or adaptation_target(edition):
+        return False
+    level = book["cefr_estimate"]
+    changed = (edition.cefr_level, edition.cefr_level_source) != (
+        level,
+        Edition.LevelSource.ANALYSIS,
+    )
+    edition.cefr_level = level
+    edition.cefr_level_source = Edition.LevelSource.ANALYSIS
+    edition.save(update_fields=["cefr_level", "cefr_level_source", "updated_at"])
+    Edition.objects.filter(
+        source_edition=edition,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+    ).exclude(cefr_level_source=Edition.LevelSource.EDITOR).update(
+        cefr_level=level, cefr_level_source=Edition.LevelSource.ANALYSIS, updated_at=timezone.now()
+    )
+    return changed
 
 
 def projection_context(edition: Edition, analysis: dict) -> dict:

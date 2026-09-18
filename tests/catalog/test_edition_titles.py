@@ -86,13 +86,16 @@ def test_the_rail_names_the_work_once_above_a_translated_title(client, staff, or
     assert "<h1>Франкенштейн, або Сучасний Прометей</h1>" in rail
     assert "Мері Шеллі" in rail
     chips = page.split('<div class="rail-chips">')[1].split("</div>")[0]
-    assert '<span class="level-chip">C1</span>' in chips
+    assert '<span class="level-chip" title="Follows the source edition\'s level">C1</span>' in chips
 
     page = client.get(reverse("catalog:edition-detail", args=[original.id])).content.decode()
     rail = page.split("<body")[1].split('<div class="rail-chips">')[0]
     assert rail.count("Frankenstein; or, the Modern Prometheus") == 2  # breadcrumb and title
     chips = page.split('<div class="rail-chips">')[1].split("</div>")[0]
-    assert '<span class="level-chip">C1</span>' in chips
+    assert (
+        '<span class="level-chip" title="Set at upload; chapter analysis will replace it">C1</span>'
+        in chips
+    )
 
 
 def test_the_migration_takes_the_level_out_of_titles_and_localises_the_ukrainian_edition(

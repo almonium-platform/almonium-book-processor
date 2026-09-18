@@ -365,7 +365,8 @@ def complete_review(
     # set is filled in; an explicit choice stays.
     if quality.get("adaptation_target") and not edition.cefr_level:
         edition.cefr_level = quality["adaptation_target"]
-        update_fields.append("cefr_level")
+        edition.cefr_level_source = Edition.LevelSource.TARGET
+        update_fields += ["cefr_level", "cefr_level_source"]
     edition.save(update_fields=update_fields)
     if quality.get("adaptation_target"):
         from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor
