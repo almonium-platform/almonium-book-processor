@@ -208,6 +208,8 @@ class Rollup:
 class WorkGroup:
     work: Work
     rows: list[EditionRow] = field(default_factory=list)
+    # What this environment's ledger says the work's model calls cost.
+    spend_label: str = ""
 
     @property
     def title(self) -> str:
@@ -328,8 +330,12 @@ def catalogue_groups(visibility: str) -> list[WorkGroup]:
     for edition in _editions(visibility):
         group = groups.setdefault(edition.work_id, WorkGroup(work=edition.work))
         group.rows.append(_row(edition, runs.get(edition.id)))
+    from almonium_book_processor.catalog.spend import spend_by_work
+
+    spend = spend_by_work([group.work for group in groups.values()])
     for group in groups.values():
         group.rows.sort(key=lambda row: (ROLE_ORDER.index(row.role), row.edition.language))
+        group.spend_label = spend.get(group.work.id, "")
     return sorted(
         groups.values(),
         key=lambda group: (group.urgency, _surname(group.work.author), group.title.casefold()),

@@ -612,12 +612,16 @@ def _render_edition_detail(
     from almonium_book_processor.catalog.parallel_status import companion_rows
 
     parallel_companions = companion_rows(edition) if edition.blocks.exists() else []
+    from almonium_book_processor.catalog.spend import edition_spend, work_spend
+
+    spend = {"edition": edition_spend(edition), "work": work_spend(edition.work)}
     return render(
         request,
         "catalog/edition_detail.html",
         {
             "edition": edition,
             "parallel_companions": parallel_companions,
+            "spend": spend,
             "parallel_companions_due": sum(
                 row["state"] in ("stale", "failed", "missing", "incomplete")
                 for row in parallel_companions

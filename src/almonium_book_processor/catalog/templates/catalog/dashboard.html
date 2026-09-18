@@ -12,7 +12,7 @@
       <header class="work-header">
         <div>
           <h2>{{ group.title }}</h2>
-          <span class="work-meta">{{ group.author }} · {{ group.edition_count_label }}</span>
+          <span class="work-meta">{{ group.author }} · {{ group.edition_count_label }}{% if group.spend_label %} · <span class="work-spend" title="AI spend on this work in this environment">{{ group.spend_label }} AI</span>{% endif %}</span>
         </div>
         {% if group.rollup %}
           {% if group.rollup.in_flight %}<span class="rollup-stage">{{ group.rollup.label }}</span>{% else %}<span class="status status-{{ group.rollup.status }}">{{ group.rollup.label }}</span>{% endif %}
