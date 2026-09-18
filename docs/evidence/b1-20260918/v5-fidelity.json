@@ -1,0 +1,114 @@
+[
+  {
+    "id": "b20e9bac-3821-4bd3-8a85-bcaf474a0ac9",
+    "pipeline_run_id": "9b02ded3-dfbf-4132-b30e-e576d230ac9e",
+    "status": "succeeded",
+    "model_configuration__purpose": "adaptation_fidelity",
+    "estimated_cost_usd": "0.069656",
+    "review": {
+      "issues": [
+        {
+          "block_id": "c16.p2",
+          "severity": "minor",
+          "explanation": "The source imagines the grand shapes as attendants serving or soothing his sleep. “Watched over” changes them into protective guardians, altering the personified imagery.",
+          "source_quote": "my slumbers, as it were, waited on and ministered to",
+          "adapted_quote": "My sleep seemed to be watched over",
+          "suggested_correction": "“My sleep seemed to be attended by the great shapes I had looked at during the day.”"
+        },
+        {
+          "block_id": "c16.p3",
+          "severity": "minor",
+          "explanation": "The source expresses a firm intention or resolve to seek the mountains despite the weather. “Wanted to” reduces this to a desire.",
+          "source_quote": "Still I would penetrate their misty veil, and seek them",
+          "adapted_quote": "Still, I wanted to pass through their misty covering and find them",
+          "suggested_correction": "“Still, I meant to pass through their misty covering and find them in their cloudy hiding places.”"
+        },
+        {
+          "block_id": "c16.p4",
+          "severity": "minor",
+          "explanation": "The adapted wording is internally awkward: a loud voice is not an example of a “small sound.” The source means that even speaking loudly is enough to trigger the dangerous effect.",
+          "source_quote": "the slightest sound, such as even speaking in a loud voice",
+          "adapted_quote": "Even a small sound, such as a loud voice",
+          "suggested_correction": "“Even speaking in a loud voice can shake the air enough to bring death down on the person speaking.”"
+        },
+        {
+          "block_id": "c16.p16",
+          "severity": "minor",
+          "explanation": "“Demand” presents the creature’s appeal as a claim he insists upon, while “ask” makes it a less forceful request.",
+          "source_quote": "By the virtues that I once possessed, I demand this from you.",
+          "adapted_quote": "By the moral goodness I once had, I ask this of you.",
+          "suggested_correction": "“By the moral goodness I once had, I demand this of you.”"
+        },
+        {
+          "block_id": "c16.p16",
+          "severity": "minor",
+          "explanation": "“Threw them away” can suggest that Victor literally discards the creature’s hands, rather than violently pushing them away from his face. This makes the physical action needlessly unclear.",
+          "source_quote": "his hated hands before my eyes, which I flung from me with violence",
+          "adapted_quote": "He put his hated hands over my eyes, and I threw them away violently.",
+          "suggested_correction": "“He put his hated hands over my eyes, and I pushed them violently away.”"
+        }
+      ],
+      "assessment": "Most adaptations preserve the source’s events, emotional movement, and arguments while making the language more accessible. The issues above are limited shifts in resolve, imagery, force, or clarity."
+    }
+  },
+  {
+    "id": "14d1ae5d-47f3-4e40-96f8-26b116780684",
+    "pipeline_run_id": "a021dc32-f250-4108-857e-e561bc15c9ae",
+    "status": "succeeded",
+    "model_configuration__purpose": "adaptation_fidelity",
+    "estimated_cost_usd": "0.062828",
+    "review": {
+      "issues": [
+        {
+          "block_id": "c10.p7",
+          "severity": "minor",
+          "explanation": "\"Unguarded\" here means unwary or insufficiently cautious, not lacking protection. \"Unprotected\" shifts the warning from the danger of reckless eagerness to external vulnerability.",
+          "source_quote": "unguarded and ardent as I then was",
+          "adapted_quote": "as unprotected and eager as I then was",
+          "suggested_correction": "\"as unwary and eager as I then was\""
+        },
+        {
+          "block_id": "c10.p11",
+          "severity": "minor",
+          "explanation": "Vines yield grapes or a grape harvest; wine is made from them. The adaptation slightly damages the agricultural image and produces an inaccurate expression.",
+          "source_quote": "the vines yield a more luxuriant vintage",
+          "adapted_quote": "the vines produced more plentiful wine",
+          "suggested_correction": "\"or the vines yielded a more abundant grape harvest\""
+        }
+      ],
+      "assessment": "The adaptation generally preserves the narrative sequence, uncertainty, imagery, and moral reflections. The issues above are limited shifts in sense or expression."
+    }
+  },
+  {
+    "id": "327b89b4-3dcc-41a6-a10f-7a93b3eb637d",
+    "pipeline_run_id": "99f23e09-f26d-42a6-a88a-b339f67b5791",
+    "status": "succeeded",
+    "model_configuration__purpose": "adaptation_fidelity",
+    "estimated_cost_usd": "0.010008",
+    "review": {
+      "issues": [],
+      "assessment": "No material, minor, or uncertain fidelity issues found across the block pairs."
+    }
+  },
+  {
+    "id": "a96e74cc-fcd9-495f-8792-d5f15d7693a8",
+    "pipeline_run_id": "9b02ded3-dfbf-4132-b30e-e576d230ac9e",
+    "status": "succeeded",
+    "model_configuration__purpose": "level_adaptation",
+    "estimated_cost_usd": "0.067005"
+  },
+  {
+    "id": "06241fa4-60be-4eeb-b3ea-65661ce9a8da",
+    "pipeline_run_id": "99f23e09-f26d-42a6-a88a-b339f67b5791",
+    "status": "succeeded",
+    "model_configuration__purpose": "level_adaptation",
+    "estimated_cost_usd": "0.022042"
+  },
+  {
+    "id": "570d28f4-b2a5-4e42-a838-09da6dddc431",
+    "pipeline_run_id": "a021dc32-f250-4108-857e-e561bc15c9ae",
+    "status": "succeeded",
+    "model_configuration__purpose": "level_adaptation",
+    "estimated_cost_usd": "0.049697"
+  }
+]

@@ -1,0 +1,812 @@
+[
+  {
+    "label": "original-2",
+    "ai_run_id": "ccf2fa02-c2d0-40f8-8d82-ccdeb74c96fe",
+    "cost": "0.001585",
+    "assessment": {
+      "cefr_estimate": "C1",
+      "confidence": 0.95,
+      "archaism_score": 0.5,
+      "modernisation_would_help": true,
+      "evidence": [
+        {
+          "block_id": "c2.p2",
+          "quote": "The event on which this fiction is founded, has been supposed, by Dr. Darwin, and some of the physiological writers of Germany, as not of impossible occurrence.",
+          "dimension": "syntax",
+          "explanation": "The passive construction, inserted attribution, and unusual pattern “has been supposed ... as” make the sentence harder to parse than contemporary prose."
+        },
+        {
+          "block_id": "c2.p2",
+          "quote": "It was recommended by the novelty of the situations which it developes; and, however impossible as a physical fact, affords a point of view to the imagination for the delineating of human passions more comprehensive and commanding than any which the ordinary relations of existing events can yield.",
+          "dimension": "syntax",
+          "explanation": "This long sentence contains layered subordinate clauses, an elliptical subject, and abstract nominal phrasing that requires sustained syntactic tracking."
+        },
+        {
+          "block_id": "c2.p3",
+          "quote": "The Iliad, the tragic poetry of Greece,—Shakspeare, in the Tempest, and Midsummer Night's Dream,—and most especially Milton, in Paradise Lost, conform to this rule",
+          "dimension": "content",
+          "explanation": "The sentence assumes familiarity with canonical works and uses parenthetical interruptions, though the main claim remains recoverable."
+        },
+        {
+          "block_id": "c2.p4",
+          "quote": "The opinions which naturally spring from the character and situation of the hero are by no means to be conceived as existing always in my own conviction",
+          "dimension": "syntax",
+          "explanation": "The passive infinitive construction and abstract wording compress a qualification that would usually be stated more directly today."
+        },
+        {
+          "block_id": "c2.p5",
+          "quote": "The season was cold and rainy, and in the evenings we crowded around a blazing wood fire, and occasionally amused ourselves with some German stories of ghosts",
+          "dimension": "content",
+          "explanation": "This is a comparatively accessible narrative passage, showing that the text is not uniformly difficult; it introduces supernatural-story content."
+        },
+        {
+          "block_id": "c2.p6",
+          "quote": "my two friends left me on a journey among the Alps, and lost, in the magnificent scenes which they present, all memory of their ghostly visions",
+          "dimension": "vocabulary",
+          "explanation": "The vocabulary is mostly comprehensible, but “ghostly visions” and the elevated descriptive phrasing are less conversational than modern narrative."
+        }
+      ],
+      "spoiler_free_description": "An authorial preface explains the imagined premise, artistic aims, moral concerns, literary influences, and the circumstances in which the story was begun.",
+      "recap": "The author says the fiction uses an improbable event to explore human passions rather than merely create supernatural terror. She discusses artistic precedent, moral interpretation, the story's origins during a cold summer near Geneva, and the decision to write supernatural tales with friends. The other planned stories were not completed, while this one was.",
+      "hard_words": [
+        {
+          "block_id": "c2.p2",
+          "surface": "physiological",
+          "explanation": "Related to the functions and processes of living bodies."
+        },
+        {
+          "block_id": "c2.p2",
+          "surface": "enchantment",
+          "explanation": "Magic or a magical spell; here, supernatural magic."
+        },
+        {
+          "block_id": "c2.p2",
+          "surface": "delineating",
+          "explanation": "Describing or representing something carefully and clearly."
+        },
+        {
+          "block_id": "c2.p3",
+          "surface": "presumption",
+          "explanation": "Overconfidence or an assumption that may be unjustified."
+        },
+        {
+          "block_id": "c2.p4",
+          "surface": "expedient",
+          "explanation": "A practical method or means of achieving a purpose."
+        },
+        {
+          "block_id": "c2.p4",
+          "surface": "enervating",
+          "explanation": "Draining strength, energy, or vitality."
+        },
+        {
+          "block_id": "c2.p4",
+          "surface": "amiableness",
+          "explanation": "The quality of being pleasant, friendly, or likable."
+        },
+        {
+          "block_id": "c2.p6",
+          "surface": "magnificent",
+          "explanation": "Extremely impressive, grand, or beautiful."
+        }
+      ],
+      "themes": [
+        "Artistic creation and literary influence",
+        "Human nature and moral interpretation",
+        "Domestic affection and universal virtue",
+        "Supernatural imagination"
+      ],
+      "characters": [
+        "The author/narrator",
+        "Dr. Darwin",
+        "Two unnamed friends"
+      ],
+      "setting": "Primarily the environs of Geneva and the Alps in summer 1816; the preface is dated Marlow, September 1817.",
+      "content_flags": [
+        "Supernatural and ghost-story themes",
+        "Discussion of human passions and moral tendencies"
+      ]
+    }
+  },
+  {
+    "label": "original-10",
+    "ai_run_id": "0fad77f7-7dd9-4894-9129-e67d0a1acaea",
+    "cost": "0.002236",
+    "assessment": {
+      "cefr_estimate": "B2",
+      "confidence": 0.9,
+      "archaism_score": 0.5,
+      "modernisation_would_help": true,
+      "evidence": [
+        {
+          "block_id": "c10.p2",
+          "quote": "In a thousand ways he smoothed for me the path of knowledge, and made the most abstruse enquiries clear and facile to my apprehension.",
+          "dimension": "vocabulary",
+          "explanation": "The sentence is understandable but uses literary and less common vocabulary such as “abstruse,” “facile,” and “apprehension” in an abstract sense."
+        },
+        {
+          "block_id": "c10.p7",
+          "quote": "Learn from me, if not by my precepts, at least by my example, how dangerous is the acquirement of knowledge, and how much happier that man is who believes his native town to be the world, than he who aspires to become greater than his nature will allow.",
+          "dimension": "syntax",
+          "explanation": "Inversion in “how dangerous is the acquirement” and parallel comparisons make the moral argument more demanding than ordinary modern narrative prose."
+        },
+        {
+          "block_id": "c10.p10",
+          "quote": "Who shall conceive the horrors of my secret toil, as I dabbled among the unhallowed damps of the grave, or tortured the living animal to animate the lifeless clay?",
+          "dimension": "content",
+          "explanation": "This explicitly describes disturbing grave-related work and the torture of a living animal in the narrator’s experiments."
+        },
+        {
+          "block_id": "c10.p13",
+          "quote": "If this rule were always observed; if no man allowed any pursuit whatsoever to interfere with the tranquillity of his domestic affections, Greece had not been enslaved; Cæsar would have spared his country; America would have been discovered more gradually; and the empires of Mexico and Peru had not",
+          "dimension": "syntax",
+          "explanation": "The conditional construction extends across several historical examples, and the altered or elliptical verb patterns require careful parsing."
+        },
+        {
+          "block_id": "c10.p15",
+          "quote": "But my enthusiasm was checked by my anxiety, and I appeared rather like one doomed by slavery to toil in the mines, or any other unwholesome trade, than an artist occupied by his favourite employment.",
+          "dimension": "register",
+          "explanation": "The comparison is clear in context, but “doomed,” “toil,” and “unwholesome trade” give the passage a formal, older literary register."
+        }
+      ],
+      "spoiler_free_description": "The narrator describes an intense period of scientific study that becomes increasingly isolated, morally troubling, and physically exhausting. His pursuit of a major scientific goal dominates his relationships and daily life.",
+      "recap": "The narrator studies natural philosophy and chemistry at university, gains respect for his progress, and becomes especially interested in the causes of life. Through anatomy and the examination of decay, he believes he discovers how to animate lifeless matter. He begins constructing a gigantic human being from collected materials, working secretly and obsessively while neglecting his family, health, and ordinary surroundings.",
+      "hard_words": [
+        {
+          "block_id": "c10.p2",
+          "surface": "abstruse",
+          "explanation": "Difficult to understand, especially because it is intellectually complex."
+        },
+        {
+          "block_id": "c10.p2",
+          "surface": "physiognomy",
+          "explanation": "A person’s facial appearance or features, especially as considered to reveal character."
+        },
+        {
+          "block_id": "c10.p3",
+          "surface": "proficiency",
+          "explanation": "A high level of skill or competence."
+        },
+        {
+          "block_id": "c10.p4",
+          "surface": "endued",
+          "explanation": "Possessing or endowed with a quality, here the quality of being alive."
+        },
+        {
+          "block_id": "c10.p4",
+          "surface": "thenceforth",
+          "explanation": "From that time onward."
+        },
+        {
+          "block_id": "c10.p4",
+          "surface": "minutiæ",
+          "explanation": "Small or minor details."
+        },
+        {
+          "block_id": "c10.p8",
+          "surface": "hinderance",
+          "explanation": "An obstacle or source of delay; an older spelling of “hindrance.”"
+        },
+        {
+          "block_id": "c10.p10",
+          "surface": "unhallowed",
+          "explanation": "Not sacred; treated as profane or desecrated."
+        }
+      ],
+      "themes": [
+        "Scientific ambition and the pursuit of knowledge",
+        "Isolation and neglect of family",
+        "Life, death, and moral responsibility",
+        "Obsession and physical deterioration"
+      ],
+      "characters": [
+        "The narrator and scientist",
+        "M. Krempe",
+        "M. Waldman",
+        "The narrator’s father"
+      ],
+      "setting": "The university and laboratory at Ingolstadt, followed by secluded rooms and charnel-houses during the narrator’s experiments.",
+      "content_flags": [
+        "Graveyards, corpses, decay, and anatomical experimentation",
+        "Animal torture",
+        "Obsessive behaviour, illness, and social isolation"
+      ]
+    }
+  },
+  {
+    "label": "original-16",
+    "ai_run_id": "1fb26071-6908-4098-aa77-6737bab7f0d4",
+    "cost": "0.002085",
+    "assessment": {
+      "cefr_estimate": "C1",
+      "confidence": 0.94,
+      "archaism_score": 0.5,
+      "modernisation_would_help": true,
+      "evidence": [
+        {
+          "block_id": "c16.p2",
+          "quote": "The abrupt sides of vast mountains were before me; the icy wall of the glacier overhung me; a few shattered pines were scattered around; and the solemn silence of this glorious presence-chamber of imperial Nature was broken only by the brawling waves",
+          "dimension": "syntax",
+          "explanation": "Extended sentence structure uses semicolons, multiple embedded descriptions, and compressed poetic imagery."
+        },
+        {
+          "block_id": "c16.p3",
+          "quote": "It had then filled me with a sublime ecstasy, that gave wings to the soul, and allowed it to soar from the obscure world to light and joy.",
+          "dimension": "vocabulary",
+          "explanation": "Abstract and figurative vocabulary such as “sublime ecstasy” and “obscure world” requires interpretation, though the emotional meaning is supported by context."
+        },
+        {
+          "block_id": "c16.p4",
+          "quote": "If our impulses were confined to hunger, thirst, and desire, we might be nearly free; but now we are moved by every wind that blows, and a chance word or scene that that word may convey to us.",
+          "dimension": "syntax",
+          "explanation": "A conditional contrast develops across a long sentence, with an unusual and potentially confusing repeated “that.”"
+        },
+        {
+          "block_id": "c16.p8",
+          "quote": "Do your duty towards me, and I will do mine towards you and the rest of mankind.",
+          "dimension": "register",
+          "explanation": "The formal rhetorical register and moral-legal framing are less typical of contemporary conversational English."
+        },
+        {
+          "block_id": "c16.p12",
+          "quote": "I ought to be thy Adam; but I am rather the fallen angel, whom thou drivest from joy for no misdeed.",
+          "dimension": "archaism",
+          "explanation": "Recurring archaic pronouns and verb forms—“thy,” “thou,” and “drivest”—create reading friction and require adaptation to modern English."
+        },
+        {
+          "block_id": "c16.p14",
+          "quote": "Let your compassion be moved, and do not disdain me. Listen to my tale: when you have heard that, abandon or commiserate me, as you shall judge that I deserve.",
+          "dimension": "vocabulary",
+          "explanation": "Words such as “disdain,” “commiserate,” and the formal clause structure make the appeal substantially more demanding than everyday narrative."
+        },
+        {
+          "block_id": "c16.p16",
+          "quote": "On you it rests, whether I quit for ever the neighbourhood of man, and lead a harmless life, or become the scourge of your fellow-creatures, and the author of your own speedy ruin.",
+          "dimension": "archaism",
+          "explanation": "“Quit for ever,” “neighbourhood of man,” and “fellow-creatures” reflect formal older prose; the alternatives are syntactically clear but stylistically distant."
+        },
+        {
+          "block_id": "c16.p14",
+          "quote": "If the multitude of mankind knew of my existence, they would do as you do, and arm themselves for my destruction.",
+          "dimension": "content",
+          "explanation": "Supports content flags for threats, violence, persecution, and fear of destruction."
+        }
+      ],
+      "spoiler_free_description": "A grieving narrator travels through a dramatic alpine landscape, where an unexpected encounter forces him to confront a painful moral and personal conflict. The section combines intense natural description with a sustained debate between creator and creation.",
+      "recap": "The narrator finds temporary comfort in the mountains but remains deeply troubled. On a glacier he encounters the being he created. They exchange furious accusations and threats, while the being argues that his suffering and isolation have been caused by rejection. He threatens further harm unless the narrator listens to his history. The narrator eventually agrees and follows him to a hut to hear the story.",
+      "hard_words": [
+        {
+          "block_id": "c16.p2",
+          "surface": "assemblance",
+          "explanation": "A gathering or collection; an uncommon and somewhat obsolete form."
+        },
+        {
+          "block_id": "c16.p2",
+          "surface": "reverberated",
+          "explanation": "Echoed or repeatedly reflected as sound."
+        },
+        {
+          "block_id": "c16.p2",
+          "surface": "immutable",
+          "explanation": "Unable to change."
+        },
+        {
+          "block_id": "c16.p3",
+          "surface": "solemnising",
+          "explanation": "Making something solemn or serious; here, deepening the narrator’s solemn mood."
+        },
+        {
+          "block_id": "c16.p4",
+          "surface": "precipitous",
+          "explanation": "Very steep; it can also mean dangerously abrupt."
+        },
+        {
+          "block_id": "c16.p4",
+          "surface": "wreaths",
+          "explanation": "Circular or curling bands; here, bands of mist."
+        },
+        {
+          "block_id": "c16.p8",
+          "surface": "dissoluble",
+          "explanation": "Able to be ended, broken, or dissolved."
+        },
+        {
+          "block_id": "c16.p14",
+          "surface": "commiserate",
+          "explanation": "To feel pity or sympathy for someone."
+        }
+      ],
+      "themes": [
+        "Responsibility and the consequences of creation",
+        "Isolation, rejection, and the desire for companionship",
+        "Nature as comfort and emotional reflection",
+        "Revenge, compassion, and moral judgment"
+      ],
+      "characters": [
+        "The narrator and creator",
+        "The created being"
+      ],
+      "setting": "The Alps, including Montanvert, a glacier, and a mountain hut, during cold, rainy weather.",
+      "content_flags": [
+        "Threats and references to murder",
+        "Violent conflict and revenge",
+        "Grief, anguish, and profound isolation",
+        "A frightening supernatural or monstrous encounter"
+      ]
+    }
+  },
+  {
+    "label": "published-b2-2",
+    "ai_run_id": "39de587d-57d4-4dcc-ab9e-d2b2d6f12255",
+    "cost": "0.001262",
+    "assessment": {
+      "cefr_estimate": "B2",
+      "confidence": 0.92,
+      "archaism_score": 0.0,
+      "modernisation_would_help": false,
+      "evidence": [
+        {
+          "block_id": "c2.p2",
+          "quote": "The event on which this fiction is based has been thought by Dr. Darwin and some German writers on physiology not to be impossible.",
+          "dimension": "syntax",
+          "explanation": "The sentence uses a long passive construction and an embedded relative clause, but its relationships remain clear."
+        },
+        {
+          "block_id": "c2.p2",
+          "quote": "It was recommended by the novelty of the situations it develops; and, although impossible as a physical fact, it gives the imagination a point of view from which to portray human passions more broadly and powerfully than the ordinary relations of existing events can offer.",
+          "dimension": "vocabulary",
+          "explanation": "Abstract vocabulary such as “novelty,” “physical fact,” and “portray human passions” creates sustained B2-level demand."
+        },
+        {
+          "block_id": "c2.p3",
+          "quote": "I have thus tried to preserve the truth of the fundamental principles of human nature, while freely changing the ways in which they are combined.",
+          "dimension": "syntax",
+          "explanation": "The contrast introduced by “while” and the abstract noun phrases require attention, though the sentence is structurally straightforward."
+        },
+        {
+          "block_id": "c2.p4",
+          "quote": "Nor should any conclusion be drawn from the following pages that favours any philosophical doctrine of whatever kind.",
+          "dimension": "register",
+          "explanation": "Formal, impersonal phrasing and the expression “of whatever kind” are less common in everyday English but remain interpretable from context."
+        },
+        {
+          "block_id": "c2.p5",
+          "quote": "The season was cold and rainy, and in the evenings we gathered around a blazing fire of logs, and sometimes amused ourselves with German ghost stories that happened to come into our hands.",
+          "dimension": "content",
+          "explanation": "This passage supports the presence of supernatural and ghost-story themes."
+        }
+      ],
+      "spoiler_free_description": "An author explains the imaginative and moral aims behind a supernatural fiction and describes the circumstances in which it was conceived near Geneva.",
+      "recap": "The author says the story is based on a scientifically discussed but physically impossible idea, used to explore human passions rather than merely create ghostly terror. She discusses artistic freedom, moral influence, and her wish to depict domestic affection and universal virtue without endorsing every belief expressed by the hero. She then recalls beginning the story during a cold summer near Geneva, where ghost stories inspired a writing challenge with two friends; after the friends departed, this was the only tale completed.",
+      "hard_words": [
+        {
+          "block_id": "c2.p2",
+          "surface": "physiology",
+          "explanation": "The study of how living bodies function."
+        },
+        {
+          "block_id": "c2.p2",
+          "surface": "drawbacks",
+          "explanation": "Disadvantages or problems."
+        },
+        {
+          "block_id": "c2.p3",
+          "surface": "presumption",
+          "explanation": "Excessive confidence or an assumption that may be unwarranted."
+        },
+        {
+          "block_id": "c2.p4",
+          "surface": "indifferent",
+          "explanation": "Not concerned or caring about something."
+        },
+        {
+          "block_id": "c2.p4",
+          "surface": "doctrine",
+          "explanation": "A set of ideas or beliefs, especially philosophical or religious ones."
+        }
+      ],
+      "themes": [
+        "Artistic imagination and creative freedom",
+        "Human nature and moral responsibility",
+        "Domestic affection and virtue",
+        "The supernatural as a literary device"
+      ],
+      "characters": [
+        "The author or narrator",
+        "Dr. Darwin",
+        "Two unnamed friends"
+      ],
+      "setting": "The author's recollection of summer 1816 near Geneva, with a publication note from Marlow in September 1817.",
+      "content_flags": [
+        "Supernatural and ghost-story themes",
+        "Discussion of death and loss"
+      ]
+    }
+  },
+  {
+    "label": "published-b2-10",
+    "ai_run_id": "535162d1-b4ec-43c4-8338-0968dbd4ae18",
+    "cost": "0.001919",
+    "assessment": {
+      "cefr_estimate": "B2",
+      "confidence": 0.96,
+      "archaism_score": 0.5,
+      "modernisation_would_help": true,
+      "evidence": [
+        {
+          "block_id": "c10.p2",
+          "quote": "I eagerly read the works that modern investigators had written on these subjects, works full of genius and sound judgment.",
+          "dimension": "vocabulary",
+          "explanation": "The sentence is clear overall, but formal academic vocabulary such as \"investigators\" and \"sound judgment\" raises the demand above everyday narrative."
+        },
+        {
+          "block_id": "c10.p4",
+          "quote": "I paused to examine and analyse every small detail of cause and effect, as shown in the change from life to death, and from death to life.",
+          "dimension": "syntax",
+          "explanation": "This has several abstract noun phrases and a balanced, formal structure that requires careful processing."
+        },
+        {
+          "block_id": "c10.p5",
+          "quote": "After days and nights of incredible labour and exhaustion, I succeeded in discovering the cause of generation and life; more than that, I myself became able to give life to lifeless matter.",
+          "dimension": "register",
+          "explanation": "The meaning is accessible from context, but formal words such as \"generation\" and \"labour,\" together with the semicolon-linked structure, add reading demand."
+        },
+        {
+          "block_id": "c10.p7",
+          "quote": "Learn from me, if not from my advice, then at least from my example, how dangerous the gaining of knowledge is, and how much happier the man is who believes his native town is the world than he who tries to become greater than his nature allows.",
+          "dimension": "syntax",
+          "explanation": "The long comparison and embedded clauses require the reader to track several relationships at once."
+        },
+        {
+          "block_id": "c10.p10",
+          "quote": "I collected bones from charnel-houses and, with profane fingers, disturbed the terrible secrets of the human body.",
+          "dimension": "vocabulary",
+          "explanation": "\"Charnel-houses\" and \"profane\" are uncommon literary words, although the surrounding context supports their meaning."
+        },
+        {
+          "block_id": "c10.p13",
+          "quote": "If this rule were always followed, if no man allowed any pursuit at all to interfere with the peace of his family affections, Greece would not have been enslaved; Cæsar would have spared his country; America would have been discovered more gradually; and the empires of Mexico and Peru would not have",
+          "dimension": "archaism",
+          "explanation": "The formal conditional, historical allusions, semicolon-heavy style, and spelling \"Cæsar\" reflect older literary prose and may slow learners."
+        },
+        {
+          "block_id": "c10.p10",
+          "quote": "Who can imagine the horrors of my secret labour, as I handled the unhallowed dampness of the grave, or tortured the living animal in order to give life to lifeless clay?",
+          "dimension": "content",
+          "explanation": "This passage supports flags for graphic death imagery, grave-related horror, and animal harm."
+        }
+      ],
+      "spoiler_free_description": "A driven student of science becomes increasingly absorbed in investigating life, death, and the limits of human knowledge. His studies isolate him from friends and family while his work grows darker and more physically demanding.",
+      "recap": "The narrator describes his rapid progress in natural philosophy and chemistry under supportive teachers. He becomes obsessed with discovering the source of life and learns through anatomy and the examination of dead bodies. He claims to have discovered how to give life to lifeless matter and begins constructing a gigantic human being. His work consumes many months, damages his health, isolates him from his family, and leads him to reflect that knowledge pursued without balance can be destructive.",
+      "hard_words": [
+        {
+          "block_id": "c10.p2",
+          "surface": "dogmatism",
+          "explanation": "Unwillingness to consider other opinions; rigid certainty in one's views."
+        },
+        {
+          "block_id": "c10.p4",
+          "surface": "charnel-houses",
+          "explanation": "Buildings or rooms where human bones or dead bodies are kept."
+        },
+        {
+          "block_id": "c10.p4",
+          "surface": "delicacy",
+          "explanation": "Sensitivity or refinement, especially an aversion to unpleasant or shocking things."
+        },
+        {
+          "block_id": "c10.p6",
+          "surface": "rapture",
+          "explanation": "Extremely intense joy or delight."
+        },
+        {
+          "block_id": "c10.p8",
+          "surface": "fibres",
+          "explanation": "Thin thread-like tissues or structures in the body."
+        },
+        {
+          "block_id": "c10.p10",
+          "surface": "unhallowed",
+          "explanation": "Not holy; treated as profane or connected with something forbidden."
+        },
+        {
+          "block_id": "c10.p15",
+          "surface": "oppressed",
+          "explanation": "Burdened or troubled heavily, here by fever."
+        }
+      ],
+      "themes": [
+        "The pursuit and danger of knowledge",
+        "Obsession and isolation",
+        "Life, death, and creation",
+        "Responsibility and moral limits"
+      ],
+      "characters": [
+        "The narrator",
+        "M. Krempe",
+        "M. Waldman",
+        "The narrator's father"
+      ],
+      "setting": "Ingolstadt, chiefly the university and the narrator's isolated laboratory, over several years.",
+      "content_flags": [
+        "Graphic imagery involving corpses and bodily decay",
+        "Animal harm during experiments",
+        "Obsession, illness, and social isolation",
+        "Dark horror themes"
+      ]
+    }
+  },
+  {
+    "label": "published-b2-16",
+    "ai_run_id": "65e04434-eb05-493d-9ef0-84ba5f9bd071",
+    "cost": "0.001829",
+    "assessment": {
+      "cefr_estimate": "B2",
+      "confidence": 0.97,
+      "archaism_score": 0.5,
+      "modernisation_would_help": true,
+      "evidence": [
+        {
+          "block_id": "c16.p2",
+          "quote": "Through the silent working of unchanging laws, this ice was now and then split and torn, as if it had been only a plaything in their hands.",
+          "dimension": "syntax",
+          "explanation": "A long, literary sentence uses abstract phrasing and an unusual metaphor, but its relationships remain understandable."
+        },
+        {
+          "block_id": "c16.p3",
+          "quote": "It had then filled me with a sublime ecstasy, which gave wings to the soul and allowed it to soar from the obscure world to light and joy.",
+          "dimension": "vocabulary",
+          "explanation": "Words such as “sublime,” “ecstasy,” and “obscure,” together with figurative language, create sustained but context-supported difficulty."
+        },
+        {
+          "block_id": "c16.p4",
+          "quote": "If our impulses were confined to hunger, thirst, and desire, we might be nearly free; but now we are moved by every wind that blows, by a chance word, or by a scene that such a word may convey to us.",
+          "dimension": "syntax",
+          "explanation": "The conditional structure and abstract argument require the reader to follow a contrast across a long sentence."
+        },
+        {
+          "block_id": "c16.p6",
+          "quote": "As the shape came nearer, I saw—terrible and hated sight!—that it was the wretch whom I had created.",
+          "dimension": "register",
+          "explanation": "Inverted exclamation and strongly literary words such as “wretch” add stylistic friction, though the meaning is explicit."
+        },
+        {
+          "block_id": "c16.p12",
+          "quote": "I ought to be your Adam, but I am rather the fallen angel, whom you drive from joy for no misdeed.",
+          "dimension": "content",
+          "explanation": "The passage uses biblical allusion to frame the creature’s argument about creation, rejection, and responsibility."
+        },
+        {
+          "block_id": "c16.p14",
+          "quote": "Let your compassion be stirred, and do not despise me.",
+          "dimension": "archaism",
+          "explanation": "The imperative phrasing and verb choice are formal and somewhat old-fashioned in contemporary English."
+        },
+        {
+          "block_id": "c16.p16",
+          "quote": "It rests with you whether I leave for ever the neighbourhood of man and lead a harmless life, or become the scourge of your fellow-creatures and the author of your own speedy ruin.",
+          "dimension": "vocabulary",
+          "explanation": "Formal collocations such as “it rests with you,” “scourge,” and “fellow-creatures” may slow a learner, but the alternatives clarify the meaning."
+        }
+      ],
+      "spoiler_free_description": "A grieving narrator travels through a sublime mountain landscape and encounters a threatening figure from his past. Their confrontation becomes a debate about responsibility, rejection, and whether the narrator will hear the figure’s account.",
+      "recap": "The narrator visits the glacier and finds temporary relief in the grandeur of nature, but his melancholy returns in the storm. On the glacier, he meets the creature he created. The narrator responds with rage and threats, while the creature argues that his creator owes him compassion and happiness. He threatens further harm if rejected, then asks the narrator to hear his life story. The narrator agrees and follows him to a mountain hut, partly out of curiosity and partly from compassion.",
+      "hard_words": [
+        {
+          "block_id": "c16.p2",
+          "surface": "subdued",
+          "explanation": "Calmed or made less intense."
+        },
+        {
+          "block_id": "c16.p3",
+          "surface": "retreats",
+          "explanation": "Sheltered or hidden places; here, places concealed by clouds."
+        },
+        {
+          "block_id": "c16.p4",
+          "surface": "luxuriant",
+          "explanation": "Growing thickly, richly, or abundantly."
+        },
+        {
+          "block_id": "c16.p4",
+          "surface": "wreaths",
+          "explanation": "Circular or curling shapes, here describing mists."
+        },
+        {
+          "block_id": "c16.p5",
+          "surface": "stupendous",
+          "explanation": "Extremely impressive or enormous."
+        },
+        {
+          "block_id": "c16.p6",
+          "surface": "malice",
+          "explanation": "A desire to harm or cause pain."
+        },
+        {
+          "block_id": "c16.p12",
+          "surface": "anguish",
+          "explanation": "Severe mental or physical suffering."
+        },
+        {
+          "block_id": "c16.p14",
+          "surface": "begrudge",
+          "explanation": "To resent someone having or receiving something."
+        }
+      ],
+      "themes": [
+        "Nature as temporary emotional refuge",
+        "Creator’s responsibility toward his creation",
+        "Isolation, rejection, and revenge",
+        "Compassion versus hatred"
+      ],
+      "characters": [
+        "The narrator, Frankenstein",
+        "The creature, whom the narrator created"
+      ],
+      "setting": "A glacier and mountain landscape near Montanvert and Mont Blanc, followed by a mountain hut.",
+      "content_flags": [
+        "Threats of murder and revenge",
+        "References to murdered victims",
+        "Grief, hatred, and profound isolation"
+      ]
+    }
+  },
+  {
+    "label": "everyday",
+    "ai_run_id": "1bc7d239-1dea-4327-bcf8-3773f1d8e31e",
+    "cost": "0.000865",
+    "assessment": {
+      "cefr_estimate": "B1",
+      "confidence": 0.97,
+      "archaism_score": 0.0,
+      "modernisation_would_help": false,
+      "evidence": [
+        {
+          "block_id": "control.p1",
+          "quote": "When I arrived at the station, the last bus had already left.",
+          "dimension": "syntax",
+          "explanation": "The narrative uses a past-time sequence with the past perfect, but the relationship is clear and common in connected storytelling."
+        },
+        {
+          "block_id": "control.p1",
+          "quote": "However, it was getting dark, and heavy clouds were moving towards the town.",
+          "dimension": "syntax",
+          "explanation": "This is a straightforward sentence linking events with a contrast marker and progressive forms."
+        },
+        {
+          "block_id": "control.p1",
+          "quote": "She could not collect me herself because her car was being repaired.",
+          "dimension": "syntax",
+          "explanation": "The passive progressive construction adds some grammatical demand, while the meaning remains explicit from context."
+        },
+        {
+          "block_id": "control.p1",
+          "quote": "The old timetable was still on the station wall.",
+          "dimension": "vocabulary",
+          "explanation": "Most vocabulary is familiar everyday language; “timetable” is a useful context-supported travel word."
+        },
+        {
+          "block_id": "control.p1",
+          "quote": "Otherwise, other visitors might make the same mistake.",
+          "dimension": "syntax",
+          "explanation": "The conditional consequence is clearly signalled and does not require substantial interpretation."
+        },
+        {
+          "block_id": "control.p1",
+          "quote": "I was late, but I was pleased that I had asked for help instead of walking in the storm.",
+          "dimension": "syntax",
+          "explanation": "The sentence combines contrast, a past-perfect clause, and an alternative action, but remains easy to follow."
+        }
+      ],
+      "spoiler_free_description": "A first-person journey narrative about a missed bus, an unexpected delay, and finding practical help before travelling onward.",
+      "recap": "The narrator misses the last bus because of an outdated timetable and cannot contact the aunt at first. A shopkeeper provides a phone, the aunt arranges a neighbour's ride, and the narrator reaches the village safely after choosing not to walk through worsening weather.",
+      "hard_words": [
+        {
+          "block_id": "control.p1",
+          "surface": "timetable",
+          "explanation": "A printed or online list showing scheduled bus or train times."
+        },
+        {
+          "block_id": "control.p1",
+          "surface": "collect",
+          "explanation": "Here, to come and take someone somewhere by car."
+        },
+        {
+          "block_id": "control.p1",
+          "surface": "neighbour",
+          "explanation": "A person who lives nearby; this spelling is standard British English."
+        }
+      ],
+      "themes": [
+        "Asking for help",
+        "Unexpected travel problems",
+        "Practical responsibility"
+      ],
+      "characters": [
+        "The first-person narrator",
+        "The narrator's aunt",
+        "The shopkeeper",
+        "The aunt's neighbour"
+      ],
+      "setting": "A bus station, a nearby shop, the road to a village, and the aunt's home.",
+      "content_flags": []
+    }
+  },
+  {
+    "label": "reflective",
+    "ai_run_id": "d7bb6d0e-1129-4973-9c5b-fd3d8f9680ac",
+    "cost": "0.000730",
+    "assessment": {
+      "cefr_estimate": "B1",
+      "confidence": 0.97,
+      "archaism_score": 0.0,
+      "modernisation_would_help": false,
+      "evidence": [
+        {
+          "block_id": "control.p1",
+          "quote": "For a long time, I believed that a good friend should always tell the truth.",
+          "dimension": "syntax",
+          "explanation": "A clear introductory sentence with familiar vocabulary and a straightforward statement of belief."
+        },
+        {
+          "block_id": "control.p1",
+          "quote": "I could also have said that I did not like it at all.",
+          "dimension": "syntax",
+          "explanation": "The conditional construction is accessible but adds moderate grammatical variety to the narrative."
+        },
+        {
+          "block_id": "control.p1",
+          "quote": "Once I understood his aim, I looked at the picture differently.",
+          "dimension": "vocabulary",
+          "explanation": "The sentence is easy to follow, though “aim” may require context-based interpretation for some learners."
+        },
+        {
+          "block_id": "control.p1",
+          "quote": "Sometimes a question is a better place to begin.",
+          "dimension": "content",
+          "explanation": "This concise concluding statement expresses the chapter's central interpersonal idea."
+        }
+      ],
+      "spoiler_free_description": "A narrator reflects on how to give honest and helpful feedback to a family member about a painting.",
+      "recap": "The narrator discusses a brother's painting, balancing honesty with encouragement. After learning the brother intended the picture to feel sad, the narrator reconsidered the painting and concluded that listening and asking questions can make honesty more useful.",
+      "hard_words": [
+        {
+          "block_id": "control.p1",
+          "surface": "opinion",
+          "explanation": "A personal view or judgment about something."
+        },
+        {
+          "block_id": "control.p1",
+          "surface": "improve",
+          "explanation": "To become better or make something better."
+        },
+        {
+          "block_id": "control.p1",
+          "surface": "effort",
+          "explanation": "The energy or work used to do something."
+        },
+        {
+          "block_id": "control.p1",
+          "surface": "aim",
+          "explanation": "The purpose or intention behind an action or creation."
+        },
+        {
+          "block_id": "control.p1",
+          "surface": "advice",
+          "explanation": "Suggestions about what someone should do."
+        }
+      ],
+      "themes": [
+        "Honesty and thoughtful communication",
+        "Listening before giving advice",
+        "Understanding another person's intention"
+      ],
+      "characters": [
+        "The narrator",
+        "The narrator's brother"
+      ],
+      "setting": "A personal conversation about the brother's painting; no specific location is given.",
+      "content_flags": []
+    }
+  }
+]

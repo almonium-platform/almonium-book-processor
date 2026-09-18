@@ -371,3 +371,68 @@ straightforward stories using everyday vocabulary, with dictionary support.
 This guides editorial decisions; an automated estimate is not CEFR certification.
 Generation must preserve the book's arguments and atmosphere, not summarize them
 to make its subject easier.
+
+## Decision after judge controls — 18 September 2026
+
+**Do not generate or publish a full B1 Frankenstein with the current workflow.**
+B2 remains the supported reading floor for this book under the tested fidelity
+rules and Terra ceiling. This is an operational decision, not proof that a
+skilled human could never write a faithful B1 adaptation. No premium model was
+called. No local, staging or production B1 edition was created.
+
+The unchanged blind Luna judge (prompt v3, rubric v2) was run on eight controls.
+Source labels and intended levels were withheld from its input:
+
+| Control | Result |
+| --- | --- |
+| Original Preface | C1 |
+| Original IV | B2 |
+| Original X | C1 |
+| Published B2 Preface / IV / X | B2 / B2 / B2 |
+| Agent-authored everyday journey | B1 |
+| Agent-authored reflective disagreement | B1 |
+
+The authored controls are intended B1-style prose, **not externally certified
+CEFR benchmarks**. They demonstrate that this judge can distinguish simple
+connected prose, including adult reflection, from our adaptations. They do not
+establish a calibrated classifier. The original book's C1 editorial label is
+not a ground truth for every chapter: IV returned B2 here, unlike an earlier
+C1 result. That variability argues against repeated scoring until a label passes.
+The judge was not loosened to approve an adaptation.
+
+[Inputs](evidence/b1-20260918/control-stories.json),
+[complete assessments and AIRun IDs](evidence/b1-20260918/judge-controls-v3.json).
+The ledger estimate was $0.016264 using the historical mean, with $0.08 reserved
+conservatively before calling. Actual cost was **$0.012511**. The session began
+with $6.671163 recorded project spend; the new session limit is $10 incremental.
+
+Current prompt v5 already ran on Terra at **high** reasoning on exactly the
+same three original passages. Reusing those saved runs avoids paying again for
+identical inputs. All three remain B2 under the blind judge:
+
+| Passage | Generation | Fidelity audit | Findings |
+| --- | ---: | ---: | --- |
+| Preface | $0.022042 | $0.010008 | No flagged fidelity issues; still B2 |
+| IV | $0.049697 | $0.062828 | Two minor sense/image shifts; still B2 |
+| X | $0.067005 | $0.069656 | Five minor shifts in resolve, imagery, force or clarity; still B2 |
+
+[Generation history](evidence/b1-20260918/generation-history.json) and
+[v5 audit evidence](evidence/b1-20260918/v5-fidelity.json) retain exact run IDs.
+There were 15 generation attempts across five prompt versions, **13 completed
+and assessed B2**, plus two v3 requests interrupted by a container replacement.
+Their provider outcomes and costs were not recorded; they are not successes or
+known-free calls. This corrects the shorthand “five versions × three assessed”.
+
+My review agrees that “unprotected” weakens the warning about being unwary,
+“vines produced wine” damages the agricultural image, and “ask” weakens “demand”.
+The audit's suggestion to drop “smallest sound” from the avalanche passage
+would itself lose a claim: its awkwardness partly reflects the original. Audit
+suggestions require judgment; a clean audit is not a fidelity certificate.
+Even accepting every minor trade-off would not solve the failed B1 difficulty gate.
+
+An honest alternative is the already published B2 text with original-derived
+Ukrainian support. A future more freely rewritten or abridged B1 must be a
+separately described editorial product with explicit approved losses; it must
+not inherit a claim of full fidelity. A2 has not been tested and is not licensed
+by these results. “At most two CEFR rungs” is a planning heuristic, not evidence
+that every C1 book can reach B1 while retaining every claim and image.

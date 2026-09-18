@@ -1,0 +1,137 @@
+[
+  {
+    "run": "46dd100a-9b69-49e1-8f54-7290c8f27e6f",
+    "version": 1,
+    "chapter": "PREFACE.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.025922",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "1d976733-916c-4f6e-9f41-9a6282e248bd",
+    "version": 1,
+    "chapter": "CHAPTER IV.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.050497",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "93ff9351-30d0-4180-8d09-fd0a6b279ce8",
+    "version": 1,
+    "chapter": "CHAPTER X.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.057773",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "700bf177-ec68-47fb-99f5-9d1cabce951e",
+    "version": 2,
+    "chapter": "PREFACE.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.017886",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "49abbe17-02c8-4e07-8ef0-3b63aa63961f",
+    "version": 2,
+    "chapter": "CHAPTER IV.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.050622",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "ca566498-cc14-4bf1-aafd-9cc8bf354828",
+    "version": 2,
+    "chapter": "CHAPTER X.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.057634",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "0274f000-ee4d-4fc7-9b6e-09a64f4085b7",
+    "version": 3,
+    "chapter": "PREFACE.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.015579",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "966d8bc8-c960-4b88-95f0-2eb3252eb605",
+    "version": 3,
+    "chapter": "CHAPTER IV.",
+    "status": "failed",
+    "level": null,
+    "cost": "None",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "00ae4317-1821-4278-bfbd-56b239f3a6e3",
+    "version": 3,
+    "chapter": "CHAPTER X.",
+    "status": "failed",
+    "level": null,
+    "cost": "None",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "ea11ab57-b03e-4f72-a89d-a0ce85797173",
+    "version": 4,
+    "chapter": "CHAPTER IV.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.063959",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "6c3369eb-6e74-4f65-9f4b-d51a36b04a45",
+    "version": 4,
+    "chapter": "CHAPTER X.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.051747",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "4b1fb802-7720-4395-abf6-38f87ac331b5",
+    "version": 4,
+    "chapter": "PREFACE.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.018166",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "a021dc32-f250-4108-857e-e561bc15c9ae",
+    "version": 5,
+    "chapter": "CHAPTER IV.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.049697",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "99f23e09-f26d-42a6-a88a-b339f67b5791",
+    "version": 5,
+    "chapter": "PREFACE.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.022042",
+    "model": "gpt-5.6-terra"
+  },
+  {
+    "run": "9b02ded3-dfbf-4132-b30e-e576d230ac9e",
+    "version": 5,
+    "chapter": "CHAPTER X.",
+    "status": "succeeded",
+    "level": "B2",
+    "cost": "0.067005",
+    "model": "gpt-5.6-terra"
+  }
+]
