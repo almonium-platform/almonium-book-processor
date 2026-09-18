@@ -28,7 +28,7 @@
           <span class="edition-words{% if row.source_language %} edition-source{% endif %}">{{ row.words_label }}</span>
           <span class="edition-warnings{% if row.warnings_urgent %} edition-warnings-urgent{% endif %}">{% if not row.run %}{{ row.warnings_label }}{% endif %}</span>
           <span class="edition-state">
-            {% if row.run %}<span class="run-stage"><span>{{ row.run.get_stage_display }}</span><span class="run-bar"><span style="width:{{ row.run.progress }}%"></span></span></span>{% else %}<span class="status status-{{ row.status }}">{{ row.status_label }}</span>{% endif %}
+            {% if row.run %}<span class="run-stage"><span>{{ row.run.get_stage_display }}</span><span class="run-bar"><span style="width:{{ row.run.progress }}%"></span></span></span>{% else %}<span class="status status-{{ row.status }}">{{ row.status_label }}</span>{% if row.behind %}<span class="status status-review edition-behind" title="Readers are served an older version: {{ row.behind }}">Behind: {{ row.behind }}</span>{% endif %}{% endif %}
           </span>
         </a>
       {% endfor %}

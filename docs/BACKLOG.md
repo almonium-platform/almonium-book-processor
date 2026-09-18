@@ -103,13 +103,6 @@ Implemented 2026-09-18 in the processor; see
   lv mt sk sr tr`): analysis refuses them. Decide whether they stay selectable
   for ingestion or are hidden until a model exists.
 
-## Now: operator visibility
-
-- [x] AI spend per edition and per work (2026-09-18): a tile and an "AI
-  spend" panel on the edition page (per purpose and model, then per edition
-  of the work, purged editions included through their tombstones), and the
-  work's total beside its name on the catalogue. Only this environment's
-  ledger: promoted editions were paid for where they were processed.
 ## Now: deterministic NLP and alignment
 
 - [x] Local spaCy sentence splitting with stable character offsets.

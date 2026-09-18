@@ -132,6 +132,9 @@ class EditionRow:
     # The run that is working on this edition right now, if any; the row draws
     # the stage and its progress in place of a status pill.
     run: PipelineRun | None
+    # Where readers are served an older version: "metadata", a promotion
+    # target's name, or several, joined; empty when nothing is behind.
+    behind: str = ""
 
     @property
     def status(self) -> str:
@@ -325,11 +328,17 @@ def _row(edition: Edition, run: PipelineRun | None) -> EditionRow:
 def catalogue_groups(visibility: str) -> list[WorkGroup]:
     """Every work of the given visibility with its editions as rows."""
 
+    from almonium_book_processor.catalog.release_state import behind_labels
+
     runs = _active_runs(visibility)
+    editions = list(_editions(visibility))
+    behind = behind_labels(editions)
     groups: dict = {}
-    for edition in _editions(visibility):
+    for edition in editions:
         group = groups.setdefault(edition.work_id, WorkGroup(work=edition.work))
-        group.rows.append(_row(edition, runs.get(edition.id)))
+        row = _row(edition, runs.get(edition.id))
+        row.behind = behind.get(edition.id, "")
+        group.rows.append(row)
     from almonium_book_processor.catalog.spend import spend_by_work
 
     spend = spend_by_work([group.work for group in groups.values()])

@@ -615,6 +615,9 @@ def _render_edition_detail(
     from almonium_book_processor.catalog.spend import edition_spend, work_spend
 
     spend = {"edition": edition_spend(edition), "work": work_spend(edition.work)}
+    from almonium_book_processor.catalog.release_state import release_rows
+
+    release = release_rows(edition)
     return render(
         request,
         "catalog/edition_detail.html",
@@ -622,6 +625,8 @@ def _render_edition_detail(
             "edition": edition,
             "parallel_companions": parallel_companions,
             "spend": spend,
+            "release_rows": release,
+            "release_behind": sum(row["state"] == "behind" for row in release),
             "parallel_companions_due": sum(
                 row["state"] in ("stale", "failed", "missing", "incomplete")
                 for row in parallel_companions
