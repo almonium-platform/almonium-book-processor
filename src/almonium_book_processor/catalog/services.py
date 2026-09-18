@@ -256,6 +256,21 @@ def create_private_import(
 
 @transaction.atomic
 def persist_artifact(edition: Edition, artifact: BookArtifact, run: PipelineRun) -> None:
+    # A canonical original roots the work's block tree: every generated
+    # edition copies its block groups instead of inferring a correspondence.
+    # The groups are minted here, at normalization, and survive a re-run for
+    # every block id that survives, so the parallels built from the previous
+    # normalization stay attached to the text they translate.
+    canonical = edition.parallel_role == Edition.ParallelRole.CANONICAL
+    previous_groups: dict[str, uuid.UUID] = {}
+    if canonical:
+        previous_groups = {
+            block_id: group
+            for block_id, group in edition.blocks.filter(align_group__isnull=False).values_list(
+                "block_id", "align_group"
+            )
+        }
+
     edition.chapters.all().delete()
     edition.warnings.all().delete()
 
@@ -277,6 +292,9 @@ def persist_artifact(edition: Edition, artifact: BookArtifact, run: PipelineRun)
                 sentences=[sentence.model_dump(mode="json") for sentence in block.sentences],
                 source_ref=block.source_ref or "",
                 attributes=block.attributes,
+                align_group=(
+                    (previous_groups.get(block.block_id) or uuid.uuid4()) if canonical else None
+                ),
             )
         )
     ContentBlock.objects.bulk_create(block_rows, batch_size=1000)
