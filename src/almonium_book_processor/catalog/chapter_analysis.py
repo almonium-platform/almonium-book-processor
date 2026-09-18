@@ -128,6 +128,11 @@ def snapshot(edition: Edition, spec: dict) -> dict:
         raise ValueError("Chapter analysis is currently available only for public editions.")
     if edition.withdrawal_requested_at:
         raise ValueError("This edition is being withdrawn.")
+    if edition.is_parallel_translation:
+        raise ValueError(
+            "The rubric is never applied to a parallel translation; "
+            "its level and chapter descriptions follow the source edition."
+        )
     if not edition.language:
         raise ValueError("Confirm the edition language before analysis.")
     windows = []
@@ -611,8 +616,13 @@ def carry_analysis_forward(edition: Edition, *, max_change: float = 0.02) -> dic
 
 
 def analysis_context(edition: Edition) -> dict:
-    """Only results for the exact current snapshot appear as current proposals."""
-    if edition.work.visibility != Work.Visibility.PUBLIC:
+    """Only results for the exact current snapshot appear as current proposals.
+
+    A parallel translation has no analysis of its own to show: its level and
+    descriptions come from the source, and a run queued before that rule
+    stays in the ledger without surfacing as this edition's assessment.
+    """
+    if edition.work.visibility != Work.Visibility.PUBLIC or edition.is_parallel_translation:
         return {}
     run = edition.pipeline_runs.filter(stage=PipelineRun.Stage.CHAPTER_ANALYSIS).first()
     context = {

@@ -351,6 +351,25 @@ def test_analysis_level_follows_to_parallel_translations(edition):
     assert (adaptation.cefr_level, adaptation.cefr_level_source) == ("A2", "target")
 
 
+def test_parallel_translation_has_no_analysis_of_its_own(edition):
+    translation = Edition.objects.create(
+        work=edition.work,
+        slug="analysis-uk",
+        language="uk",
+        source_edition=edition,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+    )
+    with pytest.raises(ValueError, match="follow the source edition"):
+        queue_analysis(str(translation.id))
+    # A run queued before the rule stays in the ledger but is not surfaced.
+    stale = queue_analysis(str(edition.id))
+    stale.edition = translation
+    stale.idempotency_key = f"{translation.id}:chapter-analysis:{stale.input_hash}"
+    stale.save(update_fields=["edition", "idempotency_key"])
+    assert analysis_context(translation) == {}
+
+
 def test_retry_reuses_success_and_keeps_failed_response_cost(edition):
     run = queue_analysis(str(edition.id))
 
