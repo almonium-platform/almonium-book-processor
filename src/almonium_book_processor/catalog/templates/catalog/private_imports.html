@@ -9,6 +9,7 @@
   </div>
 </div>
 
+<div data-live="{% url 'catalog:catalogue-activity' %}?visibility=private" data-live-fingerprint="{{ live_fingerprint }}">
 {% if rows %}
 <section class="work-group import-table">
   <div class="import-head"><span></span><span>Book</span><span>Owner</span><span>Uploaded</span><span>Warnings</span><span>Status</span></div>
@@ -34,6 +35,7 @@
 {% else %}
 <div class="empty"><h2>No user imports yet</h2><p>Private uploads will appear here when a premium user submits one in Almonium.</p></div>
 {% endif %}
+</div>
 
 <script>
   // The whole row is a link; the owner id copies instead of navigating.

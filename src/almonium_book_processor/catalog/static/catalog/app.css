@@ -362,6 +362,9 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .next-step-done .next-step-label, .next-step-available .next-step-label { color: var(--green); }
 .next-step-retry .next-step-label { color: var(--red); }
 .next-step-running .next-step-label, .next-step-wait .next-step-label { color: var(--muted); }
+.live-badge { display: inline-flex; align-items: center; gap: .3rem; margin-left: .4rem; color: var(--green); letter-spacing: .06em; }
+.live-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: live-pulse 1.6s ease-in-out infinite; }
+@keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 .next-step p { margin: 0; font-size: .9rem; line-height: 1.45; }
 .next-step p.muted { font-size: .78rem; }
 .next-step form { display: grid; gap: .5rem; margin-top: .25rem; }

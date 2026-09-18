@@ -2,7 +2,7 @@
 {% load catalog_extras %}
 {% block title %}{{ edition.title|display_title|default:"Untitled upload" }} · Almonium Books{% endblock %}
 {% block content %}
-<div class="edition-layout">
+<div class="edition-layout" data-live="{% url 'catalog:edition-activity' edition.id %}" data-live-fingerprint="{{ live_fingerprint }}">
 <aside class="edition-rail">
   <div class="rail-head">
     {% if is_private %}<a class="rail-crumb" href="{% url 'catalog:private-imports' %}">&larr; User imports</a>{% else %}<a class="rail-crumb" href="{% url 'catalog:dashboard' %}">&larr; Public catalogue · {{ edition.work.title|display_title }}</a>{% endif %}
@@ -21,7 +21,7 @@
   {% if has_blocks %}<a class="button rail-primary" href="{% url 'catalog:edition-reader' edition.id %}">Read and edit full text</a>{% endif %}
 
   <div class="next-step next-step-{{ next_step.kind }}">
-    <span class="next-step-label">Next step</span>
+    <span class="next-step-label">Next step{% if next_step.kind == "running" %} <span class="live-badge" title="This page follows the job; no reload needed">live</span>{% endif %}</span>
     <p>{{ next_step.text }}</p>
     {% if next_step.kind == "running" %}
       <span class="run-stage"><span>{{ next_step.run.get_stage_display }} · {{ next_step.run.get_status_display|lower }}</span><span class="run-bar"><span style="width:{{ next_step.run.progress }}%"></span></span></span>
@@ -198,7 +198,7 @@
       <td>{% if row.complete %}<span class="status status-succeeded">Complete</span><br><small class="muted">{{ row.total }} inherited group{{ row.total|pluralize }}</small>{% else %}<span class="status status-failed">Incomplete</span><br><small class="muted">Block groups do not match; not readable side by side</small>{% endif %}</td>
       <td>
         {% if row.state == "current" %}<span class="status status-succeeded">Current</span><br><small class="muted">{{ row.current }} of {{ row.total }} blocks{% if row.model %} · {{ row.model }}{% endif %}{% if row.run and row.run.finished_at %} · {{ row.run.finished_at|date:"j M H:i" }}{% endif %}</small>
-        {% elif row.state == "running" %}<span class="status">{{ row.run.get_status_display }} · {{ row.run.progress }}%</span><br><small class="muted">{{ row.model }} · refresh this page for progress</small>
+        {% elif row.state == "running" %}<span class="status">{{ row.run.get_status_display }} · {{ row.run.progress }}%</span><br><small class="muted">{{ row.model }}</small>
         {% elif row.state == "stale" %}<span class="status status-review">Stale</span><br><small class="muted">{{ row.current }} of {{ row.total }} blocks current · {{ row.changed }} changed since the last job · {{ row.reusable }} unchanged and cached</small>
         {% elif row.state == "failed" %}<span class="status status-failed">Failed</span><br><small class="muted run-error">{{ row.run.error|default:"The last job failed." }}</small>
         {% elif row.state == "missing" %}<span class="status status-missing">Not aligned</span><br><small class="muted">Paragraph pairing only; no sentence job has run for this pair</small>
@@ -545,19 +545,21 @@
 </div>
 </div>
 <script>
-(function () {
-  var main = document.querySelector(".edition-main");
+// A hash link into a folded panel opens it first.
+function revealEditionHash() {
+  if (!location.hash) return;
+  var target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+  if (!target) return;
+  var panel = target.closest("details");
+  while (panel) { panel.open = true; panel = panel.parentElement && panel.parentElement.closest("details"); }
+  target.scrollIntoView();
+}
+window.addEventListener("hashchange", revealEditionHash);
 
-  // A hash link into a folded panel opens it first.
-  function reveal() {
-    if (!location.hash) return;
-    var target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
-    if (!target) return;
-    var panel = target.closest("details");
-    while (panel) { panel.open = true; panel = panel.parentElement && panel.parentElement.closest("details"); }
-    target.scrollIntoView();
-  }
-  window.addEventListener("hashchange", reveal);
+// Wires the page's behaviour; runs once on load and again each time live.js
+// swaps the page in place after a job moved.
+function initEditionPage() {
+  var main = document.querySelector(".edition-main");
 
   // The rail's section index is read off the panels actually on the page,
   // grouped under the divider each one sits below.
@@ -641,8 +643,9 @@
       refold();
     });
   });
-
-  reveal();
-})();
+}
+initEditionPage();
+revealEditionHash();
+document.addEventListener("live:refreshed", initEditionPage);
 </script>
 {% endblock %}

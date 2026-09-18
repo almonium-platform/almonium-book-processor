@@ -186,7 +186,7 @@ def next_step(edition: Edition, context: dict[str, Any]) -> dict[str, Any]:
         return {
             "kind": "running",
             "run": run,
-            "text": f"{run.get_stage_display()} is running. Reload for progress.",
+            "text": f"{run.get_stage_display()} is running; this page follows it.",
         }
     if edition.status == Edition.Status.FAILED:
         return {
@@ -275,6 +275,6 @@ def next_step(edition: Edition, context: dict[str, Any]) -> dict[str, Any]:
                 "text": f"Promote to {never['target']}. It has never had this edition.",
             }
         if any(row["state"] == "running" for row in rows):
-            return {"kind": "wait", "text": "A promotion is running. Reload for progress."}
+            return {"kind": "wait", "text": "A promotion is running; this page follows it."}
         return {"kind": "done", "text": "Readers everywhere have the current edition."}
     return {"kind": "done", "text": "Nothing to do."}

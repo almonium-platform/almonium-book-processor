@@ -6,7 +6,7 @@
   <a class="button" href="{% url 'catalog:upload' %}">Upload source</a>
 </div>
 
-<section class="work-list">
+<section class="work-list" data-live="{% url 'catalog:catalogue-activity' %}?visibility=public" data-live-fingerprint="{{ live_fingerprint }}">
   {% for group in groups %}
     <article class="work-group">
       <header class="work-header">

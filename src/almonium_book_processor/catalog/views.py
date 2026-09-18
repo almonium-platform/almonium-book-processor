@@ -17,6 +17,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from almonium_book_processor import __version__
+from almonium_book_processor.catalog.activity import catalogue_activity, work_activity
 from almonium_book_processor.catalog.adaptation import (
     PILOT_VERSIONS,
     pilot_context,
@@ -117,13 +118,24 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "catalog/dashboard.html",
-        {"groups": groups, "summary": catalogue_summary(groups)},
+        {
+            "groups": groups,
+            "summary": catalogue_summary(groups),
+            "live_fingerprint": catalogue_activity(Work.Visibility.PUBLIC)["fingerprint"],
+        },
     )
 
 
 @staff_member_required
 def private_imports(request: HttpRequest) -> HttpResponse:
-    return render(request, "catalog/private_imports.html", {"rows": import_rows()})
+    return render(
+        request,
+        "catalog/private_imports.html",
+        {
+            "rows": import_rows(),
+            "live_fingerprint": catalogue_activity(Work.Visibility.PRIVATE)["fingerprint"],
+        },
+    )
 
 
 @staff_member_required
@@ -660,6 +672,7 @@ def _render_edition_detail(
         **_promotion_context(edition, pipeline_runs),
         "has_blocks": edition.blocks.exists(),
         "active_runs": active_runs,
+        "live_fingerprint": work_activity(edition.work)["fingerprint"],
         "pipeline_run_count": len(pipeline_runs),
         "recent_pipeline_runs": pipeline_runs[:3],
         "older_pipeline_runs": pipeline_runs[3:],
