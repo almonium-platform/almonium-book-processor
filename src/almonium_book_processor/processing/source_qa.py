@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 SOURCE_QA_SCHEMA_VERSION = 1
-SOURCE_QA_PROCESSOR_VERSION = "source-qa-v3"
+SOURCE_QA_PROCESSOR_VERSION = "source-qa-v4"
 
 WORD_PAIR = re.compile(
     r"(?=(\b(?P<left>[^\W\d_]{2,})[ \t]+(?P<right>[^\W\d_]{2,})\b))",
@@ -95,17 +95,7 @@ def _join_finding(
     left_zipf = frequency_lookup(left.casefold(), language)
     right_zipf = frequency_lookup(right.casefold(), language)
     gain = combined_zipf - separated_zipf
-    suspicious_fragments = [
-        zipf for value, zipf in ((left, left_zipf), (right, right_zipf)) if len(value) <= 3
-    ]
-    if (
-        combined_zipf < minimum_combined_frequency
-        or gain < minimum_gain
-        or (
-            code == "probable_split_word"
-            and (not suspicious_fragments or min(suspicious_fragments) > 4.2)
-        )
-    ):
+    if combined_zipf < minimum_combined_frequency or gain < minimum_gain:
         return None
     start = match.start("left")
     end = match.end("right")
@@ -130,6 +120,93 @@ def _join_finding(
     )
 
 
+# A word split by a stray space leaves a fragment that is not a word of the
+# language. Below this Zipf value a short token is debris rather than a word
+# ("cri", "ras" and "ab" all sit near 4).
+SPLIT_FRAGMENT_MAX_ZIPF = 2.5
+# Between the two limits the frequency list cannot tell debris from a rare
+# word: web abbreviations such as "cr" or "vo" score like "gué" or "rut".
+# There the edition itself has to vouch: the joined word is spelled out
+# elsewhere in it and the fragment appears nowhere else.
+SPLIT_FRAGMENT_AMBIGUOUS_ZIPF = 4.2
+# The joined word must be this much more common than the fragment.
+SPLIT_MINIMUM_RARITY = 1.0
+
+
+def _split_word_finding(
+    block: SourceQABlock,
+    match: re.Match[str],
+    language: str,
+    frequency_lookup: Callable[[str, str], float],
+    attested: Counter[str],
+) -> SourceQAFinding | None:
+    """Flag an adjacent pair only when one half is not a word on its own.
+
+    wordfreq has no phrase data: asking it for ``"cri se"`` returns roughly the
+    score of the rarer token, so a gain over that score only says the joined
+    word is more common than one of its halves, which holds for countless
+    legitimate pairs. Rarity of the fragment itself is the evidence.
+    """
+
+    left, right = match.group("left"), match.group("right")
+    combined = left + right
+    combined_zipf = frequency_lookup(combined.casefold(), language)
+    if combined_zipf < 3.0:
+        return None
+    left_zipf = frequency_lookup(left.casefold(), language)
+    right_zipf = frequency_lookup(right.casefold(), language)
+    attested_joined = attested[combined.casefold()]
+    fragments = [
+        (value, zipf)
+        for value, zipf in ((left, left_zipf), (right, right_zipf))
+        if len(value) <= 3
+        and (
+            zipf < SPLIT_FRAGMENT_MAX_ZIPF
+            or (
+                zipf < SPLIT_FRAGMENT_AMBIGUOUS_ZIPF
+                and attested_joined >= 2
+                and attested[value.casefold()] == 1
+            )
+        )
+    ]
+    if not fragments:
+        return None
+    fragment, fragment_zipf = min(fragments, key=lambda item: item[1])
+    rarity = combined_zipf - fragment_zipf
+    if rarity < SPLIT_MINIMUM_RARITY:
+        return None
+    confidence = min(0.9, 0.6 + (rarity - SPLIT_MINIMUM_RARITY) * 0.1)
+    if attested_joined >= 2:
+        confidence = min(0.98, confidence + 0.08)
+    if fragment_zipf < SPLIT_FRAGMENT_MAX_ZIPF:
+        reason = f"“{fragment}” is not a word"
+    else:
+        reason = f"“{combined}” is spelled out elsewhere and “{fragment}” stands alone nowhere else"
+    start = match.start("left")
+    end = match.end("right")
+    original = block.text[start:end]
+    return SourceQAFinding(
+        block_id=block.id,
+        stable_block_id=block.block_id,
+        code="probable_split_word",
+        start_offset=start,
+        end_offset=end,
+        original_text=original,
+        suggested_text=combined,
+        confidence=round(confidence, 3),
+        message=f"“{original}” may be the joined word “{combined}”; {reason}.",
+        evidence={
+            "combined_zipf": round(combined_zipf, 3),
+            "left_zipf": round(left_zipf, 3),
+            "right_zipf": round(right_zipf, 3),
+            "fragment": fragment,
+            "fragment_zipf": round(fragment_zipf, 3),
+            "fragment_occurrences": attested[fragment.casefold()],
+            "attested_joined_occurrences": attested_joined,
+        },
+    )
+
+
 def analyze_source_quality(
     blocks: Iterable[SourceQABlock],
     language: str,
@@ -142,6 +219,7 @@ def analyze_source_quality(
     attested = Counter(
         word for block in blocks for word in re.findall(r"\b[^\W\d_]+\b", block.text)
     )
+    attested_folded = Counter(word.casefold() for word in attested.elements())
     findings: list[SourceQAFinding] = []
     duplicate_blocks: dict[str, SourceQABlock] = {}
     for block in blocks:
@@ -227,14 +305,7 @@ def analyze_source_quality(
                 if finding:
                     findings.append(finding)
         for match in WORD_PAIR.finditer(block.text):
-            finding = _join_finding(
-                block,
-                match,
-                language,
-                frequency_lookup,
-                code="probable_split_word",
-                minimum_gain=0.2,
-            )
+            finding = _split_word_finding(block, match, language, frequency_lookup, attested_folded)
             if finding:
                 findings.append(finding)
 
