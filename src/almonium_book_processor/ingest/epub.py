@@ -15,6 +15,7 @@ from almonium_book_processor.ingest.common import (
     parse_html,
     sha256_file,
 )
+from almonium_book_processor.ingest.gutenberg import trim_gutenberg_boilerplate
 from almonium_book_processor.models import (
     BookArtifact,
     EditionMetadata,
@@ -93,10 +94,8 @@ def ingest_epub(
     if missing:
         raise ValueError(f"EPUB metadata is missing {', '.join(missing)}; provide an override")
 
-    builder = BlockBuilder(edition_slug)
-    chapter = 0
+    documents: list[tuple[str, Tag]] = []
     seen_documents: set[str] = set()
-    cover_images = _cover_image_names(book)
     for spine_entry in book.spine:
         item_id = spine_entry[0] if isinstance(spine_entry, tuple) else spine_entry
         item = book.get_item_with_id(item_id)
@@ -108,9 +107,15 @@ def ingest_epub(
         if document_name in seen_documents:
             continue
         seen_documents.add(document_name)
-
         soup = parse_html(item.get_content())
-        root = soup.body or soup
+        documents.append((document_name, soup.body or soup))
+
+    builder = BlockBuilder(edition_slug)
+    documents, notices = trim_gutenberg_boilerplate(documents)
+    builder.warnings.extend(notices)
+    chapter = 0
+    cover_images = _cover_image_names(book)
+    for document_name, root in documents:
         if _is_cover_document(root, document_name, cover_images):
             builder.warnings.append(
                 IngestionWarning(

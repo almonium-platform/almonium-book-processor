@@ -142,3 +142,119 @@ def test_inline_drop_cap_does_not_create_a_space():
         ('<p><span class="dropcap">I</span> am here.</p>', "I am here."),
     ]:
         assert normalize_text(parse_html(markup).p) == expected
+
+
+def _gutenberg_epub(tmp_path, *, header: str, closing: str, licence_document: bool = True) -> str:
+    """The shape Project Gutenberg ships: cover wrapper, header, chapters, footer."""
+
+    source = tmp_path / "gutenberg.epub"
+    book = epub.EpubBook()
+    book.set_identifier("urn:test:gutenberg")
+    book.set_title("Gutenberg Test")
+    book.set_language("fr")
+    book.add_author("Jules Verne")
+    book.set_cover("cover.jpg", b"binary", create_page=False)
+
+    wrapper = epub.EpubHtml(title="Cover", file_name="wrap0000.xhtml", lang="fr")
+    wrapper.content = SVG_COVER
+    first = epub.EpubHtml(title="First", file_name="800-0.xhtml", lang="fr")
+    first.content = header + "<p>Jules Verne</p><h2>LE TOUR DU MONDE</h2><p>Premier chapitre.</p>"
+    middle = epub.EpubHtml(title="Middle", file_name="800-1.xhtml", lang="fr")
+    middle.content = "<h2>II</h2><p>Deuxième chapitre.</p>"
+    last = epub.EpubHtml(title="Last", file_name="800-7.xhtml", lang="fr")
+    last.content = "<p>Le Tour du Monde?</p><h5>FIN</h5>" + closing
+    documents = [wrapper, first, middle, last]
+    if licence_document:
+        licence = epub.EpubHtml(title="Licence", file_name="800-8.xhtml", lang="en")
+        licence.content = "<p>Section 1. General Terms of Use of Project Gutenberg-tm works</p>"
+        documents.append(licence)
+    for item in documents:
+        book.add_item(item)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", *documents]
+    epub.write_epub(source, book)
+    return str(source)
+
+
+MODERN_HEADER = (
+    '<div class="pg-boilerplate pgheader" id="pg-header"><h2>The Project Gutenberg eBook of '
+    "<span>Le tour du monde</span></h2><div>This eBook is for the use of anyone anywhere.</div>"
+    '<div id="pg-machine-header"><p><strong>Title</strong>: Le tour du monde</p></div>'
+    '<div id="pg-start-separator"><span>*** START OF THE PROJECT GUTENBERG EBOOK '
+    "LE TOUR DU MONDE ***</span></div></div>"
+)
+MODERN_FOOTER = (
+    "<p>End of Project Gutenberg's Le Tour du Monde, by Jules Verne</p>"
+    '<div class="pg-boilerplate pgheader footer" id="pg-footer"><div id="pg-end-separator">'
+    "<span>*** END OF THE PROJECT GUTENBERG EBOOK LE TOUR DU MONDE ***</span></div>"
+    "<div>Updated editions will replace the previous one.</div></div>"
+)
+
+
+def test_gutenberg_header_and_licence_are_cut_at_the_markers(tmp_path) -> None:
+    artifact = ingest_epub(
+        _gutenberg_epub(tmp_path, header=MODERN_HEADER, closing=MODERN_FOOTER),
+        edition_slug="gutenberg-test-fr-orig",
+        work_slug="gutenberg-test",
+    )
+
+    assert [block.text for block in artifact.blocks] == [
+        "Jules Verne",
+        "LE TOUR DU MONDE",
+        "Premier chapitre.",
+        "II",
+        "Deuxième chapitre.",
+        "Le Tour du Monde?",
+        "FIN",
+    ]
+    assert [block.chapter for block in artifact.blocks] == [0, 0, 0, 1, 1, 2, 2]
+    # Two notices, no review items: the cut is deliberate and the emptied
+    # marker wrappers are not reported as skipped elements.
+    assert [(w.code, w.source_ref) for w in artifact.warnings] == [
+        ("gutenberg_boilerplate_trimmed", "800-0.xhtml"),
+        ("gutenberg_boilerplate_trimmed", "800-7.xhtml"),
+    ]
+    assert "1 document(s) ahead" in artifact.warnings[0].message
+    assert "1 document(s) after" in artifact.warnings[1].message
+    assert (
+        ingestion_warning_severity("gutenberg_boilerplate_trimmed") == IngestionWarningSeverity.INFO
+    )
+
+
+def test_an_old_gutenberg_header_shares_its_pre_with_the_marker(tmp_path) -> None:
+    header = (
+        "<pre>The Project Gutenberg EBook of Le Tour du Monde, by Jules Verne\n\n"
+        "Title: Le Tour du Monde\n\n"
+        "*** START OF THIS PROJECT GUTENBERG EBOOK LE TOUR DU MONDE ***\n\n\n\n"
+        "Produced by ebooksgratuits\n</pre>"
+    )
+    closing = (
+        "<pre>\nEnd of the Project Gutenberg EBook of Le Tour du Monde, by Jules Verne\n\n"
+        "*** END OF THIS PROJECT GUTENBERG EBOOK LE TOUR DU MONDE ***\n\n"
+        "***** This file should be named 800-8.txt *****\n</pre>"
+    )
+
+    artifact = ingest_epub(
+        _gutenberg_epub(tmp_path, header=header, closing=closing, licence_document=False),
+        edition_slug="gutenberg-old-fr-orig",
+        work_slug="gutenberg-old",
+    )
+
+    texts = [block.text for block in artifact.blocks]
+    assert texts[:2] == ["Produced by ebooksgratuits", "Jules Verne"]
+    assert texts[-2:] == ["Le Tour du Monde?", "FIN"]
+    assert not any("gutenberg" in text.lower() for text in texts)
+
+
+def test_a_book_without_gutenberg_markers_is_left_alone(tmp_path) -> None:
+    artifact = ingest_epub(
+        _gutenberg_epub(tmp_path, header="<p>Preface.</p>", closing="<p>Colophon.</p>"),
+        edition_slug="plain-fr-orig",
+        work_slug="plain",
+    )
+
+    texts = [block.text for block in artifact.blocks]
+    assert texts[0] == "Preface."
+    assert texts[-1] == "Section 1. General Terms of Use of Project Gutenberg-tm works"
+    assert [w.code for w in artifact.warnings] == ["cover_document_skipped"]
