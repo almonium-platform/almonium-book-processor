@@ -598,10 +598,12 @@ def test_b1_pilot_identity_prompt_and_preview(chapter, client):
         == b1.id
     )
     ai = b1.ai_runs.get()
-    assert ai.prompt_template.version == 1
+    assert ai.prompt_template.version == 5
+    assert ai.request_payload["body"]["reasoning"]["effort"] == "high"
+    assert ai.model_configuration.parameters["reasoning_effort"] == "high"
     assert ai.prompt_template.system_prompt == B1_SYSTEM_PROMPT
-    assert "For B1, prefer common vocabulary" in B1_SYSTEM_PROMPT
-    assert "B2" not in B1_SYSTEM_PROMPT
+    assert "common everyday vocabulary" in B1_SYSTEM_PROMPT
+    assert "CEFR B1\nreader" in B1_SYSTEM_PROMPT
     assert "B1" not in SYSTEM_PROMPT
     assert "B1 reading target" in ai.request_payload["body"]["instructions"]
     assert ai.request_payload["source"]["target_level"] == "B1"
@@ -623,8 +625,8 @@ def test_pilot_rejects_unsupported_targets(chapter, target_level):
     assert not AIRun.objects.exists()
 
 
-def test_b1_cannot_generate_into_an_edition(chapter):
-    with pytest.raises(ValueError, match="standalone"):
+def test_b1_cannot_generate_into_an_unrelated_edition(chapter):
+    with pytest.raises(Edition.DoesNotExist):
         queue_pilot(
             chapter.edition_id,
             chapter.id,
@@ -646,3 +648,56 @@ def test_staff_can_queue_b1_from_pilot_form(chapter, client, monkeypatch):
     )
     assert response.status_code == 302
     assert AIRun.objects.get().request_payload["source"]["target_level"] == "B1"
+
+
+def test_b1_pilot_cannot_replace_b2_chapter(application):
+    from almonium_book_processor.catalog.pilot_application import apply_pilot, chapter_revision
+
+    old, target, chapter = application
+    b1 = queue_pilot(old.edition_id, old.summary["chapter_id"], target_level="B1", dispatch=False)
+    run_pilot(b1.id, provider=Provider())
+    with pytest.raises(ValueError, match="consistently request B1"):
+        apply_pilot(
+            pilot_id=b1.id,
+            target_id=target.id,
+            expected_revision=chapter_revision(chapter),
+            editor=None,
+            notes="Reviewed",
+        )
+    assert not target.block_revisions.exists()
+
+
+def test_b1_application_requires_b1_assessment_and_preserves_provenance(application):
+    from almonium_book_processor.catalog.models import PipelineRun
+    from almonium_book_processor.catalog.pilot_application import apply_pilot, chapter_revision
+
+    old, target, chapter = application
+    b1 = queue_pilot(old.edition_id, old.summary["chapter_id"], target_level="B1", dispatch=False)
+    run_pilot(b1.id, provider=Provider())
+    for block in target.blocks.all():
+        block.attributes["adaptation"]["target_level"] = "B1"
+        block.save()
+    assessment = PipelineRun.objects.get(processor_version="pilot-difficulty-v1")
+    assessment.summary["pilot_id"] = str(b1.id)
+    assessment.save()
+    with pytest.raises(ValueError, match="at or below B1"):
+        apply_pilot(
+            pilot_id=b1.id,
+            target_id=target.id,
+            expected_revision=chapter_revision(chapter),
+            editor=None,
+            notes="Reviewed",
+        )
+    assessment.summary["assessment"]["max_level"] = "B1"
+    assessment.save()
+    assert (
+        apply_pilot(
+            pilot_id=b1.id,
+            target_id=target.id,
+            expected_revision=chapter_revision(chapter),
+            editor=None,
+            notes="Reviewed against the original",
+        )
+        == 1
+    )
+    assert chapter.blocks.get(block_id="b1").attributes["adaptation"]["target_level"] == "B1"

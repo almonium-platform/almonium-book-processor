@@ -20,7 +20,7 @@ def _targets(edition) -> set:
     targets = {
         value
         for value in edition.pipeline_runs.filter(
-            stage=PipelineRun.Stage.ADAPT, processor_version="b2-book-v1"
+            stage=PipelineRun.Stage.ADAPT, processor_version__in=("b1-book-v1", "b2-book-v1")
         ).values_list("summary__target_level", flat=True)
         if value
     }

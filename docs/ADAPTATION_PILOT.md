@@ -349,3 +349,25 @@ This change enables standalone B1 pilots only. Full-book generation and applying
 pilots to draft editions remain B2-only. No paid generation or assessment was run
 as part of this implementation; fake-provider tests verify workflow behavior,
 not the model's B1 output quality.
+
+## Agent-owned B1 delivery — 2026-09-17
+
+The user authorized paid generation and assessment, with the agent responsible
+for fidelity review and deciding when to generate the complete book. The earlier
+standalone-only restriction is superseded: resumable full-book B1 generation,
+level-preserving retries and applying assessed B1 chapter revisions are supported.
+B1 and B2 retain separate identities and derive from the same source.
+
+Initial B1 v1 samples (preface, IV and X) all received B2 from the existing blind
+judge. Direct comparison found weakened intensity (`emaciated` → `thin`) and an
+invented dependency in `its dependent mountains`. B1 v2's extra instructions
+still left formal, nested prose. B1 v3 therefore uses a dedicated prompt with
+explicit examples of sentence reconstruction, preserving the fidelity rules.
+The B2 v7 prompt and blind judge remain unchanged.
+
+The language target follows the Council of Europe's
+[reading-for-leisure descriptors](https://rm.coe.int/cefr-webinar-series-2021-4-handouts/1680a54fd5):
+straightforward stories using everyday vocabulary, with dictionary support.
+This guides editorial decisions; an automated estimate is not CEFR certification.
+Generation must preserve the book's arguments and atmosphere, not summarize them
+to make its subject easier.

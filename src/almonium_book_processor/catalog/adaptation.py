@@ -92,8 +92,6 @@ def queue_pilot(
     prompt_version, system_prompt = pilot_prompt(target_level)
     processor_version = B1_VERSION if target_level == "B1" else VERSION
     prompt_name = "literary-b1-adaptation-pilot" if target_level == "B1" else PROMPT_NAME
-    if target_level == "B1" and target_edition_id is not None:
-        raise ValueError("B1 currently supports standalone chapter pilots only.")
     if not settings.OPENAI_API_KEY:
         raise ValueError("Configure an OpenAI key to generate a pilot.")
     editorial_feedback = editorial_feedback.strip()
@@ -110,17 +108,28 @@ def queue_pilot(
             work=edition.work,
             edition_type=Edition.EditionType.ADAPTATION,
         )
+        if not owner.pipeline_runs.filter(
+            stage=PipelineRun.Stage.ADAPT,
+            processor_version=f"{target_level.lower()}-book-v1",
+            summary__target_level=target_level,
+        ).exists():
+            raise ValueError("The target edition must have a matching book generation target.")
         if owner.status == Edition.Status.PUBLISHED or owner.withdrawal_requested_at:
             raise ValueError("Cannot generate into a published or withdrawing edition.")
     model = settings.OPENAI_TRANSLATION_QUALITY_MODEL
+    effort = "high" if target_level == "B1" else "medium"
     configuration, _ = ModelConfiguration.objects.get_or_create(
-        name=f"adaptation-pilot-{digest(model)[:16]}-v1",
+        name=(
+            f"adaptation-b1-{digest(model)[:16]}-high-v1"
+            if target_level == "B1"
+            else f"adaptation-pilot-{digest(model)[:16]}-v1"
+        ),
         defaults={
             "provider": "openai",
             "model": model,
             "purpose": "level_adaptation",
             "parameters": {
-                "reasoning_effort": "medium",
+                "reasoning_effort": effort,
                 "pricing_per_million": TRANSLATION_MODEL_PRICING["quality"],
             },
         },
@@ -147,7 +156,7 @@ def queue_pilot(
         "model": configuration.model,
         "instructions": prompt.system_prompt,
         "input": json.dumps(source, ensure_ascii=False),
-        "reasoning": {"effort": "medium"},
+        "reasoning": {"effort": effort},
         "max_output_tokens": 20000,
         "store": False,
         "text": {

@@ -2,7 +2,7 @@
 
 from django.db import transaction
 
-from almonium_book_processor.catalog.adaptation import TARGET_LEVEL, digest, source_snapshot
+from almonium_book_processor.catalog.adaptation import PILOT_VERSIONS, digest, source_snapshot
 from almonium_book_processor.catalog.chapter_analysis import analysis_spec
 from almonium_book_processor.catalog.chapter_projections import LEVELS
 from almonium_book_processor.catalog.models import (
@@ -30,10 +30,13 @@ def apply_pilot(*, pilot_id, target_id, expected_revision, editor, notes):
     if not notes.strip():
         raise ValueError("Record your fidelity review before applying a chapter.")
     run = PipelineRun.objects.select_related("edition__work").get(pk=pilot_id)
-    if run.processor_version != "b2-chapter-pilot-v1" or run.status != "succeeded":
+    if run.processor_version not in PILOT_VERSIONS or run.status != "succeeded":
         raise ValueError("Choose a completed standalone pilot.")
     if run.summary.get("block_ids") is not None:
         raise ValueError("Only whole-chapter pilots can replace a chapter.")
+    target_level = run.summary.get("target_level")
+    if target_level not in {"B1", "B2"}:
+        raise ValueError("The pilot must request B1 or B2.")
     source = run.edition
     target = Edition.objects.get(pk=target_id)
     if (
@@ -79,11 +82,11 @@ def apply_pilot(*, pilot_id, target_id, expected_revision, editor, notes):
     if target.pipeline_runs.filter(status__in=["queued", "running"]).exists():
         raise ValueError("Wait for the adaptation's active jobs to finish.")
     targets = set(target.blocks.values_list("attributes__adaptation__target_level", flat=True))
-    if targets != {TARGET_LEVEL}:
-        raise ValueError("The target edition must consistently request B2 adaptation.")
+    if targets != {target_level}:
+        raise ValueError(f"The target edition must consistently request {target_level} adaptation.")
     if chapter_revision(target_chapter) != expected_revision:
         raise ValueError("The target chapter changed. Reload and review it before applying.")
-    if digest(source_snapshot(chapter)) != run.summary["source_hash"]:
+    if digest(source_snapshot(chapter, target_level=target_level)) != run.summary["source_hash"]:
         raise ValueError("The source chapter changed. Generate a current pilot.")
     assessment = source.pipeline_runs.filter(
         processor_version="pilot-difficulty-v1",
@@ -92,8 +95,10 @@ def apply_pilot(*, pilot_id, target_id, expected_revision, editor, notes):
         summary__spec=analysis_spec(),
     ).first()
     level = assessment.summary.get("assessment", {}).get("max_level") if assessment else None
-    if level not in LEVELS or LEVELS.index(level) > LEVELS.index(TARGET_LEVEL):
-        raise ValueError("The pilot needs a current, complete assessment at or below B2.")
+    if level not in LEVELS or LEVELS.index(level) > LEVELS.index(target_level):
+        raise ValueError(
+            f"The pilot needs a current, complete assessment at or below {target_level}."
+        )
     generation = AIRun.objects.get(pk=run.summary["ai_run_id"], edition=source, status="succeeded")
     originals = list(chapter.blocks.order_by("sequence"))
     targets = list(target_chapter.blocks.order_by("sequence"))
@@ -124,7 +129,7 @@ def apply_pilot(*, pilot_id, target_id, expected_revision, editor, notes):
             **block.attributes,
             "adaptation": {
                 **block.attributes.get("adaptation", {}),
-                "target_level": TARGET_LEVEL,
+                "target_level": target_level,
                 "decision": result["decision"],
                 "reason": result["reason"],
                 "ai_run_id": str(generation.id),

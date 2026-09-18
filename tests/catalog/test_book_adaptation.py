@@ -77,10 +77,11 @@ class Provider:
         }
 
 
-def test_complete_book_is_separate_aligned_review_only_and_idempotent(source):
+@pytest.mark.parametrize("target_level", ["B1", "B2"])
+def test_complete_book_is_separate_aligned_review_only_and_idempotent(source, target_level):
     before = book_plan(source)["source_hash"]
-    run = queue_book(source.id)
-    assert queue_book(source.id).id == run.id
+    run = queue_book(source.id, target_level=target_level)
+    assert queue_book(source.id, target_level=target_level).id == run.id
     provider = Provider()
     run_book(run.id, provider=provider)
     run_book(run.id, provider=provider)
@@ -105,20 +106,22 @@ def test_complete_book_is_separate_aligned_review_only_and_idempotent(source):
         assert block.align_group == original.align_group
         assert block.attributes["adaptation"]["source_revision"] == before
         assert block.attributes["adaptation"]["decision"] == "kept"
+        assert block.attributes["adaptation"]["target_level"] == target_level
     source.refresh_from_db()
     assert source.cefr_level == "C1" and source.status == "ready"
     assert book_plan(source)["source_hash"] == before
 
 
-def test_failure_never_creates_partial_book_and_retry_reuses_completed_chunks(source):
-    run = queue_book(source.id)
+@pytest.mark.parametrize("target_level", ["B1", "B2"])
+def test_failure_never_creates_partial_book_and_retry_reuses_completed_chunks(source, target_level):
+    run = queue_book(source.id, target_level=target_level)
     provider = Provider(fail=2)
     with pytest.raises(ValueError):
         run_book(run.id, provider=provider)
     assert not run.edition.blocks.exists()
     failed = AIRun.objects.get(status="failed")
     assert failed.estimated_cost_usd > 0
-    run = queue_book(source.id)
+    run = queue_book(source.id, target_level=target_level)
     retry = Provider()
     run_book(run.id, provider=retry)
     assert retry.calls == 3  # First chapter is reused; second, third, fourth are generated.
@@ -227,3 +230,32 @@ def test_adaptation_panel_is_collapsible_and_absent_from_the_generated_edition(c
     assert "adaptation-panel" not in body
     assert "Generate B2 pilot" not in body
     assert "B2 adaptation — " in body
+
+
+def test_b1_and_b2_are_siblings_with_distinct_generation_identities(source):
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_target
+
+    b1 = queue_book(source.id, target_level="B1")
+    b2 = queue_book(source.id, target_level="B2")
+    assert b1.id != b2.id and b1.edition_id != b2.edition_id
+    assert b1.edition.source_edition_id == b2.edition.source_edition_id == source.id
+    assert adaptation_target(b1.edition) == "B1"
+    assert adaptation_target(b2.edition) == "B2"
+
+
+def test_book_rejects_unsupported_level_before_creating_edition(source):
+    with pytest.raises(ValueError, match="B1 or B2"):
+        queue_book(source.id, target_level="A2")
+    assert not source.derived_editions.exists()
+
+
+def test_b1_failed_staff_retry_preserves_target(client, source):
+    run = queue_book(source.id, target_level="B1")
+    with pytest.raises(ValueError):
+        run_book(run.id, provider=Provider(fail=1))
+    client.force_login(get_user_model().objects.create_user("b1retry", is_staff=True))
+    response = client.post(reverse("catalog:retry-edition", args=[run.edition_id]))
+    assert response.status_code == 302
+    run.refresh_from_db()
+    assert run.status == "queued" and run.summary["target_level"] == "B1"
+    assert source.derived_editions.count() == 1

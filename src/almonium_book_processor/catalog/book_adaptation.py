@@ -1,4 +1,4 @@
-"""Complete B2 editions: checkpointed generation, atomic materialization, no publication."""
+"""Complete B1/B2 editions: checkpointed generation, atomic materialization, no publication."""
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -6,7 +6,7 @@ from django.conf import settings
 from django.db import close_old_connections, transaction
 from django.utils import timezone
 
-from almonium_book_processor.ai.adaptation import PROMPT_VERSION, SYSTEM_PROMPT, ChapterAdaptation
+from almonium_book_processor.ai.adaptation import ChapterAdaptation, pilot_prompt
 from almonium_book_processor.catalog.adaptation import (
     MAX_BLOCKS,
     MAX_CHARS,
@@ -26,16 +26,18 @@ from almonium_book_processor.catalog.models import (
 )
 
 VERSION = "b2-book-v1"
+BOOK_VERSIONS = (VERSION, "b1-book-v1")
 WORKERS = 3
 REVIEW_CODE = "adaptation_fidelity_review"
 
 
-def generation_spec():
+def generation_spec(target_level=TARGET_LEVEL):
+    prompt_version, system_prompt = pilot_prompt(target_level)
     return {
-        "processor": VERSION,
+        "processor": "b1-book-v1" if target_level == "B1" else VERSION,
         "model": settings.OPENAI_TRANSLATION_QUALITY_MODEL,
-        "prompt_version": PROMPT_VERSION,
-        "prompt_hash": digest(SYSTEM_PROMPT),
+        "prompt_version": prompt_version,
+        "prompt_hash": digest(system_prompt),
         "schema_hash": digest(ChapterAdaptation.model_json_schema()),
     }
 
@@ -97,22 +99,22 @@ def book_plan(source):
 
 
 @transaction.atomic
-def queue_book(source_id):
+def queue_book(source_id, *, target_level=TARGET_LEVEL):
     from almonium_book_processor.catalog.tasks import adapt_book
 
     if not settings.OPENAI_API_KEY:
         raise ValueError("Configure an OpenAI key to generate an adaptation.")
     source = Edition.objects.select_for_update().select_related("work").get(pk=source_id)
     plan = book_plan(source)
-    spec = generation_spec()
+    spec = generation_spec(target_level)
     input_hash = digest([plan, spec])
-    key = f"{source.id}:b2-book:{input_hash}"
+    key = f"{source.id}:{target_level.lower()}-book:{input_hash}"
     run = PipelineRun.objects.filter(idempotency_key=key).select_related("edition").first()
     if run is None:
         edition = Edition.objects.create(
             work=source.work,
             source_edition=source,
-            slug=_unique_slug(f"{source.slug[:155]}-b2"),
+            slug=_unique_slug(f"{source.slug[:155]}-{target_level.lower()}"),
             # The level is a field on the edition and a chip in every UI; it
             # never rides inside the title.
             title=source.title,
@@ -128,10 +130,10 @@ def queue_book(source_id):
         run = PipelineRun.objects.create(
             edition=edition,
             stage=PipelineRun.Stage.ADAPT,
-            processor_version=VERSION,
+            processor_version=spec["processor"],
             input_hash=input_hash,
             idempotency_key=key,
-            summary={"plan": plan, "spec": spec, "target_level": TARGET_LEVEL, "completed": 0},
+            summary={"plan": plan, "spec": spec, "target_level": target_level, "completed": 0},
         )
     if run.status in {PipelineRun.Status.SUCCEEDED, PipelineRun.Status.RUNNING}:
         return run
@@ -164,7 +166,7 @@ def run_book(run_id, *, provider=None):
     plan = run.summary["plan"]
     Edition.objects.filter(pk=run.edition_id).update(status=Edition.Status.PROCESSING)
     try:
-        if generation_spec() != run.summary["spec"]:
+        if generation_spec(run.summary["target_level"]) != run.summary["spec"]:
             raise ValueError(
                 "Generation configuration changed; start a new version from the source."
             )
@@ -194,6 +196,7 @@ def run_book(run_id, *, provider=None):
                     source.id,
                     chapter.id,
                     target_edition_id=run.edition_id,
+                    target_level=run.summary["target_level"],
                     block_ids=window["block_ids"],
                     dispatch=False,
                 )
@@ -279,7 +282,7 @@ def _materialize(run, results):
                     **block.attributes,
                     "adaptation": {
                         "source_revision": plan["source_hash"],
-                        "target_level": TARGET_LEVEL,
+                        "target_level": run.summary["target_level"],
                         "decision": adapted["decision"],
                         "reason": adapted["reason"],
                         "ai_run_id": adapted["ai_run_id"],
@@ -300,7 +303,7 @@ def _materialize(run, results):
     PipelineRun.objects.create(
         edition=target,
         stage=PipelineRun.Stage.ALIGN,
-        processor_version=VERSION,
+        processor_version=run.processor_version,
         input_hash=alignment_hash,
         idempotency_key=f"{target.id}:inherited:{alignment_hash}",
         status=PipelineRun.Status.SUCCEEDED,
@@ -313,8 +316,9 @@ def _materialize(run, results):
         pipeline_run=run,
         code=REVIEW_CODE,
         severity=QAWarning.Severity.WARNING,
-        message="AI B2 adaptation: review fidelity, literary voice and achieved difficulty. "
-        "B2 is the target, not a verified level. Source defects may remain. "
+        message=f"AI {run.summary['target_level']} adaptation: review fidelity, literary voice "
+        f"and achieved difficulty. {run.summary['target_level']} is the target, not a verified "
+        "level. Source defects may remain. "
         "Inspect chapter change reasons and warnings before accepting this edition.",
     )
     run.status = PipelineRun.Status.SUCCEEDED
