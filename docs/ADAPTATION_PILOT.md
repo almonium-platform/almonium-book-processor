@@ -457,8 +457,19 @@ reads every chapter of an adaptation beside its source edition, one paid
 request per chapter (split by block only past 160 KB), each cached by input
 hash so a text fix re-reads one chapter. Material findings become
 `adaptation_fidelity_finding` review items on the block; minor and uncertain
-ones are listed on the audit panel. Resolving a material item records that
-the change is acceptable. A newer audit supersedes the older run's open items.
+ones get the same treatment. Every finding is a text-quality finding on its
+block with the quoted span located: **apply** writes the suggested wording in
+as an audited block revision, **dismiss** records that the adapted wording
+keeps the author's meaning. Both exist per finding and in bulk, behind a
+confirmation; a finding whose quote cannot be placed as one span is
+dismiss-only and asks for a hand edit. Only open material findings hold the
+gate. Applying queues the sentence, vocabulary and difficulty refresh for the
+changed chapters, and the next audit re-reads only those chapters, because
+windows are cached by model, effort, prompt and text. A newer audit
+supersedes the older run's open findings. The audit tier is
+`OPENAI_FIDELITY_TIER` (`quality` = Terra by default, `draft` = Luna at about
+a tenth of the price); a comparison run under another tier keeps its review
+in the ledger without writing findings.
 
 **Every staff pilot is judged and audited** as soon as it generates: the
 worker task runs the blind difficulty judge and the fidelity audit after the
@@ -498,12 +509,15 @@ a "Fidelity audit" panel with the run, counts and the paid button.
 `reachedLevels` alongside `cefrLevel`; the product API ignores unknown fields
 until it stores them, which is the next cross-repository step.
 
-Frankenstein today: the published B2 edition has no edition audit yet, so
-the ladder shows B2 as "edition generated" until the audit runs and comes
-back clean or with accepted findings; `adapts_to` follows from that, not from
-anyone's say-so. The B1 pilots in the evidence folder were standalone pilots,
-not probes, so B1 stays "untried" on the ladder and will be probed once B2 is
-reached.
+Frankenstein, 2026-09-18: the published B2 edition was audited on Terra
+(run `f06a3841`, 815 blocks, $1.32): 7 material, 36 minor, 2 uncertain
+findings, 44 of 45 with their quotes placed in the text. Five of the material
+ones are plain errors (leagues became miles; "fear not but that" reversed;
+"hasten my delay"; "eventual" weakened to "possible"; "resignation" became
+"acceptance"). They are open findings on the edition's page, to apply or
+dismiss; `adapts_to = B2` follows once no material one is open. B1 is a
+failed rung, backfilled from the three v5 pilots (`backfill_floor_probe`),
+so the ladder reads B2 generated, B1 floor.
 
 ## Final B1 follow-up — 18 September, afternoon
 
