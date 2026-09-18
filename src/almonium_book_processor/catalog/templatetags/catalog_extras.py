@@ -30,6 +30,23 @@ def mark_excerpt(text, quote):
 
 
 @register.simple_tag
+def side_excerpt(text, quote, counterpart=""):
+    """The sentences of one side that hold the quoted words, this side's quote marked."""
+
+    from django.utils.html import escape
+    from django.utils.safestring import mark_safe
+
+    from almonium_book_processor.catalog.fidelity_audit import side_excerpt as excerpt_side
+
+    return mark_safe(
+        "".join(
+            f"<mark>{escape(s['text'])}</mark>" if s["marked"] else escape(s["text"])
+            for s in excerpt_side(text or "", quote or "", counterpart or "")
+        )
+    )
+
+
+@register.simple_tag
 def change_preview(text, quote, suggestion):
     """The sentence after the suggestion, with removed words struck and new words marked."""
 

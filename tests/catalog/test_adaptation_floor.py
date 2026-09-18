@@ -804,3 +804,31 @@ def test_a_phrase_level_fix_carries_the_difficulty_verdict_forward(
 
         _requeue_analysis_after_commit(adaptation)
     assert adaptation.pipeline_runs.filter(stage="chapter_analysis", status="queued").exists()
+
+
+def test_both_sides_show_the_sentences_that_hold_any_quoted_words():
+    from almonium_book_processor.catalog.fidelity_audit import side_excerpt
+
+    source = (
+        "Earlier words. You cannot contest the benefit I shall confer "
+        "by finding the passage. Later."
+    )
+    adapted = (
+        "Earlier words. You cannot deny the benefit I shall confer. I may find the passage. Later."
+    )
+    source_quote = "“the benefit I shall confer ... by finding the passage”"
+    adapted_quote = "I may find the passage"
+    # The adaptation split the sentence: the adapted side shows both halves, its own quote marked.
+    segments = side_excerpt(adapted, adapted_quote, source_quote)
+    assert "".join(s["text"] for s in segments) == (
+        "You cannot deny the benefit I shall confer. I may find the passage."
+    )
+    assert [s["text"] for s in segments if s["marked"]] == ["I may find the passage"]
+    # The source side marks each fragment of its ellipsis quote.
+    segments = side_excerpt(source, source_quote, adapted_quote)
+    assert [s["text"] for s in segments if s["marked"]] == [
+        "the benefit I shall confer",
+        "by finding the passage",
+    ]
+    assert "".join(s["text"] for s in segments).startswith("You cannot contest")
+    assert side_excerpt("word " * 100, "nothing here", "")[0]["text"].endswith(" …")

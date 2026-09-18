@@ -266,8 +266,8 @@
       </div>
       <p class="fidelity-explanation">{{ finding.message }}</p>
       <div class="fidelity-sides">
-        <div class="fidelity-side"><p class="fidelity-side-label">Source</p><p class="fidelity-text">{{ finding.source_text|mark_excerpt:finding.evidence.source_quote }}</p></div>
-        <div class="fidelity-side"><p class="fidelity-side-label">Adapted</p><p class="fidelity-text">{{ finding.adapted_text|mark_excerpt:finding.evidence.adapted_quote }}</p></div>
+        <div class="fidelity-side"><p class="fidelity-side-label">Source</p><p class="fidelity-text">{% side_excerpt finding.source_text finding.evidence.source_quote finding.evidence.adapted_quote %}</p></div>
+        <div class="fidelity-side"><p class="fidelity-side-label">Adapted</p><p class="fidelity-text">{% side_excerpt finding.adapted_text finding.evidence.adapted_quote finding.evidence.source_quote %}</p></div>
         {% if finding.evidence.suggested_correction %}<div class="fidelity-side fidelity-change"><p class="fidelity-side-label">{% if finding.can_apply and finding.suggested_text %}After applying · struck words go, marked words come{% else %}The editor's rewrite of the marked sentence · not placeable automatically, so the diff is against that sentence{% endif %}</p><p class="fidelity-text">{% change_preview finding.adapted_text finding.evidence.adapted_quote finding.evidence.suggested_correction %}</p></div>{% endif %}
       </div>
       {% if finding.can_apply and finding.suggested_text %}

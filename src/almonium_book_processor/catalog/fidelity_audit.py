@@ -627,6 +627,54 @@ def excerpt(text: str, quote: str, *, whole: bool = False) -> tuple[str, str, st
     return text[left:start], text[start:end], text[end:right]
 
 
+def _fragments(quote: str) -> list[str]:
+    """The pieces of a quote the model wrote with ellipses, longest first."""
+
+    pieces = (piece.strip(" ,;") for piece in re.split(r"\.\.\.|\u2026", _bare(quote or "")))
+    return sorted((p for p in pieces if len(p) >= 8), key=len, reverse=True)
+
+
+def _sentence_bounds(text: str, start: int, end: int) -> tuple[int, int]:
+    left = max((text.rfind(stop, 0, start) for stop in (". ", "! ", "? ", ".\n")), default=-1)
+    left = 0 if left < 0 else left + 2
+    rights = [i for i in (text.find(stop, end) for stop in (". ", "! ", "? ")) if i >= 0]
+    return left, (min(rights) + 1 if rights else len(text))
+
+
+def side_excerpt(text: str, quote: str, counterpart: str = "") -> list[dict]:
+    """One side of a finding: the sentences that hold any quoted words, the finding's own marked.
+
+    The counterpart quote is searched too, unmarked, so that when an adaptation
+    split one source sentence into two, both halves show and the two sides
+    line up. Text that holds no quoted words shows its first three hundred
+    characters, so a reviewer still sees where they are.
+    """
+
+    from almonium_book_processor.catalog.chapter_analysis import _locate
+
+    marked, plain = [], []
+    for fragments, keep in ((_fragments(quote), marked), (_fragments(counterpart), plain)):
+        for fragment in fragments:
+            located = _locate(text, fragment)
+            if located and not any(a <= located[0] < b for a, b in [*marked, *plain]):
+                keep.append(located)
+    spans = sorted([*marked, *plain])
+    if not spans:
+        short = text if len(text) <= 320 else text[:300].rsplit(" ", 1)[0] + " …"
+        return [{"text": short, "marked": False}] if short else []
+    bounds = [_sentence_bounds(text, a, b) for a, b in spans]
+    left, right = min(b[0] for b in bounds), max(b[1] for b in bounds)
+    segments, cursor = [], left
+    for a, b in sorted(marked):
+        if a < cursor:
+            continue
+        segments.append({"text": text[cursor:a], "marked": False})
+        segments.append({"text": text[a:b], "marked": True})
+        cursor = b
+    segments.append({"text": text[cursor:right], "marked": False})
+    return [s for s in segments if s["text"]]
+
+
 def change_preview(text: str, quote: str, suggestion: str) -> tuple[list[dict], bool]:
     """The adapted sentence as it would read with the suggestion in: old span out, new wording in.
 
