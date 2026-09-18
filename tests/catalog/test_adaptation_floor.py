@@ -710,6 +710,23 @@ def test_the_change_preview_shows_what_the_sentence_becomes():
     assert html == "Before dawn, <del>he left</del><ins>he had already left</ins>."
     segments, placed = change_preview(text, "not there ... at all", "He was terrified.")
     assert not placed and any(s["op"] == "delete" for s in segments)
+    # The preview uses the span the apply will use, so a clause-wide correction is
+    # shown replacing the clause, never pasted beside it.
+    text = (
+        "I have promised that someone will watch for it and give him immediate notice "
+        "if any new object appears in sight. Then we parted."
+    )
+    fix = (
+        "I have promised that someone will watch for the other traveller and give him "
+        "immediate notice if anything new appears in sight."
+    )
+    segments, placed = change_preview(text, "I have promised that someone will watch for it", fix)
+    assert placed
+    assert "".join(s["text"] for s in segments if s["op"] != "delete") == fix
+    assert (
+        "".join(s["text"] for s in segments if s["op"] != "insert")
+        == text[: len(text) - len(" Then we parted.")]
+    )
 
 
 def test_a_hand_edit_leaves_the_audit_stale_and_prices_the_re_read(

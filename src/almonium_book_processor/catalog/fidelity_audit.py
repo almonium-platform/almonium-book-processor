@@ -797,11 +797,15 @@ def change_preview(text: str, quote: str, suggestion: str) -> tuple[list[dict], 
     before, span, after = excerpt(text, quote)
     suggestion = _bare(suggestion)
     if span:
+        # The same span the apply will use: grown to the clause the correction rewrites.
+        start = text.index(before + span + after) + len(before)
+        s, e, words = replacement_span(text, start, start + len(span), suggestion)
+        left, right = _sentence_bounds(text, s, e)
         segments = [
-            {"op": "equal", "text": before},
-            {"op": "delete", "text": span},
-            {"op": "insert", "text": suggestion},
-            {"op": "equal", "text": after},
+            {"op": "equal", "text": text[left:s]},
+            {"op": "delete", "text": text[s:e]},
+            {"op": "insert", "text": words},
+            {"op": "equal", "text": text[e:right]},
         ]
     else:
         segments = [{"op": "delete", "text": before}, {"op": "insert", "text": " " + suggestion}]
