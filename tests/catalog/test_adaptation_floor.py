@@ -340,9 +340,10 @@ def test_edition_audit_turns_every_finding_into_an_applicable_item(adaptation):
     assert run.summary["review"]["counts"] == {"material": 1, "minor": 1, "uncertain": 0}
     material = adaptation.text_quality_findings.get(code="fidelity_material")
     assert material.status == "open" and material.block.block_id == "c1.b1"
-    assert (material.start_offset, material.end_offset) == (0, len("Before dawn, he left."))
-    assert material.original_text == "Before dawn, he left."
-    assert material.suggested_text == "Before dawn, he had already left."
+    # The sentence keeps its own period: the span and the words to write in stop before it.
+    assert (material.start_offset, material.end_offset) == (0, len("Before dawn, he left"))
+    assert material.original_text == "Before dawn, he left"
+    assert material.suggested_text == "Before dawn, he had already left"
     assert material.can_apply and material.evidence["source_quote"] == "Ere dawn, he departed."
     minor = adaptation.text_quality_findings.get(code="fidelity_minor")
     assert minor.block.block_id == "c2.b1" and not minor.can_apply and minor.suggested_text == ""
@@ -848,45 +849,54 @@ def test_both_sides_show_the_sentences_that_hold_any_quoted_words():
 
 
 def test_a_correction_written_for_the_whole_clause_replaces_the_whole_clause():
-    from almonium_book_processor.catalog.fidelity_audit import replacement_span
+    from almonium_book_processor.catalog.fidelity_audit import replacement_span, usable_suggestion
+
+    def applied(text, quote, fix):
+        start = text.index(quote)
+        s, e, words = replacement_span(text, start, start + len(quote), fix)
+        return text[:s] + words + text[e:]
 
     text = "At night the southern winds blow us quickly towards those shores, and we sleep."
-    start, end = text.index("the southern winds"), text.index("the southern winds") + 18
-    span = replacement_span(text, start, end, "the strong southern winds blow us quickly")
-    assert text[span[0] : span[1]] == "the southern winds blow us quickly"
+    assert applied(text, "the southern winds", "the strong southern winds blow us quickly") == (
+        "At night the strong southern winds blow us quickly towards those shores, and we sleep."
+    )
     text = (
         "Nor should any conclusion be drawn from the following pages that favours any "
         "philosophical doctrine of whatever kind; and the opinions are the author's."
     )
-    quote = "that favours any philosophical doctrine of whatever kind"
-    start = text.index(quote)
-    span = replacement_span(
+    assert applied(
         text,
-        start,
-        start + len(quote),
+        "that favours any philosophical doctrine of whatever kind",
         "Nor should any conclusion be drawn from these pages that takes a position "
         "for or against any philosophical doctrine.",
+    ) == (
+        "Nor should any conclusion be drawn from these pages that takes a position for or "
+        "against any philosophical doctrine; and the opinions are the author's."
     )
-    assert text[span[0] : span[1]].startswith("Nor should any conclusion be drawn from the")
-    assert text[span[0] : span[1]].endswith("of whatever kind")
-    # Punctuation stays with the sentence: a correction without a period leaves the
-    # period in the text, and one ending in a period does not double the text's own.
-    text = "It seemed to me. Then night fell."
-    start = text.index("seemed")
-    span = replacement_span(text, start, start + 6, "was beginning to seem to me")
-    assert text[: span[0]] + "was beginning to seem to me" + text[span[1] :] == (
-        "It was beginning to seem to me. Then night fell."
+    # Punctuation and quotation marks stay with the sentence.
+    assert applied(
+        "It seemed to me. Then night fell.", "seemed", "was beginning to seem to me"
+    ) == ("It was beginning to seem to me. Then night fell.")
+    assert (
+        applied(
+            'and do not fear that, when you are ready, I shall appear." He left.',
+            "fear that, when you are ready, I shall appear",
+            "and do not doubt that I shall appear when you are ready.",
+        )
+        == 'and do not doubt that I shall appear when you are ready." He left.'
     )
-    text = 'and do not fear that, when you are ready, I shall appear." He left.'
-    quote = "fear that, when you are ready, I shall appear"
-    start = text.index(quote)
-    fix = "and do not doubt that I shall appear when you are ready."
-    span = replacement_span(text, start, start + len(quote), fix)
-    assert text[: span[0]] + fix + text[span[1] :] == (
-        'and do not doubt that I shall appear when you are ready." He left.'
+    assert applied('"I want to free you," he said.', "free", "relieve") == (
+        '"I want to relieve you," he said.'
+    )
+    assert applied("He looked into my eyes, and wept.", "looked into", "gazed into my eyes.") == (
+        "He gazed into my eyes, and wept."
+    )
+    assert applied("an offence to the dead; and yet", "an offence", "a sacrilege to the dead.") == (
+        "a sacrilege to the dead; and yet"
     )
     # A correction that shares nothing with its surroundings keeps the quoted span.
-    assert replacement_span(text, start, start + len(quote), "of no doctrine") == (
-        start,
-        start + len(quote),
-    )
+    assert applied("The wanderer went on.", "wanderer", "vagrant") == "The vagrant went on."
+    # Advice is not text to write in.
+    assert usable_suggestion('Use "so heedlessly bestowed" or "so carelessly bestowed."') == ""
+    assert usable_suggestion("Consider keeping the original.") == ""
+    assert usable_suggestion("so heedlessly bestowed") == "so heedlessly bestowed"

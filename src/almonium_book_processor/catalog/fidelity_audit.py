@@ -538,14 +538,30 @@ def _same(a: str, b: str) -> bool:
     return _normalize(a).strip(".,;:!?\"'") == _normalize(b).strip(".,;:!?\"'")
 
 
-def replacement_span(text: str, start: int, end: int, suggestion: str) -> tuple[int, int]:
-    """The stretch of ``text`` the suggestion really rewrites, which may exceed the quoted span.
+INSTRUCTION = re.compile(r"^(use|replace|change|consider|keep|rewrite|delete|remove|omit)\b", re.I)
+
+
+def usable_suggestion(suggestion: str) -> str:
+    """The correction as text to write in, or empty when the editor wrote advice instead."""
+
+    suggestion = _bare(suggestion)
+    if not suggestion or INSTRUCTION.match(suggestion) or suggestion.count('"') >= 2:
+        return ""
+    return suggestion
+
+
+def replacement_span(text: str, start: int, end: int, suggestion: str) -> tuple[int, int, str]:
+    """The stretch of ``text`` the suggestion really rewrites, and the words to write in.
 
     The editor prompt quotes a few words but often writes its correction for
     the whole clause around them. Pasting the correction over the quote alone
     duplicates the words on either side ("blow us quickly blow us quickly").
     So the span grows outward while the suggestion's leading words match the
-    words just before it and its trailing words match the words just after.
+    words just before it and its trailing words match the words just after,
+    or to the sentence's edge when the correction rewrites it from its first
+    or through its last words. Punctuation and quotation marks at the span's
+    edges belong to the sentence: they stay, and the correction's own closing
+    mark is dropped when the text already supplies one.
     """
 
     words = _words(text)
@@ -553,7 +569,6 @@ def replacement_span(text: str, start: int, end: int, suggestion: str) -> tuple[
     before = [w for w in words if w[1] <= start]
     after = [w for w in words if w[0] >= end]
     inner = len([w for w in words if w[0] >= start and w[1] <= end])
-    # Leading words of the suggestion that repeat the words before the span.
     lead = 0
     for n in range(1, min(len(before), len(suggested) - inner) + 1):
         window = " ".join(text[a:b] for a, b in before[-n:])
@@ -561,7 +576,6 @@ def replacement_span(text: str, start: int, end: int, suggestion: str) -> tuple[
             lead = n
     if lead:
         start = before[-lead][0]
-    # Or the suggestion rewrites the sentence from its first words on.
     s_start, s_end = _sentence_bounds(text, start, end)
     opening = [w for w in words if s_start <= w[0] < start][:3]
     if (
@@ -570,7 +584,6 @@ def replacement_span(text: str, start: int, end: int, suggestion: str) -> tuple[
         and _same(" ".join(suggested[:3]), " ".join(text[a:b] for a, b in opening))
     ):
         start = s_start
-    # Trailing words of the suggestion that repeat the words after the span.
     trail = 0
     for n in range(1, min(len(after), len(suggested) - inner - lead) + 1):
         window = " ".join(text[a:b] for a, b in after[:n])
@@ -578,7 +591,6 @@ def replacement_span(text: str, start: int, end: int, suggestion: str) -> tuple[
             trail = n
     if trail:
         end = after[trail - 1][1]
-    # Or the suggestion rewrites the sentence through to its last words.
     closing = [w for w in words if end < w[1] <= s_end][-3:]
     if (
         not trail
@@ -586,15 +598,19 @@ def replacement_span(text: str, start: int, end: int, suggestion: str) -> tuple[
         and _same(" ".join(suggested[-3:]), " ".join(text[a:b] for a, b in closing))
     ):
         end = s_end
-    # Punctuation belongs to the sentence, not to the correction: a span that
-    # grew over a closing mark gives it back when the correction has none, and
-    # a correction that ends in a mark the text already has does not add it.
-    trailing = re.search(r"[.!?,;:]+[\"\u201d\u2019']*$", text[start:end])
-    if trailing and not re.search(r"[.!?,;:]$", suggestion):
+    # Edges: the text keeps its opening quote, its closing mark and its closing quote.
+    leading = re.match(r"[\"\u201c\u2018'(]+", text[start:end])
+    if leading and not re.match(r"[\"\u201c\u2018'(]", suggestion):
+        start += len(leading.group())
+    trailing = re.search(r"[.!?,;:]*[\"\u201d\u2019')]*$", text[start:end])
+    if trailing and trailing.group():
         end -= len(trailing.group())
-    elif suggestion and suggestion[-1] in ".!?" and text[end : end + 1] == suggestion[-1]:
-        end += 1
-    return start, end
+    if re.search(r"[.!?,;:]$", suggestion) and (
+        (trailing and trailing.group())
+        or re.match(r"[.!?,;:\"\u201d\u2019')]", text[end : end + 1])
+    ):
+        suggestion = suggestion.rstrip(".!?,;:")
+    return start, end, suggestion
 
 
 def _record_findings(run: PipelineRun, edition: Edition, review: dict) -> None:
@@ -615,9 +631,9 @@ def _record_findings(run: PipelineRun, edition: Edition, review: dict) -> None:
         located = (
             _locate(block.text, _bare(issue["adapted_quote"])) if issue["quote_verified"] else None
         )
-        suggested = _bare(issue["suggested_correction"])
+        suggested = usable_suggestion(issue["suggested_correction"])
         if located and suggested:
-            located = replacement_span(block.text, located[0], located[1], suggested)
+            *located, suggested = replacement_span(block.text, located[0], located[1], suggested)
         start, end = located if located else (None, None)
         fingerprint = _hash(
             [issue["block_id"], issue["source_quote"], issue["adapted_quote"], issue["explanation"]]
@@ -892,12 +908,13 @@ def relocate_fidelity_findings(edition: Edition, block_ids) -> None:
         evidence = finding.evidence or {}
         quote = evidence.get("adapted_quote") or finding.original_text
         located = _locate(text, quote) if quote else None
-        if located and evidence.get("suggested_correction"):
-            located = replacement_span(text, *located, _bare(evidence["suggested_correction"]))
+        suggested = usable_suggestion(evidence.get("suggested_correction") or "")
+        if located and suggested:
+            *located, suggested = replacement_span(text, *located, suggested)
         if located:
             finding.start_offset, finding.end_offset = located
             finding.original_text = text[located[0] : located[1]]
-            finding.suggested_text = _bare(evidence.get("suggested_correction") or "")
+            finding.suggested_text = suggested
         else:
             finding.start_offset = finding.end_offset = None
             finding.suggested_text = ""
