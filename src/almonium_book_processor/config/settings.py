@@ -174,6 +174,9 @@ OPENAI_TRANSLATION_QUALITY_MODEL = os.getenv("OPENAI_TRANSLATION_QUALITY_MODEL",
 OPENAI_TRANSLATION_DRAFT_MODEL = os.getenv("OPENAI_TRANSLATION_DRAFT_MODEL", "gpt-5.6-luna")
 # Private-import metadata is one small call per book; the cheaper tier is plenty.
 OPENAI_METADATA_MODEL = os.getenv("OPENAI_METADATA_MODEL", "gpt-5.6-luna")
+# The fidelity audit reads adapted text beside its source; "quality" is the
+# translation quality model, "draft" the cheaper tier, about a tenth the cost.
+OPENAI_FIDELITY_TIER = os.getenv("OPENAI_FIDELITY_TIER", "quality")
 OPENAI_BATCH_POLL_SECONDS = int(os.getenv("OPENAI_BATCH_POLL_SECONDS", "60"))
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

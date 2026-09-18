@@ -22,7 +22,6 @@ from almonium_book_processor.catalog.adaptation_floor import (
 from almonium_book_processor.catalog.book_adaptation import queue_book, run_book
 from almonium_book_processor.catalog.fidelity_audit import (
     AUDIT_VERSION,
-    FINDING_CODE,
     audit_context,
     audit_pilot,
     queue_edition_audit,
@@ -170,8 +169,8 @@ class Auditor:
 MATERIAL = {
     "block_id": "c1.b1",
     # The model wraps quotes in quotation marks and curly apostrophes; the book does not.
-    "source_quote": "\u201cEre dawn,\u201d",
-    "adapted_quote": '"Before dawn"',
+    "source_quote": "\u201cEre dawn, he departed.\u201d",
+    "adapted_quote": '"Before dawn, he left."',
     "severity": "material",
     "explanation": "The departure lost its urgency.",
     "suggested_correction": "Before dawn, he had already left.",
@@ -329,7 +328,7 @@ def adaptation(source):
     return Edition.objects.get(pk=book.edition_id)
 
 
-def test_edition_audit_turns_material_findings_into_review_items(adaptation):
+def test_edition_audit_turns_every_finding_into_an_applicable_item(adaptation):
     assert audit_context(adaptation)["fidelity_audit_state"] == "none"
     run = queue_edition_audit(adaptation.id)
     assert run.summary["chapters"] == 4 and run.summary["windows"] == 4
@@ -338,31 +337,76 @@ def test_edition_audit_turns_material_findings_into_review_items(adaptation):
     run.refresh_from_db()
     assert run.status == "succeeded" and auditor.calls == 4
     assert run.summary["review"]["counts"] == {"material": 1, "minor": 1, "uncertain": 0}
-    finding = adaptation.warnings.get(code=FINDING_CODE, resolved_at=None)
-    assert finding.block.block_id == "c1.b1" and finding.pipeline_run_id == run.id
-    assert "lost its urgency" in finding.message and "Suggested:" in finding.message
+    material = adaptation.text_quality_findings.get(code="fidelity_material")
+    assert material.status == "open" and material.block.block_id == "c1.b1"
+    assert (material.start_offset, material.end_offset) == (0, len("Before dawn, he left."))
+    assert material.original_text == "Before dawn, he left."
+    assert material.suggested_text == "Before dawn, he had already left."
+    assert material.can_apply and material.evidence["source_quote"] == "Ere dawn, he departed."
+    minor = adaptation.text_quality_findings.get(code="fidelity_minor")
+    assert minor.block.block_id == "c2.b1" and not minor.can_apply and minor.suggested_text == ""
     context = audit_context(adaptation)
     assert context["fidelity_audit_state"] == "current"
-    assert context["fidelity_open_findings"] == 1
-    assert [i["block_id"] for i in context["fidelity_secondary_findings"]] == ["c2.b1"]
-    assert context["fidelity_secondary_findings"][0]["quote_verified"] is False
-    # Same text, same audit: nothing is paid twice and the item is not duplicated.
+    assert context["fidelity_open_findings"] == 1 and context["fidelity_applicable"] == 1
+    assert context["fidelity_counts"] == {"material": 1, "minor": 1, "uncertain": 0}
+    # Same text, same audit: nothing is paid twice and nothing is duplicated.
     assert queue_edition_audit(adaptation.id).id == run.id
     run_edition_audit(run.id, provider=auditor)
     assert auditor.calls == 4
-    assert adaptation.warnings.filter(code=FINDING_CODE).count() == 1
+    assert adaptation.text_quality_findings.filter(code__startswith="fidelity_").count() == 2
     # A text change makes the audit stale; the next audit re-reads only that chapter
-    # and supersedes the old finding.
+    # and supersedes the old findings.
     adaptation.blocks.filter(block_id="c1.b1").update(text="Before dawn, he had already left.")
     assert audit_context(adaptation)["fidelity_audit_state"] == "stale"
     again = queue_edition_audit(adaptation.id)
     assert again.id != run.id
     run_edition_audit(again.id, provider=auditor)
     assert auditor.calls == 5
-    finding.refresh_from_db()
-    assert finding.resolved_at is not None
-    replacement = adaptation.warnings.get(code=FINDING_CODE, resolved_at=None)
-    assert replacement.pipeline_run_id == again.id and replacement.id != finding.id
+    material.refresh_from_db()
+    assert material.status == "superseded"
+    replacement = adaptation.text_quality_findings.get(code="fidelity_material", status="open")
+    assert replacement.pipeline_run_id == again.id and not replacement.can_apply
+
+
+def test_fidelity_suggestions_are_applied_in_bulk_as_audited_revisions(adaptation):
+    from almonium_book_processor.catalog.services import (
+        apply_fidelity_findings,
+        dismiss_fidelity_findings,
+    )
+
+    reviewer = get_user_model().objects.create_user("editor", is_staff=True)
+    run = queue_edition_audit(adaptation.id)
+    second = {
+        **MATERIAL,
+        "block_id": "c1.b2",
+        "source_quote": "afraid",
+        "adapted_quote": "afraid",
+        "severity": "minor",
+        "suggested_correction": "terrified",
+    }
+    run_edition_audit(run.id, provider=Auditor([MATERIAL, second, MINOR]))
+    with pytest.raises(ValueError, match="no fidelity suggestion"):
+        apply_fidelity_findings(edition=adaptation, reviewer=reviewer, severities=["uncertain"])
+    assert (
+        apply_fidelity_findings(
+            edition=adaptation, reviewer=reviewer, severities=["material", "minor"]
+        )
+        == 2
+    )
+    assert adaptation.blocks.get(block_id="c1.b1").text == "Before dawn, he had already left."
+    assert adaptation.blocks.get(block_id="c1.b2").text == "He was terrified."
+    assert adaptation.block_revisions.count() == 2
+    assert "Applied fidelity audit suggestions" in adaptation.block_revisions.first().notes
+    assert set(
+        adaptation.text_quality_findings.filter(code__startswith="fidelity_").values_list(
+            "status", flat=True
+        )
+    ) == {"applied", "open"}
+    assert audit_context(adaptation)["fidelity_audit_state"] == "stale"
+    assert (
+        dismiss_fidelity_findings(edition=adaptation, reviewer=reviewer, severities=["minor"]) == 1
+    )
+    assert not adaptation.text_quality_findings.filter(status="open").exists()
 
 
 def test_edition_audit_needs_block_for_block_lineage(source):
@@ -403,7 +447,7 @@ def test_the_floor_is_recorded_only_from_editions_that_pass_both_gates(
     adaptation, passing_difficulty, monkeypatch
 ):
     from almonium_book_processor.catalog.publication import publish_to_almonium
-    from almonium_book_processor.catalog.services import resolve_review_warning
+    from almonium_book_processor.catalog.services import dismiss_text_quality_finding
 
     work = adaptation.work
     refresh_adaptation_floor(work)
@@ -414,8 +458,8 @@ def test_the_floor_is_recorded_only_from_editions_that_pass_both_gates(
     work.refresh_from_db()
     assert work.adapts_to is None  # an open material finding is not "clean"
     reviewer = get_user_model().objects.create_user("editor", is_staff=True)
-    finding = adaptation.warnings.get(code=FINDING_CODE)
-    resolve_review_warning(edition=adaptation, warning_id=finding.id, reviewer=reviewer)
+    finding = adaptation.text_quality_findings.get(code="fidelity_material")
+    dismiss_text_quality_finding(edition=adaptation, finding_id=finding.id, reviewer=reviewer)
     work.refresh_from_db()
     assert work.adapts_to == "B2"
     record = work.adaptation_evidence["levels"]["B2"]
@@ -482,9 +526,30 @@ def test_the_pages_offer_the_next_probe_and_the_audit(client, source):
     assert "adaptation-ladder" not in page
     response = client.post(reverse("catalog:queue-fidelity-audit", args=[adaptation.id]))
     assert response.status_code == 302
-    assert adaptation.pipeline_runs.filter(processor_version=AUDIT_VERSION).exists()
+    audit = adaptation.pipeline_runs.get(processor_version=AUDIT_VERSION)
     page = client.get(reverse("catalog:edition-detail", args=[adaptation.id])).content.decode()
     assert "Audit fidelity (paid)" not in page and "Running" in page
+    audit.status = "queued"
+    audit.save()
+    run_edition_audit(audit.id, provider=Auditor([MATERIAL, MINOR]))
+    page = client.get(reverse("catalog:edition-detail", args=[adaptation.id])).content.decode()
+    assert "Apply all 1 suggestions" in page and "Dismiss all 2 open findings" in page
+    assert (
+        "lost its urgency" in page and "Source-text QA" not in page.split('id="fidelity-audit"')[0]
+    )
+    response = client.post(
+        reverse("catalog:apply-fidelity-findings", args=[adaptation.id]),
+        {"severity": ["material"], "confirm": "1"},
+    )
+    assert response.status_code == 302
+    assert adaptation.blocks.get(block_id="c1.b1").text == "Before dawn, he had already left."
+    response = client.post(reverse("catalog:dismiss-fidelity-findings", args=[adaptation.id]), {})
+    assert response.status_code == 302
+    assert adaptation.text_quality_findings.filter(status="open").count() == 1
+    client.post(
+        reverse("catalog:dismiss-fidelity-findings", args=[adaptation.id]), {"confirm": "1"}
+    )
+    assert not adaptation.text_quality_findings.filter(status="open").exists()
 
     pilot = _pilot(source)
     judge_standalone_pilot(pilot.id, judge=Judge(), auditor=Auditor([MATERIAL]))

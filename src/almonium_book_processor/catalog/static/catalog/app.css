@@ -295,3 +295,8 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .ladder-rung-probe_failed .ladder-level, .ladder-rung-error .ladder-level { border-color: #c62828; color: #c62828; }
 .ladder-rung-probing .ladder-level { border-color: #ef6c00; color: #ef6c00; }
 .ladder-rung-original { background: transparent; }
+
+.fidelity-bulk { flex-direction: column; align-items: flex-start; gap: .5rem; margin: .75rem 0 1rem; }
+.fidelity-bulk label { margin-right: .5rem; }
+.fidelity-finding form label input[type="checkbox"] { margin-right: .35rem; }
+.fidelity-material > div > p:first-child code { border-color: #c62828; color: #c62828; }

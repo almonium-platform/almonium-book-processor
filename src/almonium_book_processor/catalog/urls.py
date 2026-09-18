@@ -32,6 +32,16 @@ urlpatterns = [
         name="queue-fidelity-audit",
     ),
     path(
+        "editions/<uuid:edition_id>/fidelity-audit/apply-all/",
+        views.apply_fidelity_findings_view,
+        name="apply-fidelity-findings",
+    ),
+    path(
+        "editions/<uuid:edition_id>/fidelity-audit/dismiss-all/",
+        views.dismiss_fidelity_findings_view,
+        name="dismiss-fidelity-findings",
+    ),
+    path(
         "editions/<uuid:edition_id>/adaptation-pilot/queue/",
         views.queue_adaptation_pilot,
         name="queue-adaptation-pilot",

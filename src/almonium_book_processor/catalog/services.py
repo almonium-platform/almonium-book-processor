@@ -799,7 +799,115 @@ def apply_text_quality_finding(
             "updated_at",
         ]
     )
+    _after_fidelity_decision(edition, finding)
     return revision
+
+
+def _after_fidelity_decision(edition: Edition, finding: TextQualityFinding) -> None:
+    """Applying or dismissing a fidelity finding can change whether the level is reached."""
+
+    if finding.code.startswith("fidelity_"):
+        from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor
+
+        refresh_adaptation_floor(edition.work)
+
+
+def _fidelity_findings(edition: Edition, severities: list[str]):
+    return (
+        TextQualityFinding.objects.select_for_update(of=("self",))
+        .select_related("block")
+        .filter(
+            edition=edition,
+            status=TextQualityFinding.Status.OPEN,
+            code__in=[f"fidelity_{severity}" for severity in severities],
+        )
+        .order_by("stable_block_id", "-start_offset")
+    )
+
+
+@transaction.atomic
+def apply_fidelity_findings(
+    *, edition: Edition, reviewer: AbstractBaseUser, severities: list[str]
+) -> int:
+    """Apply every open fidelity suggestion that can be placed in its block, one revision per block.
+
+    Findings in one block are applied from the end of the block backwards so
+    earlier offsets stay true; two that overlap are left open for a hand edit.
+    """
+
+    findings = [
+        finding
+        for finding in _fidelity_findings(edition, severities)
+        if finding.can_apply and finding.suggested_text
+    ]
+    if not findings:
+        raise ValueError("There is no fidelity suggestion that can be applied as it stands.")
+    by_block: dict = {}
+    for finding in findings:
+        by_block.setdefault(finding.block_id, []).append(finding)
+    blocks = {
+        block.id: block
+        for block in ContentBlock.objects.select_for_update().filter(
+            edition=edition, id__in=list(by_block)
+        )
+    }
+    reviewed_at = timezone.now()
+    applied = 0
+    for block_id, group in by_block.items():
+        block = blocks[block_id]
+        text = block.text
+        cursor = len(text)
+        notes = []
+        for finding in group:  # highest offset first
+            if finding.end_offset > cursor:
+                continue  # overlaps one already applied; stays open
+            if text[finding.start_offset : finding.end_offset] != finding.original_text:
+                raise ValueError("The text changed after this audit; audit it again.")
+            text = (
+                text[: finding.start_offset] + finding.suggested_text + text[finding.end_offset :]
+            )
+            cursor = finding.start_offset
+            notes.append(f"{finding.original_text!r} → {finding.suggested_text!r}")
+            finding.status = TextQualityFinding.Status.APPLIED
+            finding.reviewed_by = reviewer
+            finding.reviewed_at = reviewed_at
+            finding.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+            applied += 1
+        if not notes:
+            continue
+        _record_block_revision(
+            edition=edition,
+            block=block,
+            revised_text=text,
+            editor=reviewer,
+            notes="Applied fidelity audit suggestions: " + "; ".join(reversed(notes)),
+        )
+    _finish_text_revision(edition, {block_id for block_id, group in by_block.items()})
+    from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor
+
+    refresh_adaptation_floor(edition.work)
+    return applied
+
+
+@transaction.atomic
+def dismiss_fidelity_findings(
+    *, edition: Edition, reviewer: AbstractBaseUser, severities: list[str]
+) -> int:
+    """Record that the adapted wording keeps the author's meaning for every open finding named."""
+
+    findings = list(_fidelity_findings(edition, severities))
+    if not findings:
+        raise ValueError("There is no open fidelity finding to dismiss.")
+    reviewed_at = timezone.now()
+    for finding in findings:
+        finding.status = TextQualityFinding.Status.DISMISSED
+        finding.reviewed_by = reviewer
+        finding.reviewed_at = reviewed_at
+        finding.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+    from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor
+
+    refresh_adaptation_floor(edition.work)
+    return len(findings)
 
 
 @transaction.atomic
@@ -891,6 +999,7 @@ def dismiss_text_quality_finding(
         finding.reviewed_by = reviewer
         finding.reviewed_at = timezone.now()
         finding.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+        _after_fidelity_decision(edition, finding)
     return finding
 
 
@@ -912,13 +1021,6 @@ def resolve_review_warning(
         warning.resolved_at = timezone.now()
         warning.resolved_by = reviewer
         warning.save(update_fields=["resolved_at", "resolved_by", "updated_at"])
-        if warning.code == "adaptation_fidelity_finding":
-            # Accepting the last material finding can make the level reached.
-            from almonium_book_processor.catalog.adaptation_floor import (
-                refresh_adaptation_floor,
-            )
-
-            refresh_adaptation_floor(edition.work)
     return warning
 
 

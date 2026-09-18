@@ -287,8 +287,60 @@ def queue_fidelity_audit(request: HttpRequest, edition_id: str) -> HttpResponse:
         messages.success(
             request,
             f"Fidelity audit {run.get_status_display().lower()}: {run.summary['chapters']} "
-            "chapter(s) read beside the source. Material findings become review items.",
+            "chapter(s) read beside the source. Each finding can be applied or dismissed.",
         )
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+def _severities(request: HttpRequest) -> list[str]:
+    chosen = [
+        s for s in request.POST.getlist("severity") if s in ("material", "minor", "uncertain")
+    ]
+    return chosen or ["material", "minor", "uncertain"]
+
+
+@staff_member_required
+@require_POST
+def apply_fidelity_findings_view(request: HttpRequest, edition_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.services import apply_fidelity_findings
+
+    edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
+    if not request.POST.get("confirm"):
+        messages.error(request, "Tick the confirmation before applying suggestions in bulk.")
+        return redirect("catalog:edition-detail", edition_id=edition.id)
+    try:
+        count = apply_fidelity_findings(
+            edition=edition, reviewer=request.user, severities=_severities(request)
+        )
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request,
+            f"Applied {count} fidelity suggestion(s) as audited revisions; sentence, vocabulary "
+            "and difficulty refresh are queued, and the audit needs running again on the "
+            "changed chapters.",
+        )
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def dismiss_fidelity_findings_view(request: HttpRequest, edition_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.services import dismiss_fidelity_findings
+
+    edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
+    if not request.POST.get("confirm"):
+        messages.error(request, "Tick the confirmation before dismissing findings in bulk.")
+        return redirect("catalog:edition-detail", edition_id=edition.id)
+    try:
+        count = dismiss_fidelity_findings(
+            edition=edition, reviewer=request.user, severities=_severities(request)
+        )
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, f"Dismissed {count} fidelity finding(s) as acceptable wording.")
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
 
@@ -541,7 +593,7 @@ def _render_edition_detail(
     source_qa_artifact = source_qa_artifacts.filter(is_current=True).first()
     text_quality_findings = edition.text_quality_findings.filter(
         status=TextQualityFinding.Status.OPEN
-    )
+    ).exclude(code__startswith="fidelity_")
     tree_root = edition if edition.is_canonical else edition.source_edition
     parallel_editions = (
         Edition.objects.filter(
@@ -1036,7 +1088,7 @@ def dismiss_source_quality_finding(
     except ValueError as error:
         messages.error(request, str(error))
     else:
-        messages.success(request, "Source-text finding dismissed.")
+        messages.success(request, "Finding dismissed.")
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
 

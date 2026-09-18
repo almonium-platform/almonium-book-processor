@@ -32,7 +32,6 @@ from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, resp
 from almonium_book_processor.catalog.adaptation import (
     PILOT_VERSIONS,
     digest,
-    record_response,
     source_snapshot,
 )
 from almonium_book_processor.catalog.ai_translation import TRANSLATION_MODEL_PRICING
@@ -42,12 +41,16 @@ from almonium_book_processor.catalog.models import (
     ModelConfiguration,
     PipelineRun,
     PromptTemplate,
-    QAWarning,
+    TextQualityFinding,
 )
 
 AUDIT_VERSION = "fidelity-audit-v1"
-FINDING_CODE = "adaptation_fidelity_finding"
 SEVERITIES = ("material", "minor", "uncertain")
+# Every finding is a reviewable text-quality finding the editor applies or
+# dismisses, never a note to acknowledge. Only material ones hold the gate.
+FINDING_PREFIX = "fidelity_"
+FINDING_CODES = {severity: f"{FINDING_PREFIX}{severity}" for severity in SEVERITIES}
+CONFIDENCE = {"material": 0.9, "minor": 0.6, "uncertain": 0.3}
 # A whole pilot-sized chapter (40,000 characters) pairs into well under this,
 # so a sample is one request; a long chapter of a full edition splits by block.
 WINDOW_BYTES = 160_000
@@ -62,12 +65,20 @@ def _hash(value) -> str:
     return hashlib.sha256(_json(value).encode()).hexdigest()
 
 
-def audit_spec() -> dict:
+def audit_spec(tier: str | None = None) -> dict:
+    tier = tier or settings.OPENAI_FIDELITY_TIER
+    if tier not in TRANSLATION_MODEL_PRICING:
+        raise ValueError("The fidelity audit tier must be 'quality' or 'draft'.")
     return {
         "provider": "openai",
-        "model": settings.OPENAI_TRANSLATION_QUALITY_MODEL,
+        "tier": tier,
+        "model": (
+            settings.OPENAI_TRANSLATION_QUALITY_MODEL
+            if tier == "quality"
+            else settings.OPENAI_TRANSLATION_DRAFT_MODEL
+        ),
         "reasoning_effort": "high",
-        "pricing_per_million": TRANSLATION_MODEL_PRICING["quality"],
+        "pricing_per_million": TRANSLATION_MODEL_PRICING[tier],
         "prompt_name": PROMPT_NAME,
         "prompt_version": PROMPT_VERSION,
         "max_output_tokens": MAX_OUTPUT_TOKENS,
@@ -152,6 +163,38 @@ def _verified(review: Review, pairs: list[dict]) -> list[dict]:
     return issues
 
 
+def _record_usage(ai_id, response: dict, spec: dict) -> None:
+    usage = response.get("usage") or {}
+    inputs = usage.get("input_tokens", 0)
+    cached = (usage.get("input_tokens_details") or {}).get("cached_tokens", 0)
+    outputs = usage.get("output_tokens", 0)
+    prices = spec["pricing_per_million"]
+    cost = (
+        Decimal(max(0, inputs - cached)) * Decimal(prices["input"])
+        + Decimal(cached) * Decimal(prices["cached_input"])
+        + Decimal(outputs) * Decimal(prices["output"])
+    ) / Decimal(1_000_000)
+    with transaction.atomic():
+        ai = AIRun.objects.select_for_update().get(pk=ai_id)
+        ai.add_attempt_usage(
+            input_tokens=inputs,
+            cached_input_tokens=cached,
+            output_tokens=outputs,
+            reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
+            estimated_cost_usd=cost,
+        )
+        ai.provider_request_id = response.get("id", "")
+        ai.response_payload = {"raw": response} if ai.edition_id else {}
+        ai.save(
+            update_fields=[
+                *AIRun.USAGE_FIELDS,
+                "provider_request_id",
+                "response_payload",
+                "updated_at",
+            ]
+        )
+
+
 def _audit_window(run, window: dict, spec: dict, configuration, prompt, provider) -> AIRun:
     """One paid comparison of a block-pair window; a validated answer is reused verbatim."""
 
@@ -197,7 +240,7 @@ def _audit_window(run, window: dict, spec: dict, configuration, prompt, provider
     )
     try:
         response = (provider or OpenAIBatchProvider()).respond(body)
-        record_response(ai.id, response)
+        _record_usage(ai.id, response, spec)
         if response.get("status") != "completed":
             raise ValueError("Provider did not complete the audit; partial output is not accepted.")
         review = Review.model_validate_json(response_output_text(response))
@@ -379,13 +422,20 @@ def edition_plan(edition: Edition, spec: dict) -> dict:
     }
 
 
-def queue_edition_audit(edition_id) -> PipelineRun:
+def queue_edition_audit(edition_id, *, tier: str | None = None, record: bool = True) -> PipelineRun:
+    """Queue the audit of an edition's current text.
+
+    A run with ``record=False`` is a comparison: it reads the same text under
+    another tier and keeps its review in the ledger, but writes no findings
+    and never counts as the edition's audit.
+    """
+
     from almonium_book_processor.catalog.tasks import audit_edition_fidelity
 
     if not settings.OPENAI_API_KEY:
         raise ValueError("Configure an OpenAI key to audit fidelity.")
     edition = Edition.objects.select_related("source_edition", "work").get(pk=edition_id)
-    spec = audit_spec()
+    spec = audit_spec(tier)
     plan = edition_plan(edition, spec)
     with transaction.atomic():
         run, _ = PipelineRun.objects.get_or_create(
@@ -396,7 +446,7 @@ def queue_edition_audit(edition_id) -> PipelineRun:
                 "processor_version": AUDIT_VERSION,
                 "input_hash": plan["hash"],
                 "summary": {
-                    "kind": "edition",
+                    "kind": "edition" if record else "comparison",
                     "spec": spec,
                     "chapters": len(plan["chapters"]),
                     "windows": len(plan["windows"]),
@@ -448,7 +498,8 @@ def run_edition_audit(run_id, *, provider=None) -> None:
             raise ValueError("The text changed during the audit; queue it again.")
         review = _review(results, spec, sum(c["pairs"] for c in plan["chapters"]))
         with transaction.atomic():
-            _record_findings(run, edition, review)
+            if run.summary.get("kind") == "edition":
+                _record_findings(run, edition, review)
             run.summary = {**run.summary, "review": review}
             run.status = PipelineRun.Status.SUCCEEDED
             run.progress = 100
@@ -467,35 +518,79 @@ def run_edition_audit(run_id, *, provider=None) -> None:
 
 
 def _record_findings(run: PipelineRun, edition: Edition, review: dict) -> None:
-    """Material findings become review items; an older audit's open items are superseded."""
+    """Every issue becomes a finding to apply or dismiss; older runs' open ones are superseded."""
 
-    now = timezone.now()
-    edition.warnings.filter(code=FINDING_CODE, resolved_at=None).exclude(
-        source_ref__startswith=f"fidelity-audit:{run.id}:"
-    ).update(resolved_at=now, resolved_by=None, updated_at=now)
+    from almonium_book_processor.catalog.chapter_analysis import _locate
+
+    edition.text_quality_findings.filter(
+        status=TextQualityFinding.Status.OPEN, code__startswith=FINDING_PREFIX
+    ).exclude(input_hash=run.input_hash).update(
+        status=TextQualityFinding.Status.SUPERSEDED, updated_at=timezone.now()
+    )
     blocks = {b.block_id: b for b in edition.blocks.all()}
-    for index, issue in enumerate(review["issues"]):
-        if issue["severity"] != "material":
-            continue
+    for issue in review["issues"]:
         block = blocks.get(issue["block_id"])
-        QAWarning.objects.update_or_create(
+        if block is None:
+            continue
+        located = (
+            _locate(block.text, _bare(issue["adapted_quote"])) if issue["quote_verified"] else None
+        )
+        start, end = located if located else (None, None)
+        suggested = _bare(issue["suggested_correction"])
+        TextQualityFinding.objects.update_or_create(
             edition=edition,
-            code=FINDING_CODE,
-            source_ref=f"fidelity-audit:{run.id}:{index}",
+            input_hash=run.input_hash,
+            fingerprint=_hash(
+                [
+                    issue["block_id"],
+                    issue["source_quote"],
+                    issue["adapted_quote"],
+                    issue["explanation"],
+                ]
+            ),
             defaults={
                 "pipeline_run": run,
                 "block": block,
-                "severity": QAWarning.Severity.WARNING,
-                "message": (
-                    f"Block {issue['block_id']}: {issue['explanation']} "
-                    f"Source: “{issue['source_quote']}” Adapted: “{issue['adapted_quote']}” "
-                    f"Suggested: {issue['suggested_correction']}"
-                    + ("" if issue["quote_verified"] else " (quotes not found verbatim)")
-                ),
-                "resolved_at": None,
-                "resolved_by": None,
+                "stable_block_id": block.block_id,
+                "code": FINDING_CODES[issue["severity"]],
+                "status": TextQualityFinding.Status.OPEN,
+                "start_offset": start,
+                "end_offset": end,
+                "original_text": block.text[start:end]
+                if located
+                else _bare(issue["adapted_quote"]),
+                "suggested_text": suggested if located and suggested else "",
+                "confidence": CONFIDENCE[issue["severity"]],
+                "message": issue["explanation"],
+                "evidence": {
+                    "severity": issue["severity"],
+                    "source_quote": _bare(issue["source_quote"]),
+                    "adapted_quote": _bare(issue["adapted_quote"]),
+                    "suggested_correction": suggested,
+                    "quote_verified": issue["quote_verified"],
+                    "audit_run_id": str(run.id),
+                },
             },
         )
+
+
+def _bare(text: str) -> str:
+    """A quote or correction without the quotation marks the model wraps it in."""
+
+    text = " ".join(text.split())
+    for old, new in {"\u201c": '"', "\u201d": '"', "\u2019": "'", "\u2018": "'"}.items():
+        text = text.replace(old, new)
+    return text.strip("\"' ")
+
+
+def open_findings(edition: Edition):
+    return (
+        edition.text_quality_findings.filter(
+            status=TextQualityFinding.Status.OPEN, code__startswith=FINDING_PREFIX
+        )
+        .select_related("block__chapter")
+        .order_by("-confidence", "block__chapter__sequence", "block__sequence", "start_offset")
+    )
 
 
 def audit_context(edition: Edition) -> dict:
@@ -506,10 +601,14 @@ def audit_context(edition: Edition) -> dict:
         "fidelity_audit_state": "none",
         "fidelity_audit_enabled": bool(settings.OPENAI_API_KEY),
         "fidelity_open_findings": 0,
+        "fidelity_findings": [],
+        "fidelity_applicable": 0,
+        "fidelity_counts": dict.fromkeys(SEVERITIES, 0),
     }
     if edition.edition_type != Edition.EditionType.ADAPTATION:
         return context
-    latest = edition.pipeline_runs.filter(processor_version=AUDIT_VERSION).first()
+    audits = edition.pipeline_runs.filter(processor_version=AUDIT_VERSION, summary__kind="edition")
+    latest = audits.first()
     if latest is None:
         return context
     try:
@@ -517,9 +616,7 @@ def audit_context(edition: Edition) -> dict:
     except ValueError:
         context.update(fidelity_audit_run=latest, fidelity_audit_state="stale")
         return context
-    current = edition.pipeline_runs.filter(
-        processor_version=AUDIT_VERSION, input_hash=plan["hash"]
-    ).first()
+    current = audits.filter(input_hash=plan["hash"]).first()
     run = current or latest
     context["fidelity_audit_run"] = run
     if current is None:
@@ -530,14 +627,14 @@ def audit_context(edition: Edition) -> dict:
         context["fidelity_audit_state"] = run.status
     else:
         context["fidelity_audit_state"] = "failed"
-    context["fidelity_open_findings"] = edition.warnings.filter(
-        code=FINDING_CODE, resolved_at=None
-    ).count()
-    context["fidelity_secondary_findings"] = [
-        issue
-        for issue in (run.summary.get("review") or {}).get("issues", [])
-        if issue["severity"] != "material"
-    ]
+    findings = list(open_findings(edition))
+    context["fidelity_findings"] = findings
+    context["fidelity_counts"] = {
+        severity: sum(f.code == FINDING_CODES[severity] for f in findings)
+        for severity in SEVERITIES
+    }
+    context["fidelity_open_findings"] = context["fidelity_counts"]["material"]
+    context["fidelity_applicable"] = sum(f.can_apply and bool(f.suggested_text) for f in findings)
     return context
 
 
