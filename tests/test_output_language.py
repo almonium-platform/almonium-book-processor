@@ -26,3 +26,25 @@ def test_accepts_actual_language_deterministically(text, language):
 def test_rejects_english_russian_and_mixed_ukrainian_output(texts):
     with pytest.raises(OutputLanguageError, match="uk"):
         validate_output_language(texts, "uk")
+
+
+@pytest.mark.parametrize(
+    "text,language",
+    [
+        ("Зневажливе слово для бездомних або неслухняних людей.", "uk"),
+        ("Це її рішення.", "uk"),
+        ("Это её решение.", "ru"),
+    ],
+)
+def test_short_ukrainian_russian_and_retained_rejected_gloss(text, language):
+    validate_output_language([text], language)
+
+
+def test_one_ukrainian_letter_cannot_disguise_english():
+    with pytest.raises(OutputLanguageError):
+        validate_output_language([EN + " і"], "uk")
+
+
+def test_mixed_ukrainian_and_russian_markers_are_rejected():
+    with pytest.raises(OutputLanguageError):
+        validate_output_language([UK + " Это её решение."], "uk")
