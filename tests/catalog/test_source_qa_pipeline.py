@@ -434,12 +434,13 @@ def test_staff_can_bulk_approve_high_confidence_detached_initials(
     assert "Possible split word." in content
 
 
-def test_revision_refresh_realigns_edited_targets_and_source_derivatives(monkeypatch) -> None:
+def test_revision_refresh_leaves_inferred_alignment_alone(monkeypatch) -> None:
+    """A revision keeps block ids, and an inferred alignment is rebuilt only when asked."""
+
     source, _ = edition_with_split_word()
     target = Edition.objects.create(
         slug="source-qa-work-fr",
         work=source.work,
-        source_edition=source,
         title="Source QA Work FR",
         author=source.author,
         language="fr",
@@ -464,7 +465,7 @@ def test_revision_refresh_realigns_edited_targets_and_source_derivatives(monkeyp
     refresh_edition_after_revision.run(str(source.id))
     refresh_edition_after_revision.run(str(target.id))
 
-    assert aligned == [str(target.id), str(target.id)]
+    assert aligned == []
 
 
 def test_alignment_is_versioned_by_normalized_content(monkeypatch) -> None:
@@ -472,7 +473,6 @@ def test_alignment_is_versioned_by_normalized_content(monkeypatch) -> None:
     target = Edition.objects.create(
         slug="source-qa-alignment-fr",
         work=source.work,
-        source_edition=source,
         title="Source QA Alignment FR",
         author=source.author,
         language="fr",
@@ -508,7 +508,6 @@ def test_staff_can_queue_alignment_rebuild_from_edition_page(client, monkeypatch
     target = Edition.objects.create(
         slug="source-qa-manual-alignment-fr",
         work=source.work,
-        source_edition=source,
         title="Source QA Manual Alignment FR",
         author=source.author,
         language="fr",

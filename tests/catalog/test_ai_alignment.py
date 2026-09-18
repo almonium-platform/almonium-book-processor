@@ -43,7 +43,6 @@ def aligned_edition() -> tuple[Edition, ContentBlock, ContentBlock]:
     target = Edition.objects.create(
         slug="ai-alignment-work-fr",
         work=work,
-        source_edition=source,
         title=work.title,
         author=work.author,
         language="fr",

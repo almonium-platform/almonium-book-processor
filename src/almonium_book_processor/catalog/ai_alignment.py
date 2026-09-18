@@ -93,7 +93,7 @@ def _chapter_groups(edition: Edition, group_ids: list[str] | None = None) -> lis
         source_chapter_ids = {row.source_chapter_id for row in rows}
         target_chapter_ids = {row.target_chapter_id for row in rows}
         source_blocks = list(
-            edition.source_edition.blocks.filter(chapter_id__in=source_chapter_ids)
+            edition.inferred_alignment_source.blocks.filter(chapter_id__in=source_chapter_ids)
             .exclude(text="")
             .select_related("chapter")
             .order_by("chapter__sequence", "sequence")
@@ -158,15 +158,16 @@ def submit_alignment_batch(
     tier: str = "primary",
     group_ids: list[str] | None = None,
 ) -> AIRun:
-    edition = Edition.objects.select_related("source_edition").get(id=edition_id)
-    if edition.source_edition is None:
-        raise ValueError("A source edition is required for AI alignment")
+    edition = Edition.objects.select_related("work").get(id=edition_id)
+    source_edition = edition.inferred_alignment_source
+    if source_edition is None:
+        raise ValueError("AI adjudication needs a standalone edition with a canonical text")
     groups = _chapter_groups(edition, group_ids)
     if not groups:
         raise ValueError("Run local chapter alignment before AI adjudication")
     configuration, prompt_template = _configuration(tier)
     digest_payload = {
-        "source_sha256": edition.source_edition.source_sha256,
+        "source_sha256": source_edition.source_sha256,
         "target_sha256": edition.source_sha256,
         "model": configuration.model,
         "prompt_version": prompt_template.version,
@@ -196,7 +197,7 @@ def submit_alignment_batch(
     for group in groups:
         custom_id = f"chapter-group-{group['group_id']}"
         user_prompt = prompt_template.user_template.format(
-            source_language=edition.source_edition.language,
+            source_language=source_edition.language,
             target_language=edition.language,
             source_chapters=group["source_chapters"],
             target_chapters=group["target_chapters"],
@@ -293,6 +294,7 @@ def _apply_adjudication(
     tier: str,
 ) -> bool:
     _validate_adjudication(adjudication, manifest)
+    source_edition = edition.inferred_alignment_source
     target_ids = manifest["target_block_ids"]
     existing_group_ids = list(
         BlockAlignment.objects.filter(target_edition=edition, target_block_id__in=target_ids)
@@ -330,7 +332,7 @@ def _apply_adjudication(
 
     source_blocks = {
         str(block.id): block
-        for block in edition.source_edition.blocks.filter(id__in=manifest["source_block_ids"])
+        for block in source_edition.blocks.filter(id__in=manifest["source_block_ids"])
     }
     target_blocks = {str(block.id): block for block in edition.blocks.filter(id__in=target_ids)}
     with transaction.atomic():
@@ -351,7 +353,7 @@ def _apply_adjudication(
                 for target_id in decision.target_block_ids:
                     rows.append(
                         BlockAlignment(
-                            source_edition=edition.source_edition,
+                            source_edition=source_edition,
                             target_edition=edition,
                             source_block=source_blocks[source_id],
                             target_block=target_blocks[target_id],
@@ -446,7 +448,7 @@ def _complete_alignment_batch_locked(
     seen_custom_ids = set()
     uncertain_group_ids = []
     input_tokens = cached_tokens = output_tokens = reasoning_tokens = 0
-    edition = Edition.objects.select_related("source_edition").get(id=ai_run.edition_id)
+    edition = Edition.objects.select_related("work").get(id=ai_run.edition_id)
     for line in output_lines:
         custom_id = line["custom_id"]
         if custom_id not in manifest:

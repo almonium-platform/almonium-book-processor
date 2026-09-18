@@ -106,10 +106,11 @@ class EditionAdmin(admin.ModelAdmin):
         for edition_id in queryset.values_list("id", flat=True):
             analyze_edition_source_quality.delay(str(edition_id))
 
-    @admin.action(description="Queue alignment to source edition")
+    @admin.action(description="Queue inferred alignment to the canonical edition")
     def queue_source_alignment(self, request, queryset):
-        for edition_id in queryset.exclude(source_edition=None).values_list("id", flat=True):
-            align_edition_to_source.delay(str(edition_id))
+        for edition in queryset.filter(parallel_role=Edition.ParallelRole.STANDALONE):
+            if edition.inferred_alignment_source is not None:
+                align_edition_to_source.delay(str(edition.id))
 
 
 @admin.register(Chapter)

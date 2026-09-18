@@ -186,7 +186,7 @@ def test_the_page_groups_items_and_resolves_a_whole_group_at_once(client, staff,
 
 
 def test_resolving_one_item_from_the_page_returns_to_the_page(client, staff, french, work):
-    source = Edition.objects.create(
+    Edition.objects.create(
         work=work,
         slug="shelley-frankenstein-en",
         title="Frankenstein",
@@ -196,8 +196,6 @@ def test_resolving_one_item_from_the_page_returns_to_the_page(client, staff, fre
         status="published",
         source_sha256="e" * 64,
     )
-    french.source_edition = source
-    french.save(update_fields=["source_edition"])
     warning = _low_confidence(french, "c3.p2", "50.0%")
     client.force_login(staff)
 

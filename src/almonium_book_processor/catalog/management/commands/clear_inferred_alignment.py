@@ -49,7 +49,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options) -> None:
         editions = self._select_editions(options["edition"])
-        affected = [edition for edition in editions if not edition.requires_inferred_alignment]
+        affected = [edition for edition in editions if edition.supports_parallel_reading]
         if not affected:
             self.stdout.write("No edition holds inferred alignment it should not have.")
             return
@@ -81,7 +81,7 @@ class Command(BaseCommand):
             self.stdout.write(f"Would delete {total} rows. Re-run with --apply to do it.")
 
     def _select_editions(self, identifier: str):
-        editions = Edition.objects.select_related("source_edition").order_by("slug")
+        editions = Edition.objects.order_by("slug")
         if not identifier:
             return editions
         lookup = Q(slug=identifier)

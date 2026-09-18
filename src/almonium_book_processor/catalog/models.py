@@ -92,6 +92,11 @@ class Edition(TimestampedModel):
         C1 = "C1", "C1"
         C2 = "C2", "C2"
 
+    class LevelSource(models.TextChoices):
+        ANALYSIS = "analysis", "Chapter analysis"
+        EDITOR = "editor", "Editor"
+        TARGET = "target", "Adaptation target"
+
     class EditionType(models.TextChoices):
         ORIGINAL = "original", "Original"
         HUMAN_TRANSLATION = "human_translation", "Human translation"
@@ -124,6 +129,12 @@ class Edition(TimestampedModel):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
+        help_text=(
+            "The edition this one was generated from, block for block. Set on parallel "
+            "editions only: an independently imported text names its work and nothing "
+            "else, and its correspondence to the canonical text, if wanted, is inferred "
+            "on demand."
+        ),
     )
     title = models.CharField(max_length=500)
     author = models.CharField(max_length=300)
@@ -149,6 +160,16 @@ class Edition(TimestampedModel):
         choices=CEFRLevel.choices,
         null=True,
         blank=True,
+    )
+    cefr_level_source = models.CharField(
+        max_length=10,
+        choices=LevelSource.choices,
+        blank=True,
+        help_text=(
+            "Who last set the level. Chapter analysis fills it in and keeps it current "
+            "unless an editor chose a level; blank is an unclaimed value, such as an "
+            "upload-time guess, that analysis may replace."
+        ),
     )
     parallel_role = models.CharField(
         max_length=12,
@@ -220,8 +241,16 @@ class Edition(TimestampedModel):
         ):
             self.parallel_role = (
                 self.ParallelRole.PARALLEL
-                if self.edition_type == self.EditionType.MACHINE_TRANSLATION
+                if self.source_edition_id
                 else self.ParallelRole.STANDALONE
+            )
+        # A source edition means "generated from it, block for block", so only
+        # a parallel edition can have one; anything else is a lineage claim
+        # the block tree cannot honour.
+        if self.source_edition_id and self.parallel_role != self.ParallelRole.PARALLEL:
+            raise ValueError(
+                f"{self.get_parallel_role_display()} {self.slug} cannot have a source "
+                "edition: only a parallel edition is generated from one."
             )
         super().save(*args, **kwargs)
 
@@ -260,15 +289,29 @@ class Edition(TimestampedModel):
         return self.parallel_role in {self.ParallelRole.CANONICAL, self.ParallelRole.PARALLEL}
 
     @property
-    def requires_inferred_alignment(self) -> bool:
-        """True when block correspondence has to be guessed rather than inherited.
+    def inferred_alignment_source(self) -> Edition | None:
+        """The edition an inferred alignment of this one is measured against.
 
-        A canonical or generated parallel edition shares block groups with its
-        tree, so its correspondence is exact by construction and inference would
-        only replace certainty with a confidence score.
+        Only a standalone edition infers: a canonical or parallel edition shares
+        block groups with its tree, so its correspondence is exact by
+        construction and inference would replace certainty with a confidence
+        score. The reference is the work's canonical edition, chosen when the
+        alignment is built rather than recorded on the edition, because an
+        imported text derives from nothing in the catalogue.
         """
 
-        return self.source_edition_id is not None and not self.supports_parallel_reading
+        if self.parallel_role != self.ParallelRole.STANDALONE:
+            return None
+        if not hasattr(self, "_inferred_alignment_source"):
+            self._inferred_alignment_source = (
+                Edition.objects.filter(
+                    work_id=self.work_id, parallel_role=self.ParallelRole.CANONICAL
+                )
+                .exclude(id=self.id)
+                .order_by("created_at")
+                .first()
+            )
+        return self._inferred_alignment_source
 
     @property
     def is_machine_generated(self) -> bool:

@@ -25,6 +25,13 @@ book-sourced Discover examples fit the product vision particularly well.
    source of a new adaptation. Preserve canonical block groups through the tree;
    namespace correspondence by its canonical edition/revision. “Distance from
    the author” is not a measurable or enforceable invariant.
+   *In the schema (2026-09-18):* `Edition.source_edition` is generation
+   lineage only — "generated from this edition, block for block" — and is set
+   on parallel editions alone; the model refuses it on anything else. An
+   imported human translation or abridgement names its work and nothing else.
+   Its correspondence to the canonical text, when an editor wants one, is
+   inferred on demand against the work's canonical edition and recorded on
+   the alignment rows themselves, never on the edition.
 3. **Modernization needs examples and judgment.** Use edition language and
    actual obsolete usage, not universal 1800/1900 cutoffs. Work publication year
    may be centuries older than the wording of a translation. Store evidence

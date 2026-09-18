@@ -133,8 +133,10 @@ def test_applied_pilot_review_item_points_at_the_replaced_chapter(application, c
     assert "beside the source with word changes" in item["guidance"]
     labels = {link["label"]: link["url"] for link in item["links"]}
     reader = reverse("catalog:edition-reader", args=[target.id])
-    # The pilot target in this fixture is not a parallel edition, so no companion link.
-    assert labels["Read Chapter I beside the source"] == f"{reader}?chapter=1"
+    # An adaptation with a source is parallel by construction: the link opens
+    # the source beside it with the word changes shown.
+    parallel = f"parallel={target.source_edition_id}&diff=1"
+    assert labels["Read Chapter I beside the source"] == f"{reader}?chapter=1&{parallel}"
     assert labels["Text corrections"] == "#text-corrections"
 
     staff = get_user_model().objects.create_user("staff", is_staff=True)
@@ -142,7 +144,8 @@ def test_applied_pilot_review_item_points_at_the_replaced_chapter(application, c
     content = client.get(reverse("catalog:edition-detail", args=[target.id])).content.decode()
     assert 'class="review-item review-item-warning"' in content
     assert "<code>adaptation_chapter_replaced</code>" in content
-    assert f'<a href="{reader}?chapter=1">Read Chapter I beside the source</a>' in content
+    link = f'<a href="{reader}?chapter=1&amp;{parallel.replace("&", "&amp;")}">'
+    assert f"{link}Read Chapter I beside the source</a>" in content
     assert 'id="text-corrections"' in content
 
 

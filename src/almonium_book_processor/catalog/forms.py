@@ -3,7 +3,7 @@ from __future__ import annotations
 from django import forms
 
 from almonium_book_processor.catalog.ai_translation import REGISTER_CHOICES
-from almonium_book_processor.catalog.models import Edition, EditionTombstone
+from almonium_book_processor.catalog.models import Edition, EditionTombstone, Work
 from almonium_book_processor.catalog.services import create_source_edition
 from almonium_book_processor.ingest.source import SUPPORTED_SOURCE_EXTENSIONS
 from almonium_book_processor.languages import LANGUAGE_CHOICES
@@ -30,12 +30,12 @@ class EditionUploadForm(forms.Form):
         required=False,
         help_text="Original for the source text; otherwise choose the kind of derived version.",
     )
-    source_edition = forms.ModelChoiceField(
-        queryset=Edition.objects.filter(work__visibility="public").select_related("work"),
+    work = forms.ModelChoiceField(
+        queryset=Work.objects.filter(visibility="public").order_by("title"),
         required=False,
         help_text=(
-            "Required for a translation, adaptation, or abridgement; "
-            "the new edition joins that edition's work."
+            "Required for a translation or abridgement of a work already in the "
+            "catalogue; the new edition joins it and is read on its own."
         ),
     )
     cefr_level = forms.ChoiceField(
@@ -108,7 +108,7 @@ class EditionUploadForm(forms.Form):
         help_text="Language of this uploaded edition, for example English (en).",
     )
 
-    PRIMARY_FIELDS = ("edition_type", "source_edition", "cefr_level")
+    PRIMARY_FIELDS = ("edition_type", "work", "cefr_level")
 
     @property
     def primary_fields(self):
@@ -133,17 +133,13 @@ class EditionUploadForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         edition_type = cleaned_data.get("edition_type")
-        source_edition = cleaned_data.get("source_edition")
-        if edition_type and edition_type != Edition.EditionType.ORIGINAL and not source_edition:
-            self.add_error("source_edition", "Select the edition this version derives from.")
-        if edition_type == Edition.EditionType.ORIGINAL and source_edition:
-            self.add_error(
-                "source_edition",
-                "An original edition cannot derive from another edition.",
-            )
+        work = cleaned_data.get("work")
         work_slug = cleaned_data.get("work_slug")
-        if source_edition and work_slug and source_edition.work.slug != work_slug:
-            self.add_error("source_edition", "The source edition must belong to the same work.")
+        derived = edition_type and edition_type != Edition.EditionType.ORIGINAL
+        if derived and not (work or work_slug):
+            self.add_error("work", "Select the work this version belongs to.")
+        if work and work_slug and work.slug != work_slug:
+            self.add_error("work_slug", "The slug names a different work than the one selected.")
         return cleaned_data
 
     def save(self) -> Edition:

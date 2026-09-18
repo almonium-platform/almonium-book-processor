@@ -382,7 +382,6 @@ def test_translation_requires_a_canonical_source() -> None:
     standalone = Edition.objects.create(
         slug="translation-work-fr-human",
         work=source.work,
-        source_edition=source,
         title=source.work.title,
         author=source.author,
         language="fr",

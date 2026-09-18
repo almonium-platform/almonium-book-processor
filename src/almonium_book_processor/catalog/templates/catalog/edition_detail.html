@@ -239,13 +239,13 @@
 </details>
 {% endif %}
 
-{% if has_inferred_alignment or inferred_alignment_available %}
+{% if inferred_alignment_source %}
 <details class="panel collapsible-panel alignment-panel" id="inferred-alignment">
-  <summary><span class="summary-title">Inferred alignment</span><span class="summary-meta">{% if has_inferred_alignment %}Built{% if actionable_warnings %} · {{ actionable_warnings|length }} group{{ actionable_warnings|length|pluralize }} left for a human{% endif %}{% else %}Not built{% endif %}</span></summary>
-  <p class="muted">For two independently imported texts only. Embeddings guess which blocks correspond, then optional AI adjudication resolves what they could not. Expect a residual human-review queue — this is the expensive path, and it is why generated parallel editions exist. Keep it for scanned or user-uploaded pairs.</p>
+  <summary><span class="summary-title">Inferred alignment</span><span class="summary-meta">{% if has_inferred_alignment %}Built against {{ inferred_alignment_source.slug }}{% if actionable_warnings %} · {{ actionable_warnings|length }} group{{ actionable_warnings|length|pluralize }} left for a human{% endif %}{% else %}Not built{% endif %}</span></summary>
+  <p class="muted">This edition was imported on its own, so nothing records how its blocks correspond to the canonical text ({{ inferred_alignment_source.slug }}). Building the alignment guesses that with embeddings, then optional AI adjudication resolves what they could not; expect a residual human-review queue. It is built only when asked, never refreshed behind your back, and no reader depends on it — a generated parallel edition is the cheap path to side-by-side reading.</p>
   <div class="button-row">
     {% if has_inferred_alignment %}<a class="button" href="{% url 'catalog:alignment-review' edition.id %}">Open alignment workspace</a>{% endif %}
-    {% if inferred_alignment_available %}<form method="post" action="{% url 'catalog:queue-source-alignment' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">{% if has_inferred_alignment %}Rebuild{% else %}Build{% endif %} inferred alignment</button></form>{% endif %}
+    <form method="post" action="{% url 'catalog:queue-source-alignment' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">{% if has_inferred_alignment %}Rebuild{% else %}Build{% endif %} inferred alignment</button></form>
   </div>
 </details>
 {% endif %}

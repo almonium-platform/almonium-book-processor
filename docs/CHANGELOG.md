@@ -6,6 +6,16 @@ keeps only what is open. Cross-repository work names its repository.
 
 ## 2026-09-18
 
+- `source_edition` now means "generated from, block for block" and is set on
+  parallel editions only; an uploaded translation or abridgement names its
+  work instead, and the model refuses a source on anything else. Inferred
+  alignment for a standalone edition is built on demand against the work's
+  canonical edition, is never re-run on ingest or after a revision, and gates
+  neither review completion nor publication. The French Frankenstein, whose
+  $0.667 adjudication had been orphaned by such a rebuild, was detached and
+  its inferred alignment cleared.
+- Confirming metadata with a blank blurb or year no longer pins the field, so
+  a later "Detect with AI" still fills it (`ae4a21a`).
 - Other languages get adaptation prompts of their own (B2 v8, B1 v6) with the
   English-only wording removed; adapted blocks and audit corrections are gated
   by an offline language check and a wrong-language answer is not reused on

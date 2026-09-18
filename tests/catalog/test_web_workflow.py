@@ -140,10 +140,9 @@ def test_upload_form_shows_practical_examples() -> None:
     )
 
 
-def test_derived_upload_requires_source_lineage(tmp_path) -> None:
+def test_derived_upload_requires_a_work(tmp_path) -> None:
     form = EditionUploadForm(
         data={
-            "work_slug": "upload-test",
             "work_title": "Upload Test",
             "author": "Ada Author",
             "original_language": "de",
@@ -158,10 +157,10 @@ def test_derived_upload_requires_source_lineage(tmp_path) -> None:
     )
 
     assert not form.is_valid()
-    assert "source_edition" in form.errors
+    assert "work" in form.errors
 
 
-def test_derived_upload_accepts_source_from_the_same_work(tmp_path) -> None:
+def test_derived_upload_joins_the_selected_work_without_a_source_edition(tmp_path) -> None:
     work = Work.objects.create(
         slug="upload-test",
         title="Upload Test",
@@ -186,14 +185,19 @@ def test_derived_upload_accepts_source_from_the_same_work(tmp_path) -> None:
             "edition_title": "Upload Test",
             "language": "en",
             "edition_type": Edition.EditionType.HUMAN_TRANSLATION,
-            "source_edition": str(source.id),
+            "work": str(work.id),
             "cefr_level": Edition.CEFRLevel.B2,
         },
         files={"source_file": SimpleUploadedFile("upload.epub", epub_bytes(tmp_path))},
     )
 
     assert form.is_valid(), form.errors
-    assert form.cleaned_data["source_edition"] == source
+    assert form.cleaned_data["work"] == work
+    edition = form.save()
+    assert edition.work == work
+    assert edition.source_edition is None
+    assert edition.parallel_role == Edition.ParallelRole.STANDALONE
+    assert edition.inferred_alignment_source == source
 
 
 def test_source_upload_queues_the_complete_pipeline(
@@ -577,7 +581,6 @@ def alignment_review_records() -> tuple:
     target = Edition.objects.create(
         slug="alignment-review-work-fr",
         work=work,
-        source_edition=source,
         title="Œuvre à réviser",
         author="Ada Author",
         language="fr",
@@ -821,7 +824,7 @@ def test_merged_chapter_coverage_does_not_report_cross_chapter_pair_as_gap(clien
     ChapterAlignment.objects.bulk_create(
         [
             ChapterAlignment(
-                source_edition=target.source_edition,
+                source_edition=target.inferred_alignment_source,
                 target_edition=target,
                 source_chapter=source_chapter,
                 target_chapter=target_chapter,
@@ -833,7 +836,7 @@ def test_merged_chapter_coverage_does_not_report_cross_chapter_pair_as_gap(clien
         ]
     )
     BlockAlignment.objects.create(
-        source_edition=target.source_edition,
+        source_edition=target.inferred_alignment_source,
         target_edition=target,
         source_block=source_blocks[1],
         target_block=second_target_block,
@@ -858,7 +861,7 @@ def test_merged_chapter_coverage_does_not_report_cross_chapter_pair_as_gap(clien
 def test_alignment_review_can_replace_groups_with_manual_pairing(client) -> None:
     target, source_blocks, target_blocks, _, _ = alignment_review_records()
     BlockAlignment.objects.create(
-        source_edition=target.source_edition,
+        source_edition=target.inferred_alignment_source,
         target_edition=target,
         source_block=source_blocks[1],
         target_block=target_blocks[1],
@@ -1403,7 +1406,6 @@ def test_parallel_reader_offers_only_editions_that_share_the_block_tree(client) 
     standalone = Edition.objects.create(
         slug="parallel-work-fr",
         work=canonical.work,
-        source_edition=canonical,
         title="Parallel Work",
         author="Mary Author",
         language="fr",
@@ -1492,20 +1494,30 @@ def test_generated_parallel_edition_never_infers_alignment(monkeypatch) -> None:
     )
 
     assert edition.parallel_role == Edition.ParallelRole.PARALLEL
-    assert not edition.requires_inferred_alignment
+    assert edition.inferred_alignment_source is None
 
-    align_edition_to_source.run(str(edition.id))
+    with pytest.raises(ValueError, match="standalone edition"):
+        align_edition_to_source.run(str(edition.id))
 
     assert embedded == []
     assert not BlockAlignment.objects.filter(target_edition=edition).exists()
     assert not PipelineRun.objects.filter(edition=edition, stage=PipelineRun.Stage.ALIGN).exists()
 
 
-def test_standalone_edition_still_infers_alignment() -> None:
+def test_standalone_edition_infers_alignment_against_the_canonical_edition() -> None:
     target, _, _, _, _ = alignment_review_records()
 
     assert target.parallel_role == Edition.ParallelRole.STANDALONE
-    assert target.requires_inferred_alignment
+    assert target.source_edition is None
+    assert target.inferred_alignment_source.slug == "alignment-review-work-en"
+
+
+def test_an_imported_edition_cannot_claim_a_source_edition() -> None:
+    target, _, _, _, _ = alignment_review_records()
+    target.source_edition = target.inferred_alignment_source
+
+    with pytest.raises(ValueError, match="only a parallel edition"):
+        target.save()
 
 
 def test_revision_refresh_skips_alignment_for_a_parallel_edition(client, monkeypatch) -> None:
@@ -1527,8 +1539,8 @@ def test_revision_refresh_skips_alignment_for_a_parallel_edition(client, monkeyp
     refresh_edition_after_revision.run(str(edition.id))
     assert aligned == []
 
-    # Editing the canonical original refreshes its derived editions, but only
-    # the ones whose correspondence is actually inferred.
+    # Editing the canonical original never re-infers alignment either: an
+    # inferred alignment is built on demand and kept as reviewed.
     refresh_edition_after_revision.run(str(edition.source_edition.id))
     assert aligned == []
 
@@ -1864,7 +1876,6 @@ def test_public_parallel_api_exposes_reviewed_alignment(client) -> None:
     target = Edition.objects.create(
         slug="parallel-work-de-human",
         work=work,
-        source_edition=source,
         title="Paralleles Werk",
         author="Ada Author",
         language="de",
@@ -1937,7 +1948,6 @@ def test_offline_sentence_and_alignment_tasks(monkeypatch) -> None:
     target = Edition.objects.create(
         slug="aligned-work-fr-human",
         work=work,
-        source_edition=source,
         title="Œuvre alignée",
         author="Ada Author",
         language="fr",
@@ -2003,7 +2013,6 @@ def test_alignment_maps_merged_chapters_before_aligning_blocks(monkeypatch) -> N
     target = Edition.objects.create(
         slug="merged-chapter-work-fr",
         work=work,
-        source_edition=source,
         title=work.title,
         author=work.author,
         language="fr",
@@ -2055,7 +2064,7 @@ def test_alignment_maps_merged_chapters_before_aligning_blocks(monkeypatch) -> N
     assert first_target_sources == {1, 2}
 
 
-def test_normalized_pipeline_groups_split_blocks_and_finishes_ready(monkeypatch) -> None:
+def test_inferred_alignment_is_built_on_demand_and_groups_split_blocks(monkeypatch) -> None:
     monkeypatch.setattr(
         "almonium_book_processor.catalog.tasks.analyze_edition_lexicon.delay",
         lambda edition_id: None,
@@ -2082,7 +2091,6 @@ def test_normalized_pipeline_groups_split_blocks_and_finishes_ready(monkeypatch)
     target = Edition.objects.create(
         slug="split-alignment-work-fr",
         work=work,
-        source_edition=source,
         title="Œuvre divisée",
         author="Ada Author",
         language="fr",
@@ -2120,15 +2128,21 @@ def test_normalized_pipeline_groups_split_blocks_and_finishes_ready(monkeypatch)
 
     process_normalized_edition.run(str(target.id))
 
+    # An imported text is ready on its own; nothing is inferred on ingest.
     target.refresh_from_db()
-    alignments = list(BlockAlignment.objects.order_by("target_block__sequence"))
     assert target.status == Edition.Status.READY
+    assert not BlockAlignment.objects.exists()
+
+    align_edition_to_source.run(str(target.id))
+
+    alignments = list(BlockAlignment.objects.order_by("target_block__sequence"))
+    assert {alignment.source_edition for alignment in alignments} == {source}
     assert len(alignments) == 2
     assert len({alignment.group_id for alignment in alignments}) == 1
     assert not target.warnings.exists()
 
 
-def test_normalized_pipeline_routes_low_confidence_alignment_to_review(monkeypatch) -> None:
+def test_inferred_alignment_raises_a_review_item_for_a_low_confidence_group(monkeypatch) -> None:
     monkeypatch.setattr(
         "almonium_book_processor.catalog.tasks.analyze_edition_lexicon.delay",
         lambda edition_id: None,
@@ -2154,7 +2168,6 @@ def test_normalized_pipeline_routes_low_confidence_alignment_to_review(monkeypat
     target = Edition.objects.create(
         slug="uncertain-work-fr",
         work=work,
-        source_edition=source,
         title="Œuvre incertaine",
         author="Ada Author",
         language="fr",
@@ -2190,11 +2203,14 @@ def test_normalized_pipeline_routes_low_confidence_alignment_to_review(monkeypat
     )
 
     process_normalized_edition.run(str(target.id))
+    align_edition_to_source.run(str(target.id))
 
     target.refresh_from_db()
     warning = target.warnings.get(code="alignment_low_confidence")
-    assert target.status == Edition.Status.REVIEW
     assert warning.pipeline_run.stage == PipelineRun.Stage.ALIGN
+    # The alignment is an editorial aid: it queues a review item but does not
+    # take a ready edition away from readers.
+    assert target.status == Edition.Status.READY
 
 
 def test_publication_requires_current_cheap_nlp() -> None:

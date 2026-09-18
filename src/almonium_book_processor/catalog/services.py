@@ -53,7 +53,7 @@ def create_source_edition(
     *,
     source_file: File,
     edition_type: str = Edition.EditionType.ORIGINAL,
-    source_edition: Edition | None = None,
+    work: Work | None = None,
     cefr_level: str | None = None,
     work_slug: str = "",
     work_title: str = "",
@@ -72,6 +72,10 @@ def create_source_edition(
     stage, which also replaces provisional slugs with ones derived from the
     detected title. Pinned values are recorded as the editor's and never
     overridden.
+
+    An upload is always an independently imported text: it joins ``work`` (or
+    the work ``work_slug`` names) and never claims a source edition, which is
+    reserved for editions generated block for block.
     """
 
     from almonium_book_processor.catalog.metadata import (
@@ -91,9 +95,7 @@ def create_source_edition(
         edition_title=edition_title,
         cover_url=cover_url,
     )
-    if source_edition is not None:
-        work = source_edition.work
-    elif work_slug:
+    if work is None and work_slug:
         work, _ = Work.objects.get_or_create(
             slug=work_slug,
             defaults={
@@ -105,7 +107,7 @@ def create_source_edition(
                 "cover_url": cover_url,
             },
         )
-    else:
+    elif work is None:
         work = Work.objects.create(slug=provisional_slug(), original_language=original_language)
 
     # A pinned value wins over whatever the work already holds.
@@ -131,7 +133,6 @@ def create_source_edition(
         author=author or work.author,
         language=language,
         edition_type=edition_type,
-        source_edition=source_edition,
         cefr_level=cefr_level or None,
         source_file=source_file,
         status=Edition.Status.QUEUED,
@@ -472,15 +473,16 @@ def repair_alignment_group(
     reviewer: AbstractBaseUser,
     notes: str = "",
 ) -> AlignmentGroupReview:
-    if edition.source_edition_id is None:
-        raise ValueError("This edition has no source edition to align.")
+    source_edition = edition.inferred_alignment_source
+    if source_edition is None:
+        raise ValueError("This edition has no canonical text to align against.")
     if not source_block_ids or not target_block_ids:
         raise ValueError("Select at least one source block and one target block.")
 
     source_blocks = list(
         ContentBlock.objects.filter(
             id__in=source_block_ids,
-            edition_id=edition.source_edition_id,
+            edition=source_edition,
         ).select_related("chapter")
     )
     target_blocks = list(
@@ -504,9 +506,7 @@ def repair_alignment_group(
     if not allowed_source_chapters:
         target_sequence = target_blocks[0].chapter.sequence
         allowed_source_chapters = set(
-            edition.source_edition.chapters.filter(sequence=target_sequence).values_list(
-                "id", flat=True
-            )
+            source_edition.chapters.filter(sequence=target_sequence).values_list("id", flat=True)
         )
     if any(block.chapter_id not in allowed_source_chapters for block in source_blocks):
         raise ValueError("Source blocks must belong to chapters mapped to the target chapter.")
@@ -525,7 +525,7 @@ def repair_alignment_group(
     BlockAlignment.objects.bulk_create(
         [
             BlockAlignment(
-                source_edition_id=edition.source_edition_id,
+                source_edition=source_edition,
                 target_edition=edition,
                 source_block=source_block,
                 target_block=target_block,
@@ -566,8 +566,9 @@ def translate_coverage_gap(
 ) -> ContentBlock:
     """Create and align a manually translated target block for a source-only gap."""
 
-    if edition.source_edition_id is None:
-        raise ValueError("This edition has no source edition to translate from.")
+    source_edition = edition.inferred_alignment_source
+    if source_edition is None:
+        raise ValueError("This edition has no canonical text to translate from.")
     translated_text = translated_text.strip()
     if not translated_text:
         raise ValueError("Enter the translated text.")
@@ -575,11 +576,11 @@ def translate_coverage_gap(
     source_block = (
         ContentBlock.objects.select_for_update()
         .select_related("chapter")
-        .filter(id=source_block_id, edition_id=edition.source_edition_id)
+        .filter(id=source_block_id, edition=source_edition)
         .first()
     )
     if source_block is None:
-        raise ValueError("The source block does not belong to this edition's source.")
+        raise ValueError("The source block does not belong to the canonical edition.")
     if BlockAlignment.objects.filter(
         target_edition=edition,
         source_block=source_block,
@@ -597,7 +598,7 @@ def translate_coverage_gap(
     )
     if not mapped_source_chapter_ids:
         mapped_source_chapter_ids = set(
-            edition.source_edition.chapters.filter(sequence=target_chapter.sequence).values_list(
+            source_edition.chapters.filter(sequence=target_chapter.sequence).values_list(
                 "id", flat=True
             )
         )
@@ -654,7 +655,7 @@ def translate_coverage_gap(
     )
     group_id = uuid.uuid4()
     BlockAlignment.objects.create(
-        source_edition_id=edition.source_edition_id,
+        source_edition=source_edition,
         target_edition=edition,
         source_block=source_block,
         target_block=target_block,
@@ -1264,20 +1265,21 @@ def _import_legacy_artifact(artifact: BookArtifact) -> Edition:
     if metadata.source_edition_slug:
         source_edition = Edition.objects.filter(slug=metadata.source_edition_slug).first()
 
-    edition, _ = Edition.objects.update_or_create(
-        slug=metadata.edition_slug,
-        defaults={
-            "work": work,
-            "source_edition": source_edition,
-            "title": metadata.title,
-            "author": metadata.author,
-            "language": metadata.language,
-            "edition_type": metadata.edition_type,
-            "cefr_level": metadata.cefr_level,
-            "status": Edition.Status.PROCESSING,
-            "source_sha256": metadata.source.sha256,
-        },
-    )
+    defaults = {
+        "work": work,
+        "source_edition": source_edition,
+        "title": metadata.title,
+        "author": metadata.author,
+        "language": metadata.language,
+        "edition_type": metadata.edition_type,
+        "cefr_level": metadata.cefr_level,
+        "status": Edition.Status.PROCESSING,
+        "source_sha256": metadata.source.sha256,
+    }
+    if source_edition is not None:
+        # A generated artifact is block for block with its source.
+        defaults["parallel_role"] = Edition.ParallelRole.PARALLEL
+    edition, _ = Edition.objects.update_or_create(slug=metadata.edition_slug, defaults=defaults)
     idempotency_key = f"{metadata.source.sha256}:legacy-import:{artifact.processor_version}"
     run, _ = PipelineRun.objects.update_or_create(
         idempotency_key=idempotency_key,
@@ -1326,7 +1328,8 @@ def import_legacy_artifacts(uploads: Iterable[BinaryIO]) -> list[Edition]:
                 by_slug.get(source_slug) or Edition.objects.filter(slug=source_slug).first()
             )
             if edition.source_edition_id:
-                edition.save(update_fields=["source_edition", "updated_at"])
+                edition.parallel_role = Edition.ParallelRole.PARALLEL
+                edition.save(update_fields=["source_edition", "parallel_role", "updated_at"])
     from almonium_book_processor.catalog.tasks import process_normalized_edition
 
     for edition in editions:

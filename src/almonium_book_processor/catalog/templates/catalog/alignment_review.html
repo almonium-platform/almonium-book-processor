@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-heading alignment-heading">
   <div>
-    <p class="eyebrow">{{ edition.source_edition.language|upper }} → {{ edition.language|upper }} alignment review</p>
+    <p class="eyebrow">{{ source_edition.language|upper }} → {{ edition.language|upper }} alignment review</p>
     <h1>{{ edition.title|default:"Untitled upload" }}</h1>
     <p class="muted">Compare automatic groups, repair pairings, correct target text, and resolve QA findings before approval.</p>
   </div>
@@ -86,7 +86,7 @@
   <div><p class="eyebrow">Target chapter {{ chapter }} · source chapter{{ source_chapter_numbers|length|pluralize }} {{ source_chapter_numbers|join:", " }}</p><h2>Manual pairing</h2><p class="muted">Select one or more blocks on each side. Existing groups touching those blocks are replaced; unselected leftovers become visibly unmatched.</p></div>
   <form method="post" action="{% url 'catalog:repair-alignment' edition.id %}" class="repair-form">
     {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input type="hidden" name="filter" value="{{ view_filter }}">
-    <label><span>{{ edition.source_edition.language|upper }} source blocks</span>
+    <label><span>{{ source_edition.language|upper }} source blocks</span>
       <select name="source_blocks" multiple size="8" required>
         {% for block in source_blocks %}<option value="{{ block.id }}">{{ block.block_id }} · {{ block.text|truncatechars:90 }}</option>{% endfor %}
       </select>
@@ -105,7 +105,7 @@
 <section class="panel unmatched-panel">
   <p class="eyebrow">Coverage gaps</p><h2>Unmatched blocks</h2>
   <div class="alignment-columns">
-    <div><h3>{{ edition.source_edition.language|upper }} source</h3>{% for block in unmatched_source %}<article class="review-block unmatched"><code>{{ block.block_id }}</code><p>{{ block.text|linebreaksbr|default:"—" }}</p>{% if block.text %}<details><summary class="button button-secondary">Translate manually</summary><form method="post" action="{% url 'catalog:translate-alignment-gap' edition.id block.id %}">
+    <div><h3>{{ source_edition.language|upper }} source</h3>{% for block in unmatched_source %}<article class="review-block unmatched"><code>{{ block.block_id }}</code><p>{{ block.text|linebreaksbr|default:"—" }}</p>{% if block.text %}<details><summary class="button button-secondary">Translate manually</summary><form method="post" action="{% url 'catalog:translate-alignment-gap' edition.id block.id %}">
       {% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter }}"><input type="hidden" name="filter" value="{{ view_filter }}">
       <textarea name="text" rows="6" placeholder="Enter the {{ edition.language|upper }} translation" required></textarea>
       <input name="notes" placeholder="Optional audit note">
@@ -129,7 +129,7 @@
     </header>
     <div class="alignment-columns">
       <div>
-        <h3>{{ edition.source_edition.language|upper }} source</h3>
+        <h3>{{ source_edition.language|upper }} source</h3>
         {% for block in group.sources %}<article class="review-block"><code>{{ block.block_id }}</code><p>{{ block.text|linebreaksbr|default:"—" }}</p></article>{% endfor %}
       </div>
       <div>

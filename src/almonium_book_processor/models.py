@@ -87,11 +87,18 @@ class EditionMetadata(StrictModel):
             raise ValueError("edition_slug must be a lowercase kebab-case identifier")
         if not slug_pattern.fullmatch(self.work_slug):
             raise ValueError("work_slug must be a lowercase kebab-case identifier")
+        # A source edition names what an edition was generated from, block for
+        # block; only the generated kinds carry one.
         if (
-            self.edition_type in {"adaptation", "abridgement", "machine_translation"}
+            self.edition_type in {"adaptation", "machine_translation"}
             and not self.source_edition_slug
         ):
             raise ValueError(f"{self.edition_type} editions require source_edition_slug")
+        if (
+            self.edition_type in {"original", "human_translation", "abridgement"}
+            and self.source_edition_slug
+        ):
+            raise ValueError(f"{self.edition_type} editions are imported, not generated")
         if self.edition_type == "adaptation" and not self.cefr_level:
             raise ValueError("adaptation editions require cefr_level")
         return self

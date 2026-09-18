@@ -119,7 +119,14 @@ Implemented 2026-09-18 in the processor; see
 
 Inferred alignment is no longer on the critical path. It is retained for pairs of
 independently imported texts (scans, user uploads, a licensed modern translation)
-and is offered only on standalone editions.
+and is offered only on standalone editions. **Decided 2026-09-18:** it is built
+on demand against the work's canonical edition, never on ingest or after a
+revision, and it gates nothing: no reader surface depends on it. `source_edition`
+means "generated from, block for block" and is set on parallel editions only; an
+imported text names its work and nothing else (`PIPELINE_REVIEW_AND_DELIVERY.md`,
+principle 2). Still open: a rebuild regenerates group ids and orphans the
+`AlignmentGroupReview` rows, so paid adjudication does not survive a rebuild;
+key reviews by block ids before reviving this path for real.
 
 ## Decided: the parallel tree is built by translation, not inference
 

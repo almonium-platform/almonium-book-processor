@@ -20,7 +20,7 @@ prompts and the calibration fixtures. Regenerate it when any of those changes;
 | es | Spanish | es_core_news_sm | yes | yes | | |
 | et | Estonian | — | no | yes | | |
 | fi | Finnish | fi_core_news_sm | yes | yes | | |
-| fr | French | fr_core_news_sm | yes | yes | | human translation, in review |
+| fr | French | fr_core_news_sm | yes | yes | | human translation, standalone |
 | ga | Irish | — | no | yes | | |
 | hr | Croatian | hr_core_news_sm | as `sh` | as `hbs` | | |
 | hu | Hungarian | — | yes | yes | | |
@@ -87,7 +87,9 @@ EPUB/TEI aliases (`eng`, `deu`/`ger`, `fra`/`fre`, `nb`/`nn` → `no`, …) and
 - `uk`: a machine translation with its own title page and chapter
   descriptions; chapter analysis in Ukrainian
   (`evidence/ukrainian-20260918/`). No adaptation judged or audited.
-- `fr`: a human translation aligned and reviewed by inference; not published.
+- `fr`: a human translation, standalone; not published. Its inferred alignment
+  was built and adjudicated once ($0.667), then orphaned by an automatic
+  rebuild, and cleared on 2026-09-18 when alignment became on-demand.
 - Everything else: the table above and nothing more.
 
 ## Adding a language, or a model for one

@@ -93,9 +93,9 @@ class EditionViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"])
     def align_to_source(self, request, pk=None):
         edition = self.get_object()
-        if edition.source_edition_id is None:
+        if edition.inferred_alignment_source is None:
             return Response(
-                {"source_edition": "This edition has no source edition."},
+                {"edition": "Only a standalone edition with a canonical text can be aligned."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         align_edition_to_source.delay(str(edition.id))

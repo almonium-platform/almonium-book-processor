@@ -103,7 +103,7 @@ def test_upload_form_needs_only_the_file(tmp_path, monkeypatch, django_capture_o
     assert edition.work.metadata_provenance == {}
     assert [field.name for field in form.primary_fields] == [
         "edition_type",
-        "source_edition",
+        "work",
         "cefr_level",
     ]
     assert "work_slug" in [field.name for field in form.override_fields]

@@ -337,19 +337,13 @@ def detect_edition_metadata(self, edition_id: str, *, rerun: bool = False) -> No
 
 @shared_task(bind=True, acks_late=True)
 def process_normalized_edition(self, edition_id: str) -> None:
-    """Split sentences, align derived editions, and apply cheap QA gates."""
+    """Split sentences and apply cheap QA gates."""
 
     edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
     edition.status = Edition.Status.PROCESSING
     edition.save(update_fields=["status", "updated_at"])
     try:
-        if edition.source_edition_id:
-            if not edition.source_edition.blocks.exists():
-                raise ValueError("The source edition has no normalized blocks to align")
-            split_edition_sentences.run(str(edition.source_edition_id))
         split_edition_sentences.run(edition_id)
-        if edition.source_edition_id:
-            align_edition_to_source.run(edition_id)
         _finish_normalized_pipeline(edition)
         for task, label in (
             (analyze_edition_lexicon, "lexical enrichment"),
@@ -424,19 +418,12 @@ def publication_blocker(edition: Edition) -> str:
         if not title_page_current(edition):
             return "Translate the title, author and blurb from the source before publication."
     if edition.source_edition_id:
-        if not edition.requires_inferred_alignment:
-            from almonium_book_processor.catalog.parallel_content import inherited_pairs
+        from almonium_book_processor.catalog.parallel_content import inherited_pairs
 
-            if not inherited_pairs(edition, edition.source_edition):
-                return "Inherited source block groups must be complete before publication."
-            return ""
-        alignment_input_hash = _alignment_input_hash(edition.source_edition, edition)
-        if not edition.pipeline_runs.filter(
-            stage=PipelineRun.Stage.ALIGN,
-            status=PipelineRun.Status.SUCCEEDED,
-            input_hash=alignment_input_hash,
-        ).exists():
-            return "Current source alignment must succeed before publication."
+        if not inherited_pairs(edition, edition.source_edition):
+            return "Inherited source block groups must be complete before publication."
+    # A standalone edition's inferred alignment is an editorial aid built on
+    # demand; no reader surface depends on it, so it never gates publication.
     return ""
 
 
@@ -957,26 +944,10 @@ def refresh_edition_after_revision(edition_id: str) -> None:
         except Exception:
             logger.exception("Could not refresh %s for edition %s", label, edition_id)
 
-    # Only re-infer alignment where correspondence is genuinely unknown. A
-    # canonical or generated parallel edition inherits its block groups, so
-    # inference there would overwrite exact identity with a confidence score.
-    edition = Edition.objects.select_related("source_edition").get(id=edition_id)
-    alignment_edition_ids = [
-        derived.id
-        for derived in edition.derived_editions.select_related("source_edition")
-        if derived.requires_inferred_alignment
-    ]
-    if edition.requires_inferred_alignment:
-        alignment_edition_ids.append(edition.id)
-    for target_edition_id in alignment_edition_ids:
-        try:
-            align_edition_to_source.run(str(target_edition_id))
-        except Exception:
-            logger.exception(
-                "Could not refresh alignment for edition %s after revision to %s",
-                target_edition_id,
-                edition_id,
-            )
+    # Inferred alignment is not refreshed: it is built on demand against the
+    # canonical text, blocks keep their ids through a revision, and rebuilding
+    # would discard the groups an editor or a paid adjudication had settled.
+    edition = Edition.objects.get(id=edition_id)
 
     # Inherited pairs keep their paragraph groups, but the offline sentence
     # highlights are keyed by text and were retired with the other artifacts.
@@ -992,18 +963,25 @@ def refresh_edition_after_revision(edition_id: str) -> None:
 
 @shared_task(acks_late=True)
 def align_edition_to_source(edition_id: str) -> None:
-    edition = Edition.objects.select_related("source_edition").get(id=edition_id)
-    if edition.source_edition is None:
-        raise ValueError("A source edition is required for alignment")
-    if not edition.requires_inferred_alignment:
-        # Every caller funnels through here, so the role check lives here too.
-        logger.info(
-            "Skipping inferred alignment for edition %s: it is aligned by construction",
-            edition_id,
-        )
-        return
+    """Infer which blocks of a standalone edition correspond to the canonical text.
 
-    source_edition = edition.source_edition
+    Built on demand for an independently imported text, never on ingest or
+    after a revision. A canonical or parallel edition is aligned by
+    construction and is refused here, so every caller can funnel through.
+    """
+
+    edition = Edition.objects.select_related("work").get(id=edition_id)
+    source_edition = edition.inferred_alignment_source
+    if source_edition is None:
+        raise ValueError(
+            "Inferred alignment needs a standalone edition and a canonical edition of "
+            "the same work to measure it against"
+        )
+    if not source_edition.blocks.exists():
+        raise ValueError("The canonical edition has no normalized blocks to align")
+    split_edition_sentences.run(str(source_edition.id))
+    split_edition_sentences.run(edition_id)
+
     input_hash = _alignment_input_hash(source_edition, edition)
     run, _ = PipelineRun.objects.get_or_create(
         idempotency_key=f"{edition.id}:{input_hash}:align:{ALIGNMENT_PROCESSOR_VERSION}",
@@ -1113,14 +1091,8 @@ def align_edition_to_source(edition_id: str) -> None:
         with transaction.atomic():
             run.progress = 85
             run.save(update_fields=["progress", "updated_at"])
-            BlockAlignment.objects.filter(
-                source_edition=source_edition,
-                target_edition=edition,
-            ).delete()
-            ChapterAlignment.objects.filter(
-                source_edition=source_edition,
-                target_edition=edition,
-            ).delete()
+            BlockAlignment.objects.filter(target_edition=edition).delete()
+            ChapterAlignment.objects.filter(target_edition=edition).delete()
             edition.warnings.filter(code__in=ALIGNMENT_WARNING_CODES).delete()
             chapter_alignment_rows = []
             chapter_mapping_summary = []

@@ -10,7 +10,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
 from django.db import connection
 from django.db.models import Count, Q, Sum
-from django.http import HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -699,14 +699,8 @@ def _render_edition_detail(
             else None
         ),
         "parallel_editions": parallel_editions,
-        "inferred_alignment_available": (
-            edition.parallel_role == Edition.ParallelRole.STANDALONE
-            and edition.source_edition is not None
-        ),
-        "has_inferred_alignment": (
-            edition.source_edition is not None
-            and BlockAlignment.objects.filter(target_edition=edition).exists()
-        ),
+        "inferred_alignment_source": edition.inferred_alignment_source,
+        "has_inferred_alignment": BlockAlignment.objects.filter(target_edition=edition).exists(),
         "review_groups": review_groups(open_review_items),
         "role_label": SHORT_ROLE_LABELS[edition.parallel_role],
         "work_tree": work_tree(edition),
@@ -1052,22 +1046,24 @@ def approve_detached_initials(request: HttpRequest, edition_id: str) -> HttpResp
 @staff_member_required
 @require_POST
 def queue_source_alignment(request: HttpRequest, edition_id: str) -> HttpResponse:
-    """Infer alignment between two independently imported texts.
+    """Infer how a standalone edition corresponds to the work's canonical text.
 
     Generated parallel editions never need this: they inherit canonical block
-    groups at translation time. It stays available for imported pairs.
+    groups at translation time. It stays available, on demand, for an
+    independently imported text.
     """
 
-    edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
-    if not edition.requires_inferred_alignment:
+    edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
+    source = edition.inferred_alignment_source
+    if source is None:
         messages.error(
             request,
-            "This edition is aligned by construction. Inferred alignment applies only to "
-            "standalone editions imported from a separate source.",
+            "Inferred alignment applies only to a standalone edition whose work has a "
+            "canonical edition to measure it against.",
         )
         return redirect("catalog:edition-detail", edition_id=edition.id)
     align_edition_to_source.delay(str(edition.id))
-    messages.success(request, "Inferred alignment queued.")
+    messages.success(request, f"Inferred alignment against {source.slug} queued.")
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
 
@@ -1185,13 +1181,19 @@ def dismiss_source_quality_finding(
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
 
+def _inferred_alignment_edition(edition_id: str) -> Edition:
+    """The standalone edition an alignment workspace URL names, or 404."""
+
+    edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
+    if edition.inferred_alignment_source is None:
+        raise Http404("This edition has no canonical text to be aligned against.")
+    return edition
+
+
 @staff_member_required
 def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
-    edition = get_object_or_404(
-        Edition.objects.select_related("work", "source_edition"),
-        id=edition_id,
-        source_edition__isnull=False,
-    )
+    edition = _inferred_alignment_edition(edition_id)
+    source_edition = edition.inferred_alignment_source
     chapter_numbers = list(edition.chapters.order_by("sequence").values_list("sequence", flat=True))
     if not chapter_numbers:
         return render(
@@ -1199,6 +1201,7 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
             "catalog/alignment_review.html",
             {
                 "edition": edition,
+                "source_edition": source_edition,
                 "chapter_numbers": [],
                 "alignment_groups": [],
                 "recent_ai_runs": edition.ai_runs.select_related("model_configuration")[:5],
@@ -1248,7 +1251,7 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
             "target_block_id", flat=True
         )
     )
-    unmatched_source_blocks = edition.source_edition.blocks.exclude(id__in=aligned_source_ids)
+    unmatched_source_blocks = source_edition.blocks.exclude(id__in=aligned_source_ids)
     unmatched_target_blocks = edition.blocks.exclude(id__in=aligned_target_ids).select_related(
         "chapter"
     )
@@ -1287,7 +1290,7 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
         {mapping.source_chapter.sequence for mapping in chapter_mappings}
     ) or [chapter]
     source_blocks = list(
-        edition.source_edition.blocks.filter(chapter__sequence__in=source_chapter_numbers).order_by(
+        source_edition.blocks.filter(chapter__sequence__in=source_chapter_numbers).order_by(
             "chapter__sequence", "sequence"
         )
     )
@@ -1401,6 +1404,7 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
         "catalog/alignment_review.html",
         {
             "edition": edition,
+            "source_edition": source_edition,
             "chapter": chapter,
             "chapter_numbers": visible_chapter_numbers,
             "all_chapter_count": len(chapter_numbers),
@@ -1455,7 +1459,7 @@ def _review_redirect(edition_id: str, chapter: str, view_filter: str = "") -> Ht
 @staff_member_required
 @require_POST
 def queue_ai_alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
-    edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
+    edition = _inferred_alignment_edition(edition_id)
     if not settings.OPENAI_API_KEY:
         messages.error(request, "OPENAI_API_KEY is not configured for this service.")
     else:
@@ -1473,7 +1477,7 @@ def queue_ai_alignment_review(request: HttpRequest, edition_id: str) -> HttpResp
 @staff_member_required
 @require_POST
 def confirm_ai_safe_alignments(request: HttpRequest, edition_id: str) -> HttpResponse:
-    edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
+    edition = _inferred_alignment_edition(edition_id)
     confirmed_count = confirm_ai_alignment_groups(edition=edition, reviewer=request.user)
     if confirmed_count:
         messages.success(request, f"Confirmed {confirmed_count} AI-approved alignment groups.")
@@ -1487,7 +1491,7 @@ def confirm_ai_safe_alignments(request: HttpRequest, edition_id: str) -> HttpRes
 @staff_member_required
 @require_POST
 def accept_alignment_group(request: HttpRequest, edition_id: str, group_id: uuid.UUID):
-    edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
+    edition = _inferred_alignment_edition(edition_id)
     try:
         review_alignment_group(
             edition=edition,
@@ -1507,7 +1511,7 @@ def accept_alignment_group(request: HttpRequest, edition_id: str, group_id: uuid
 @staff_member_required
 @require_POST
 def accept_alignment_chapter(request: HttpRequest, edition_id: str):
-    edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
+    edition = _inferred_alignment_edition(edition_id)
     chapter = request.POST.get("chapter", "1")
     try:
         accepted_count = review_alignment_chapter(
@@ -1526,7 +1530,7 @@ def accept_alignment_chapter(request: HttpRequest, edition_id: str):
 @staff_member_required
 @require_POST
 def repair_alignment(request: HttpRequest, edition_id: str):
-    edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
+    edition = _inferred_alignment_edition(edition_id)
     try:
         repair_alignment_group(
             edition=edition,
@@ -1547,7 +1551,7 @@ def repair_alignment(request: HttpRequest, edition_id: str):
 @staff_member_required
 @require_POST
 def translate_alignment_gap(request: HttpRequest, edition_id: str, source_block_id: uuid.UUID):
-    edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
+    edition = _inferred_alignment_edition(edition_id)
     chapter = request.POST.get("chapter", "1")
     try:
         translate_coverage_gap(
@@ -1568,7 +1572,7 @@ def translate_alignment_gap(request: HttpRequest, edition_id: str, source_block_
 @staff_member_required
 @require_POST
 def edit_alignment_target(request: HttpRequest, edition_id: str, block_id: uuid.UUID):
-    edition = get_object_or_404(Edition, id=edition_id, source_edition__isnull=False)
+    edition = _inferred_alignment_edition(edition_id)
     try:
         revise_block_text(
             edition=edition,
@@ -1596,7 +1600,7 @@ def resolve_warning(request: HttpRequest, edition_id: str, warning_id: uuid.UUID
         messages.error(request, str(error))
     else:
         messages.success(request, "Review item resolved.")
-    if edition.source_edition_id and request.POST.get("return") != "edition":
+    if edition.inferred_alignment_source and request.POST.get("return") != "edition":
         return _review_redirect(
             str(edition.id),
             request.POST.get("chapter", "1"),
