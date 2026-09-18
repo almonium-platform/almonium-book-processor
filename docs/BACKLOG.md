@@ -81,12 +81,15 @@ Implemented 2026-09-18 in the processor; see
       level and are recorded as evidence too.
 - [x] The publication payload carries `adaptsTo` and `reachedLevels`, and the
       floor travels in promotion bundles (schema 4).
-- [ ] Backend stores and serves them per book; Angular and mobile library
-      cards show "Adapted to B2 · Original C1" style facts.
-- [ ] Fidelity audit of the **published** B2 edition: queued 2026-09-18 on the
-      producing (local) stack as run `f06a3841`, thirty chapters read beside
-      the original. Fix or accept its material findings and `adapts_to = B2`
-      follows from the gates; the floor then travels to staging and
+- [x] Backend stores and serves `adaptsTo` per book (`almonium-be 709df465`);
+      Angular tile captions (`a68db79`) and mobile library feet (`2cf5b51`)
+      read "Original C1 · Adapted B2" from the editions a work actually has.
+      `reachedLevels` rides in the payload but is not stored yet.
+- [ ] Fidelity audit of the **published** B2 edition: done 2026-09-18 on the
+      producing (local) stack, run `f06a3841`, $1.32: 7 material, 36 minor,
+      2 uncertain findings, each open on the edition page to apply or
+      dismiss. Decide them, re-audit the changed chapters, republish;
+      `adapts_to = B2` follows from the gates and travels to staging and
       production in the next promotion bundle. B1 is recorded as a failed
       rung from the v5 pilots (`backfill_floor_probe`).
 - [ ] Remove the last level promises from onboarding and plan copy across
