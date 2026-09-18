@@ -245,7 +245,7 @@ def refresh_projections(run_id: str, *, token: str | None = None) -> None:
         persist(KINDS[0], book)
         # A late old-model completion may add history, but must not displace
         # projections from the currently configured analysis model.
-        if spec == analysis_spec():
+        if spec == analysis_spec(edition.language):
             edition.artifacts.filter(kind__in=KINDS, is_current=True).exclude(
                 id__in=retained
             ).update(is_current=False)
@@ -278,7 +278,8 @@ def projection_context(edition: Edition, analysis: dict) -> dict:
                     a
                     for a in candidates
                     if a.payload.get("analysis_input_hash") == run.input_hash
-                    and a.payload.get("analysis_spec_hash") == _hash(analysis_spec())
+                    and a.payload.get("analysis_spec_hash")
+                    == _hash(analysis_spec(edition.language))
                     and a.payload.get("roles") == dict(_roles(edition))
                 ),
                 None,
@@ -369,7 +370,7 @@ def queue_projection_refresh(edition_id: str) -> None:
     from almonium_book_processor.catalog.chapter_analysis import analysis_spec, snapshot
 
     edition = Edition.objects.select_related("work").get(id=edition_id)
-    plan = snapshot(edition, analysis_spec())
+    plan = snapshot(edition, analysis_spec(edition.language))
     run = edition.pipeline_runs.filter(
         stage=PipelineRun.Stage.CHAPTER_ANALYSIS,
         input_hash=plan["hash"],

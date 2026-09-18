@@ -95,6 +95,20 @@ Keep theme, character and flag entries under 100 characters each. Empty lists ar
 """
 
 
+# Keep the validated English v3 judge and its published projections addressable.
+# Non-English editions use an independently versioned localization contract.
+LOCALIZED_PROMPT_VERSION = 4
+LOCALIZED_PROCESSOR_VERSION = "chapter-analysis-v4"
+LOCALIZED_SYSTEM_PROMPT = SYSTEM_PROMPT.replace(
+    "Write explanations and summaries in English.",
+    "Write ALL generated prose in the edition language given by the input language code: "
+    "descriptions, recap, explanations, glosses, themes, setting and content flags. "
+    "Use names as they appear in the supplied text. Keep schema keys, dimension enum "
+    "values and CEFR codes unchanged. Copy quotations and word surfaces exactly. "
+    "Never default to English for a non-English edition.",
+)
+
+
 class OpenAIChapterAnalysisProvider(OpenAIBatchProvider):
     """Direct worker requests with no hidden SDK retries and a bounded timeout."""
 

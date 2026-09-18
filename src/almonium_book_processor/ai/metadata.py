@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-METADATA_SCHEMA_VERSION = 1
+METADATA_SCHEMA_VERSION = 2
 
 # Roughly the first two pages: enough to identify a title page, an epigraph,
 # and the opening scene, and small enough to keep the call negligible.
@@ -27,7 +27,7 @@ class BookMetadataProposal(BaseModel):
         description="ISO 639-1 code of the language the text is written in; empty when unsure."
     )
     description: str = Field(
-        description="Two or three spoiler-free sentences about the work, in English."
+        description="Two or three spoiler-free sentences in the language of the book."
     )
     publication_year: int | None = Field(
         description=(
@@ -53,8 +53,8 @@ RULES
   the work's actual title.
 - Report the language the text is actually written in as an ISO 639-1 code, even if the declared
   language differs. Supported codes: {supported_languages}. Use an empty string otherwise.
-- Write the description in English, two or three sentences, without spoilers, without quoting
-  reviews or marketing copy, and without mentioning the file.
+- Write two or three spoiler-free description sentences in the reported language of the book.
+  Do not quote reviews or marketing copy, or mention the file.
 - Give a publication year only for a work whose first publication year you are confident of.
   A translation or a later edition keeps the original work's year. Otherwise return null.
 - Never fabricate an author or a year to fill a gap: empty values are acceptable.

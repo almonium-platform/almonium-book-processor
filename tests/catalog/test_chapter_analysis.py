@@ -993,3 +993,24 @@ def test_projection_broker_failure_is_reported_without_changing_analysis(
     run.refresh_from_db()
     assert run.status == "succeeded"
     assert book_assessment(edition).payload["complete"]
+
+
+def test_non_english_contract_is_versioned_without_invalidating_english():
+    english = analysis_spec("en")
+    ukrainian = analysis_spec("uk")
+    assert english["prompt_version"] == 3
+    assert ukrainian["prompt_version"] == 4
+    assert "input language code" in ukrainian["system_prompt"]
+    assert "summaries in English" not in ukrainian["system_prompt"]
+
+
+def test_wrong_language_is_rejected_after_recording_cost(edition):
+    edition.language = "uk"
+    edition.save(update_fields=["language"])
+    run = queue_analysis(str(edition.id))
+    with pytest.raises(ValueError):
+        analyze_chapters(str(run.id), provider=Provider())
+    ai = AIRun.objects.get(pipeline_run=run)
+    assert ai.status == AIRun.Status.FAILED
+    assert ai.estimated_cost_usd > 0
+    assert "analysis" not in ai.response_payload

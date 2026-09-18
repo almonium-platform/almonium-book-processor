@@ -20,6 +20,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai.output_language import validate_output_language
 from almonium_book_processor.ai.translation import (
     CHAPTER_SUMMARY_OUTPUT_SCHEMA,
     CHAPTER_SUMMARY_SYSTEM_PROMPT,
@@ -279,7 +280,14 @@ def _call(edition, run, key, configuration, template, body, model_class, provide
         },
     )
     if not created and ai_run.status == AIRun.Status.SUCCEEDED:
-        return ai_run, model_class.model_validate(ai_run.response_payload["result"])
+        result = model_class.model_validate(ai_run.response_payload["result"])
+        validate_output_language(
+            result.descriptions
+            if isinstance(result, ChapterSummaryTranslation)
+            else [result.description],
+            edition.language,
+        )
+        return ai_run, result
     ai_run.status = AIRun.Status.SUBMITTED
     ai_run.pipeline_run = run
     ai_run.started_at = timezone.now()
@@ -291,6 +299,12 @@ def _call(edition, run, key, configuration, template, body, model_class, provide
         if response.get("status") != "completed":
             raise ValueError("Provider did not complete the request.")
         result = model_class.model_validate_json(response_output_text(response))
+        validate_output_language(
+            result.descriptions
+            if isinstance(result, ChapterSummaryTranslation)
+            else [result.description],
+            edition.language,
+        )
     except Exception as error:
         AIRun.objects.filter(pk=ai_run.id).update(
             status=AIRun.Status.FAILED,

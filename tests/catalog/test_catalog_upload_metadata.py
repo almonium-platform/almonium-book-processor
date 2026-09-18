@@ -236,7 +236,7 @@ def test_ai_proposal_never_renames_the_work_through_a_translation(
             "title": "The Work",
             "author": "Ada Author",
             "language": "en",
-            "description": "A short work.",
+            "description": "A young traveler returns to the village where she grew up.",
             "publication_year": 1901,
             "note": "",
         },
@@ -250,7 +250,7 @@ def test_ai_proposal_never_renames_the_work_through_a_translation(
     assert translation.slug == "werk-en-human"
     assert work.title == "Das Werk"
     assert work.original_language == "de"
-    assert work.description == "A short work."
+    assert work.description == "A young traveler returns to the village where she grew up."
     assert work.publication_year == 1901
     assert work.metadata_provenance["title"] == "source"
 
@@ -593,7 +593,7 @@ def test_rerun_reuses_a_finished_model_call_instead_of_paying_again(settings, mo
             "title": "Alte Sachen",
             "author": "A. Author",
             "language": "de",
-            "description": "A blurb.",
+            "description": "Ein junger Reisender kehrt nach langer Zeit in sein Heimatdorf zurück.",
             "publication_year": 1898,
             "note": "",
         },
@@ -607,7 +607,10 @@ def test_rerun_reuses_a_finished_model_call_instead_of_paying_again(settings, mo
     assert calls["count"] == 1
     assert AIRun.objects.count() == 1
     edition.work.refresh_from_db()
-    assert edition.work.description == "A blurb."
+    assert (
+        edition.work.description
+        == "Ein junger Reisender kehrt nach langer Zeit in sein Heimatdorf zurück."
+    )
 
 
 def test_detect_button_queues_a_rerun_for_staff(settings, monkeypatch) -> None:

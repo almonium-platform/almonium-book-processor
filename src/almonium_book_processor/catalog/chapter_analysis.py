@@ -18,6 +18,9 @@ from django.db import transaction
 from django.utils import timezone
 
 from almonium_book_processor.ai.chapter_analysis import (
+    LOCALIZED_PROCESSOR_VERSION,
+    LOCALIZED_PROMPT_VERSION,
+    LOCALIZED_SYSTEM_PROMPT,
     MAX_OUTPUT_TOKENS,
     MAX_REQUEST_BYTES,
     MAX_WINDOW_BYTES,
@@ -31,6 +34,10 @@ from almonium_book_processor.ai.chapter_analysis import (
     OpenAIChapterAnalysisProvider,
 )
 from almonium_book_processor.ai.openai_provider import response_output_text
+from almonium_book_processor.ai.output_language import (
+    OutputLanguageError,
+    validate_analysis_language,
+)
 from almonium_book_processor.catalog.ai_translation import TRANSLATION_MODEL_PRICING
 from almonium_book_processor.catalog.models import (
     AIRun,
@@ -65,16 +72,17 @@ def _hash(value) -> str:
     return hashlib.sha256(_json(value).encode()).hexdigest()
 
 
-def analysis_spec() -> dict:
+def analysis_spec(language: str = "en") -> dict:
     # Reuse the deployed draft-model setting, but snapshot it independently.
     # No translation configuration or historical price row is mutated.
+    localized = language != "en"
     return {
         "provider": "openai",
         "model": settings.OPENAI_TRANSLATION_DRAFT_MODEL,
         "pricing_per_million": TRANSLATION_MODEL_PRICING["draft"],
-        "processor_version": PROCESSOR_VERSION,
-        "prompt_version": PROMPT_VERSION,
-        "system_prompt": SYSTEM_PROMPT,
+        "processor_version": LOCALIZED_PROCESSOR_VERSION if localized else PROCESSOR_VERSION,
+        "prompt_version": LOCALIZED_PROMPT_VERSION if localized else PROMPT_VERSION,
+        "system_prompt": LOCALIZED_SYSTEM_PROMPT if localized else SYSTEM_PROMPT,
         "output_schema": OUTPUT_SCHEMA,
         "reasoning_effort": "low",
         "max_output_tokens": MAX_OUTPUT_TOKENS,
@@ -174,7 +182,7 @@ def queue_analysis(edition_id: str) -> PipelineRun:
     if not settings.OPENAI_API_KEY:
         raise ValueError("No OpenAI key is configured.")
     edition = Edition.objects.select_related("work").get(id=edition_id)
-    spec = analysis_spec()
+    spec = analysis_spec(edition.language)
     plan = snapshot(edition, spec)
     with transaction.atomic():
         run, _ = PipelineRun.objects.get_or_create(
@@ -182,7 +190,7 @@ def queue_analysis(edition_id: str) -> PipelineRun:
             defaults={
                 "edition": edition,
                 "stage": PipelineRun.Stage.CHAPTER_ANALYSIS,
-                "processor_version": PROCESSOR_VERSION,
+                "processor_version": spec["processor_version"],
                 "input_hash": plan["hash"],
                 "summary": {
                     "spec": spec,
@@ -426,6 +434,7 @@ def _attempt(run: PipelineRun, window: dict, spec: dict, configuration, prompt, 
         if response.get("status") != "completed":
             raise ValueError("Provider response was incomplete or refused.")
         result = ChapterAnalysis.model_validate_json(response_output_text(response))
+        validate_analysis_language(result, window["data"]["language"])
         result, spans, notes = _verify_citations(result, window["data"])
         _current_plan(run, spec)
         with transaction.atomic():
@@ -446,7 +455,7 @@ def _attempt(run: PipelineRun, window: dict, spec: dict, configuration, prompt, 
         # messages are stored verbatim; source-bearing payloads are handled by purge.
         data = window["data"]
         where = f"Chapter {data['chapter_sequence']} window {data['window']}/{data['window_count']}"
-        if isinstance(error, (StaleAnalysis, AnalysisRejected)):
+        if isinstance(error, (StaleAnalysis, AnalysisRejected, OutputLanguageError)):
             reason = str(error)
         else:
             reason = f"{type(error).__name__}: the answer did not complete validation."
@@ -528,7 +537,7 @@ def analysis_context(edition: Edition) -> dict:
     if not run:
         return context
     try:
-        plan = snapshot(edition, analysis_spec())
+        plan = snapshot(edition, analysis_spec(edition.language))
         current = edition.pipeline_runs.filter(
             stage=PipelineRun.Stage.CHAPTER_ANALYSIS,
             input_hash=plan["hash"],

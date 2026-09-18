@@ -20,7 +20,7 @@ def assess_pilot(pilot_id, *, provider=None):
     if pilot.processor_version not in PILOT_VERSIONS or pilot.status != "succeeded":
         raise ValueError("A completed chapter pilot is required.")
     generation = AIRun.objects.get(pk=pilot.summary["ai_run_id"], edition=pilot.edition)
-    spec = analysis_spec()
+    spec = analysis_spec(pilot.edition.language)
     plan = snapshot(pilot.edition, spec)
     source = generation.request_payload["source"]
     if pilot.summary.get("source_edition_id") != str(pilot.edition_id):

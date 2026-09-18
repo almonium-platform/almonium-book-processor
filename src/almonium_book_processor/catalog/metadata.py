@@ -32,6 +32,7 @@ from almonium_book_processor.ai.metadata import (
     BookMetadataProposal,
 )
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai.output_language import validate_output_language
 from almonium_book_processor.catalog.models import (
     METADATA_FIELD_LABELS,
     AIRun,
@@ -47,7 +48,7 @@ from almonium_book_processor.models import EditionMetadata
 logger = logging.getLogger(__name__)
 
 PROMPT_NAME = "private-import-metadata"
-PROMPT_VERSION = 1
+PROMPT_VERSION = 2
 
 METADATA_FIELDS = tuple(METADATA_FIELD_LABELS)
 
@@ -555,6 +556,14 @@ def _propose_with_ai(edition: Edition, run: PipelineRun) -> AIRun | None:
         reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
         estimated_cost_usd=_estimated_cost(input_tokens, cached_input_tokens, output_tokens),
     )
+    try:
+        validate_output_language([proposal.description], proposal.language)
+    except ValueError:
+        ai_run.status = AIRun.Status.FAILED
+        ai_run.error = "Metadata description did not validate in the book language."
+        ai_run.finished_at = timezone.now()
+        ai_run.save()
+        return ai_run
     ai_run.status = AIRun.Status.SUCCEEDED
     ai_run.finished_at = timezone.now()
     ai_run.response_payload = {"proposal": proposal.model_dump(mode="json")}

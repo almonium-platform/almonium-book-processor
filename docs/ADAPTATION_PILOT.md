@@ -436,3 +436,10 @@ separately described editorial product with explicit approved losses; it must
 not inherit a claim of full fidelity. A2 has not been tested and is not licensed
 by these results. “At most two CEFR rungs” is a planning heuristic, not evidence
 that every C1 book can reach B1 while retaining every claim and image.
+
+B1 becomes a new experiment only with a materially different generation strategy
+(e.g. planned restructuring with claim-by-claim reconciliation), a genuinely
+matched B1 source, or explicitly disclosed abridgement and fidelity trade-offs.
+The affordable product now is honestly labelled **B2 with reader aids**. Neither
+a higher label tolerance nor another synonym-only prompt revision supplies the
+missing evidence. These routes need fresh blind controls and fidelity gates.

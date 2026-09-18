@@ -149,6 +149,15 @@ class Flaky(Exception):
     status_code = 404
 
 
+UK_DESCRIPTIONS = {
+    "Walton writes home from the far north.": "Волтон пише листа додому з далекої півночі.",
+    "The expedition waits.": "Учасники експедиції чекають на можливість продовжити свою подорож.",
+    "A stranger is sighted.": "Мандрівники помічають незнайомця серед крижаних просторів.",
+    "Walton writes home.": "Волтон пише листа додому та розповідає про свою подорож.",
+    "Walton writes to his sister.": "Волтон пише своїй сестрі про подорож та власні сподівання.",
+}
+
+
 class Provider:
     """Answers each request from its schema name; counts what it was asked."""
 
@@ -177,7 +186,7 @@ class Provider:
             descriptions = json.loads(body["input"].split("DESCRIPTIONS\n", 1)[1])
             if self.fail_chapter and f"Chapter {self.fail_chapter}" in body["input"]:
                 raise RuntimeError("provider down")
-            result = {"descriptions": [f"UK: {text}" for text in descriptions]}
+            result = {"descriptions": [UK_DESCRIPTIONS[text] for text in descriptions]}
         return {
             "id": f"resp_{len(self.calls)}",
             "status": "completed",
@@ -245,10 +254,10 @@ def test_the_run_names_the_edition_and_translates_its_contents(source, ukrainian
         (1, "C1", "complete"),
         (2, "B2", "complete"),
     ]
-    assert chapters[0]["descriptions"] == ["UK: Walton writes home from the far north."]
+    assert chapters[0]["descriptions"] == ["Волтон пише листа додому з далекої півночі."]
     assert chapters[1]["descriptions"] == [
-        "UK: The expedition waits.",
-        "UK: A stranger is sighted.",
+        "Учасники експедиції чекають на можливість продовжити свою подорож.",
+        "Мандрівники помічають незнайомця серед крижаних просторів.",
     ]
     assert chapters[0]["id"] == str(ukrainian.chapters.get(sequence=1).id)
 
@@ -263,7 +272,9 @@ def test_a_translated_description_is_served_only_for_the_analysis_it_came_from(s
     analysed(source, 1, ["Walton writes home."])
     run = queue_metadata_translation(str(ukrainian.id))
     run_metadata_translation(run.id, provider=Provider())
-    assert public_chapters(ukrainian)[0]["descriptions"] == ["UK: Walton writes home."]
+    assert public_chapters(ukrainian)[0]["descriptions"] == [
+        "Волтон пише листа додому та розповідає про свою подорож."
+    ]
 
     # The source's analysis is refreshed with new wording: the old Ukrainian text
     # no longer describes it, and the chapter says so instead of showing English.
@@ -282,7 +293,9 @@ def test_a_translated_description_is_served_only_for_the_analysis_it_came_from(s
     assert rerun.id != run.id
     run_metadata_translation(rerun.id, provider=provider)
     assert provider.calls == ["chapter_summary"]
-    assert public_chapters(ukrainian)[0]["descriptions"] == ["UK: Walton writes to his sister."]
+    assert public_chapters(ukrainian)[0]["descriptions"] == [
+        "Волтон пише своїй сестрі про подорож та власні сподівання."
+    ]
 
 
 def test_a_failed_run_flags_the_edition_and_a_retry_reuses_finished_calls(source, ukrainian):

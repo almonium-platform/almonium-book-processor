@@ -92,7 +92,7 @@ def apply_pilot(*, pilot_id, target_id, expected_revision, editor, notes):
         processor_version="pilot-difficulty-v1",
         status="succeeded",
         summary__pilot_id=str(run.id),
-        summary__spec=analysis_spec(),
+        summary__spec=analysis_spec(source.language),
     ).first()
     level = assessment.summary.get("assessment", {}).get("max_level") if assessment else None
     if level not in LEVELS or LEVELS.index(level) > LEVELS.index(target_level):

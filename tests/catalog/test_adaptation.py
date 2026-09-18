@@ -278,7 +278,7 @@ def test_pilot_blind_assessment_is_cached_and_displayed(chapter, target_level):
                         "explanation": "Direct narration.",
                     }
                 ],
-                "spoiler_free_description": "A departure.",
+                "spoiler_free_description": "A traveler sets out on a journey before sunrise.",
                 "recap": "He leaves.",
                 "hard_words": [],
                 "themes": [],
