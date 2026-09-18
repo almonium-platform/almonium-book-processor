@@ -489,6 +489,10 @@ def test_alignment_is_versioned_by_normalized_content(monkeypatch) -> None:
         text="Il marcha au loin.",
     )
     monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.split_sentences",
+        lambda text, language: [text],
+    )
+    monkeypatch.setattr(
         "almonium_book_processor.catalog.tasks.embed_texts",
         lambda texts: [[1.0, 0.0] for _ in texts],
     )

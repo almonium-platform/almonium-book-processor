@@ -2046,6 +2046,10 @@ def test_alignment_maps_merged_chapters_before_aligning_blocks(monkeypatch) -> N
         )
     )
     monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.split_sentences",
+        lambda text, language: [text],
+    )
+    monkeypatch.setattr(
         "almonium_book_processor.catalog.tasks.embed_texts",
         lambda texts: next(vectors),
     )
