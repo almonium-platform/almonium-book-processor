@@ -296,7 +296,29 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .ladder-rung-probing .ladder-level { border-color: #ef6c00; color: #ef6c00; }
 .ladder-rung-original { background: transparent; }
 
-.fidelity-bulk { flex-direction: column; align-items: flex-start; gap: .5rem; margin: .75rem 0 1rem; }
-.fidelity-bulk label { margin-right: .5rem; }
-.fidelity-finding form label input[type="checkbox"] { margin-right: .35rem; }
-.fidelity-material > div > p:first-child code { border-color: #c62828; color: #c62828; }
+/* Fidelity audit: one compact row per finding, actions to the right; the
+   wording editor and the minor/uncertain groups stay folded. */
+.button-small { padding: .4rem .85rem; font-size: .8rem; }
+.checkbox-label { display: inline-flex; align-items: center; gap: .45rem; font-size: .85rem; font-weight: 500; white-space: nowrap; }
+.checkbox-label input[type="checkbox"] { width: auto; margin: 0; padding: 0; }
+.fidelity-bulk { display: flex; flex-wrap: wrap; gap: .6rem 1.5rem; margin: .9rem 0 1.1rem; }
+.fidelity-bulk form { display: flex; align-items: center; gap: .75rem; }
+.fidelity-group { border-top: 1px solid var(--line); padding: .4rem 0; }
+.fidelity-group > summary { cursor: pointer; display: flex; justify-content: space-between; gap: 1rem; padding: .5rem 0; }
+.fidelity-group > summary .summary-title { font-weight: 700; }
+.fidelity-group > summary .summary-meta { color: var(--muted); font-size: .82rem; }
+.fidelity-finding { display: grid; grid-template-columns: minmax(0, 1fr) 11rem; gap: .5rem 1.25rem; padding: .7rem 0; border-top: 1px solid var(--line); }
+.fidelity-finding p { margin: 0 0 .3rem; line-height: 1.45; }
+.fidelity-head { font-size: .85rem; }
+.fidelity-quotes { font-size: .85rem; }
+.fidelity-quotes span + span::before { content: " · "; }
+.severity { padding: .1rem .45rem; border-radius: 6px; border: 1px solid var(--line); background: var(--paper); font-size: .75rem; }
+.severity-material { border-color: #c62828; color: #c62828; }
+.fidelity-actions { display: flex; flex-direction: column; align-items: flex-end; gap: .5rem; }
+.fidelity-actions form { display: flex; align-items: center; gap: .5rem; }
+.fidelity-edit { margin-top: .3rem; font-size: .85rem; }
+.fidelity-edit > summary { cursor: pointer; color: var(--accent); }
+.fidelity-edit form { display: grid; gap: .5rem; margin-top: .5rem; max-width: 40rem; }
+.fidelity-edit form label { display: grid; gap: .3rem; font-size: .82rem; font-weight: 700; }
+.fidelity-edit form .button { justify-self: start; }
+@media (max-width: 720px) { .fidelity-finding { grid-template-columns: 1fr; } .fidelity-actions { align-items: flex-start; } }

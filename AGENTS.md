@@ -80,6 +80,12 @@ Cross-service integration uses an explicit HTTP or messaging contract.
   vault schemas, and encrypted values synchronized without exposing secrets.
 - Stage files explicitly and commit verified changes as focused commits. Keep
   coordinated commits separate per repository and report each hash.
+- Never ship a UI change unseen. After changing a template, static file or
+  anything else the admin renders, rebuild the stack, open the affected page
+  in a browser as a staff user and look at it: layout, spacing, what a page
+  with real data volume looks like (dozens of findings, not one), every
+  button and form in place. A passing test that greps the HTML is not a
+  review of the page. Fix what looks wrong before reporting the change.
 - The Docker image copies `src/` at build time and nothing is bind-mounted, so
   edits are not live in a running stack. After changing anything under `src/`
   (code, templates, static files) or `pyproject.toml`, rebuild and restart
