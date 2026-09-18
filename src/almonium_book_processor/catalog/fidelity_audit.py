@@ -128,6 +128,12 @@ def _normalize(text: str) -> str:
     return " ".join(text.split()).casefold()
 
 
+def _quote(text: str) -> str:
+    """The model tends to wrap its quotes in quotation marks; those are not part of the book."""
+
+    return _normalize(text).strip("\"' ").rstrip(".,;:")
+
+
 def _verified(review: Review, pairs: list[dict]) -> list[dict]:
     """Issues as dicts, each saying whether its quotes really occur in the texts."""
 
@@ -138,8 +144,9 @@ def _verified(review: Review, pairs: list[dict]) -> list[dict]:
         data = issue.model_dump()
         data["quote_verified"] = bool(
             pair
-            and _normalize(issue.source_quote) in _normalize(pair["source"])
-            and _normalize(issue.adapted_quote) in _normalize(pair["adapted"])
+            and _quote(issue.source_quote)
+            and _quote(issue.source_quote) in _normalize(pair["source"])
+            and _quote(issue.adapted_quote) in _normalize(pair["adapted"])
         )
         issues.append(data)
     return issues

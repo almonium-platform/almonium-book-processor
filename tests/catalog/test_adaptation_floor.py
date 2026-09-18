@@ -169,8 +169,9 @@ class Auditor:
 
 MATERIAL = {
     "block_id": "c1.b1",
-    "source_quote": "Ere dawn",
-    "adapted_quote": "Before dawn",
+    # The model wraps quotes in quotation marks and curly apostrophes; the book does not.
+    "source_quote": "\u201cEre dawn,\u201d",
+    "adapted_quote": '"Before dawn"',
     "severity": "material",
     "explanation": "The departure lost its urgency.",
     "suggested_correction": "Before dawn, he had already left.",

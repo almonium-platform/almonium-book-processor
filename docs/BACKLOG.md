@@ -83,11 +83,12 @@ Implemented 2026-09-18 in the processor; see
       floor travels in promotion bundles (schema 4).
 - [ ] Backend stores and serves them per book; Angular and mobile library
       cards show "Adapted to B2 · Original C1" style facts.
-- [ ] Fidelity audit of the **published** B2 edition. The audit is now a worker
-      job on the adaptation's page ("Audit fidelity (paid)"): every chapter is
-      read beside the original (≈ $0.09/chapter on Terra, under $3), material
-      findings become review items. Run it on staging, fix or accept the
-      material findings, and `adapts_to = B2` follows from the gates.
+- [ ] Fidelity audit of the **published** B2 edition: queued 2026-09-18 on the
+      producing (local) stack as run `f06a3841`, thirty chapters read beside
+      the original. Fix or accept its material findings and `adapts_to = B2`
+      follows from the gates; the floor then travels to staging and
+      production in the next promotion bundle. B1 is recorded as a failed
+      rung from the v5 pilots (`backfill_floor_probe`).
 - [ ] Remove the last level promises from onboarding and plan copy across
       web and mobile (web landing/Premium done in `b07c669`; audit mobile).
 
