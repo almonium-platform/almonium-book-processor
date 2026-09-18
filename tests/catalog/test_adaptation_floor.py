@@ -387,7 +387,8 @@ def test_fidelity_suggestions_are_applied_in_bulk_as_audited_revisions(
         "severity": "minor",
         "suggested_correction": "terrified",
     }
-    run_edition_audit(run.id, provider=Auditor([MATERIAL, second, MINOR]))
+    auditor = Auditor([MATERIAL, second, MINOR])
+    run_edition_audit(run.id, provider=auditor)
     with pytest.raises(ValueError, match="no fidelity suggestion"):
         apply_fidelity_findings(edition=adaptation, reviewer=reviewer, severities=["uncertain"])
     with django_capture_on_commit_callbacks(execute=True):
@@ -425,6 +426,18 @@ def test_fidelity_suggestions_are_applied_in_bulk_as_audited_revisions(
         dismiss_fidelity_findings(edition=adaptation, reviewer=reviewer, severities=["minor"]) == 1
     )
     assert not adaptation.text_quality_findings.filter(status="open").exists()
+    # The carried windows follow the run: after a hand edit elsewhere, a re-read pays
+    # for that chapter alone, not for the chapters the auditor's own words changed,
+    # and the dismissal the editor already made stands.
+    adaptation.blocks.filter(block_id="c4.b2").update(text="He was, by hand, afraid.")
+    again = queue_edition_audit(adaptation.id)
+    calls_before = auditor.calls
+    run_edition_audit(again.id, provider=auditor)
+    assert auditor.calls == calls_before + 1
+    assert not adaptation.text_quality_findings.filter(status="open").exists()
+    context = audit_context(adaptation)
+    assert context["fidelity_audit_state"] == "current"
+    assert [f.stable_block_id for f in context["fidelity_dismissed"]] == ["c2.b1"]
 
 
 def test_a_price_or_budget_change_does_not_repay_audited_windows(adaptation, monkeypatch):

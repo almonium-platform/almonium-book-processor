@@ -550,23 +550,42 @@ def _record_findings(run: PipelineRun, edition: Edition, review: dict) -> None:
         )
         start, end = located if located else (None, None)
         suggested = _bare(issue["suggested_correction"])
+        fingerprint = _hash(
+            [issue["block_id"], issue["source_quote"], issue["adapted_quote"], issue["explanation"]]
+        )
+        # A re-read of unchanged text, or a window carried over its own applied
+        # suggestion, repeats the same issue: what the editor already applied is
+        # done, and what they dismissed stays dismissed rather than reopening.
+        settled_before = (
+            edition.text_quality_findings.filter(
+                fingerprint=fingerprint,
+                status__in=[
+                    TextQualityFinding.Status.DISMISSED,
+                    TextQualityFinding.Status.APPLIED,
+                ],
+            )
+            .order_by("-reviewed_at")
+            .first()
+        )
+        if settled_before and settled_before.status == TextQualityFinding.Status.APPLIED:
+            continue
+        dismissed_before = settled_before
         TextQualityFinding.objects.update_or_create(
             edition=edition,
             input_hash=run.input_hash,
-            fingerprint=_hash(
-                [
-                    issue["block_id"],
-                    issue["source_quote"],
-                    issue["adapted_quote"],
-                    issue["explanation"],
-                ]
-            ),
+            fingerprint=fingerprint,
             defaults={
                 "pipeline_run": run,
                 "block": block,
                 "stable_block_id": block.block_id,
                 "code": FINDING_CODES[issue["severity"]],
-                "status": TextQualityFinding.Status.OPEN,
+                "status": (
+                    TextQualityFinding.Status.DISMISSED
+                    if dismissed_before
+                    else TextQualityFinding.Status.OPEN
+                ),
+                "reviewed_by": dismissed_before.reviewed_by if dismissed_before else None,
+                "reviewed_at": dismissed_before.reviewed_at if dismissed_before else None,
                 "start_offset": start,
                 "end_offset": end,
                 "original_text": block.text[start:end]
@@ -735,6 +754,32 @@ def carry_audit_forward(edition: Edition, findings) -> PipelineRun | None:
     spec = run.summary["spec"]
     plan = edition_plan(edition, spec)
     old_hash = run.input_hash
+    # The windows the run read follow it: a window whose chapter changed only by
+    # the auditor's own words keeps its result under the new window hash, so a
+    # later re-read pays for hand-edited chapters alone.
+    known = set(
+        AIRun.objects.filter(
+            edition=edition,
+            status=AIRun.Status.SUCCEEDED,
+            input_hash__in=[w["hash"] for w in plan["windows"]],
+        ).values_list("input_hash", flat=True)
+    )
+    read = {}
+    for result in AIRun.objects.filter(
+        id__in=run.summary.get("results", []), status=AIRun.Status.SUCCEEDED
+    ):
+        data = result.request_payload["window"]
+        read[(data["chapter_sequence"], data["window"])] = result
+    for window in plan["windows"]:
+        if window["hash"] in known:
+            continue
+        data = window["data"]
+        result = read.get((data["chapter_sequence"], data["window"]))
+        if result is not None and result.input_hash not in known:
+            AIRun.objects.filter(id=result.id).update(
+                input_hash=window["hash"], updated_at=timezone.now()
+            )
+            known.add(window["hash"])
     carried = list(run.summary.get("carried") or [])
     carried.extend(
         {
