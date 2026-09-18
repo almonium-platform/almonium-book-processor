@@ -566,3 +566,22 @@ abridgement: no level is promised in advance. `adapts_to` is evidence-derived;
 the product's reached-level gate also requires the B2 edition's own fidelity
 audit, independently of the B1 pilot verdict. A matched B1 source or materially
 different strategy could reopen research, with new evidence rather than relabelling.
+
+### Published B2 fidelity audit (existing completed run)
+
+Run `f06a3841-185e-4a9a-b5ed-1b070c7ec16e` completed all **30 chapters / 815
+blocks** with `literary-fidelity-editor-v1`, Terra, high reasoning, for
+**$1.323934**. It reports **7 material, 36 minor, 2 uncertain** findings.
+All 45 are attached as open `TextQualityFinding` review items on B2 (including
+all seven material findings); none was resolved by this assessment and the
+published text was not edited. The audit was already complete when this turn
+inspected the ledger, so it was not repeated. A separate Luna comparison run
+`eecbbb54-8f63-4489-88c1-1ff78eed7221` was active and was left alone.
+
+B2 is the demonstrated difficulty floor, **not a blanket fidelity approval**.
+The material findings keep the edition's fidelity gate open until an editor
+corrects or explicitly dismisses them. The machine-derived `adapts_to` must
+follow that gate, not this prose verdict. Counts can be reproduced with
+`AIRun.objects.filter(pipeline_run_id=...).aggregate(Sum("estimated_cost_usd"))`
+and `TextQualityFinding.objects.filter(pipeline_run_id=...).values("code",
+"status").annotate(n=Count("id"))`.

@@ -1,0 +1,4002 @@
+{
+  "b2": {
+    "totals": {
+      "blocks": 815,
+      "sentences": 4942,
+      "uk_sentences": 4888,
+      "matched": 4137,
+      "any_counterpart": 4940,
+      "highlighted_groups": 3904,
+      "uncertain_groups": 386,
+      "one_to_one": 3591,
+      "paragraphs": 783,
+      "paragraph_sentences": 4908,
+      "paragraph_matched": 4106,
+      "en_many_uk_one": 98,
+      "en_one_uk_many": 123,
+      "many_to_many": 92,
+      "paragraph_only": 19
+    },
+    "chapters": {
+      "1": {
+        "blocks": 19,
+        "sentences": 138,
+        "uk_sentences": 125,
+        "matched": 112,
+        "any_counterpart": 138,
+        "highlighted_groups": 105,
+        "paragraph_only": 0,
+        "uncertain_groups": 12,
+        "one_to_one": 99,
+        "paragraphs": 18,
+        "paragraph_sentences": 137,
+        "paragraph_matched": 111,
+        "en_many_uk_one": 6
+      },
+      "2": {
+        "blocks": 7,
+        "sentences": 28,
+        "uk_sentences": 26,
+        "matched": 22,
+        "any_counterpart": 28,
+        "highlighted_groups": 22,
+        "paragraph_only": 0,
+        "uncertain_groups": 2,
+        "one_to_one": 22,
+        "paragraphs": 6,
+        "paragraph_sentences": 27,
+        "paragraph_matched": 21
+      },
+      "3": {
+        "blocks": 14,
+        "sentences": 73,
+        "uk_sentences": 70,
+        "matched": 69,
+        "any_counterpart": 73,
+        "highlighted_groups": 68,
+        "paragraph_only": 0,
+        "uncertain_groups": 1,
+        "one_to_one": 67,
+        "paragraphs": 13,
+        "paragraph_sentences": 72,
+        "paragraph_matched": 68,
+        "en_many_uk_one": 1
+      },
+      "4": {
+        "blocks": 12,
+        "sentences": 85,
+        "uk_sentences": 76,
+        "matched": 63,
+        "any_counterpart": 85,
+        "highlighted_groups": 58,
+        "paragraph_only": 0,
+        "uncertain_groups": 9,
+        "one_to_one": 52,
+        "paragraphs": 11,
+        "paragraph_sentences": 84,
+        "paragraph_matched": 62,
+        "en_one_uk_many": 2,
+        "en_many_uk_one": 2,
+        "many_to_many": 2
+      },
+      "5": {
+        "blocks": 9,
+        "sentences": 27,
+        "uk_sentences": 25,
+        "matched": 21,
+        "any_counterpart": 27,
+        "highlighted_groups": 19,
+        "paragraph_only": 0,
+        "uncertain_groups": 4,
+        "one_to_one": 18,
+        "paragraphs": 8,
+        "paragraph_sentences": 26,
+        "paragraph_matched": 20,
+        "many_to_many": 1
+      },
+      "6": {
+        "blocks": 40,
+        "sentences": 160,
+        "uk_sentences": 165,
+        "matched": 121,
+        "any_counterpart": 160,
+        "highlighted_groups": 116,
+        "paragraph_only": 0,
+        "uncertain_groups": 18,
+        "one_to_one": 102,
+        "paragraphs": 39,
+        "paragraph_sentences": 159,
+        "paragraph_matched": 120,
+        "en_many_uk_one": 3,
+        "en_one_uk_many": 10,
+        "many_to_many": 1
+      },
+      "7": {
+        "blocks": 12,
+        "sentences": 101,
+        "uk_sentences": 96,
+        "matched": 77,
+        "any_counterpart": 101,
+        "highlighted_groups": 76,
+        "paragraph_only": 0,
+        "uncertain_groups": 11,
+        "one_to_one": 71,
+        "paragraphs": 11,
+        "paragraph_sentences": 100,
+        "paragraph_matched": 76,
+        "en_one_uk_many": 4,
+        "en_many_uk_one": 1
+      },
+      "8": {
+        "blocks": 17,
+        "sentences": 120,
+        "uk_sentences": 113,
+        "matched": 109,
+        "any_counterpart": 120,
+        "highlighted_groups": 99,
+        "paragraph_only": 0,
+        "uncertain_groups": 6,
+        "one_to_one": 91,
+        "paragraphs": 16,
+        "paragraph_sentences": 119,
+        "paragraph_matched": 108,
+        "many_to_many": 3,
+        "en_many_uk_one": 4,
+        "en_one_uk_many": 1
+      },
+      "9": {
+        "blocks": 23,
+        "sentences": 164,
+        "uk_sentences": 159,
+        "matched": 146,
+        "any_counterpart": 164,
+        "highlighted_groups": 132,
+        "paragraph_only": 1,
+        "uncertain_groups": 7,
+        "one_to_one": 114,
+        "paragraphs": 21,
+        "paragraph_sentences": 162,
+        "paragraph_matched": 144,
+        "many_to_many": 6,
+        "en_one_uk_many": 6,
+        "en_many_uk_one": 6
+      },
+      "10": {
+        "blocks": 15,
+        "sentences": 124,
+        "uk_sentences": 124,
+        "matched": 96,
+        "any_counterpart": 124,
+        "highlighted_groups": 84,
+        "paragraph_only": 0,
+        "uncertain_groups": 16,
+        "one_to_one": 67,
+        "paragraphs": 14,
+        "paragraph_sentences": 123,
+        "paragraph_matched": 95,
+        "many_to_many": 5,
+        "en_one_uk_many": 10,
+        "en_many_uk_one": 2
+      },
+      "11": {
+        "blocks": 28,
+        "sentences": 154,
+        "uk_sentences": 155,
+        "matched": 109,
+        "any_counterpart": 154,
+        "highlighted_groups": 102,
+        "paragraph_only": 2,
+        "uncertain_groups": 22,
+        "one_to_one": 88,
+        "paragraphs": 26,
+        "paragraph_sentences": 150,
+        "paragraph_matched": 108,
+        "en_one_uk_many": 8,
+        "many_to_many": 4,
+        "en_many_uk_one": 2
+      },
+      "12": {
+        "blocks": 24,
+        "sentences": 177,
+        "uk_sentences": 181,
+        "matched": 149,
+        "any_counterpart": 177,
+        "highlighted_groups": 145,
+        "paragraph_only": 1,
+        "uncertain_groups": 12,
+        "one_to_one": 136,
+        "paragraphs": 23,
+        "paragraph_sentences": 176,
+        "paragraph_matched": 148,
+        "en_one_uk_many": 5,
+        "en_many_uk_one": 3,
+        "many_to_many": 1
+      },
+      "13": {
+        "blocks": 52,
+        "sentences": 285,
+        "uk_sentences": 284,
+        "matched": 265,
+        "any_counterpart": 285,
+        "highlighted_groups": 259,
+        "paragraph_only": 0,
+        "uncertain_groups": 12,
+        "one_to_one": 253,
+        "paragraphs": 51,
+        "paragraph_sentences": 284,
+        "paragraph_matched": 264,
+        "en_many_uk_one": 3,
+        "many_to_many": 3
+      },
+      "14": {
+        "blocks": 34,
+        "sentences": 229,
+        "uk_sentences": 220,
+        "matched": 191,
+        "any_counterpart": 229,
+        "highlighted_groups": 182,
+        "paragraph_only": 0,
+        "uncertain_groups": 16,
+        "one_to_one": 170,
+        "paragraphs": 33,
+        "paragraph_sentences": 228,
+        "paragraph_matched": 190,
+        "en_many_uk_one": 3,
+        "many_to_many": 6,
+        "en_one_uk_many": 3
+      },
+      "15": {
+        "blocks": 17,
+        "sentences": 129,
+        "uk_sentences": 122,
+        "matched": 120,
+        "any_counterpart": 129,
+        "highlighted_groups": 112,
+        "paragraph_only": 0,
+        "uncertain_groups": 6,
+        "one_to_one": 104,
+        "paragraphs": 16,
+        "paragraph_sentences": 128,
+        "paragraph_matched": 119,
+        "en_many_uk_one": 4,
+        "en_one_uk_many": 1,
+        "many_to_many": 3
+      },
+      "16": {
+        "blocks": 17,
+        "sentences": 167,
+        "uk_sentences": 162,
+        "matched": 142,
+        "any_counterpart": 167,
+        "highlighted_groups": 134,
+        "paragraph_only": 0,
+        "uncertain_groups": 13,
+        "one_to_one": 127,
+        "paragraphs": 16,
+        "paragraph_sentences": 166,
+        "paragraph_matched": 141,
+        "en_many_uk_one": 4,
+        "many_to_many": 3
+      },
+      "17": {
+        "blocks": 20,
+        "sentences": 179,
+        "uk_sentences": 172,
+        "matched": 151,
+        "any_counterpart": 179,
+        "highlighted_groups": 137,
+        "paragraph_only": 0,
+        "uncertain_groups": 12,
+        "one_to_one": 127,
+        "paragraphs": 19,
+        "paragraph_sentences": 178,
+        "paragraph_matched": 150,
+        "en_many_uk_one": 3,
+        "many_to_many": 6,
+        "en_one_uk_many": 1
+      },
+      "18": {
+        "blocks": 20,
+        "sentences": 132,
+        "uk_sentences": 140,
+        "matched": 117,
+        "any_counterpart": 132,
+        "highlighted_groups": 112,
+        "paragraph_only": 0,
+        "uncertain_groups": 7,
+        "one_to_one": 107,
+        "paragraphs": 19,
+        "paragraph_sentences": 131,
+        "paragraph_matched": 116,
+        "en_one_uk_many": 1,
+        "en_many_uk_one": 2,
+        "many_to_many": 2
+      },
+      "19": {
+        "blocks": 23,
+        "sentences": 126,
+        "uk_sentences": 124,
+        "matched": 113,
+        "any_counterpart": 125,
+        "highlighted_groups": 109,
+        "paragraph_only": 2,
+        "uncertain_groups": 6,
+        "one_to_one": 105,
+        "paragraphs": 22,
+        "paragraph_sentences": 125,
+        "paragraph_matched": 112,
+        "en_many_uk_one": 3,
+        "many_to_many": 1
+      },
+      "20": {
+        "blocks": 21,
+        "sentences": 101,
+        "uk_sentences": 106,
+        "matched": 79,
+        "any_counterpart": 101,
+        "highlighted_groups": 70,
+        "paragraph_only": 0,
+        "uncertain_groups": 11,
+        "one_to_one": 61,
+        "paragraphs": 20,
+        "paragraph_sentences": 100,
+        "paragraph_matched": 78,
+        "en_many_uk_one": 5,
+        "many_to_many": 3,
+        "en_one_uk_many": 1
+      },
+      "21": {
+        "blocks": 39,
+        "sentences": 215,
+        "uk_sentences": 237,
+        "matched": 158,
+        "any_counterpart": 215,
+        "highlighted_groups": 154,
+        "paragraph_only": 2,
+        "uncertain_groups": 27,
+        "one_to_one": 137,
+        "paragraphs": 38,
+        "paragraph_sentences": 214,
+        "paragraph_matched": 157,
+        "en_many_uk_one": 4,
+        "en_one_uk_many": 13
+      },
+      "22": {
+        "blocks": 38,
+        "sentences": 211,
+        "uk_sentences": 229,
+        "matched": 157,
+        "any_counterpart": 211,
+        "highlighted_groups": 153,
+        "paragraph_only": 3,
+        "uncertain_groups": 29,
+        "one_to_one": 146,
+        "paragraphs": 37,
+        "paragraph_sentences": 210,
+        "paragraph_matched": 156,
+        "en_one_uk_many": 3,
+        "en_many_uk_one": 3,
+        "many_to_many": 1
+      },
+      "23": {
+        "blocks": 22,
+        "sentences": 131,
+        "uk_sentences": 126,
+        "matched": 117,
+        "any_counterpart": 131,
+        "highlighted_groups": 114,
+        "paragraph_only": 1,
+        "uncertain_groups": 6,
+        "one_to_one": 111,
+        "paragraphs": 21,
+        "paragraph_sentences": 130,
+        "paragraph_matched": 116,
+        "en_many_uk_one": 3
+      },
+      "24": {
+        "blocks": 25,
+        "sentences": 161,
+        "uk_sentences": 157,
+        "matched": 137,
+        "any_counterpart": 161,
+        "highlighted_groups": 131,
+        "paragraph_only": 0,
+        "uncertain_groups": 12,
+        "one_to_one": 124,
+        "paragraphs": 24,
+        "paragraph_sentences": 160,
+        "paragraph_matched": 136,
+        "many_to_many": 2,
+        "en_many_uk_one": 3,
+        "en_one_uk_many": 2
+      },
+      "25": {
+        "blocks": 24,
+        "sentences": 149,
+        "uk_sentences": 142,
+        "matched": 136,
+        "any_counterpart": 149,
+        "highlighted_groups": 132,
+        "paragraph_only": 0,
+        "uncertain_groups": 7,
+        "one_to_one": 129,
+        "paragraphs": 23,
+        "paragraph_sentences": 148,
+        "paragraph_matched": 135,
+        "en_many_uk_one": 2,
+        "many_to_many": 1
+      },
+      "26": {
+        "blocks": 38,
+        "sentences": 220,
+        "uk_sentences": 216,
+        "matched": 174,
+        "any_counterpart": 220,
+        "highlighted_groups": 162,
+        "paragraph_only": 0,
+        "uncertain_groups": 20,
+        "one_to_one": 146,
+        "paragraphs": 37,
+        "paragraph_sentences": 219,
+        "paragraph_matched": 173,
+        "many_to_many": 4,
+        "en_one_uk_many": 8,
+        "en_many_uk_one": 4
+      },
+      "27": {
+        "blocks": 50,
+        "sentences": 221,
+        "uk_sentences": 211,
+        "matched": 174,
+        "any_counterpart": 221,
+        "highlighted_groups": 154,
+        "paragraph_only": 2,
+        "uncertain_groups": 21,
+        "one_to_one": 129,
+        "paragraphs": 49,
+        "paragraph_sentences": 220,
+        "paragraph_matched": 173,
+        "many_to_many": 8,
+        "en_one_uk_many": 11,
+        "en_many_uk_one": 6
+      },
+      "28": {
+        "blocks": 42,
+        "sentences": 215,
+        "uk_sentences": 204,
+        "matched": 197,
+        "any_counterpart": 214,
+        "highlighted_groups": 189,
+        "paragraph_only": 2,
+        "uncertain_groups": 10,
+        "one_to_one": 183,
+        "paragraphs": 41,
+        "paragraph_sentences": 214,
+        "paragraph_matched": 196,
+        "many_to_many": 2,
+        "en_many_uk_one": 4
+      },
+      "29": {
+        "blocks": 31,
+        "sentences": 168,
+        "uk_sentences": 158,
+        "matched": 154,
+        "any_counterpart": 168,
+        "highlighted_groups": 142,
+        "paragraph_only": 1,
+        "uncertain_groups": 6,
+        "one_to_one": 131,
+        "paragraphs": 30,
+        "paragraph_sentences": 167,
+        "paragraph_matched": 153,
+        "en_many_uk_one": 4,
+        "many_to_many": 7
+      },
+      "30": {
+        "blocks": 82,
+        "sentences": 552,
+        "uk_sentences": 563,
+        "matched": 461,
+        "any_counterpart": 552,
+        "highlighted_groups": 432,
+        "paragraph_only": 2,
+        "uncertain_groups": 45,
+        "one_to_one": 374,
+        "paragraphs": 81,
+        "paragraph_sentences": 551,
+        "paragraph_matched": 460,
+        "en_one_uk_many": 33,
+        "many_to_many": 17,
+        "en_many_uk_one": 8
+      }
+    },
+    "provenance": {
+      "offline-sentence-v5:0b5f90df7a84": 815
+    },
+    "gaps": [
+      {
+        "chapter": 1,
+        "block": "c1.p3",
+        "source_sentences": 10,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 1,
+        "block": "c1.p7",
+        "source_sentences": 13,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 1,
+        "block": "c1.p8",
+        "source_sentences": 10,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 1,
+        "block": "c1.p11",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 1,
+        "block": "c1.p12",
+        "source_sentences": 17,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 1,
+        "block": "c1.p16",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 2,
+        "block": "c2.p3",
+        "source_sentences": 4,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 2,
+        "block": "c2.p6",
+        "source_sentences": 4,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 3,
+        "block": "c3.p11",
+        "source_sentences": 9,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 4,
+        "block": "c4.p5",
+        "source_sentences": 19,
+        "matched": 16,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 4,
+        "block": "c4.p7",
+        "source_sentences": 24,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 4,
+        "block": "c4.p9",
+        "source_sentences": 13,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 5,
+        "block": "c5.p4",
+        "source_sentences": 9,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 5,
+        "block": "c5.p5",
+        "source_sentences": 3,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 5,
+        "block": "c5.p7",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 5,
+        "block": "c5.p8",
+        "source_sentences": 3,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p6",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p9",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p10",
+        "source_sentences": 2,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p11",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p12",
+        "source_sentences": 9,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p13",
+        "source_sentences": 6,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p14",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p22",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p23",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p29",
+        "source_sentences": 15,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p31",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p35",
+        "source_sentences": 8,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p37",
+        "source_sentences": 11,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p40",
+        "source_sentences": 11,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 7,
+        "block": "c7.p3",
+        "source_sentences": 8,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 7,
+        "block": "c7.p4",
+        "source_sentences": 8,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 7,
+        "block": "c7.p6",
+        "source_sentences": 10,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 7,
+        "block": "c7.p7",
+        "source_sentences": 11,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 7,
+        "block": "c7.p8",
+        "source_sentences": 9,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 7,
+        "block": "c7.p9",
+        "source_sentences": 17,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 7,
+        "block": "c7.p10",
+        "source_sentences": 11,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 8,
+        "block": "c8.p6",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 8,
+        "block": "c8.p8",
+        "source_sentences": 12,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 8,
+        "block": "c8.p9",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 8,
+        "block": "c8.p13",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 8,
+        "block": "c8.p15",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 9,
+        "block": "c9.p3",
+        "source_sentences": 19,
+        "matched": 16,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 9,
+        "block": "c9.p9",
+        "source_sentences": 6,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 9,
+        "block": "c9.p11",
+        "source_sentences": 3,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 9,
+        "block": "c9.p14",
+        "source_sentences": 3,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 9,
+        "block": "c9.p15",
+        "source_sentences": 14,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 9,
+        "block": "c9.p20",
+        "source_sentences": 20,
+        "matched": 15,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 10,
+        "block": "c10.p2",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 10,
+        "block": "c10.p3",
+        "source_sentences": 14,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 10,
+        "block": "c10.p6",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 10,
+        "block": "c10.p10",
+        "source_sentences": 15,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 10,
+        "block": "c10.p12",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 10,
+        "block": "c10.p13",
+        "source_sentences": 9,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 10,
+        "block": "c10.p15",
+        "source_sentences": 11,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p2",
+        "source_sentences": 6,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.h3",
+        "source_sentences": 3,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p4",
+        "source_sentences": 7,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p5",
+        "source_sentences": 24,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p6",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p7",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p8",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p10",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p13",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p15",
+        "source_sentences": 14,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p16",
+        "source_sentences": 9,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p18",
+        "source_sentences": 5,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p20",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p22",
+        "source_sentences": 6,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p23",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p24",
+        "source_sentences": 2,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 12,
+        "block": "c12.p4",
+        "source_sentences": 9,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 12,
+        "block": "c12.p6",
+        "source_sentences": 19,
+        "matched": 17,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 12,
+        "block": "c12.p7",
+        "source_sentences": 11,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 12,
+        "block": "c12.p9",
+        "source_sentences": 20,
+        "matched": 14,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 12,
+        "block": "c12.p14",
+        "source_sentences": 1,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 12,
+        "block": "c12.p16",
+        "source_sentences": 20,
+        "matched": 15,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 12,
+        "block": "c12.p17",
+        "source_sentences": 12,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 12,
+        "block": "c12.p19",
+        "source_sentences": 11,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p7",
+        "source_sentences": 9,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p8",
+        "source_sentences": 8,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p9",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p27",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p31",
+        "source_sentences": 11,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p32",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p35",
+        "source_sentences": 17,
+        "matched": 16,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p41",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p42",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p44",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p49",
+        "source_sentences": 15,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p2",
+        "source_sentences": 11,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p3",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p4",
+        "source_sentences": 14,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p6",
+        "source_sentences": 4,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p7",
+        "source_sentences": 12,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p10",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p11",
+        "source_sentences": 14,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p12",
+        "source_sentences": 12,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p19",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p24",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p25",
+        "source_sentences": 11,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p30",
+        "source_sentences": 12,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p33",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 15,
+        "block": "c15.p2",
+        "source_sentences": 11,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 15,
+        "block": "c15.p9",
+        "source_sentences": 19,
+        "matched": 17,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 15,
+        "block": "c15.p11",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 15,
+        "block": "c15.p13",
+        "source_sentences": 7,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 15,
+        "block": "c15.p17",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 16,
+        "block": "c16.p2",
+        "source_sentences": 15,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 16,
+        "block": "c16.p4",
+        "source_sentences": 16,
+        "matched": 13,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 16,
+        "block": "c16.p5",
+        "source_sentences": 14,
+        "matched": 13,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 16,
+        "block": "c16.p6",
+        "source_sentences": 12,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 16,
+        "block": "c16.p7",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 16,
+        "block": "c16.p9",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 16,
+        "block": "c16.p15",
+        "source_sentences": 7,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 16,
+        "block": "c16.p16",
+        "source_sentences": 10,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 16,
+        "block": "c16.p17",
+        "source_sentences": 12,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p2",
+        "source_sentences": 18,
+        "matched": 16,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p4",
+        "source_sentences": 12,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p9",
+        "source_sentences": 10,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p10",
+        "source_sentences": 14,
+        "matched": 13,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p11",
+        "source_sentences": 17,
+        "matched": 13,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p13",
+        "source_sentences": 6,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p15",
+        "source_sentences": 15,
+        "matched": 13,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p16",
+        "source_sentences": 15,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p17",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p19",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 18,
+        "block": "c18.p2",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 18,
+        "block": "c18.p5",
+        "source_sentences": 14,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 18,
+        "block": "c18.p10",
+        "source_sentences": 16,
+        "matched": 14,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 18,
+        "block": "c18.p13",
+        "source_sentences": 8,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 18,
+        "block": "c18.p14",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 18,
+        "block": "c18.p16",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 18,
+        "block": "c18.p20",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 19,
+        "block": "c19.p4",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 19,
+        "block": "c19.p7",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 19,
+        "block": "c19.p12",
+        "source_sentences": 4,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 19,
+        "block": "c19.p20",
+        "source_sentences": 10,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 19,
+        "block": "c19.p21",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 19,
+        "block": "c19.p23",
+        "source_sentences": 2,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p5",
+        "source_sentences": 9,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p9",
+        "source_sentences": 9,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p10",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p12",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p13",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p16",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p17",
+        "source_sentences": 5,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p21",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p5",
+        "source_sentences": 9,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p6",
+        "source_sentences": 12,
+        "matched": 11,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p7",
+        "source_sentences": 15,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p9",
+        "source_sentences": 21,
+        "matched": 14,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p10",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p11",
+        "source_sentences": 7,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p13",
+        "source_sentences": 15,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p14",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p15",
+        "source_sentences": 5,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p16",
+        "source_sentences": 9,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p17",
+        "source_sentences": 2,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p18",
+        "source_sentences": 3,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p19",
+        "source_sentences": 3,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p25",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p29",
+        "source_sentences": 4,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p33",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p34",
+        "source_sentences": 5,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p37",
+        "source_sentences": 9,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p39",
+        "source_sentences": 8,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p2",
+        "source_sentences": 7,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p3",
+        "source_sentences": 9,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p4",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p6",
+        "source_sentences": 7,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p9",
+        "source_sentences": 5,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p11",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p13",
+        "source_sentences": 9,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p14",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p18",
+        "source_sentences": 17,
+        "matched": 16,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p19",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p20",
+        "source_sentences": 11,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p24",
+        "source_sentences": 2,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p26",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p27",
+        "source_sentences": 5,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p28",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p29",
+        "source_sentences": 2,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p30",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p31",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p33",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p34",
+        "source_sentences": 8,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p36",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p37",
+        "source_sentences": 10,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p38",
+        "source_sentences": 9,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 23,
+        "block": "c23.p5",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 23,
+        "block": "c23.p6",
+        "source_sentences": 16,
+        "matched": 14,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 23,
+        "block": "c23.p7",
+        "source_sentences": 3,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 23,
+        "block": "c23.p8",
+        "source_sentences": 17,
+        "matched": 14,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 23,
+        "block": "c23.p11",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 23,
+        "block": "c23.p16",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 24,
+        "block": "c24.p2",
+        "source_sentences": 15,
+        "matched": 13,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 24,
+        "block": "c24.p4",
+        "source_sentences": 6,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 24,
+        "block": "c24.p10",
+        "source_sentences": 9,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 24,
+        "block": "c24.p12",
+        "source_sentences": 8,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 24,
+        "block": "c24.p15",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 24,
+        "block": "c24.p17",
+        "source_sentences": 9,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 24,
+        "block": "c24.p19",
+        "source_sentences": 19,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 24,
+        "block": "c24.p20",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 25,
+        "block": "c25.p8",
+        "source_sentences": 11,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 25,
+        "block": "c25.p13",
+        "source_sentences": 4,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 25,
+        "block": "c25.p18",
+        "source_sentences": 2,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 25,
+        "block": "c25.p19",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 25,
+        "block": "c25.p20",
+        "source_sentences": 8,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 25,
+        "block": "c25.p23",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 25,
+        "block": "c25.p24",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p2",
+        "source_sentences": 14,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p3",
+        "source_sentences": 7,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p6",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p11",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p13",
+        "source_sentences": 6,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p14",
+        "source_sentences": 15,
+        "matched": 13,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p15",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p16",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p21",
+        "source_sentences": 9,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p23",
+        "source_sentences": 9,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p25",
+        "source_sentences": 12,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p26",
+        "source_sentences": 14,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p27",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p2",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p4",
+        "source_sentences": 4,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p5",
+        "source_sentences": 3,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p6",
+        "source_sentences": 3,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p8",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p9",
+        "source_sentences": 6,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p12",
+        "source_sentences": 7,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p14",
+        "source_sentences": 5,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p20",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p21",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p29",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p37",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p40",
+        "source_sentences": 7,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p44",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p45",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p47",
+        "source_sentences": 8,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p48",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p49",
+        "source_sentences": 11,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p50",
+        "source_sentences": 13,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 28,
+        "block": "c28.p16",
+        "source_sentences": 12,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 28,
+        "block": "c28.p19",
+        "source_sentences": 1,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 28,
+        "block": "c28.p20",
+        "source_sentences": 12,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 28,
+        "block": "c28.p24",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 28,
+        "block": "c28.p25",
+        "source_sentences": 7,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 28,
+        "block": "c28.p37",
+        "source_sentences": 6,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 28,
+        "block": "c28.p38",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 29,
+        "block": "c29.p3",
+        "source_sentences": 5,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 29,
+        "block": "c29.p7",
+        "source_sentences": 3,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 29,
+        "block": "c29.p9",
+        "source_sentences": 10,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 29,
+        "block": "c29.p12",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 29,
+        "block": "c29.p13",
+        "source_sentences": 5,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p7",
+        "source_sentences": 2,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p8",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p10",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p11",
+        "source_sentences": 12,
+        "matched": 11,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p12",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p18",
+        "source_sentences": 9,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p19",
+        "source_sentences": 11,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p20",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p21",
+        "source_sentences": 2,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p23",
+        "source_sentences": 10,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p25",
+        "source_sentences": 9,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p26",
+        "source_sentences": 9,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p27",
+        "source_sentences": 15,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p32",
+        "source_sentences": 6,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p34",
+        "source_sentences": 8,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p36",
+        "source_sentences": 16,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p38",
+        "source_sentences": 15,
+        "matched": 11,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p41",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p43",
+        "source_sentences": 8,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p48",
+        "source_sentences": 7,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p50",
+        "source_sentences": 5,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p62",
+        "source_sentences": 22,
+        "matched": 18,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p64",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p67",
+        "source_sentences": 8,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p68",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p71",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p72",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p73",
+        "source_sentences": 8,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p74",
+        "source_sentences": 15,
+        "matched": 11,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p75",
+        "source_sentences": 10,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p76",
+        "source_sentences": 19,
+        "matched": 15,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p78",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p79",
+        "source_sentences": 17,
+        "matched": 15,
+        "paragraph_only": false
+      }
+    ]
+  },
+  "original": {
+    "totals": {
+      "blocks": 815,
+      "sentences": 4811,
+      "uk_sentences": 4888,
+      "matched": 4576,
+      "any_counterpart": 4811,
+      "highlighted_groups": 4489,
+      "uncertain_groups": 155,
+      "one_to_one": 4397,
+      "paragraphs": 783,
+      "paragraph_sentences": 4777,
+      "paragraph_matched": 4545,
+      "en_many_uk_one": 27,
+      "en_one_uk_many": 13,
+      "many_to_many": 52,
+      "paragraph_only": 9
+    },
+    "chapters": {
+      "1": {
+        "blocks": 19,
+        "sentences": 127,
+        "uk_sentences": 125,
+        "matched": 122,
+        "any_counterpart": 127,
+        "highlighted_groups": 121,
+        "paragraph_only": 0,
+        "uncertain_groups": 4,
+        "one_to_one": 120,
+        "paragraphs": 18,
+        "paragraph_sentences": 126,
+        "paragraph_matched": 121,
+        "en_many_uk_one": 1
+      },
+      "2": {
+        "blocks": 7,
+        "sentences": 26,
+        "uk_sentences": 26,
+        "matched": 26,
+        "any_counterpart": 26,
+        "highlighted_groups": 26,
+        "paragraph_only": 0,
+        "uncertain_groups": 0,
+        "one_to_one": 26,
+        "paragraphs": 6,
+        "paragraph_sentences": 25,
+        "paragraph_matched": 25
+      },
+      "3": {
+        "blocks": 14,
+        "sentences": 70,
+        "uk_sentences": 70,
+        "matched": 69,
+        "any_counterpart": 70,
+        "highlighted_groups": 69,
+        "paragraph_only": 0,
+        "uncertain_groups": 1,
+        "one_to_one": 69,
+        "paragraphs": 13,
+        "paragraph_sentences": 69,
+        "paragraph_matched": 68
+      },
+      "4": {
+        "blocks": 12,
+        "sentences": 76,
+        "uk_sentences": 76,
+        "matched": 74,
+        "any_counterpart": 76,
+        "highlighted_groups": 74,
+        "paragraph_only": 0,
+        "uncertain_groups": 1,
+        "one_to_one": 73,
+        "paragraphs": 11,
+        "paragraph_sentences": 75,
+        "paragraph_matched": 73,
+        "en_one_uk_many": 1
+      },
+      "5": {
+        "blocks": 9,
+        "sentences": 25,
+        "uk_sentences": 25,
+        "matched": 24,
+        "any_counterpart": 25,
+        "highlighted_groups": 24,
+        "paragraph_only": 0,
+        "uncertain_groups": 1,
+        "one_to_one": 24,
+        "paragraphs": 8,
+        "paragraph_sentences": 24,
+        "paragraph_matched": 23
+      },
+      "6": {
+        "blocks": 40,
+        "sentences": 164,
+        "uk_sentences": 165,
+        "matched": 158,
+        "any_counterpart": 164,
+        "highlighted_groups": 157,
+        "paragraph_only": 0,
+        "uncertain_groups": 5,
+        "one_to_one": 155,
+        "paragraphs": 39,
+        "paragraph_sentences": 163,
+        "paragraph_matched": 157,
+        "en_one_uk_many": 1,
+        "many_to_many": 1
+      },
+      "7": {
+        "blocks": 12,
+        "sentences": 96,
+        "uk_sentences": 96,
+        "matched": 93,
+        "any_counterpart": 96,
+        "highlighted_groups": 93,
+        "paragraph_only": 0,
+        "uncertain_groups": 3,
+        "one_to_one": 93,
+        "paragraphs": 11,
+        "paragraph_sentences": 95,
+        "paragraph_matched": 92
+      },
+      "8": {
+        "blocks": 17,
+        "sentences": 115,
+        "uk_sentences": 113,
+        "matched": 114,
+        "any_counterpart": 115,
+        "highlighted_groups": 110,
+        "paragraph_only": 0,
+        "uncertain_groups": 1,
+        "one_to_one": 109,
+        "paragraphs": 16,
+        "paragraph_sentences": 114,
+        "paragraph_matched": 113,
+        "many_to_many": 1
+      },
+      "9": {
+        "blocks": 23,
+        "sentences": 158,
+        "uk_sentences": 159,
+        "matched": 155,
+        "any_counterpart": 158,
+        "highlighted_groups": 151,
+        "paragraph_only": 0,
+        "uncertain_groups": 3,
+        "one_to_one": 147,
+        "paragraphs": 21,
+        "paragraph_sentences": 156,
+        "paragraph_matched": 153,
+        "many_to_many": 3,
+        "en_many_uk_one": 1
+      },
+      "10": {
+        "blocks": 15,
+        "sentences": 124,
+        "uk_sentences": 124,
+        "matched": 123,
+        "any_counterpart": 124,
+        "highlighted_groups": 120,
+        "paragraph_only": 0,
+        "uncertain_groups": 1,
+        "one_to_one": 117,
+        "paragraphs": 14,
+        "paragraph_sentences": 123,
+        "paragraph_matched": 122,
+        "many_to_many": 3
+      },
+      "11": {
+        "blocks": 28,
+        "sentences": 156,
+        "uk_sentences": 155,
+        "matched": 138,
+        "any_counterpart": 156,
+        "highlighted_groups": 136,
+        "paragraph_only": 2,
+        "uncertain_groups": 9,
+        "one_to_one": 133,
+        "paragraphs": 26,
+        "paragraph_sentences": 152,
+        "paragraph_matched": 137,
+        "many_to_many": 2,
+        "en_one_uk_many": 1
+      },
+      "12": {
+        "blocks": 24,
+        "sentences": 174,
+        "uk_sentences": 181,
+        "matched": 166,
+        "any_counterpart": 174,
+        "highlighted_groups": 162,
+        "paragraph_only": 1,
+        "uncertain_groups": 5,
+        "one_to_one": 157,
+        "paragraphs": 23,
+        "paragraph_sentences": 173,
+        "paragraph_matched": 165,
+        "en_one_uk_many": 1,
+        "many_to_many": 2,
+        "en_many_uk_one": 2
+      },
+      "13": {
+        "blocks": 52,
+        "sentences": 278,
+        "uk_sentences": 284,
+        "matched": 265,
+        "any_counterpart": 278,
+        "highlighted_groups": 259,
+        "paragraph_only": 0,
+        "uncertain_groups": 10,
+        "one_to_one": 253,
+        "paragraphs": 51,
+        "paragraph_sentences": 277,
+        "paragraph_matched": 264,
+        "en_many_uk_one": 2,
+        "many_to_many": 4
+      },
+      "14": {
+        "blocks": 34,
+        "sentences": 216,
+        "uk_sentences": 220,
+        "matched": 207,
+        "any_counterpart": 216,
+        "highlighted_groups": 203,
+        "paragraph_only": 0,
+        "uncertain_groups": 7,
+        "one_to_one": 199,
+        "paragraphs": 33,
+        "paragraph_sentences": 215,
+        "paragraph_matched": 206,
+        "many_to_many": 2,
+        "en_many_uk_one": 2
+      },
+      "15": {
+        "blocks": 17,
+        "sentences": 122,
+        "uk_sentences": 122,
+        "matched": 115,
+        "any_counterpart": 122,
+        "highlighted_groups": 114,
+        "paragraph_only": 0,
+        "uncertain_groups": 5,
+        "one_to_one": 111,
+        "paragraphs": 16,
+        "paragraph_sentences": 121,
+        "paragraph_matched": 114,
+        "en_one_uk_many": 2,
+        "many_to_many": 1
+      },
+      "16": {
+        "blocks": 17,
+        "sentences": 165,
+        "uk_sentences": 162,
+        "matched": 158,
+        "any_counterpart": 165,
+        "highlighted_groups": 154,
+        "paragraph_only": 0,
+        "uncertain_groups": 4,
+        "one_to_one": 150,
+        "paragraphs": 16,
+        "paragraph_sentences": 164,
+        "paragraph_matched": 157,
+        "many_to_many": 2,
+        "en_many_uk_one": 2
+      },
+      "17": {
+        "blocks": 20,
+        "sentences": 164,
+        "uk_sentences": 172,
+        "matched": 156,
+        "any_counterpart": 164,
+        "highlighted_groups": 153,
+        "paragraph_only": 0,
+        "uncertain_groups": 5,
+        "one_to_one": 151,
+        "paragraphs": 19,
+        "paragraph_sentences": 163,
+        "paragraph_matched": 155,
+        "many_to_many": 2
+      },
+      "18": {
+        "blocks": 20,
+        "sentences": 128,
+        "uk_sentences": 140,
+        "matched": 120,
+        "any_counterpart": 128,
+        "highlighted_groups": 117,
+        "paragraph_only": 0,
+        "uncertain_groups": 4,
+        "one_to_one": 114,
+        "paragraphs": 19,
+        "paragraph_sentences": 127,
+        "paragraph_matched": 119,
+        "many_to_many": 2,
+        "en_many_uk_one": 1
+      },
+      "19": {
+        "blocks": 23,
+        "sentences": 124,
+        "uk_sentences": 124,
+        "matched": 122,
+        "any_counterpart": 124,
+        "highlighted_groups": 120,
+        "paragraph_only": 1,
+        "uncertain_groups": 1,
+        "one_to_one": 117,
+        "paragraphs": 22,
+        "paragraph_sentences": 123,
+        "paragraph_matched": 121,
+        "en_many_uk_one": 2,
+        "en_one_uk_many": 1
+      },
+      "20": {
+        "blocks": 21,
+        "sentences": 92,
+        "uk_sentences": 106,
+        "matched": 84,
+        "any_counterpart": 92,
+        "highlighted_groups": 81,
+        "paragraph_only": 0,
+        "uncertain_groups": 6,
+        "one_to_one": 79,
+        "paragraphs": 20,
+        "paragraph_sentences": 91,
+        "paragraph_matched": 83,
+        "many_to_many": 2
+      },
+      "21": {
+        "blocks": 39,
+        "sentences": 216,
+        "uk_sentences": 237,
+        "matched": 202,
+        "any_counterpart": 216,
+        "highlighted_groups": 198,
+        "paragraph_only": 1,
+        "uncertain_groups": 7,
+        "one_to_one": 193,
+        "paragraphs": 38,
+        "paragraph_sentences": 215,
+        "paragraph_matched": 201,
+        "en_one_uk_many": 2,
+        "many_to_many": 2,
+        "en_many_uk_one": 1
+      },
+      "22": {
+        "blocks": 38,
+        "sentences": 206,
+        "uk_sentences": 229,
+        "matched": 184,
+        "any_counterpart": 206,
+        "highlighted_groups": 181,
+        "paragraph_only": 3,
+        "uncertain_groups": 13,
+        "one_to_one": 178,
+        "paragraphs": 37,
+        "paragraph_sentences": 205,
+        "paragraph_matched": 183,
+        "en_many_uk_one": 2,
+        "many_to_many": 1
+      },
+      "23": {
+        "blocks": 22,
+        "sentences": 128,
+        "uk_sentences": 126,
+        "matched": 119,
+        "any_counterpart": 128,
+        "highlighted_groups": 117,
+        "paragraph_only": 0,
+        "uncertain_groups": 5,
+        "one_to_one": 115,
+        "paragraphs": 21,
+        "paragraph_sentences": 127,
+        "paragraph_matched": 118,
+        "en_many_uk_one": 1,
+        "many_to_many": 1
+      },
+      "24": {
+        "blocks": 25,
+        "sentences": 155,
+        "uk_sentences": 157,
+        "matched": 150,
+        "any_counterpart": 155,
+        "highlighted_groups": 148,
+        "paragraph_only": 0,
+        "uncertain_groups": 4,
+        "one_to_one": 145,
+        "paragraphs": 24,
+        "paragraph_sentences": 154,
+        "paragraph_matched": 149,
+        "en_one_uk_many": 2,
+        "many_to_many": 1
+      },
+      "25": {
+        "blocks": 24,
+        "sentences": 143,
+        "uk_sentences": 142,
+        "matched": 141,
+        "any_counterpart": 143,
+        "highlighted_groups": 140,
+        "paragraph_only": 0,
+        "uncertain_groups": 2,
+        "one_to_one": 139,
+        "paragraphs": 23,
+        "paragraph_sentences": 142,
+        "paragraph_matched": 140,
+        "en_many_uk_one": 1
+      },
+      "26": {
+        "blocks": 38,
+        "sentences": 215,
+        "uk_sentences": 216,
+        "matched": 202,
+        "any_counterpart": 215,
+        "highlighted_groups": 193,
+        "paragraph_only": 0,
+        "uncertain_groups": 9,
+        "one_to_one": 185,
+        "paragraphs": 37,
+        "paragraph_sentences": 214,
+        "paragraph_matched": 201,
+        "many_to_many": 6,
+        "en_many_uk_one": 2
+      },
+      "27": {
+        "blocks": 50,
+        "sentences": 215,
+        "uk_sentences": 211,
+        "matched": 201,
+        "any_counterpart": 215,
+        "highlighted_groups": 195,
+        "paragraph_only": 0,
+        "uncertain_groups": 8,
+        "one_to_one": 189,
+        "paragraphs": 49,
+        "paragraph_sentences": 214,
+        "paragraph_matched": 200,
+        "en_many_uk_one": 2,
+        "many_to_many": 4
+      },
+      "28": {
+        "blocks": 42,
+        "sentences": 208,
+        "uk_sentences": 204,
+        "matched": 197,
+        "any_counterpart": 208,
+        "highlighted_groups": 194,
+        "paragraph_only": 1,
+        "uncertain_groups": 7,
+        "one_to_one": 191,
+        "paragraphs": 41,
+        "paragraph_sentences": 207,
+        "paragraph_matched": 196,
+        "en_many_uk_one": 2,
+        "many_to_many": 1
+      },
+      "29": {
+        "blocks": 31,
+        "sentences": 160,
+        "uk_sentences": 158,
+        "matched": 156,
+        "any_counterpart": 160,
+        "highlighted_groups": 150,
+        "paragraph_only": 0,
+        "uncertain_groups": 3,
+        "one_to_one": 144,
+        "paragraphs": 30,
+        "paragraph_sentences": 159,
+        "paragraph_matched": 155,
+        "en_many_uk_one": 1,
+        "many_to_many": 5
+      },
+      "30": {
+        "blocks": 82,
+        "sentences": 565,
+        "uk_sentences": 563,
+        "matched": 535,
+        "any_counterpart": 565,
+        "highlighted_groups": 529,
+        "paragraph_only": 0,
+        "uncertain_groups": 21,
+        "one_to_one": 521,
+        "paragraphs": 81,
+        "paragraph_sentences": 564,
+        "paragraph_matched": 534,
+        "en_one_uk_many": 2,
+        "many_to_many": 4,
+        "en_many_uk_one": 2
+      }
+    },
+    "provenance": {
+      "offline-sentence-v5:0b5f90df7a84": 815
+    },
+    "gaps": [
+      {
+        "chapter": 1,
+        "block": "c1.p7",
+        "source_sentences": 10,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 1,
+        "block": "c1.p9",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 1,
+        "block": "c1.p14",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 1,
+        "block": "c1.p16",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 3,
+        "block": "c3.p8",
+        "source_sentences": 9,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 4,
+        "block": "c4.p7",
+        "source_sentences": 19,
+        "matched": 17,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 5,
+        "block": "c5.p5",
+        "source_sentences": 3,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p6",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p10",
+        "source_sentences": 2,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p12",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 6,
+        "block": "c6.p39",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 7,
+        "block": "c7.p9",
+        "source_sentences": 15,
+        "matched": 14,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 7,
+        "block": "c7.p10",
+        "source_sentences": 10,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 7,
+        "block": "c7.p12",
+        "source_sentences": 7,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 8,
+        "block": "c8.p8",
+        "source_sentences": 11,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 9,
+        "block": "c9.p7",
+        "source_sentences": 8,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 9,
+        "block": "c9.p10",
+        "source_sentences": 12,
+        "matched": 11,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 9,
+        "block": "c9.p20",
+        "source_sentences": 19,
+        "matched": 18,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 10,
+        "block": "c10.p10",
+        "source_sentences": 16,
+        "matched": 15,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.h3",
+        "source_sentences": 3,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p4",
+        "source_sentences": 7,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p5",
+        "source_sentences": 24,
+        "matched": 22,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p6",
+        "source_sentences": 6,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p13",
+        "source_sentences": 4,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p18",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p23",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 11,
+        "block": "c11.p24",
+        "source_sentences": 3,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 12,
+        "block": "c12.p5",
+        "source_sentences": 12,
+        "matched": 11,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 12,
+        "block": "c12.p9",
+        "source_sentences": 20,
+        "matched": 19,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 12,
+        "block": "c12.p14",
+        "source_sentences": 1,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 12,
+        "block": "c12.p17",
+        "source_sentences": 11,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p9",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p27",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p30",
+        "source_sentences": 21,
+        "matched": 19,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p31",
+        "source_sentences": 11,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p35",
+        "source_sentences": 17,
+        "matched": 16,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p37",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p41",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p44",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 13,
+        "block": "c13.p49",
+        "source_sentences": 15,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p14",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p17",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p20",
+        "source_sentences": 3,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p24",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p25",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 14,
+        "block": "c14.p26",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 15,
+        "block": "c15.p9",
+        "source_sentences": 19,
+        "matched": 17,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 15,
+        "block": "c15.p11",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 15,
+        "block": "c15.p13",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 15,
+        "block": "c15.p17",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 16,
+        "block": "c16.p6",
+        "source_sentences": 12,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 16,
+        "block": "c16.p7",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 16,
+        "block": "c16.p15",
+        "source_sentences": 7,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p4",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p8",
+        "source_sentences": 8,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p10",
+        "source_sentences": 15,
+        "matched": 14,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 17,
+        "block": "c17.p16",
+        "source_sentences": 13,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 18,
+        "block": "c18.p5",
+        "source_sentences": 14,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 18,
+        "block": "c18.p13",
+        "source_sentences": 7,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 18,
+        "block": "c18.p14",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 18,
+        "block": "c18.p20",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 19,
+        "block": "c19.p23",
+        "source_sentences": 2,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p5",
+        "source_sentences": 9,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p10",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p16",
+        "source_sentences": 2,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p17",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 20,
+        "block": "c20.p21",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p6",
+        "source_sentences": 12,
+        "matched": 11,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p9",
+        "source_sentences": 21,
+        "matched": 19,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p17",
+        "source_sentences": 2,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p18",
+        "source_sentences": 3,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p27",
+        "source_sentences": 5,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p34",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 21,
+        "block": "c21.p37",
+        "source_sentences": 9,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p8",
+        "source_sentences": 7,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p11",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p24",
+        "source_sentences": 2,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p27",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p28",
+        "source_sentences": 4,
+        "matched": 2,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p29",
+        "source_sentences": 2,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p30",
+        "source_sentences": 4,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p31",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p33",
+        "source_sentences": 3,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p34",
+        "source_sentences": 7,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p36",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p37",
+        "source_sentences": 10,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 22,
+        "block": "c22.p38",
+        "source_sentences": 9,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 23,
+        "block": "c23.p5",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 23,
+        "block": "c23.p6",
+        "source_sentences": 16,
+        "matched": 13,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 23,
+        "block": "c23.p8",
+        "source_sentences": 17,
+        "matched": 14,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 23,
+        "block": "c23.p10",
+        "source_sentences": 10,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 24,
+        "block": "c24.p10",
+        "source_sentences": 9,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 24,
+        "block": "c24.p16",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 24,
+        "block": "c24.p17",
+        "source_sentences": 10,
+        "matched": 9,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 24,
+        "block": "c24.p20",
+        "source_sentences": 7,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 25,
+        "block": "c25.p18",
+        "source_sentences": 2,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 25,
+        "block": "c25.p23",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p11",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p13",
+        "source_sentences": 6,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p14",
+        "source_sentences": 15,
+        "matched": 14,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p15",
+        "source_sentences": 5,
+        "matched": 3,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p16",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p19",
+        "source_sentences": 12,
+        "matched": 11,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p26",
+        "source_sentences": 14,
+        "matched": 13,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 26,
+        "block": "c26.p29",
+        "source_sentences": 9,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p3",
+        "source_sentences": 14,
+        "matched": 13,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p10",
+        "source_sentences": 9,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p12",
+        "source_sentences": 7,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p20",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p44",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p45",
+        "source_sentences": 7,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p47",
+        "source_sentences": 9,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 27,
+        "block": "c27.p49",
+        "source_sentences": 13,
+        "matched": 12,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 28,
+        "block": "c28.p16",
+        "source_sentences": 12,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 28,
+        "block": "c28.p19",
+        "source_sentences": 1,
+        "matched": 0,
+        "paragraph_only": true
+      },
+      {
+        "chapter": 28,
+        "block": "c28.p20",
+        "source_sentences": 11,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 28,
+        "block": "c28.p25",
+        "source_sentences": 7,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 28,
+        "block": "c28.p38",
+        "source_sentences": 3,
+        "matched": 1,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 29,
+        "block": "c29.p9",
+        "source_sentences": 10,
+        "matched": 7,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 29,
+        "block": "c29.p25",
+        "source_sentences": 7,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p4",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p8",
+        "source_sentences": 7,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p12",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p13",
+        "source_sentences": 11,
+        "matched": 10,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p20",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p27",
+        "source_sentences": 16,
+        "matched": 13,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p32",
+        "source_sentences": 5,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p34",
+        "source_sentences": 8,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p36",
+        "source_sentences": 19,
+        "matched": 17,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p41",
+        "source_sentences": 7,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p47",
+        "source_sentences": 7,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p61",
+        "source_sentences": 6,
+        "matched": 5,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p67",
+        "source_sentences": 8,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p71",
+        "source_sentences": 8,
+        "matched": 6,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p73",
+        "source_sentences": 6,
+        "matched": 4,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p74",
+        "source_sentences": 15,
+        "matched": 14,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p75",
+        "source_sentences": 10,
+        "matched": 8,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p76",
+        "source_sentences": 17,
+        "matched": 15,
+        "paragraph_only": false
+      },
+      {
+        "chapter": 30,
+        "block": "c30.p79",
+        "source_sentences": 17,
+        "matched": 16,
+        "paragraph_only": false
+      }
+    ]
+  }
+}

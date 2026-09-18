@@ -1,31 +1,39 @@
-# Morning brief — 18 September 2026
+# Morning brief — 18 September 2026, afternoon checkpoint
 
-B2 is the supported floor for Frankenstein with our current tools and fidelity rules.
-The blind Luna judge separated B1 controls from published B2; originals were C1 except IV (B2).
-Terra v5 at high reasoning still produced B2 on all three sampled passages, with seven minor fidelity findings.
-Across five prompt versions, 13 completed generations judged B2; two interrupted attempts have unknown outcomes.
-No whole-book B1 was generated or published. [Evidence and alternatives](ADAPTATION_PILOT.md#decision-after-judge-controls--18-september-2026).
+B2 is Frankenstein's observed difficulty floor under the tested fidelity constraint.
+Published B2 judges B2 in 32/32 windows; the original is C1 in 13/32 (47% of words).
+Both direct v1–v5 and completed B2→B1 generation remain B2; the latter adds material drift.
+A disclosed B1 retelling is a different product, not an automatic next step (decision 13).
+A matched B1 source or materially different strategy could reopen research; no B1 book was made.
 
-## Current checkpoint
+**B2 is not yet fidelity-approved:** the completed Terra audit found 7 material,
+36 minor and 2 uncertain issues; all 45 remain open. Cost $1.323934, no repeat
+call and no text edits. A separate Luna comparison is already running.
+[Full evidence and reproduction query](ADAPTATION_PILOT.md).
 
-Processor commit `a20ca38` localizes non-English chapter analysis and private-import
-blurbs and validates generated analysis/metadata prose offline. All 423 tests,
-ruff checks, migration check and Django check passed. English judge v3 remains
-unchanged; non-English analysis uses v4. Language detection is statistical and
-rejects uncertain prose; it is not a fluency certificate.
+The short Ukrainian/Russian gate is fixed in `3bd8a63`: alphabet checks plus
+Lingua for ambiguous Cyrillic, with the retained rejected gloss as a regression.
+All 444 processor tests and full checks passed. The rebuilt image is in progress;
+container replacement will wait for active paid work. The Ukrainian rerun is
+still incomplete (seven windows accepted), so this is **not a completion claim**.
 
-The local processor rebuild and budgeted Ukrainian Luna rerun are in progress.
-Stored Ukrainian analysis was English; its separate reader descriptions were
-already Ukrainian. Backend and Angular verification is **not yet complete**.
-[Ukrainian reader](http://localhost:9999/reader/shelley-frankenstein-uk-parallel)
-will be the live check; local backend was down and is being restarted.
+[Parallel assessment](PARALLEL_READING_NEXT.md): B2 has 82.6% any / 82.3% full
+canonical-sentence correspondence, versus original 94.6% full; all 815 paragraph
+pairs remain. Current LaBSE: 3,904 groups, 19 paragraph-only blocks. Complete
+Preface/V/X read-through supports keeping C1-UK as an honestly labelled companion.
+No new translations. A matched-level companion would need new gates; a cheaper
+workload proxy including review is about $1.65, not a quality promise.
 
-Night spend recorded so far: **$0.012511 / $10**. Next analysis batch has a $0.30
-reserve, with a budget check before every paid request; no premium model calls.
-The updated [parallel assessment](PARALLEL_READING_NEXT.md) and final cross-client
-CEFR audit are still pending at this checkpoint; older findings there are not a
-claim that tonight's assessment is complete.
+[Ukrainian contents](http://localhost:9999/books/shelley-frankenstein-uk-parallel):
+prior live browser/backend check showed Ukrainian chapter descriptions, but a
+stale English blurb. Refresh and final screenshot are pending. Cross-client
+level-generality audit is pending. No staging/production publication this turn.
 
-Astra decides: production publication, French editorial review, and whether a
-materially different B1 strategy or matched B1 source is worth a new experiment.
-Recommended product direction: honestly labelled B2 with Ukrainian reader aids.
+Ledger at the start of this resumed turn: $8.370182 total, **$1.699019 above the
+night baseline**, superseding the stale $0.03 handoff. Budget remains $10
+incremental; Ukrainian rerun reserve $0.30. Existing comparison spend can grow.
+
+New commits: processor `c40fcc8`, `3bd8a63`; earlier processor `a20ca38`,
+`40c71a5`, backend migration repair `d9abdc69`. Angular/mobile unchanged here.
+Astra decides production publication, French review, any different B1 product,
+and investment in matched-level Ukrainian. Next: review material B2 findings.
