@@ -10,8 +10,8 @@ editorial release and native-device acceptance are the open ones.
 
 ## Morning handoff update
 
-Start with [MORNING_BRIEF.md](MORNING_BRIEF.md): click order, screenshots and the
-owner's decisions (fidelity, publication, companion default). No fidelity warnings
+Start with [the 2026-09-18 brief](evidence/morning-brief-20260918.md): click
+order, screenshots and the owner's decisions (fidelity, publication, companion default). No fidelity warnings
 were approved and no edition was published during this work.
 
 - Publication now requires the source edition to be published first, matching

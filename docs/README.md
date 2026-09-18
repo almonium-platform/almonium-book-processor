@@ -8,6 +8,9 @@ record is not updated when later work supersedes it; the backlog says so.
 ## Current behaviour
 
 - [BACKLOG.md](BACKLOG.md) — where things stand and what is open. Reviewed 2026-09-18.
+- [CHANGELOG.md](CHANGELOG.md) — what shipped, by day, with commits and the measurements recorded that day.
+- [RUNBOOK.md](RUNBOOK.md) — operator procedures: stuck runs, stalled withdrawals, failed promotions, what a correction invalidates, what each paid job costs.
+- [LANGUAGES.md](LANGUAGES.md) — one table of what each registry language has: spaCy model, wordfreq, simplemma, fixtures, prompts, books.
 - [CHAPTER_ANALYSIS.md](CHAPTER_ANALYSIS.md) — the paid difficulty judge: scope, windows, projections, retries, non-English editions.
 - [CHAPTER_VOCABULARY.md](CHAPTER_VOCABULARY.md) — the public per-chapter vocabulary endpoint and its provenance rules.
 - [PROMOTION.md](PROMOTION.md) — moving finished editions between environments as bundles, never by reprocessing.
@@ -24,10 +27,9 @@ record is not updated when later work supersedes it; the backlog says so.
 
 - [PRODUCT_READER_DELIVERY.md](PRODUCT_READER_DELIVERY.md) — processor → backend → web → mobile slices, as of 2026-09-16.
 - [PARALLEL_READING_NEXT.md](PARALLEL_READING_NEXT.md) — parallel reading coverage assessment, 2026-09-18.
-- [MORNING_BRIEF.md](MORNING_BRIEF.md) — the 2026-09-18 afternoon checkpoint; superseded the same day, kept as the record it was.
 - [FRANKENSTEIN_TEXT_AND_CLAUSES.md](FRANKENSTEIN_TEXT_AND_CLAUSES.md) — legacy text defects, clause alignment and passage provenance.
 - [ALIGNMENT_FIX_20260916.md](ALIGNMENT_FIX_20260916.md) — the Ukrainian–English sentence alignment fix and its real-model verification.
-- `evidence/` — JSON, screenshots and run ids behind the claims above: `b1-20260918`, `parallel-20260918`, `reader-20260916`, `ukrainian-20260918`.
+- `evidence/` — JSON, screenshots and run ids behind the claims above: `b1-20260918`, `parallel-20260918`, `reader-20260916`, `ukrainian-20260918`, and the superseded afternoon checkpoint `morning-brief-20260918.md`.
 
 Sibling repositories document their own side of each contract:
 `../almonium-be/docs/PROCESSOR_READER_CONTRACT.md`, `../almonium-fe/docs/PROCESSOR_READER.md`,

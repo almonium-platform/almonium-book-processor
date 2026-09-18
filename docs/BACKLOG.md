@@ -58,18 +58,11 @@ Implemented 2026-09-18 in the processor; see
       Angular tile captions (`a68db79`) and mobile library feet (`2cf5b51`)
       read "Original C1 · Adapted B2" from the editions a work actually has.
       `reachedLevels` rides in the payload but is not stored yet.
-- [x] Fidelity audit of the **published** B2 edition, 2026-09-18, run
-      `f06a3841` on Terra, $1.32: 7 material, 36 minor, 2 uncertain. All
-      suggestions were applied from the page; the first bulk apply pasted
-      corrections over words still in the text in 14 blocks (the auditor
-      quotes a span but rewrites the clause), which the re-read of chapters
-      1–5 caught and a repair rebuilt from the pre-apply text; two c22.p2
-      "Use ..." suggestions were advice, not text, and were applied by hand.
-      Audit and difficulty verdicts carried forward; `adapts_to = B2` is
-      recorded with the run ids. One minor finding (c6.p23) is left open for
-      the editor. Total incremental spend for the fixes: $0.09 (the
-      interrupted re-read). Next: republish B2 (publication is stale) and
-      promote so the floor reaches staging and production.
+- [x] Fidelity audit of the **published** B2, findings applied, `adapts_to =
+      B2` recorded (2026-09-18; [CHANGELOG.md](CHANGELOG.md)). One minor
+      finding (c6.p23) is left to the editor.
+- [ ] Republish B2 (publication is stale after the fixes) and promote, so the
+      floor reaches staging and production.
 - [ ] Remove the last level promises from onboarding and plan copy across
       web and mobile (web landing/Premium done in `b07c669`; audit mobile).
 
@@ -112,28 +105,12 @@ Implemented 2026-09-18 in the processor; see
 - [x] Monotonic 1:1, 1:2, and 2:1 block alignment with a length prior.
 - [x] Alignment coverage and low-confidence warnings.
 - [x] Prevent publication when current sentence splitting or alignment is absent.
-- [x] Offline sentence alignment survives corrections (2026-09-18). A text
-  revision retires every artifact of the edition, which silently dropped the
-  reader to paragraph pairing for each parallel companion until someone
-  re-queued the job by hand. The post-revision refresh now re-queues the
-  offline job for every companion pair that had one, in the orientation and
-  with the model of its last run; unchanged blocks come back from cache, so
-  the B2 refresh embedded 42 of 815 blocks. The edition page shows a
-  "Parallel companions" table per pair: inherited groups, sentence alignment
-  state (current / stale / running / failed / not aligned) with counts, and
-  a one-click offline refresh. Promotion ships only current artifacts, so
-  check that table before bundling an edited edition.
-- [x] Run and record a real calibration on Frankenstein EN-FR. **Result (2026-08-23
-  run, recorded 2026-08-30):** 815/815 source blocks and 807/813 target blocks
-  aligned, 766 groups (676 1:1, 90 two-block), mean confidence 0.825, 51 pairs
-  below 0.65, 444 groups AI-accepted, 66 human-review warnings (8.6%), total AI
-  cost $0.667. Chapter mapping was correct throughout, including the 2:1 merge of
-  English chapters 7-8 onto French chapter 7 and the 1:2 split at chapter 30.
-- [x] Diagnose the residual 8.6%. It is **not** translator digression. The two
-  printings divide chapters differently (24 numbered English chapters against 23
-  plus `SUITE, PAR WALTON`), and the low-confidence pairs cluster in the letters
-  and opening chapters where block segmentation of salutations and signatures
-  differs. From English chapter 10 onward every chapter scores 0.80-0.87.
+- [x] Offline sentence alignment survives corrections and each companion pair
+  shows its state on the edition page (2026-09-18, `055b2af`). Promotion
+  ships only current artifacts: check that table before bundling.
+- [x] Frankenstein EN–FR calibration run and its 8.6% residual diagnosed
+  (2026-08-30; figures in [CHANGELOG.md](CHANGELOG.md)). The residual is
+  chapter division and letter segmentation, not translator digression.
 - [ ] Run and record a harder calibration on Remarque DE-EN.
 - [ ] Tune confidence and coverage thresholds from those results.
 - [x] Decide whether canonical groups remain paragraph-level with nested sentence
@@ -164,19 +141,11 @@ is one Batch job with no alignment step.
   book is refused rather than materialized.
 - [x] Expose `parallel_role` and `supports_parallel_reading` through the edition
   API so clients can filter for side-by-side reading.
-- [x] Translate Frankenstein end to end and review the finished edition. Done into
-  Ukrainian on 2026-08-30: 30 chapters, 815/815 blocks, 63,656 words, status `ready`
-  with zero QA warnings, whole-book length ratio 0.917, no empty blocks, no block-type
-  mismatches, no sentence-count changes, and no block below 0.80 confidence. All 815
-  blocks pair with the English canonical through a plain `align_group` join.
-- [x] Add a direct (non-Batch) execution mode. The provider's Batch service began
-  rejecting every input file on 2026-08-30 with "Cannot find file ... or organization
-  does not have access to it" — reproduced with a single-line batch on both
-  `/v1/responses` and `/v1/chat/completions`, with files that upload cleanly, report
-  `processed`, and download fine with the same key. Batches succeeded on 2026-08-23,
-  so this is an account or platform regression, not a payload problem. Direct mode
-  runs the identical requests through the Responses API with the same validation and
-  QA gates, forfeiting the 50% Batch discount: $2.06 instead of ~$1.03 per book.
+- [x] Translate Frankenstein end to end into Ukrainian (2026-08-30: 815/815
+  blocks, zero QA warnings; figures in [CHANGELOG.md](CHANGELOG.md)).
+- [x] Add a direct (non-Batch) execution mode after the provider's Batch file
+  access regression of 2026-08-30 (details in the changelog). Direct mode
+  forfeits the 50% discount: $2.06 instead of about $1.03 per book.
 - [ ] Re-test Batch once the provider resolves file access, then make it the default
   again for cost.
 - [x] Fix the one-off `Тоєї` (should be `Тієї`) in the Ukrainian creation scene.
@@ -188,19 +157,14 @@ is one Batch job with no alignment step.
   a canonical edition for translation, next to sentences, lexical enrichment and
   source QA. Decided 2026-09-17; see `CHAPTER_ANALYSIS.md`, "Non-English and
   parallel editions".
-- [x] Translate chapter descriptions for a parallel translation, keyed by source
-  chapter hash, analysis spec hash and the source wording, and serve them with the
-  source's CEFR estimate from the public chapters endpoint. Done 2026-09-17 as the
-  metadata-translation run (`catalog/metadata_translation.py`), which also names
-  the edition (title, author, blurb) in its language; it runs after translation
-  and again when the source's analysis completes. The rubric is never run on a
-  machine translation. Themes, setting and content flags are not translated: no
+- [x] Translate chapter descriptions and the title page for a parallel
+  translation as the metadata-translation run (2026-09-17,
+  `catalog/metadata_translation.py`); the rubric is never run on a machine
+  translation. Themes, setting and content flags are not translated: no
   reader surface shows them yet.
-- [x] Keep serving each chapter's latest complete description and level from the
-  public chapters endpoint when the run is stale or still running, with a
-  per-chapter `stale` status when that chapter's own text changed (2026-09-17).
-  The drop-cap repair of 2026-09-16 changed eight paragraphs of the English
-  canonical and had hidden all thirty chapter descriptions.
+- [x] Keep serving each chapter's latest complete description and level while
+  its analysis is stale or running, with a per-chapter `stale` status
+  (2026-09-17).
 - [ ] Requeue chapter analysis automatically after an approved text correction on a
   public edition; only the changed chapters' windows are billed.
 
