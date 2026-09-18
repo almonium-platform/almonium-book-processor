@@ -1,0 +1,111 @@
+{
+  "experiment": "two-stage-b2-to-b1",
+  "source_edition": "shelley-frankenstein-en-orig-b2",
+  "audited_against": "shelley-frankenstein-en-orig",
+  "results": [
+    {
+      "title": "PREFACE.",
+      "pilot": "3f0d2971-3f9d-41bc-93e7-7f2ffc050f60",
+      "judge_max_level": "B2",
+      "judge_windows": [
+        "B2"
+      ],
+      "fidelity_issues": {
+        "uncertain": 1
+      },
+      "fidelity_assessment": "The adaptation is generally faithful, preserving the preface’s argument, qualifications, and narrative account in accessible language. The final philosophical disclaimer may be too narrow.",
+      "issues": [
+        {
+          "block_id": "c2.p4",
+          "source_quote": "“Nor is any inference justly to be drawn from the following pages as prejudicing any philosophical doctrine of whatever kind.”",
+          "adapted_quote": "“Nor should anyone draw a conclusion from these pages that supports any set of philosophical beliefs, of whatever kind.”",
+          "severity": "uncertain",
+          "explanation": "The adaptation narrows the disclaimer to conclusions that support philosophical beliefs. “Prejudicing” here may also mean judging, deciding, or affecting a doctrine adversely; the source more broadly declines to make the tale bear on philosophical doctrine in either direction.",
+          "suggested_correction": "“Nor should anyone draw from these pages any conclusion for or against any philosophical doctrine.”"
+        }
+      ],
+      "blocks": 7
+    },
+    {
+      "title": "CHAPTER IV.",
+      "pilot": "d7f333de-500d-4fb6-86c3-dbd5f757a728",
+      "judge_max_level": "B2",
+      "judge_windows": [
+        "B2"
+      ],
+      "fidelity_issues": {
+        "minor": 3
+      },
+      "fidelity_assessment": "The adaptation generally preserves the narrative, sequence, tone, and major propositions. The listed changes are limited fidelity shifts.",
+      "issues": [
+        {
+          "block_id": "c10.p5",
+          "source_quote": "“the vision of a madman”",
+          "adapted_quote": "“the dream of a madman”",
+          "severity": "minor",
+          "explanation": "A vision of a madman suggests a waking delusion or deranged account, whereas a dream is specifically a sleeping experience. Both deny the account's reality, but they present a different kind of possible unreliability.",
+          "suggested_correction": "“Remember that I am not describing a madman's delusion.”"
+        },
+        {
+          "block_id": "c10.p10",
+          "source_quote": "“my workshop of filthy creation”",
+          "adapted_quote": "“my workshop, where I created filthy things”",
+          "severity": "minor",
+          "explanation": "The source describes the workshop and its foul creative work, with “creation” potentially referring to the single undertaking. The adaptation adds plural “things,” which can imply that he was making multiple objects or creatures.",
+          "suggested_correction": "“There I kept my workshop for this filthy work of creation.”"
+        },
+        {
+          "block_id": "c10.p13",
+          "source_quote": "“simple pleasures in which no alloy can possibly mix”",
+          "adapted_quote": "“simple enjoyments, where no evil can enter”",
+          "severity": "minor",
+          "explanation": "“Alloy” means any contaminating or diminishing admixture, not solely moral evil. The adaptation narrows the claim to protection from evil and loses the broader idea of pleasures that cannot be spoiled or tainted.",
+          "suggested_correction": "“simple pleasures that cannot be spoiled by any taint.”"
+        }
+      ],
+      "blocks": 15
+    },
+    {
+      "title": "CHAPTER X.",
+      "pilot": "2df4b589-acc0-4b7c-9709-184993dcd8fd",
+      "judge_max_level": "B2",
+      "judge_windows": [
+        "B2"
+      ],
+      "fidelity_issues": {
+        "minor": 2,
+        "material": 1
+      },
+      "fidelity_assessment": "Most blocks preserve the events, argument, mood, and imagery closely. The listed passages contain a changed image, an obscured philosophical claim, and a softened direct accusation.",
+      "issues": [
+        {
+          "block_id": "c16.p2",
+          "source_quote": "“ragged bare ravine”",
+          "adapted_quote": "“the rough, bare valley”",
+          "severity": "minor",
+          "explanation": "A ravine is a narrow, rugged gorge; replacing it with a valley broadens and softens this element of the dreamlike mountain imagery.",
+          "suggested_correction": "“the rough, bare ravine”"
+        },
+        {
+          "block_id": "c16.p4",
+          "source_quote": "“it only renders them more necessary beings”",
+          "adapted_quote": "“This only makes men even more necessary slaves.”",
+          "severity": "material",
+          "explanation": "Here “necessary” means subject to necessity rather than free, as the following sentence explains. “Necessary slaves” is both awkward and liable to mean slaves who are needed, obscuring the philosophical point about human freedom.",
+          "suggested_correction": "“This only makes people even less free.”"
+        },
+        {
+          "block_id": "c16.p12",
+          "source_quote": "“the fallen angel, whom thou drivest from joy for no misdeed”",
+          "adapted_quote": "“the fallen angel, driven from joy though I have done no wrong”",
+          "severity": "minor",
+          "explanation": "The passive wording removes the creature’s direct accusation that Frankenstein himself is actively driving him from joy. That accusation is central to the creature’s appeal to his creator's responsibility.",
+          "suggested_correction": "“the fallen angel, whom you drive from joy though I have done no wrong.”"
+        }
+      ],
+      "blocks": 17
+    }
+  ],
+  "cost_usd": 0.2691,
+  "note": "Two-stage experiment run by Claude on 18 Sep ~10:50 local via the app pilot machinery: B1 prompt v5 on gpt-5.6-terra (high reasoning) with the published B2 edition as source; blind judge = pilot-difficulty-v1; fidelity audit = literary-fidelity-editor-v1 against the ORIGINAL C1 blocks (not the B2 intermediate). Pilot runs: 3f0d2971-3f9d-41bc-93e7-7f2ffc050f60, d7f333de-500d-4fb6-86c3-dbd5f757a728, 2df4b589-acc0-4b7c-9709-184993dcd8fd"
+}
