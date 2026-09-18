@@ -411,8 +411,9 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .edition-main .publish-blocked { color: var(--amber); }
 .danger-zone .summary-title { color: var(--red); }
 .danger-zone { border-color: #e8c9c4; border-left-width: 1px; }
-.helpers-clamped .helper { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0; }
-.helpers-clamped .helper.helper-expanded { display: block; -webkit-line-clamp: unset; }
+.helpers-clamped .helper { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0; }
+.helpers-clamped .helper.helper-expanded, .helpers-clamped .helper.helper-fits { display: block; -webkit-line-clamp: unset; }
+.helpers-clamped .helper.helper-fits { margin-bottom: 1em; }
 .helper-toggle { align-self: flex-start; margin: 0 0 .8rem; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; }
 .release-targets { color: var(--muted); font-size: .8rem; }
 .release-actions .promotion-form { display: grid; gap: .35rem; }

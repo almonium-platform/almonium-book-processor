@@ -600,20 +600,38 @@ function initEditionPage() {
     });
   }
 
-  // Helper paragraphs fold to one line for an editor who has read them; "more" unfolds one.
+  // Helper paragraphs fold to three lines for an editor who has read them; "more" unfolds one.
+  // A helper that fits in three lines gets no toggle. A closed panel has no layout to measure,
+  // so each helper is measured once its panel opens, and again when the viewport changes width.
   if (main && main.classList.contains("helpers-clamped")) {
+    var helpers = [];
     main.querySelectorAll("details.collapsible-panel > p.muted").forEach(function (paragraph) {
       var toggle = document.createElement("button");
       toggle.type = "button";
       toggle.className = "helper-toggle";
       toggle.textContent = "more";
+      toggle.hidden = true;
       toggle.addEventListener("click", function () {
         var expanded = paragraph.classList.toggle("helper-expanded");
         toggle.textContent = expanded ? "less" : "more";
       });
       paragraph.classList.add("helper");
       paragraph.insertAdjacentElement("afterend", toggle);
+      helpers.push({ paragraph: paragraph, toggle: toggle });
     });
+    var fitHelpers = function () {
+      helpers.forEach(function (helper) {
+        if (helper.paragraph.offsetParent === null || helper.paragraph.classList.contains("helper-expanded")) return;
+        var overflows = helper.paragraph.scrollHeight > helper.paragraph.clientHeight + 1;
+        helper.toggle.hidden = !overflows;
+        helper.paragraph.classList.toggle("helper-fits", !overflows);
+      });
+    };
+    fitHelpers();
+    main.querySelectorAll("details.collapsible-panel").forEach(function (panel) {
+      panel.addEventListener("toggle", fitHelpers);
+    });
+    window.addEventListener("resize", fitHelpers);
   }
 
   // Review groups: sort rows, and show the rows past the first five.
