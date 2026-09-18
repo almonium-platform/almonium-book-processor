@@ -530,6 +530,65 @@ def run_edition_audit(run_id, *, provider=None) -> None:
     refresh_adaptation_floor(edition.work)
 
 
+def _words(text: str) -> list[tuple[int, int]]:
+    return [(m.start(), m.end()) for m in re.finditer(r"\S+", text)]
+
+
+def _same(a: str, b: str) -> bool:
+    return _normalize(a).strip(".,;:!?\"'") == _normalize(b).strip(".,;:!?\"'")
+
+
+def replacement_span(text: str, start: int, end: int, suggestion: str) -> tuple[int, int]:
+    """The stretch of ``text`` the suggestion really rewrites, which may exceed the quoted span.
+
+    The editor prompt quotes a few words but often writes its correction for
+    the whole clause around them. Pasting the correction over the quote alone
+    duplicates the words on either side ("blow us quickly blow us quickly").
+    So the span grows outward while the suggestion's leading words match the
+    words just before it and its trailing words match the words just after.
+    """
+
+    words = _words(text)
+    suggested = suggestion.split()
+    before = [w for w in words if w[1] <= start]
+    after = [w for w in words if w[0] >= end]
+    inner = len([w for w in words if w[0] >= start and w[1] <= end])
+    # Leading words of the suggestion that repeat the words before the span.
+    lead = 0
+    for n in range(1, min(len(before), len(suggested) - inner) + 1):
+        window = " ".join(text[a:b] for a, b in before[-n:])
+        if _same(" ".join(suggested[:n]), window):
+            lead = n
+    if lead:
+        start = before[-lead][0]
+    # Or the suggestion rewrites the sentence from its first words on.
+    s_start, s_end = _sentence_bounds(text, start, end)
+    opening = [w for w in words if s_start <= w[0] < start][:3]
+    if (
+        not lead
+        and len(opening) == 3
+        and _same(" ".join(suggested[:3]), " ".join(text[a:b] for a, b in opening))
+    ):
+        start = s_start
+    # Trailing words of the suggestion that repeat the words after the span.
+    trail = 0
+    for n in range(1, min(len(after), len(suggested) - inner - lead) + 1):
+        window = " ".join(text[a:b] for a, b in after[:n])
+        if _same(" ".join(suggested[-n:]), window):
+            trail = n
+    if trail:
+        end = after[trail - 1][1]
+    # Or the suggestion rewrites the sentence through to its last words.
+    closing = [w for w in words if end < w[1] <= s_end][-3:]
+    if (
+        not trail
+        and len(closing) == 3
+        and _same(" ".join(suggested[-3:]), " ".join(text[a:b] for a, b in closing))
+    ):
+        end = s_end
+    return start, end
+
+
 def _record_findings(run: PipelineRun, edition: Edition, review: dict) -> None:
     """Every issue becomes a finding to apply or dismiss; older runs' open ones are superseded."""
 
@@ -548,8 +607,10 @@ def _record_findings(run: PipelineRun, edition: Edition, review: dict) -> None:
         located = (
             _locate(block.text, _bare(issue["adapted_quote"])) if issue["quote_verified"] else None
         )
-        start, end = located if located else (None, None)
         suggested = _bare(issue["suggested_correction"])
+        if located and suggested:
+            located = replacement_span(block.text, located[0], located[1], suggested)
+        start, end = located if located else (None, None)
         fingerprint = _hash(
             [issue["block_id"], issue["source_quote"], issue["adapted_quote"], issue["explanation"]]
         )
@@ -726,7 +787,9 @@ def open_findings(edition: Edition):
     )
 
 
-def carry_audit_forward(edition: Edition, findings) -> PipelineRun | None:
+def carry_audit_forward(
+    edition: Edition, findings, *, run: PipelineRun | None = None
+) -> PipelineRun | None:
     """Keep the audit current after its own suggestions were written in verbatim.
 
     The auditor proposed the wording, so its verdict covers the text that now
@@ -739,7 +802,7 @@ def carry_audit_forward(edition: Edition, findings) -> PipelineRun | None:
     findings = list(findings)
     if not findings:
         return None
-    run = (
+    run = run or (
         edition.pipeline_runs.filter(
             processor_version=AUDIT_VERSION,
             summary__kind="edition",
@@ -818,11 +881,15 @@ def relocate_fidelity_findings(edition: Edition, block_ids) -> None:
         block_id__in=list(block_ids),
     ).select_related("block"):
         text = finding.block.text
-        quote = (finding.evidence or {}).get("adapted_quote") or finding.original_text
+        evidence = finding.evidence or {}
+        quote = evidence.get("adapted_quote") or finding.original_text
         located = _locate(text, quote) if quote else None
+        if located and evidence.get("suggested_correction"):
+            located = replacement_span(text, *located, _bare(evidence["suggested_correction"]))
         if located:
             finding.start_offset, finding.end_offset = located
             finding.original_text = text[located[0] : located[1]]
+            finding.suggested_text = _bare(evidence.get("suggested_correction") or "")
         else:
             finding.start_offset = finding.end_offset = None
             finding.suggested_text = ""

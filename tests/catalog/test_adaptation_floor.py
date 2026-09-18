@@ -845,3 +845,32 @@ def test_both_sides_show_the_sentences_that_hold_any_quoted_words():
     ]
     assert "".join(s["text"] for s in segments).startswith("You cannot contest")
     assert side_excerpt("word " * 100, "nothing here", "")[0]["text"].endswith(" …")
+
+
+def test_a_correction_written_for_the_whole_clause_replaces_the_whole_clause():
+    from almonium_book_processor.catalog.fidelity_audit import replacement_span
+
+    text = "At night the southern winds blow us quickly towards those shores, and we sleep."
+    start, end = text.index("the southern winds"), text.index("the southern winds") + 18
+    span = replacement_span(text, start, end, "the strong southern winds blow us quickly")
+    assert text[span[0] : span[1]] == "the southern winds blow us quickly"
+    text = (
+        "Nor should any conclusion be drawn from the following pages that favours any "
+        "philosophical doctrine of whatever kind; and the opinions are the author's."
+    )
+    quote = "that favours any philosophical doctrine of whatever kind"
+    start = text.index(quote)
+    span = replacement_span(
+        text,
+        start,
+        start + len(quote),
+        "Nor should any conclusion be drawn from these pages that takes a position "
+        "for or against any philosophical doctrine.",
+    )
+    assert text[span[0] : span[1]].startswith("Nor should any conclusion be drawn from the")
+    assert text[span[0] : span[1]].endswith("of whatever kind")
+    # A correction that shares nothing with its surroundings keeps the quoted span.
+    assert replacement_span(text, start, start + len(quote), "of no doctrine") == (
+        start,
+        start + len(quote),
+    )
