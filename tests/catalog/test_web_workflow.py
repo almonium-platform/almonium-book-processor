@@ -526,11 +526,12 @@ def test_edition_detail_collapses_long_sections_and_limits_processing_history(cl
     content = response.content.decode()
 
     assert response.status_code == 200
-    assert '<details class="panel collapsible-panel review-items">' in content
+    assert '<details class="panel collapsible-panel review-items" open>' in content
     assert '<details class="panel collapsible-panel content-preview">' in content
     assert "Showing latest 3 of 5" in content
     assert "Show 2 older runs" in content
-    assert content.index("Processing history") < content.index("Review items")
+    assert content.index("Review items") < content.index("Reading difficulty")
+    assert content.index("Review items") < content.index("Processing history")
     assert content.index("Processing history") < content.index("Content preview")
     assert "Active processing" not in content
     assert "2 AI calls · $0.0225 · 7500 in / 2000 out" in content
