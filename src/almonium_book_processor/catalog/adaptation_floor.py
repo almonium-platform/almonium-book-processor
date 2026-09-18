@@ -32,6 +32,7 @@ from almonium_book_processor.catalog.adaptation_quality import adaptation_qualit
 from almonium_book_processor.catalog.chapter_analysis import analysis_context, analysis_spec
 from almonium_book_processor.catalog.chapter_projections import LEVELS
 from almonium_book_processor.catalog.fidelity_audit import (
+    SEVERITIES,
     audit_context,
     audit_pilot,
     audit_spec,
@@ -200,17 +201,7 @@ def run_probe(run_id, *, provider=None, judge=None, auditor=None) -> None:
             run.progress = int(95 * len(results) / len(run.summary["chapters"]))
             run.save(update_fields=["summary", "progress", "updated_at"])
 
-        def name(r):
-            return r["title"] or f"chapter {r['sequence']}"
-
-        reasons = [
-            f"{name(r)} judged {r['judge_max_level']}" for r in results if not r["difficulty_ok"]
-        ]
-        reasons += [
-            f"{name(r)}: {r['material']} material fidelity finding(s)"
-            for r in results
-            if not r["fidelity_ok"]
-        ]
+        reasons = _probe_reasons(results)
         run.summary = {
             **run.summary,
             "results": results,
@@ -438,3 +429,139 @@ def ladder_context(edition: Edition, analysis: dict | None = None) -> dict:
         "adaptation_floor_found": any(r["state"] == "probe_failed" for r in rows),
         "adaptation_next_probe": next((r["level"] for r in rows if r["can_probe"]), None),
     }
+
+
+# ---------------------------------------------------------------------------
+# Evidence gathered before probes existed: standalone pilots that were judged
+# and audited by hand-run scripts can be grouped into a probe record, as long
+# as they are exactly what a probe would run today.
+
+
+def backfill_probe(source: Edition, target_level: str) -> PipelineRun:
+    """Record a probe from existing judged and audited pilots under the current spec."""
+
+    from almonium_book_processor.catalog.fidelity_audit import AUDIT_VERSION
+    from almonium_book_processor.catalog.fidelity_audit import PROMPT_NAME as AUDIT_PROMPT
+
+    spec = probe_spec(target_level, source.language)
+    judge = analysis_spec(source.language)
+    pilots: dict[str, PipelineRun] = {}
+    for pilot in source.pipeline_runs.filter(
+        stage=PipelineRun.Stage.ADAPT,
+        processor_version=spec["generation_processor"],
+        status=PipelineRun.Status.SUCCEEDED,
+        summary__target_level=target_level,
+        summary__source_edition_id=str(source.id),
+        summary__block_ids=None,
+    ).order_by("created_at"):
+        generation = pilot.ai_runs.filter(pk=pilot.summary.get("ai_run_id")).first()
+        check = pilot.summary.get("difficulty_check") or {}
+        if (
+            generation is None
+            or generation.prompt_template.version != spec["generation_prompt_version"]
+            or generation.model_configuration.model != spec["generation_model"]
+            or check.get("prompt_version") != judge["prompt_version"]
+            or check.get("model") != judge["model"]
+        ):
+            continue
+        pilots[pilot.summary["chapter_id"]] = pilot  # the latest matching pilot per chapter
+    if not pilots:
+        raise ValueError(
+            f"No {target_level} pilot on this source was generated, judged and configured "
+            "the way a probe would be today."
+        )
+    results = []
+    for pilot in pilots.values():
+        review = pilot.summary.get("fidelity_audit")
+        if review is None:
+            audit_run = source.pipeline_runs.filter(
+                processor_version=AUDIT_VERSION,
+                status=PipelineRun.Status.SUCCEEDED,
+                summary__pilot_id=str(pilot.id),
+            ).first()
+            review = audit_run.summary.get("review") if audit_run else None
+        if review is None:
+            audit = (
+                pilot.ai_runs.filter(prompt_template__name=AUDIT_PROMPT, status="succeeded")
+                .order_by("-created_at")
+                .first()
+            )
+            if audit is None:
+                raise ValueError(f"Pilot {pilot.id} was never audited for fidelity.")
+            issues = audit.response_payload["review"]["issues"]
+            review = {
+                "counts": {s: sum(i["severity"] == s for i in issues) for s in SEVERITIES},
+                "cost_usd": str(audit.estimated_cost_usd or 0),
+                "ai_run_ids": [str(audit.id)],
+            }
+        check = pilot.summary["difficulty_check"]
+        chapter = source.chapters.get(pk=pilot.summary["chapter_id"])
+        results.append(
+            {
+                "chapter_id": str(chapter.id),
+                "sequence": chapter.sequence,
+                "title": chapter.title,
+                "pilot_id": str(pilot.id),
+                "judge_estimate": check["cefr_estimate"],
+                "judge_max_level": check["max_level"],
+                "difficulty_ok": LEVELS.index(check["max_level"]) <= LEVELS.index(target_level),
+                "material": review["counts"]["material"],
+                "minor": review["counts"]["minor"],
+                "uncertain": review["counts"]["uncertain"],
+                "fidelity_ok": review["counts"]["material"] == 0,
+                "cost_usd": str(
+                    (pilot.ai_runs.get(pk=pilot.summary["ai_run_id"]).estimated_cost_usd or 0)
+                    + Decimal(check["cost_usd"])
+                    + Decimal(review["cost_usd"])
+                ),
+            }
+        )
+    results.sort(key=lambda r: r["sequence"])
+    reasons = _probe_reasons(results)
+    run, created = PipelineRun.objects.get_or_create(
+        idempotency_key=(
+            f"{source.id}:floor-probe:{target_level.lower()}:backfill:"
+            f"{digest([spec, [r['pilot_id'] for r in results]])}"
+        ),
+        defaults={
+            "edition": source,
+            "stage": PipelineRun.Stage.ADAPT,
+            "processor_version": PROBE_VERSION,
+            "input_hash": digest([spec, [r["pilot_id"] for r in results]]),
+            "status": PipelineRun.Status.SUCCEEDED,
+            "progress": 100,
+            "started_at": timezone.now(),
+            "finished_at": timezone.now(),
+            "summary": {
+                "target_level": target_level,
+                "spec": spec,
+                "backfilled": True,
+                "chapters": [
+                    {"id": r["chapter_id"], "sequence": r["sequence"], "title": r["title"]}
+                    for r in results
+                ],
+                "results": results,
+                "verdict": "failed" if reasons else "passed",
+                "reasons": reasons,
+                "cost_usd": str(sum(Decimal(r["cost_usd"]) for r in results)),
+            },
+        },
+    )
+    if created:
+        refresh_adaptation_floor(source.work)
+    return run
+
+
+def _probe_reasons(results: list[dict]) -> list[str]:
+    def name(r):
+        return r["title"] or f"chapter {r['sequence']}"
+
+    reasons = [
+        f"{name(r)} judged {r['judge_max_level']}" for r in results if not r["difficulty_ok"]
+    ]
+    reasons += [
+        f"{name(r)}: {r['material']} material fidelity finding(s)"
+        for r in results
+        if not r["fidelity_ok"]
+    ]
+    return reasons

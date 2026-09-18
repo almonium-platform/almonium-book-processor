@@ -491,3 +491,34 @@ def test_the_pages_offer_the_next_probe_and_the_audit(client, source):
         reverse("catalog:adaptation-pilot", args=[source.id, pilot.id])
     ).content.decode()
     assert "Fidelity audit: 1 material" in page and "lost its urgency" in page
+
+
+def test_a_probe_can_be_backfilled_from_pilots_judged_and_audited_by_scripts(source):
+    from almonium_book_processor.catalog.adaptation_floor import backfill_probe
+
+    with pytest.raises(ValueError, match="No B1 pilot"):
+        backfill_probe(source, "B1")
+    chapters = list(source.chapters.order_by("sequence"))
+    pilots = [_pilot(source, "B1", chapter) for chapter in chapters[:2]]
+    judge_standalone_pilot(pilots[0].id, judge=Judge("B2"), auditor=Auditor())
+    # The second pilot was judged, and audited by a script that wrote its own ledger row.
+    from almonium_book_processor.catalog.pilot_difficulty import assess_pilot
+
+    assess_pilot(pilots[1].id, provider=Judge("B1"))
+    with pytest.raises(ValueError, match="never audited"):
+        backfill_probe(source, "B1")
+    audit_pilot(pilots[1].id, provider=Auditor([{**MATERIAL, "block_id": "c2.b1"}]))
+    PipelineRun.objects.filter(pk=pilots[1].id).update(
+        summary={**PipelineRun.objects.get(pk=pilots[1].id).summary, "fidelity_audit": None}
+    )
+    run = backfill_probe(source, "B1")
+    assert run.summary["backfilled"] and run.summary["verdict"] == "failed"
+    assert run.summary["reasons"] == [
+        "Chapter 1 judged B2",
+        "Chapter 2: 1 material fidelity finding(s)",
+    ]
+    assert backfill_probe(source, "B1").id == run.id
+    rows = ladder(source)
+    assert rows[1]["state"] == "probe_failed"
+    source.work.refresh_from_db()
+    assert source.work.adaptation_evidence["levels"]["B1"]["state"] == "probe_failed"
