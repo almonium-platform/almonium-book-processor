@@ -91,6 +91,12 @@
           <textarea name="text" rows="8" required>{{ row.block.text }}</textarea>
           <input name="notes" placeholder="Reason for correction" required>
           <button class="button button-secondary" type="submit">Save correction</button>
+        </form>
+        <form class="remove-block" method="post" action="{% url 'catalog:remove-block' edition.id row.block.id %}">
+          {% csrf_token %}<input type="hidden" name="chapter" value="{{ row.block.chapter.sequence }}"><input type="hidden" name="q" value="{{ query }}">
+          {% if parallel_edition %}<input type="hidden" name="parallel" value="{{ parallel_edition.id }}">{% endif %}{% if show_diff %}<input type="hidden" name="diff" value="1">{% endif %}
+          <input name="notes" placeholder="Why this block is not part of the book" required>
+          <button class="button button-danger" type="submit">Remove block</button>
         </form></details>
         {% else %}
         <p class="gap-note">{{ row.note }}</p>

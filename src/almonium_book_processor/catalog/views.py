@@ -984,6 +984,35 @@ def edit_block_text(request: HttpRequest, edition_id: str, block_id: uuid.UUID) 
 
 @staff_member_required
 @require_POST
+def remove_block_view(request: HttpRequest, edition_id: str, block_id: uuid.UUID) -> HttpResponse:
+    from almonium_book_processor.catalog.services import remove_block
+
+    edition = get_object_or_404(Edition, id=edition_id)
+    try:
+        remove_block(
+            edition=edition,
+            block_id=block_id,
+            editor=request.user,
+            notes=request.POST.get("notes", "").strip(),
+        )
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Block removed; derived data was queued for a refresh.")
+    if "chapter" in request.POST:
+        return _reader_redirect(
+            str(edition.id),
+            request.POST.get("chapter", ""),
+            request.POST.get("q", ""),
+            "",
+            request.POST.get("parallel", ""),
+            request.POST.get("diff", ""),
+        )
+    return redirect(f"{reverse('catalog:edition-detail', args=[edition.id])}#source-qa")
+
+
+@staff_member_required
+@require_POST
 def queue_lexical_analysis(request: HttpRequest, edition_id: str) -> HttpResponse:
     edition = get_object_or_404(Edition, id=edition_id)
     analyze_edition_lexicon.delay(str(edition.id))

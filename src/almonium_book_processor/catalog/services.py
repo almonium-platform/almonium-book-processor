@@ -756,6 +756,48 @@ def revise_block_text(
 
 
 @transaction.atomic
+def remove_block(
+    *,
+    edition: Edition,
+    block_id: uuid.UUID,
+    editor: AbstractBaseUser,
+    notes: str = "",
+) -> ContentBlockRevision:
+    """Take a block out of the edition; the revision keeps its text for the audit trail.
+
+    Findings on the block are superseded rather than left pointing at nothing,
+    and a chapter emptied by the removal goes with it, so the reader never
+    lands on a blank page.
+    """
+
+    block = (
+        ContentBlock.objects.select_for_update()
+        .select_related("chapter")
+        .filter(id=block_id, edition=edition)
+        .first()
+    )
+    if block is None:
+        raise ValueError("The target block does not belong to this edition.")
+    revision = ContentBlockRevision.objects.create(
+        edition=edition,
+        stable_block_id=block.block_id,
+        editor=editor,
+        previous_text=block.text,
+        revised_text="",
+        notes=notes or f"Removed block {block.block_id}.",
+    )
+    edition.text_quality_findings.filter(status=TextQualityFinding.Status.OPEN, block=block).update(
+        status=TextQualityFinding.Status.SUPERSEDED
+    )
+    chapter = block.chapter
+    block.delete()
+    if not chapter.blocks.exists():
+        chapter.delete()
+    _finish_text_revision(edition, set())
+    return revision
+
+
+@transaction.atomic
 def apply_text_quality_finding(
     *,
     edition: Edition,

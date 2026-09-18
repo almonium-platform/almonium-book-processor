@@ -230,6 +230,102 @@ def test_staff_can_dismiss_source_finding(client) -> None:
     assert finding.reviewed_by == user
 
 
+def test_a_whole_block_finding_offers_removal_and_the_block_goes(
+    client, monkeypatch, django_capture_on_commit_callbacks
+) -> None:
+    edition, block = edition_with_split_word()
+    licence = ContentBlock.objects.create(
+        edition=edition,
+        chapter=Chapter.objects.create(edition=edition, sequence=2),
+        block_id="c2.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="End of Project Gutenberg's Book, by Ada Author",
+    )
+    artifact = EditionArtifact.objects.create(
+        edition=edition,
+        kind=EditionArtifact.Kind.SOURCE_QA,
+        input_hash="b" * 64,
+        processor_version="source-qa-v3",
+        payload={"finding_count": 1},
+    )
+    finding = TextQualityFinding.objects.create(
+        edition=edition,
+        artifact=artifact,
+        block=licence,
+        stable_block_id=licence.block_id,
+        input_hash="b" * 64,
+        fingerprint="e" * 64,
+        code="gutenberg_boilerplate",
+        confidence=0.99,
+        message="This block appears to contain Project Gutenberg boilerplate.",
+    )
+    user = get_user_model().objects.create_superuser(
+        username="qa-remove-editor",
+        email="qa-remove@example.test",
+        password="password",
+    )
+    client.force_login(user)
+    queued: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.refresh_edition_after_revision.delay",
+        queued.append,
+    )
+
+    page = client.get(reverse("catalog:edition-detail", args=[edition.id])).content.decode()
+    remove_url = reverse("catalog:remove-block", args=[edition.id, licence.id])
+    assert remove_url in page
+    # A span finding is repaired in place, never offered removal.
+    assert reverse("catalog:remove-block", args=[edition.id, block.id]) not in page
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.post(remove_url, {"notes": "Licence text, not the book."})
+
+    assert response.status_code == 302
+    assert response["Location"].endswith("#source-qa")
+    assert not ContentBlock.objects.filter(id=licence.id).exists()
+    # The emptied chapter goes with its only block; the book's chapter stays.
+    assert list(edition.chapters.values_list("sequence", flat=True)) == [1]
+    finding.refresh_from_db()
+    assert finding.status == TextQualityFinding.Status.SUPERSEDED
+    revision = ContentBlockRevision.objects.get(edition=edition)
+    assert revision.block is None
+    assert revision.stable_block_id == "c2.p1"
+    assert revision.previous_text == "End of Project Gutenberg's Book, by Ada Author"
+    assert revision.revised_text == ""
+    assert revision.editor == user
+    assert revision.notes == "Licence text, not the book."
+    edition.refresh_from_db()
+    assert edition.word_count == 4
+    assert queued == [str(edition.id)]
+
+
+def test_a_block_of_another_edition_cannot_be_removed(client) -> None:
+    edition, block = edition_with_split_word()
+    other_work = Work.objects.create(
+        slug="other-work", title="Other", author="Ada Author", original_language="en"
+    )
+    other = Edition.objects.create(
+        slug="other-work-en",
+        work=other_work,
+        title="Other",
+        author="Ada Author",
+        language="en",
+        source_sha256="f" * 64,
+        status=Edition.Status.READY,
+    )
+    client.force_login(
+        get_user_model().objects.create_superuser(
+            username="qa-other-editor", email="qa-other@example.test", password="password"
+        )
+    )
+
+    response = client.post(reverse("catalog:remove-block", args=[other.id, block.id]), follow=True)
+
+    assert ContentBlock.objects.filter(id=block.id).exists()
+    assert "does not belong to this edition" in response.content.decode()
+
+
 def test_staff_can_bulk_approve_high_confidence_detached_initials(
     client, monkeypatch, django_capture_on_commit_callbacks
 ) -> None:

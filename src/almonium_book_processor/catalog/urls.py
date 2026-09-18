@@ -102,6 +102,11 @@ urlpatterns = [
         name="edit-block-text",
     ),
     path(
+        "editions/<uuid:edition_id>/blocks/<uuid:block_id>/remove/",
+        views.remove_block_view,
+        name="remove-block",
+    ),
+    path(
         "editions/<uuid:edition_id>/lexical/queue/",
         views.queue_lexical_analysis,
         name="queue-lexical-analysis",

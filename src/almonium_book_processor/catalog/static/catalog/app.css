@@ -59,6 +59,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .warning { display: flex; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid var(--line); }
 .warning { justify-content: space-between; align-items: center; }
 .warning p { margin: .35rem 0 0; }
+.finding-actions { display: grid; gap: .5rem; justify-items: end; flex-shrink: 0; }
 .chapter-nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1rem 0 1.5rem; }
 .chapter-nav a { min-width: 2.2rem; padding: .45rem .65rem; border: 1px solid var(--line); border-radius: 8px; background: var(--card); text-align: center; text-decoration: none; }
 .chapter-nav a.current { background: var(--accent); border-color: var(--accent); color: white; }
@@ -156,6 +157,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .reader-block details { margin-top: .6rem; }
 .reader-block summary { cursor: pointer; color: var(--accent); font-size: .82rem; font-weight: 700; }
 .reader-block details form { display: grid; gap: .6rem; margin-top: .7rem; }
+.reader-block details .remove-block { grid-template-columns: 1fr auto; align-items: center; padding-top: .7rem; border-top: 1px dashed var(--line); }
 .reader-block details .button { justify-self: start; }
 .reader-footer-nav { margin-top: 1.5rem; }
 

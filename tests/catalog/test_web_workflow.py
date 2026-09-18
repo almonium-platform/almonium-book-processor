@@ -1061,6 +1061,39 @@ def test_reader_corrects_a_block_with_audit_and_refresh(
     assert queued == [str(edition.id)]
 
 
+def test_reader_removes_a_block_and_returns_to_its_chapter(
+    client, monkeypatch, django_capture_on_commit_callbacks
+) -> None:
+    edition, blocks = reader_records()
+    block = blocks[2]
+    reader_staff(client, "reader-remover")
+    queued: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.refresh_edition_after_revision.delay",
+        lambda edition_id: queued.append(edition_id),
+    )
+    page = client.get(
+        reverse("catalog:edition-reader", args=[edition.id]), {"chapter": "11"}
+    ).content.decode()
+    assert reverse("catalog:remove-block", args=[edition.id, block.id]) in page
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.post(
+            reverse("catalog:remove-block", args=[edition.id, block.id]),
+            {"chapter": "11", "notes": "Printer's colophon."},
+        )
+
+    assert response.status_code == 302
+    assert response["Location"].endswith("?chapter=11")
+    assert not ContentBlock.objects.filter(id=block.id).exists()
+    # The chapter keeps its heading, so it stays.
+    assert edition.chapters.filter(sequence=11).exists()
+    revision = ContentBlockRevision.objects.get(edition=edition, stable_block_id=block.block_id)
+    assert revision.previous_text == "Тоєї ночі."
+    assert revision.revised_text == ""
+    assert queued == [str(edition.id)]
+
+
 def test_reader_rejects_a_block_from_another_edition(client) -> None:
     edition, _ = reader_records()
     reader_staff(client, "reader-guard")
