@@ -746,3 +746,61 @@ def test_applying_one_finding_keeps_its_neighbour_on_the_block_placeable(adaptat
     text = adaptation.blocks.get(block_id="c1.b1").text
     assert text[minor.start_offset : minor.end_offset] == "left"
     assert audit_context(adaptation)["fidelity_audit_state"] == "current"
+
+
+def test_a_phrase_level_fix_carries_the_difficulty_verdict_forward(
+    adaptation, django_capture_on_commit_callbacks
+):
+    from almonium_book_processor.catalog.chapter_analysis import (
+        analysis_context,
+        analyze_chapters,
+        queue_analysis,
+    )
+    from almonium_book_processor.catalog.services import apply_fidelity_findings, revise_block_text
+
+    reviewer = get_user_model().objects.create_user("editor", is_staff=True)
+    # A real chapter is paragraphs long; one corrected phrase is a sliver of it.
+    filler = " ".join(f"Sentence number {i} keeps the chapter long." for i in range(40))
+    for edition in (adaptation.source_edition, adaptation):
+        chapter = edition.chapters.get(sequence=1)
+        ContentBlock.objects.create(
+            edition=edition,
+            chapter=chapter,
+            sequence=9,
+            block_id="c1.b9",
+            block_type="paragraph",
+            text=filler,
+            align_group=uuid.uuid4(),
+        )
+    analysis = queue_analysis(str(adaptation.id))
+    judge = Judge("B2")
+    analyze_chapters(str(analysis.id), provider=judge)
+    assert analysis_context(adaptation)["projection_state"] == "complete"
+    judged_calls = judge.calls
+    audit = queue_edition_audit(adaptation.id)
+    run_edition_audit(audit.id, provider=Auditor([MATERIAL]))
+    with django_capture_on_commit_callbacks(execute=True):
+        apply_fidelity_findings(edition=adaptation, reviewer=reviewer, severities=["material"])
+    # One phrase changed: the verdict is carried, nothing is queued, nothing is paid.
+    context = analysis_context(adaptation)
+    assert context["projection_state"] == "complete"
+    assert (
+        not adaptation.pipeline_runs.filter(stage="chapter_analysis")
+        .exclude(pk=analysis.pk)
+        .exists()
+    )
+    analysis.refresh_from_db()
+    assert analysis.summary["carried"][0]["change"] < 0.02
+    assert judge.calls == judged_calls
+    # A rewrite of the block is more than a phrase: a real analysis is queued.
+    with django_capture_on_commit_callbacks(execute=True):
+        revise_block_text(
+            edition=adaptation,
+            block_id=adaptation.blocks.get(block_id="c2.b1").id,
+            revised_text=" ".join(["word"] * 60),
+            editor=reviewer,
+        )
+        from almonium_book_processor.catalog.services import _requeue_analysis_after_commit
+
+        _requeue_analysis_after_commit(adaptation)
+    assert adaptation.pipeline_runs.filter(stage="chapter_analysis", status="queued").exists()

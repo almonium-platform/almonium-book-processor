@@ -831,21 +831,26 @@ def _after_fidelity_decision(
 
 
 def _requeue_analysis_after_commit(edition: Edition) -> None:
-    """Text just changed: the difficulty judge re-reads the changed chapters, from cache elsewhere.
+    """Text just changed: keep the difficulty verdict if the change is a phrase, re-judge if not.
 
-    The audit is not re-run here. Its own suggestions carry it forward; a hand
-    edit leaves it stale and the page says what a re-read would cost.
+    The audit is not re-run here either. Its own suggestions carry it
+    forward; a hand edit leaves it stale and the page says what a re-read
+    would cost.
     """
 
-    def requeue() -> None:
-        from almonium_book_processor.catalog.chapter_analysis import queue_analysis
+    def refresh() -> None:
+        from almonium_book_processor.catalog.chapter_analysis import (
+            carry_analysis_forward,
+            queue_analysis,
+        )
 
         try:
-            queue_analysis(str(edition.id))
+            if carry_analysis_forward(edition) is None:
+                queue_analysis(str(edition.id))
         except ValueError as error:
-            logger.warning("Could not requeue chapter analysis for %s: %s", edition.id, error)
+            logger.warning("Could not refresh chapter analysis for %s: %s", edition.id, error)
 
-    transaction.on_commit(requeue)
+    transaction.on_commit(refresh)
 
 
 def _fidelity_findings(edition: Edition, severities: list[str]):

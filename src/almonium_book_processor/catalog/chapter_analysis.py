@@ -531,6 +531,85 @@ def analyze_chapters(run_id: str, *, provider=None) -> None:
     queue_for_translations_of(run.edition)
 
 
+def carry_analysis_forward(edition: Edition, *, max_change: float = 0.02) -> dict | None:
+    """Keep the difficulty verdict for text that changed by a phrase, not by a chapter.
+
+    A judged window whose words differ from the judged text by no more than
+    ``max_change`` keeps its result under the new text: the run and its
+    windows are re-keyed and the projections rebuilt from them, for free. A
+    bigger change, or a window that was never judged, returns None and the
+    caller queues a real analysis. Re-judging a whole book to confirm a few
+    corrected phrases costs money and, worse, invites judge noise into a gate
+    the text did not move.
+    """
+
+    import difflib
+
+    from almonium_book_processor.catalog.chapter_projections import refresh_projections
+
+    spec = analysis_spec(edition.language)
+    run = (
+        edition.pipeline_runs.filter(
+            stage=PipelineRun.Stage.CHAPTER_ANALYSIS,
+            status=PipelineRun.Status.SUCCEEDED,
+            summary__spec=spec,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if run is None:
+        return None
+    plan = snapshot(edition, spec)
+    if plan["hash"] == run.input_hash:
+        return {"carried": []}
+    key = f"{edition.id}:chapter-analysis:{plan['hash']}"
+    if PipelineRun.objects.filter(idempotency_key=key).exclude(id=run.id).exists():
+        return None  # an analysis of this exact text already exists or is queued
+    judged = {}
+    for result in AIRun.objects.filter(
+        id__in=run.summary.get("results", []), status=AIRun.Status.SUCCEEDED
+    ):
+        data = result.request_payload["window"]
+        judged[(data["chapter_id"], data["window"])] = result
+    known = set(
+        AIRun.objects.filter(
+            edition=edition,
+            status=AIRun.Status.SUCCEEDED,
+            input_hash__in=[w["hash"] for w in plan["windows"]],
+        ).values_list("input_hash", flat=True)
+    )
+    rekey, carried = [], []
+    for window in plan["windows"]:
+        if window["hash"] in known:
+            continue
+        data = window["data"]
+        result = judged.get((data["chapter_id"], data["window"]))
+        if result is None or result.input_hash in known:
+            return None
+        before = re.findall(
+            r"\S+", " ".join(b["text"] for b in result.request_payload["window"]["blocks"])
+        )
+        after = re.findall(r"\S+", " ".join(b["text"] for b in data["blocks"]))
+        change = 1 - difflib.SequenceMatcher(None, before, after, autojunk=False).ratio()
+        if change > max_change:
+            return None
+        rekey.append((result, window["hash"]))
+        carried.append(
+            {"chapter_id": data["chapter_id"], "window": data["window"], "change": round(change, 4)}
+        )
+    with transaction.atomic():
+        for result, new_hash in rekey:
+            AIRun.objects.filter(id=result.id).update(
+                input_hash=new_hash, updated_at=timezone.now()
+            )
+        run.input_hash = plan["hash"]
+        run.idempotency_key = key
+        run.summary = {**run.summary, "carried": [*run.summary.get("carried", []), *carried]}
+        run.save(update_fields=["input_hash", "idempotency_key", "summary", "updated_at"])
+    refresh_projections(str(run.id))
+    return {"carried": carried}
+
+
 def analysis_context(edition: Edition) -> dict:
     """Only results for the exact current snapshot appear as current proposals."""
     if edition.work.visibility != Work.Visibility.PUBLIC:
