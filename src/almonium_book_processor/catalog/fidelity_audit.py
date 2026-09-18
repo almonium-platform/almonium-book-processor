@@ -461,6 +461,7 @@ def queue_edition_audit(edition_id, *, tier: str | None = None, record: bool = T
                     "kind": "edition" if record else "comparison",
                     "spec": spec,
                     "chapters": len(plan["chapters"]),
+                    "chapter_hashes": {c["id"]: c["hash"] for c in plan["chapters"]},
                     "windows": len(plan["windows"]),
                     "completed_windows": 0,
                 },
@@ -658,6 +659,91 @@ def open_findings(edition: Edition):
     )
 
 
+def carry_audit_forward(edition: Edition, findings) -> PipelineRun | None:
+    """Keep the audit current after its own suggestions were written in verbatim.
+
+    The auditor proposed the wording, so its verdict covers the text that now
+    stands; re-reading twenty chapters to confirm the auditor's own words is
+    money for nothing. The run is re-keyed to the new text and records which
+    blocks it was carried over, so the trail from run to text stays honest.
+    A hand edit or a changed replacement never carries: that text is unread.
+    """
+
+    findings = list(findings)
+    if not findings:
+        return None
+    run = (
+        edition.pipeline_runs.filter(
+            processor_version=AUDIT_VERSION,
+            summary__kind="edition",
+            status=PipelineRun.Status.SUCCEEDED,
+            input_hash=findings[0].input_hash,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if run is None:
+        return None
+    spec = run.summary["spec"]
+    plan = edition_plan(edition, spec)
+    old_hash = run.input_hash
+    carried = list(run.summary.get("carried") or [])
+    carried.extend(
+        {
+            "block_id": f.stable_block_id,
+            "finding_id": str(f.id),
+            "at": timezone.now().isoformat(),
+        }
+        for f in findings
+    )
+    run.input_hash = plan["hash"]
+    run.idempotency_key = f"{edition.id}:fidelity-audit:{plan['hash']}"
+    run.summary = {
+        **run.summary,
+        "chapter_hashes": {c["id"]: c["hash"] for c in plan["chapters"]},
+        "carried": carried,
+    }
+    run.save(update_fields=["input_hash", "idempotency_key", "summary", "updated_at"])
+    edition.text_quality_findings.filter(
+        code__startswith=FINDING_PREFIX, input_hash=old_hash
+    ).update(input_hash=plan["hash"])
+    return run
+
+
+def relocate_fidelity_findings(edition: Edition, block_ids) -> None:
+    """After a block changed, place its other open findings again instead of dropping them.
+
+    A finding whose span is still in the text keeps working; one whose span is
+    gone stays open without offsets, which the page shows as a hand edit.
+    """
+
+    from almonium_book_processor.catalog.chapter_analysis import _locate
+
+    for finding in edition.text_quality_findings.filter(
+        status=TextQualityFinding.Status.OPEN,
+        code__startswith=FINDING_PREFIX,
+        block_id__in=list(block_ids),
+    ).select_related("block"):
+        text = finding.block.text
+        quote = (finding.evidence or {}).get("adapted_quote") or finding.original_text
+        located = _locate(text, quote) if quote else None
+        if located:
+            finding.start_offset, finding.end_offset = located
+            finding.original_text = text[located[0] : located[1]]
+        else:
+            finding.start_offset = finding.end_offset = None
+            finding.suggested_text = ""
+        finding.save(
+            update_fields=[
+                "start_offset",
+                "end_offset",
+                "original_text",
+                "suggested_text",
+                "updated_at",
+            ]
+        )
+
+
 def audit_context(edition: Edition) -> dict:
     """The audit as it stands for the text as it is now."""
 
@@ -686,6 +772,18 @@ def audit_context(edition: Edition) -> dict:
     context["fidelity_audit_run"] = run
     if current is None:
         context["fidelity_audit_state"] = "stale"
+        known = run.summary.get("chapter_hashes") or {}
+        changed = [c for c in plan["chapters"] if known.get(c["id"]) != c["hash"]]
+        context["fidelity_stale_chapters"] = len(changed)
+        review = run.summary.get("review") or {}
+        per_window = (
+            Decimal(review["cost_usd"]) / max(1, run.summary.get("windows") or 1)
+            if review.get("cost_usd")
+            else Decimal("0")
+        )
+        context["fidelity_stale_cost"] = str(
+            (per_window * sum(c["windows"] for c in changed)).quantize(Decimal("0.01"))
+        )
     elif run.status == PipelineRun.Status.SUCCEEDED:
         context["fidelity_audit_state"] = "current"
     elif run.status in (PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING):
@@ -720,6 +818,7 @@ def audit_context(edition: Edition) -> dict:
     }
     context["fidelity_open_findings"] = context["fidelity_counts"]["material"]
     context["fidelity_applicable"] = sum(f.can_apply and bool(f.suggested_text) for f in findings)
+    context["fidelity_carried"] = len(run.summary.get("carried") or [])
     return context
 
 

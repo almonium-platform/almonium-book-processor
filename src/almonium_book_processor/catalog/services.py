@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import uuid
 from collections.abc import Iterable
 from pathlib import Path
@@ -35,6 +36,8 @@ from almonium_book_processor.models import (
 )
 
 BULK_DETACHED_INITIAL_MIN_CONFIDENCE = 0.9
+
+logger = logging.getLogger(__name__)
 
 
 def hash_uploaded_file(upload: BinaryIO) -> str:
@@ -717,10 +720,12 @@ def _finish_text_revision(edition: Edition, changed_block_ids: set[uuid.UUID]) -
     )
     edition.save(update_fields=["word_count", "updated_at"])
     edition.artifacts.filter(is_current=True).update(is_current=False)
+    # Fidelity findings on a changed block are placed again by their own path,
+    # not dropped: the one an editor applied should not silence its neighbours.
     edition.text_quality_findings.filter(
         status=TextQualityFinding.Status.OPEN,
         block_id__in=changed_block_ids,
-    ).update(status=TextQualityFinding.Status.SUPERSEDED)
+    ).exclude(code__startswith="fidelity_").update(status=TextQualityFinding.Status.SUPERSEDED)
 
     from almonium_book_processor.catalog.tasks import refresh_edition_after_revision
 
@@ -774,6 +779,7 @@ def apply_text_quality_finding(
     current = finding.block.text[finding.start_offset : finding.end_offset]
     if current != finding.original_text:
         raise ValueError("The block changed after this finding was generated; run source QA again.")
+    verbatim = replacement.strip() == (finding.suggested_text or "").strip()
     revised_text = (
         finding.block.text[: finding.start_offset]
         + replacement
@@ -799,17 +805,47 @@ def apply_text_quality_finding(
             "updated_at",
         ]
     )
-    _after_fidelity_decision(edition, finding)
+    _after_fidelity_decision(edition, finding, verbatim=verbatim)
     return revision
 
 
-def _after_fidelity_decision(edition: Edition, finding: TextQualityFinding) -> None:
+def _after_fidelity_decision(
+    edition: Edition, finding: TextQualityFinding, *, verbatim: bool = False
+) -> None:
     """Applying or dismissing a fidelity finding can change whether the level is reached."""
 
-    if finding.code.startswith("fidelity_"):
-        from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor
+    if not finding.code.startswith("fidelity_"):
+        return
+    from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor
+    from almonium_book_processor.catalog.fidelity_audit import (
+        carry_audit_forward,
+        relocate_fidelity_findings,
+    )
 
-        refresh_adaptation_floor(edition.work)
+    if finding.status == TextQualityFinding.Status.APPLIED:
+        relocate_fidelity_findings(edition, [finding.block_id])
+        if verbatim:
+            carry_audit_forward(edition, [finding])
+        _requeue_analysis_after_commit(edition)
+    refresh_adaptation_floor(edition.work)
+
+
+def _requeue_analysis_after_commit(edition: Edition) -> None:
+    """Text just changed: the difficulty judge re-reads the changed chapters, from cache elsewhere.
+
+    The audit is not re-run here. Its own suggestions carry it forward; a hand
+    edit leaves it stale and the page says what a re-read would cost.
+    """
+
+    def requeue() -> None:
+        from almonium_book_processor.catalog.chapter_analysis import queue_analysis
+
+        try:
+            queue_analysis(str(edition.id))
+        except ValueError as error:
+            logger.warning("Could not requeue chapter analysis for %s: %s", edition.id, error)
+
+    transaction.on_commit(requeue)
 
 
 def _fidelity_findings(edition: Edition, severities: list[str]):
@@ -884,7 +920,16 @@ def apply_fidelity_findings(
         )
     _finish_text_revision(edition, {block_id for block_id, group in by_block.items()})
     from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor
+    from almonium_book_processor.catalog.fidelity_audit import (
+        carry_audit_forward,
+        relocate_fidelity_findings,
+    )
 
+    relocate_fidelity_findings(edition, list(by_block))
+    carry_audit_forward(
+        edition, [f for group in by_block.values() for f in group if f.status == "applied"]
+    )
+    _requeue_analysis_after_commit(edition)
     refresh_adaptation_floor(edition.work)
     return applied
 
@@ -1064,7 +1109,7 @@ def apply_finding_with_block_text(
     finding.reviewed_by = reviewer
     finding.reviewed_at = timezone.now()
     finding.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
-    _after_fidelity_decision(edition, finding)
+    _after_fidelity_decision(edition, finding, verbatim=False)
     return revision
 
 

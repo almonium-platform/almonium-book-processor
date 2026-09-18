@@ -52,6 +52,7 @@ def source(settings, monkeypatch):
         "enrich_adapted_book",
         "analyze_edition_chapters",
         "project_chapter_analysis",
+        "refresh_edition_after_revision",
     ):
         monkeypatch.setattr(f"almonium_book_processor.catalog.tasks.{task}.delay", lambda _: None)
     work = Work.objects.create(slug="floor", title="Frankenstein", author="Shelley")
@@ -368,7 +369,9 @@ def test_edition_audit_turns_every_finding_into_an_applicable_item(adaptation):
     assert replacement.pipeline_run_id == again.id and not replacement.can_apply
 
 
-def test_fidelity_suggestions_are_applied_in_bulk_as_audited_revisions(adaptation):
+def test_fidelity_suggestions_are_applied_in_bulk_as_audited_revisions(
+    adaptation, django_capture_on_commit_callbacks
+):
     from almonium_book_processor.catalog.services import (
         apply_fidelity_findings,
         dismiss_fidelity_findings,
@@ -387,12 +390,13 @@ def test_fidelity_suggestions_are_applied_in_bulk_as_audited_revisions(adaptatio
     run_edition_audit(run.id, provider=Auditor([MATERIAL, second, MINOR]))
     with pytest.raises(ValueError, match="no fidelity suggestion"):
         apply_fidelity_findings(edition=adaptation, reviewer=reviewer, severities=["uncertain"])
-    assert (
-        apply_fidelity_findings(
-            edition=adaptation, reviewer=reviewer, severities=["material", "minor"]
+    with django_capture_on_commit_callbacks(execute=True):
+        assert (
+            apply_fidelity_findings(
+                edition=adaptation, reviewer=reviewer, severities=["material", "minor"]
+            )
+            == 2
         )
-        == 2
-    )
     assert adaptation.blocks.get(block_id="c1.b1").text == "Before dawn, he had already left."
     assert adaptation.blocks.get(block_id="c1.b2").text == "He was terrified."
     assert adaptation.block_revisions.count() == 2
@@ -402,7 +406,21 @@ def test_fidelity_suggestions_are_applied_in_bulk_as_audited_revisions(adaptatio
             "status", flat=True
         )
     ) == {"applied", "open"}
-    assert audit_context(adaptation)["fidelity_audit_state"] == "stale"
+    # The auditor's own wording went in verbatim, so its verdict carries to the new
+    # text: no re-read is queued, the run is re-keyed and says what it was carried over.
+    assert (
+        not adaptation.pipeline_runs.filter(processor_version=AUDIT_VERSION)
+        .exclude(pk=run.pk)
+        .exists()
+    )
+    context = audit_context(adaptation)
+    assert context["fidelity_audit_state"] == "current" and context["fidelity_carried"] == 2
+    run.refresh_from_db()
+    assert {c["block_id"] for c in run.summary["carried"]} == {"c1.b1", "c1.b2"}
+    # The difficulty judge never saw the new wording, so its analysis is queued.
+    assert adaptation.pipeline_runs.filter(stage="chapter_analysis", status="queued").exists()
+    # The remaining finding is still open on its (unchanged) block.
+    assert adaptation.text_quality_findings.get(status="open").block.block_id == "c2.b1"
     assert (
         dismiss_fidelity_findings(edition=adaptation, reviewer=reviewer, severities=["minor"]) == 1
     )
@@ -678,3 +696,53 @@ def test_the_change_preview_shows_what_the_sentence_becomes():
     assert html == "Before dawn, <del>he left</del><ins>he had already left</ins>."
     segments, placed = change_preview(text, "not there ... at all", "He was terrified.")
     assert not placed and any(s["op"] == "delete" for s in segments)
+
+
+def test_a_hand_edit_leaves_the_audit_stale_and_prices_the_re_read(
+    adaptation, django_capture_on_commit_callbacks
+):
+    from almonium_book_processor.catalog.services import apply_text_quality_finding
+
+    reviewer = get_user_model().objects.create_user("editor", is_staff=True)
+    run = queue_edition_audit(adaptation.id)
+    run_edition_audit(run.id, provider=Auditor([MATERIAL, MINOR]))
+    material = adaptation.text_quality_findings.get(code="fidelity_material")
+    with django_capture_on_commit_callbacks(execute=True):
+        apply_text_quality_finding(
+            edition=adaptation,
+            finding_id=material.id,
+            replacement="Before dawn he was gone.",  # not the auditor's words
+            reviewer=reviewer,
+        )
+    context = audit_context(adaptation)
+    assert context["fidelity_audit_state"] == "stale"
+    assert context["fidelity_stale_chapters"] == 1
+    assert context["fidelity_stale_cost"] == "0.00"  # the fake provider is free
+    assert context["fidelity_carried"] == 0
+    assert (
+        not adaptation.pipeline_runs.filter(processor_version=AUDIT_VERSION)
+        .exclude(pk=run.pk)
+        .exists()
+    )
+
+
+def test_applying_one_finding_keeps_its_neighbour_on_the_block_placeable(adaptation):
+    from almonium_book_processor.catalog.services import apply_fidelity_findings
+
+    reviewer = get_user_model().objects.create_user("editor", is_staff=True)
+    run = queue_edition_audit(adaptation.id)
+    neighbour = {
+        **MATERIAL,
+        "source_quote": "departed",
+        "adapted_quote": "left",
+        "severity": "minor",
+        "suggested_correction": "set off",
+    }
+    run_edition_audit(run.id, provider=Auditor([MATERIAL, neighbour]))
+    apply_fidelity_findings(edition=adaptation, reviewer=reviewer, severities=["material"])
+    assert adaptation.blocks.get(block_id="c1.b1").text == "Before dawn, he had already left."
+    minor = adaptation.text_quality_findings.get(code="fidelity_minor")
+    assert minor.status == "open" and minor.can_apply
+    text = adaptation.blocks.get(block_id="c1.b1").text
+    assert text[minor.start_offset : minor.end_offset] == "left"
+    assert audit_context(adaptation)["fidelity_audit_state"] == "current"
