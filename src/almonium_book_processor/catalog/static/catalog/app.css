@@ -330,3 +330,20 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .severity { padding: .1rem .45rem; border-radius: 6px; border: 1px solid var(--line); background: var(--paper); font-size: .75rem; }
 .severity-material { border-color: #c62828; color: #c62828; }
 @media (max-width: 720px) { .fidelity-sides { grid-template-columns: 1fr; } }
+
+.status-missing { color: var(--muted); background: #ece6dc; }
+.table-scroll { overflow-x: auto; }
+.companion-table { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: .6rem; }
+.companion-table th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; padding: .4rem .6rem; border-bottom: 1px solid var(--line); }
+.companion-table td { padding: .7rem .6rem; vertical-align: top; border-bottom: 1px solid var(--line); line-height: 1.5; }
+.companion-table tr:last-child td { border-bottom: 0; }
+.companion-table small { display: block; font-size: .75rem; }
+.companion-table .status { margin-bottom: .15rem; }
+.companion-actions form { display: inline-block; margin: 0 0 .2rem; }
+.companion-actions .button { padding: .45rem .8rem; font-size: .8rem; }
+.companion-links { margin-top: .4rem; font-size: .78rem; }
+.companion-stale td:first-child, .companion-failed td:first-child, .companion-missing td:first-child { box-shadow: inset 4px 0 0 var(--amber); }
+.companion-failed td:first-child, .companion-incomplete td:first-child { box-shadow: inset 4px 0 0 var(--red); }
+@media (max-width: 700px) { .companion-table thead { display: none; } .companion-table, .companion-table tbody, .companion-table tr, .companion-table td { display: block; width: 100%; box-sizing: border-box; } .companion-table td { border-bottom: 0; padding: .35rem .6rem; } .companion-table tr { border-bottom: 1px solid var(--line); padding: .5rem 0; } .companion-stale td:first-child, .companion-failed td:first-child, .companion-missing td:first-child, .companion-incomplete td:first-child { box-shadow: none; } }
+.tree-siblings .section-heading h3 { margin: 0; }
+.tree-siblings .section-heading .muted { font-size: .8rem; }

@@ -1,7 +1,10 @@
 from django.urls import path
 
 from almonium_book_processor.catalog import views
-from almonium_book_processor.catalog.sentence_preview_views import sentence_preview
+from almonium_book_processor.catalog.sentence_preview_views import (
+    queue_sentence_alignment,
+    sentence_preview,
+)
 
 app_name = "catalog"
 
@@ -15,6 +18,11 @@ urlpatterns = [
         "editions/<uuid:edition_id>/sentence-preview/<uuid:other_id>/",
         sentence_preview,
         name="sentence-preview",
+    ),
+    path(
+        "editions/<uuid:edition_id>/sentence-alignment/<uuid:other_id>/queue/",
+        queue_sentence_alignment,
+        name="queue-sentence-alignment",
     ),
     path(
         "editions/<uuid:edition_id>/adaptation/queue/",

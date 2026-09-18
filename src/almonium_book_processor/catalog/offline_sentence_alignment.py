@@ -69,9 +69,24 @@ def queue_alignment(primary_id, secondary_id, model=None):
             },
         },
     )
-    retry = PipelineRun.objects.filter(pk=run.pk, status=PipelineRun.Status.FAILED).update(
-        status=PipelineRun.Status.QUEUED, error="", finished_at=None
+    # A correction retires the artifacts of every pair it touches; when the
+    # text later returns to a digest that already succeeded, the same run has
+    # to serve its cached rows again.
+    retired = run.status == PipelineRun.Status.SUCCEEDED and (
+        EditionArtifact.objects.filter(
+            edition_id=primary_id,
+            kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,
+            processor_version=version,
+            input_hash__in=[pair_hash(p, s) for p, s in pairs],
+            is_current=True,
+        ).count()
+        < len(pairs)
     )
+    retry = PipelineRun.objects.filter(
+        pk=run.pk,
+        status__in=[PipelineRun.Status.FAILED]
+        + ([PipelineRun.Status.SUCCEEDED] if retired else []),
+    ).update(status=PipelineRun.Status.QUEUED, error="", finished_at=None, progress=0)
     if created or retry:
 
         def dispatch():

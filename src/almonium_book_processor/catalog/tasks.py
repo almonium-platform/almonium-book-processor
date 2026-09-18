@@ -978,6 +978,17 @@ def refresh_edition_after_revision(edition_id: str) -> None:
                 edition_id,
             )
 
+    # Inherited pairs keep their paragraph groups, but the offline sentence
+    # highlights are keyed by text and were retired with the other artifacts.
+    # Re-queue the pairs that had them; the job is local, so nothing is paid,
+    # and unchanged blocks come back from cache.
+    from almonium_book_processor.catalog.parallel_status import refresh_sentence_alignment
+
+    try:
+        refresh_sentence_alignment(edition)
+    except Exception:
+        logger.exception("Could not refresh sentence alignment after revision to %s", edition_id)
+
 
 @shared_task(acks_late=True)
 def align_edition_to_source(edition_id: str) -> None:

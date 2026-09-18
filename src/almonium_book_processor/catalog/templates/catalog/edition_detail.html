@@ -70,7 +70,40 @@
     <p>An independently sourced edition. It is complete and readable on its own, but it is <strong>not</strong> block-synchronised with the original, so it is not offered for parallel reading.</p>
     {% if edition.source_edition %}<p class="muted">Lineage recorded from {{ edition.source_edition.title }} ({{ edition.source_edition.language|upper }}) for provenance only.</p>{% endif %}
   {% endif %}
-  {% if parallel_editions %}
+  {% if parallel_companions %}
+  <div class="tree-siblings" id="parallel-companions">
+    <div class="section-heading"><h3>Parallel companions</h3><span class="muted">{% if parallel_companions_due %}{{ parallel_companions_due }} of {{ parallel_companions|length }} pair{{ parallel_companions|length|pluralize }} need{{ parallel_companions_due|pluralize:"s," }} attention{% elif parallel_companions_running %}{{ parallel_companions_running }} job{{ parallel_companions_running|pluralize }} running{% else %}All {{ parallel_companions|length }} pair{{ parallel_companions|length|pluralize }} current{% endif %}</span></div>
+    <p class="muted">Paragraph pairing is inherited from the canonical block groups. Sentence highlights come from an offline embedding job per pair and are retired whenever either side is corrected; until the job runs again the reader falls back to paragraph pairing for that pair. A refresh is local, costs nothing, and reuses every unchanged block.</p>
+    <div class="table-scroll">
+    <table class="companion-table">
+      <thead><tr><th>Companion</th><th>Paragraphs</th><th>Sentence alignment</th><th>What to do</th></tr></thead>
+      <tbody>
+      {% for row in parallel_companions %}
+      <tr class="companion-row companion-{{ row.state }}">
+        <td><a href="{% url 'catalog:edition-detail' row.other.id %}">{{ row.other.language|upper }}{% if row.other.cefr_level %} · {{ row.other.cefr_level }}{% endif %}</a><br><small class="muted">{{ row.other.get_edition_type_display }} · {{ row.other.get_parallel_role_display }}</small><br><span class="status status-{{ row.other.status }}">{{ row.other.get_status_display }}</span></td>
+        <td>{% if row.complete %}<span class="status status-succeeded">Complete</span><br><small class="muted">{{ row.total }} inherited group{{ row.total|pluralize }}</small>{% else %}<span class="status status-failed">Incomplete</span><br><small class="muted">Block groups do not match; not readable side by side</small>{% endif %}</td>
+        <td>
+          {% if row.state == "current" %}<span class="status status-succeeded">Current</span><br><small class="muted">{{ row.current }} of {{ row.total }} blocks{% if row.model %} · {{ row.model }}{% endif %}{% if row.run and row.run.finished_at %} · {{ row.run.finished_at|date:"j M H:i" }}{% endif %}</small>
+          {% elif row.state == "running" %}<span class="status">{{ row.run.get_status_display }} · {{ row.run.progress }}%</span><br><small class="muted">{{ row.model }} · refresh this page for progress</small>
+          {% elif row.state == "stale" %}<span class="status status-review">Stale</span><br><small class="muted">{{ row.current }} of {{ row.total }} blocks current · {{ row.changed }} changed since the last job · {{ row.reusable }} unchanged and cached</small>
+          {% elif row.state == "failed" %}<span class="status status-failed">Failed</span><br><small class="muted run-error">{{ row.run.error|default:"The last job failed." }}</small>
+          {% elif row.state == "missing" %}<span class="status status-missing">Not aligned</span><br><small class="muted">Paragraph pairing only; no sentence job has run for this pair</small>
+          {% else %}<span class="muted">—</span>{% endif %}
+        </td>
+        <td class="companion-actions">
+          {% if row.state == "stale" or row.state == "failed" or row.state == "missing" %}<form method="post" action="{% url 'catalog:queue-sentence-alignment' edition.id row.other.id %}">{% csrf_token %}{% if row.model %}<input type="hidden" name="model" value="{{ row.model }}">{% endif %}<button class="button" type="submit">{% if row.state == "missing" %}Align sentences offline{% else %}Refresh offline{% endif %}</button></form><small class="muted">No API cost{% if row.state == "stale" %} · {{ row.changed }} block{{ row.changed|pluralize }} to embed{% endif %}</small>
+          {% elif row.state == "running" %}<small class="muted">Wait for the job to finish.</small>
+          {% elif row.state == "current" %}<small class="muted">Nothing to do.</small>
+          {% else %}<small class="muted">Regenerate this companion from the canonical edition.</small>{% endif %}
+          {% if has_blocks %}<div class="companion-links"><a href="{% url 'catalog:edition-reader' edition.id %}?parallel={{ row.other.id }}">Read side by side</a>{% if row.complete %} · <a href="{% url 'catalog:sentence-preview' edition.id row.other.id %}">Sentence preview</a>{% endif %}</div>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  {% elif parallel_editions %}
   <div class="tree-siblings">
     <h3>Others in the parallel tree</h3>
     <ul>{% for sibling in parallel_editions %}<li><a href="{% url 'catalog:edition-detail' sibling.id %}">{{ sibling.language|upper }}</a> · {{ sibling.get_parallel_role_display }} · <span class="status status-{{ sibling.status }}">{{ sibling.get_status_display }}</span>{% if has_blocks and edition.supports_parallel_reading %} · <a href="{% url 'catalog:edition-reader' edition.id %}?parallel={{ sibling.id }}">read side by side</a>{% endif %}</li>{% endfor %}</ul>

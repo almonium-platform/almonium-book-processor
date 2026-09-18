@@ -109,6 +109,17 @@ Implemented 2026-09-18 in the processor; see
 - [x] Monotonic 1:1, 1:2, and 2:1 block alignment with a length prior.
 - [x] Alignment coverage and low-confidence warnings.
 - [x] Prevent publication when current sentence splitting or alignment is absent.
+- [x] Offline sentence alignment survives corrections (2026-09-18). A text
+  revision retires every artifact of the edition, which silently dropped the
+  reader to paragraph pairing for each parallel companion until someone
+  re-queued the job by hand. The post-revision refresh now re-queues the
+  offline job for every companion pair that had one, in the orientation and
+  with the model of its last run; unchanged blocks come back from cache, so
+  the B2 refresh embedded 42 of 815 blocks. The edition page shows a
+  "Parallel companions" table per pair: inherited groups, sentence alignment
+  state (current / stale / running / failed / not aligned) with counts, and
+  a one-click offline refresh. Promotion ships only current artifacts, so
+  check that table before bundling an edited edition.
 - [x] Run and record a real calibration on Frankenstein EN-FR. **Result (2026-08-23
   run, recorded 2026-08-30):** 815/815 source blocks and 807/813 target blocks
   aligned, 766 groups (676 1:1, 90 two-block), mean confidence 0.825, 51 pairs

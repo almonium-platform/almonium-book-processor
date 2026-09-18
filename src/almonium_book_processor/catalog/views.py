@@ -609,11 +609,22 @@ def _render_edition_detail(
         else Edition.objects.none()
     )
     open_review_items = review_items(edition)
+    from almonium_book_processor.catalog.parallel_status import companion_rows
+
+    parallel_companions = companion_rows(edition) if edition.blocks.exists() else []
     return render(
         request,
         "catalog/edition_detail.html",
         {
             "edition": edition,
+            "parallel_companions": parallel_companions,
+            "parallel_companions_due": sum(
+                row["state"] in ("stale", "failed", "missing", "incomplete")
+                for row in parallel_companions
+            ),
+            "parallel_companions_running": sum(
+                row["state"] == "running" for row in parallel_companions
+            ),
             "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
             **assessment,
             "adaptation_level": ADAPTATION_TARGET_LEVEL,
