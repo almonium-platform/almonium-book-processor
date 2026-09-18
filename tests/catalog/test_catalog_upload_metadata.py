@@ -13,6 +13,7 @@ from ebooklib import epub
 from almonium_book_processor.catalog.forms import EditionUploadForm
 from almonium_book_processor.catalog.metadata import (
     PROVISIONAL_SLUG_PREFIX,
+    confirm_metadata,
     detect_metadata,
     form_provenance,
 )
@@ -582,6 +583,53 @@ def test_rerun_asks_the_model_again_after_a_failed_call_but_keeps_the_language(
     assert work.metadata_detected_at is not None
     assert edition.slug == "alte-sachen-de-original"
     assert work.slug == "alte-sachen"
+
+
+def test_confirming_blank_fields_leaves_them_open_to_the_model(settings, monkeypatch) -> None:
+    """Confirming with an empty blurb and year is not pinning them: a rerun still fills them."""
+
+    edition = _legacy_edition()
+    confirm_metadata(
+        edition,
+        title="Alte Sachen",
+        work_title="Alte Sachen",
+        author="A. Author",
+        description="",
+        language="de",
+        original_language="de",
+        publication_year=None,
+        clear_publication_year=True,
+    )
+    edition.work.refresh_from_db()
+    assert "description" not in edition.work.metadata_provenance
+    assert "publication_year" not in edition.work.metadata_provenance
+
+    # A book confirmed before this rule recorded the blanks as the editor's.
+    edition.work.metadata_provenance.update({"description": "user", "publication_year": "user"})
+    edition.work.save(update_fields=["metadata_provenance"])
+    calls = fake_openai(
+        monkeypatch,
+        settings,
+        proposal={
+            "title": "Something Else",
+            "author": "Someone Else",
+            "language": "de",
+            "description": "Ein junger Reisender kehrt nach langer Zeit in sein Heimatdorf zurück.",
+            "publication_year": 1898,
+            "note": "",
+        },
+    )
+    run = detect_metadata(str(edition.id), rerun=True)
+
+    assert calls["count"] == 1
+    assert run.summary["open_fields"] == ["description", "publication_year"]
+    edition.refresh_from_db()
+    work = edition.work
+    assert (edition.title, edition.author) == ("Alte Sachen", "A. Author")
+    assert work.description.startswith("Ein junger Reisender")
+    assert work.publication_year == 1898
+    assert work.metadata_provenance["description"] == "ai"
+    assert work.metadata_provenance["publication_year"] == "ai"
 
 
 def test_rerun_reuses_a_finished_model_call_instead_of_paying_again(settings, monkeypatch) -> None:

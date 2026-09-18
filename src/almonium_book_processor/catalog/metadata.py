@@ -206,10 +206,15 @@ def detect_metadata(edition_id: str, *, rerun: bool = False) -> PipelineRun:
     proposal = None
     ai_run = None
     locked_fields = {"language"} if rerun and edition.language else set()
+    # A pinned field is one the editor filled; a blank one is open whatever
+    # its provenance says, or the model could never fill what the review form
+    # once submitted empty.
+    values = _current_values(edition)
     open_fields = [
         name
         for name in METADATA_FIELDS
-        if provenance.get(name) != PROVENANCE_USER and name not in locked_fields
+        if (provenance.get(name) != PROVENANCE_USER or values[name] in (None, ""))
+        and name not in locked_fields
     ]
     if ai_enabled and open_fields:
         # A failed or unavailable model call must not fail the import: the
@@ -302,8 +307,12 @@ def confirm_metadata(
             work.author = edition.author
         provenance["author"] = PROVENANCE_USER
     if description is not None and owns_work:
+        # A blurb left blank is not a decision: the model may still write one.
         work.description = description.strip()
-        provenance["description"] = PROVENANCE_USER
+        if work.description:
+            provenance["description"] = PROVENANCE_USER
+        else:
+            provenance.pop("description", None)
     elif description is not None:
         edition.description = description.strip()
     if language and language != edition.language:
@@ -315,9 +324,12 @@ def confirm_metadata(
     if original_language:
         work.original_language = original_language
         provenance["language"] = PROVENANCE_USER
-    if publication_year is not None or clear_publication_year:
+    if publication_year is not None:
         work.publication_year = publication_year
         provenance["publication_year"] = PROVENANCE_USER
+    elif clear_publication_year:
+        work.publication_year = None
+        provenance.pop("publication_year", None)
     if work_slug:
         work.slug = work_slug
         provenance["work_slug"] = PROVENANCE_USER
@@ -405,15 +417,20 @@ def _finalize_slugs(edition: Edition, provenance: dict[str, str]) -> None:
         )
 
 
-def _owner_supplied(edition: Edition) -> dict[str, object]:
+def _current_values(edition: Edition) -> dict[str, object]:
     work = edition.work
-    values = {
+    return {
         "title": edition.title,
         "author": edition.author,
         "description": work.description,
         "language": edition.language,
         "publication_year": work.publication_year,
     }
+
+
+def _owner_supplied(edition: Edition) -> dict[str, object]:
+    work = edition.work
+    values = _current_values(edition)
     return {
         name: values[name]
         for name in METADATA_FIELDS

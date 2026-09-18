@@ -331,12 +331,12 @@ def test_owner_confirmation_updates_fields_and_requeues_nlp_on_language_change(
     assert edition.status == Edition.Status.PROCESSING
     assert edition.work.description == "The owner's own blurb."
     assert edition.work.publication_year is None
+    # A cleared year is left open, not pinned as the owner's answer.
     assert edition.work.metadata_provenance == {
         "title": "user",
         "author": "user",
         "description": "user",
         "language": "user",
-        "publication_year": "user",
     }
     assert queued == [str(edition.id)]
     assert response.data["metadata"]["provenance"]["language"] == "user"
