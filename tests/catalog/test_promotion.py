@@ -321,7 +321,8 @@ def test_the_same_content_bundles_to_the_same_hash():
 # Import.
 
 
-def test_a_bundle_lands_with_the_same_ids_and_lands_again_as_a_no_op():
+@pytest.mark.parametrize("level", Edition.CEFRLevel.values)
+def test_a_bundle_lands_with_the_same_ids_and_lands_again_as_a_no_op(level):
     reviewer = make_user()
     original = build_edition(slug="book-en", reviewer=reviewer, status=Edition.Status.PUBLISHED)
     translation = build_edition(
@@ -332,6 +333,8 @@ def test_a_bundle_lands_with_the_same_ids_and_lands_again_as_a_no_op():
         reviewer=reviewer,
         with_file=False,
     )
+    translation.cefr_level = level
+    translation.save(update_fields=["cefr_level"])
     original_id, translation_id = original.id, translation.id
     expected = {
         slug: counts(edition.id)
@@ -358,6 +361,7 @@ def test_a_bundle_lands_with_the_same_ids_and_lands_again_as_a_no_op():
     assert landed.source_file.read() == b"epub bytes"
     landed_uk = Edition.objects.get(id=translation_id)
     assert landed_uk.source_edition_id == original_id
+    assert landed_uk.cefr_level == level
     assert not landed_uk.source_file
     for slug, edition_id in (("book-en", original_id), ("book-uk", translation_id)):
         got = counts(edition_id)

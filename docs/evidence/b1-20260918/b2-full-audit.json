@@ -1,0 +1,745 @@
+{
+  "run": "f06a3841-185e-4a9a-b5ed-1b070c7ec16e",
+  "status": "succeeded",
+  "spec": {
+    "tier": "quality",
+    "model": "gpt-5.6-terra",
+    "provider": "openai",
+    "prompt_name": "literary-fidelity-editor",
+    "window_bytes": 160000,
+    "prompt_version": 1,
+    "reasoning_effort": "high",
+    "max_output_tokens": 10000,
+    "pricing_per_million": {
+      "input": "2.00",
+      "output": "12.00",
+      "cached_input": "0.20"
+    }
+  },
+  "chapters": 30,
+  "completed_windows": 30,
+  "review": {
+    "model": "gpt-5.6-terra",
+    "blocks": 815,
+    "counts": {
+      "minor": 36,
+      "material": 7,
+      "uncertain": 2
+    },
+    "issues": [
+      {
+        "block_id": "c2.p4",
+        "severity": "uncertain",
+        "explanation": "The source's historical use of “prejudicing” most naturally means acting against, damaging, or pre-judging a doctrine, whereas the adaptation makes it specifically mean supporting one. Both deny a philosophical commitment, but the direction of the implied stance changes; the older wording warrants contextual review.",
+        "source_quote": "as prejudicing any philosophical doctrine of whatever kind",
+        "adapted_quote": "that favours any philosophical doctrine of whatever kind",
+        "quote_verified": true,
+        "suggested_correction": "Nor should any conclusion be drawn from these pages that takes a position for or against any philosophical doctrine."
+      },
+      {
+        "block_id": "c3.p5",
+        "severity": "material",
+        "explanation": "The source presents the discoveries as the benefit Walton says he will confer on humanity, whereas the adaptation makes both discoveries merely possible. This weakens his asserted confidence and leaves the stated “inestimable benefit” without its original basis.",
+        "source_quote": "\"the inestimable benefit which I shall confer ... by discovering a passage ... or by ascertaining the secret of the magnet\"",
+        "adapted_quote": "\"I may discover a passage ...; or I may discover the secret of the magnet\"",
+        "quote_verified": false,
+        "suggested_correction": "\"you cannot deny the inestimable benefit I shall confer on all mankind by discovering a passage near the pole ... or by finding the secret of the magnet\""
+      },
+      {
+        "block_id": "c3.p5",
+        "severity": "minor",
+        "explanation": "The source says the voyage will reconcile the apparent irregularities in astronomical observations. The adaptation shifts those irregularities to the stars' movements themselves, changing the object of Walton's proposed work.",
+        "source_quote": "\"may regulate a thousand celestial observations, that require only this voyage to render their seeming eccentricities consistent\"",
+        "adapted_quote": "\"may settle a thousand observations of the stars, which require only this voyage to make their apparently strange movements consistent\"",
+        "quote_verified": true,
+        "suggested_correction": "\"may settle a thousand observations of the stars, which require only this voyage to make their apparent irregularities consistent\""
+      },
+      {
+        "block_id": "c5.p4",
+        "severity": "minor",
+        "explanation": "“Gales” specifically denotes very strong winds. “Winds” retains the direction and favourable movement but weakens the weather’s force.",
+        "source_quote": "“the southern gales”",
+        "adapted_quote": "“the southern winds”",
+        "quote_verified": true,
+        "suggested_correction": "“the strong southern winds blow us quickly”"
+      },
+      {
+        "block_id": "c6.p6",
+        "severity": "minor",
+        "explanation": "The adaptation retains the anxiety but omits the narrator's growing watchfulness or alertness in response to the danger.",
+        "source_quote": "\"my own mind began to grow watchful with anxious thoughts\"",
+        "adapted_quote": "\"my own mind began to fill with anxious thoughts\"",
+        "quote_verified": true,
+        "suggested_correction": "\"my own mind began to grow watchful with anxious thoughts\""
+      },
+      {
+        "block_id": "c6.p8",
+        "severity": "minor",
+        "explanation": "\"Ground sea\" means a swell or surge from the open sea, not merely the ordinary sound of water under the ice. The change loses the specific phenomenon that helps explain the ice breaking up.",
+        "source_quote": "\"we heard the ground sea\"",
+        "adapted_quote": "\"we heard the sound of the sea beneath the ice\"",
+        "quote_verified": true,
+        "suggested_correction": "\"we heard the swell of the sea beneath the ice\""
+      },
+      {
+        "block_id": "c6.p29",
+        "severity": "material",
+        "explanation": "\"Eventual\" presents Walton as anticipating success in the end; \"possible\" makes success only a possibility. This weakens his confidence and changes the modality of his ambition.",
+        "source_quote": "\"arguments in favour of my eventual success\"",
+        "adapted_quote": "\"arguments in favour of my possible success\"",
+        "quote_verified": true,
+        "suggested_correction": "\"arguments that I would eventually succeed\""
+      },
+      {
+        "block_id": "c7.p7",
+        "severity": "minor",
+        "explanation": "The adaptation changes an observed display or aspect of his attachment into an unqualified statement that he felt gratitude and worship. The source's phrasing retains a small distinction between what his attachment showed and his inner state.",
+        "source_quote": "“There was a show of gratitude and worship in his attachment to my mother”",
+        "adapted_quote": "“There was gratitude and worship in his attachment to my mother”",
+        "quote_verified": true,
+        "suggested_correction": "“His attachment to my mother showed gratitude and worship, wholly different from the doting fondness of age.”"
+      },
+      {
+        "block_id": "c7.p8",
+        "severity": "material",
+        "explanation": "The source says that the child's happiness or misery would result from how well the parents fulfilled their duties. The adaptation instead makes it sound as though directing the child toward either happiness or misery was itself equally their duty, reversing the moral and causal sense.",
+        "source_quote": "“whose future lot it was in their hands to direct to happiness or misery, according as they fulfilled their duties towards me”",
+        "adapted_quote": "“It was their duty to bring me up to goodness, and their duty to direct my future fate towards happiness or misery.”",
+        "quote_verified": true,
+        "suggested_correction": "“They had a duty to raise me to be good, and my future happiness or misery depended on how well they fulfilled that duty.”"
+      },
+      {
+        "block_id": "c11.p21",
+        "severity": "minor",
+        "explanation": "The replacement verb makes the construction unidiomatic: one can bestow existence on someone, but ordinarily gives existence to someone. The intended meaning remains inferable, but the phrasing momentarily impedes smooth understanding.",
+        "source_quote": "\"on whom I had bestowed existence\"",
+        "adapted_quote": "\"on whom I had given existence\"",
+        "quote_verified": true,
+        "suggested_correction": "\"The form of the monster to whom I had given life was always before my eyes.\""
+      },
+      {
+        "block_id": "c12.p15",
+        "severity": "minor",
+        "explanation": "\"Free\" implies removing the anxiety altogether, whereas \"relieve\" means easing it. Victor promises a more absolute result in the adaptation.",
+        "source_quote": "\"relieve them from the anxiety\"",
+        "adapted_quote": "\"free them from the anxiety\"",
+        "quote_verified": true,
+        "suggested_correction": "\"I will write instantly, and relieve them from the anxiety they must feel.\""
+      },
+      {
+        "block_id": "c12.p22",
+        "severity": "minor",
+        "explanation": "The repeated \"loved\" creates a grammatical ambiguity: the first use lacks an object, while the second is meant to be passive. The source conveys both Victor's loving nature and that he was loved by everyone.",
+        "source_quote": "\"loved and beloved by all\"",
+        "adapted_quote": "\"loved and loved by all\"",
+        "quote_verified": true,
+        "suggested_correction": "\"I became again the same happy creature who, a few years before, loved and was loved by all, had known no sorrow or care.\""
+      },
+      {
+        "block_id": "c13.p21",
+        "severity": "uncertain",
+        "explanation": "The source is deliberately elliptical about what is meant by “more.” The adaptation supplies “worse,” making the line explicitly condemn the murderer as morally worse. That may be a plausible reading, but it fixes an attitude that the source leaves unstated.",
+        "source_quote": "\"How much more a murderer, that could destroy such radiant innocence!\"",
+        "adapted_quote": "\"How much worse is a murderer who could destroy such radiant innocence!\"",
+        "quote_verified": true,
+        "suggested_correction": "\"How much more so for a murderer who could destroy such radiant innocence!\""
+      },
+      {
+        "block_id": "c14.p30",
+        "severity": "material",
+        "explanation": "The source says Justine achieves resignation: an inward, religious acceptance of her impending fate. “Acceptance” can instead mean that other people accept or validate her, especially after Elizabeth and Victor acknowledge her innocence. This changes the point of the sentence and weakens her deliberate submission to death.",
+        "source_quote": "\"She indeed gained the resignation she desired.\"",
+        "adapted_quote": "\"She did indeed gain the acceptance she desired.\"",
+        "quote_verified": true,
+        "suggested_correction": "\"She did indeed gain the calm acceptance of her fate that she desired.\""
+      },
+      {
+        "block_id": "c15.p8",
+        "severity": "minor",
+        "explanation": "“Sacrilege” presents pleasure as a grave, almost sacred violation of the dead, whereas “an offence” is broader and less intense. The adaptation slightly weakens Elizabeth’s sense that mourning forbids pleasure.",
+        "source_quote": "“all pleasure seemed to her sacrilege toward the dead”",
+        "adapted_quote": "“All pleasure seemed to her an offence against the dead”",
+        "quote_verified": true,
+        "suggested_correction": "“All pleasure seemed to her a sacrilege against the dead.”"
+      },
+      {
+        "block_id": "c17.p13",
+        "severity": "minor",
+        "explanation": "“Kennel” carries a deliberately degrading, animal-like image for the creature's makeshift dwelling. “Shelter” gives the practical meaning but removes that image and softens the narrative voice.",
+        "source_quote": "\"I crept from my kennel\"",
+        "adapted_quote": "\"I crept from my shelter\"",
+        "quote_verified": true,
+        "suggested_correction": "\"I crept from my small, kennel-like shelter\""
+      },
+      {
+        "block_id": "c19.p15",
+        "severity": "minor",
+        "explanation": "\"Declamatory\" refers to a rhetorical, speech-like style, not specifically a dramatic or theatrical one. The reason Felix gives for selecting the book is therefore slightly changed.",
+        "source_quote": "\"the declamatory style was framed in imitation of the eastern authors\"",
+        "adapted_quote": "\"its dramatic style was made in imitation of eastern authors\"",
+        "quote_verified": true,
+        "suggested_correction": "\"its rhetorical style was modeled on eastern authors\""
+      },
+      {
+        "block_id": "c19.p15",
+        "severity": "minor",
+        "explanation": "The source explicitly limits the narrator's historical learning as cursory or superficial. \"General knowledge\" can instead suggest a broad, established understanding without that limitation.",
+        "source_quote": "\"a cursory knowledge of history\"",
+        "adapted_quote": "\"a general knowledge of history\"",
+        "quote_verified": true,
+        "suggested_correction": "\"a general, cursory knowledge of history\""
+      },
+      {
+        "block_id": "c19.p18",
+        "severity": "minor",
+        "explanation": "\"Vagabond\" is a socially contemptuous label for an outcast, whereas \"wanderer\" is comparatively neutral. The adaptation softens the source's harsh account of how such a person is regarded.",
+        "source_quote": "\"as a vagabond and a slave\"",
+        "adapted_quote": "\"a wanderer and a slave\"",
+        "quote_verified": true,
+        "suggested_correction": "\"a vagrant and a slave\""
+      },
+      {
+        "block_id": "c20.p10",
+        "severity": "minor",
+        "explanation": "The unit of distance is reduced from leagues to miles. Although both are indefinite, “many leagues” indicates a substantially greater distance than “many miles.”",
+        "source_quote": "\"before morning was distant many leagues from Paris\"",
+        "adapted_quote": "\"before morning was many miles from Paris\"",
+        "quote_verified": true,
+        "suggested_correction": "\"before morning was many leagues from Paris\""
+      },
+      {
+        "block_id": "c20.p14",
+        "severity": "minor",
+        "explanation": "“Vengeance” presents the law as vindictive, preserving the source's hostile attitude toward the prosecution. “Punishment” is more neutral and softens that characterization.",
+        "source_quote": "\"delivered himself up to the vengeance of the law\"",
+        "adapted_quote": "\"surrendered himself to the punishment of the law\"",
+        "quote_verified": true,
+        "suggested_correction": "\"he hurried to Paris and gave himself up to the law's vengeance\""
+      },
+      {
+        "block_id": "c20.p21",
+        "severity": "material",
+        "explanation": "This changes a stated geographical fact: twenty leagues is roughly three times twenty miles. It significantly shortens Safie’s remaining journey.",
+        "source_quote": "\"about twenty leagues from the cottage of De Lacey\"",
+        "adapted_quote": "\"about twenty miles from De Lacey's cottage\"",
+        "quote_verified": true,
+        "suggested_correction": "\"at a town about twenty leagues from De Lacey's cottage\""
+      },
+      {
+        "block_id": "c21.p25",
+        "severity": "minor",
+        "explanation": "The adapted sentence is missing the action after “going to,” creating a grammatical break that briefly obscures the speaker's intended approach to these people.",
+        "source_quote": "\"These amiable people to whom I go have never seen me\"",
+        "adapted_quote": "\"These amiable people whom I am going to have never seen me\"",
+        "quote_verified": true,
+        "suggested_correction": "\"These kind people whom I am going to see have never seen me and know little of me.\""
+      },
+      {
+        "block_id": "c22.p2",
+        "severity": "minor",
+        "explanation": "“Wantonly” conveys that the gift of life was reckless, arbitrary, or without justification; “cruelly” more directly attributes a purpose or disposition of cruelty to the creator.",
+        "source_quote": "“so wantonly bestowed”",
+        "adapted_quote": "“so cruelly bestowed”",
+        "quote_verified": true,
+        "suggested_correction": "Use “so heedlessly bestowed” or “so carelessly bestowed.”"
+      },
+      {
+        "block_id": "c22.p2",
+        "severity": "minor",
+        "explanation": "“Glutted myself” conveys an excessive, voracious indulgence in suffering. “Satisfied myself” retains pleasure in it but weakens that extreme, ravenous intensity.",
+        "source_quote": "“have glutted myself with their shrieks and misery”",
+        "adapted_quote": "“have satisfied myself with their shrieks and misery”",
+        "quote_verified": true,
+        "suggested_correction": "Use “have greedily enjoyed their shrieks and misery.”"
+      },
+      {
+        "block_id": "c23.p10",
+        "severity": "minor",
+        "explanation": "“Wantonness” conveys a wilful, arbitrary, or gratuitous exercise of power and cruelty. “Careless” instead suggests thoughtlessness or negligence, softening and changing the creature's accusation.",
+        "source_quote": "\"only in the wantonness of power and cruelty\"",
+        "adapted_quote": "\"only through the cruel and careless use of power\"",
+        "quote_verified": true,
+        "suggested_correction": "\"only through a cruel and wanton use of power\""
+      },
+      {
+        "block_id": "c23.p18",
+        "severity": "material",
+        "explanation": "The older construction “fear not but that” means “do not doubt that”: the creature assures Victor that he will appear when the work is ready. In modern wording, “do not fear that ... I shall appear” normally means Victor need not worry because the creature will not appear, reversing the assurance.",
+        "source_quote": "\"fear not but that when you are ready I shall appear\"",
+        "adapted_quote": "\"do not fear that, when you are ready, I shall appear\"",
+        "quote_verified": true,
+        "suggested_correction": "\"and do not doubt that I shall appear when you are ready.\""
+      },
+      {
+        "block_id": "c24.p2",
+        "severity": "minor",
+        "explanation": "The adaptation removes the sense that Victor's view of the task's urgency is only beginning to weaken over time.",
+        "source_quote": "necessity began to appear less absolute",
+        "adapted_quote": "necessity seemed less absolute",
+        "quote_verified": true,
+        "suggested_correction": "whose immediate necessity was beginning to seem less absolute to me"
+      },
+      {
+        "block_id": "c24.p6",
+        "severity": "minor",
+        "explanation": "“Earliest infancy” places Victor and Elizabeth's attachment at an earlier stage of life than “earliest childhood.”",
+        "source_quote": "from your earliest infancy",
+        "adapted_quote": "from your earliest childhood",
+        "quote_verified": true,
+        "suggested_correction": "since your earliest infancy"
+      },
+      {
+        "block_id": "c24.p8",
+        "severity": "minor",
+        "explanation": "The father asks Victor to construe his proposal fairly, rather than as an attempt to dictate his happiness. Asking him to receive the words kindly shifts this toward a request for a favorable response.",
+        "source_quote": "Interpret my words with candour",
+        "adapted_quote": "Take my words kindly",
+        "quote_verified": true,
+        "suggested_correction": "Understand my words fairly"
+      },
+      {
+        "block_id": "c24.p12",
+        "severity": "minor",
+        "explanation": "“Intrusion” emphasizes the foe's unwelcome, imposed presence; “arrival” is more neutral and weakens the sense that Henry might protect Victor from such an unwanted confrontation or surveillance.",
+        "source_quote": "the intrusion of my foe",
+        "adapted_quote": "the arrival of my foe",
+        "quote_verified": true,
+        "suggested_correction": "between me and the unwanted intrusion of my foe"
+      },
+      {
+        "block_id": "c24.p17",
+        "severity": "minor",
+        "explanation": "To be desponding is to be downcast or discouraged, but it does not necessarily mean wholly without hope. The adaptation heightens Clerval's diagnosis of Victor's state.",
+        "source_quote": "wherefore are you desponding and sorrowful",
+        "adapted_quote": "why are you so hopeless and sorrowful",
+        "quote_verified": true,
+        "suggested_correction": "why are you so downcast and sorrowful"
+      },
+      {
+        "block_id": "c25.p8",
+        "severity": "minor",
+        "explanation": "The adaptation reverses the source's conditional: the source says that, even without such imagined gratification, Oxford's appearance alone would still merit admiration. The adaptation instead assumes that the feelings did receive an imaginary satisfaction, though only that kind.",
+        "source_quote": "\"If these feelings had not found an imaginary gratification\"",
+        "adapted_quote": "\"Even if these feelings had found only an imaginary satisfaction\"",
+        "quote_verified": true,
+        "suggested_correction": "\"Even if these feelings had found no imagined satisfaction, the appearance of the city itself was beautiful enough to win our admiration.\""
+      },
+      {
+        "block_id": "c25.p14",
+        "severity": "material",
+        "explanation": "\"Hasten my delay\" is contradictory and obscures the feared causal link. The source conveys Victor's fear that the fiend might act against Henry in connection with Victor's failure or delay in keeping his promise.",
+        "source_quote": "\"might expedite my remissness by murdering my companion\"",
+        "adapted_quote": "\"might hasten my delay by murdering my companion\"",
+        "quote_verified": true,
+        "suggested_correction": "\"might respond to my delay by murdering my companion.\""
+      },
+      {
+        "block_id": "c26.p3",
+        "severity": "minor",
+        "explanation": "“Pest” here presents Victor as a scourge or plague upon future generations. “Destroyer” more directly suggests that he has destroyed them, which is a stronger and somewhat different claim, especially since those generations are imagined as surviving to curse him.",
+        "source_quote": "might curse me as their pest",
+        "adapted_quote": "might curse me as their destroyer",
+        "quote_verified": true,
+        "suggested_correction": "might curse me as their scourge"
+      },
+      {
+        "block_id": "c27.p3",
+        "severity": "minor",
+        "explanation": "The source describes one black finger-mark, whereas the adaptation changes this to multiple marks. This alters a small physical detail of the evidence.",
+        "source_quote": "\"the black mark of fingers on his neck\"",
+        "adapted_quote": "\"the black marks of fingers on his neck\"",
+        "quote_verified": true,
+        "suggested_correction": "\"the black mark of fingers on his neck\""
+      },
+      {
+        "block_id": "c27.p13",
+        "severity": "minor",
+        "explanation": "\"Snatches away\" gives Death a more sudden, violent, personified action. \"Takes away\" retains the basic meaning but noticeably softens the image and emotional force.",
+        "source_quote": "\"Death snatches away many blooming children\"",
+        "adapted_quote": "\"Death takes away many blooming children\"",
+        "quote_verified": true,
+        "suggested_correction": "\"Death snatches away many blooming children\""
+      },
+      {
+        "block_id": "c27.p14",
+        "severity": "minor",
+        "explanation": "\"Doomed\" presents continued life as a cursed and unwanted fate; \"destined\" is comparatively neutral and weakens the narrator's despairing attitude.",
+        "source_quote": "\"But I was doomed to live\"",
+        "adapted_quote": "\"But I was destined to live\"",
+        "quote_verified": true,
+        "suggested_correction": "\"But I was fated to live.\""
+      },
+      {
+        "block_id": "c27.p48",
+        "severity": "minor",
+        "explanation": "The source expresses an active intention to watch for or ambush the murderer. The adaptation can imply merely waiting passively, reducing the deliberate pursuit in Victor's plan.",
+        "source_quote": "\"to lie in wait for the murderer\"",
+        "adapted_quote": "\"to wait for the murderer\"",
+        "quote_verified": true,
+        "suggested_correction": "\"to watch for the murderer from hiding\""
+      },
+      {
+        "block_id": "c28.p2",
+        "severity": "minor",
+        "explanation": "The adaptation retains the sense of divine construction but removes the source's distinctive mechanical imagery in \"mechanism.\"",
+        "source_quote": "\"angelic nature and celestial mechanism\"",
+        "adapted_quote": "\"angelic nature and heavenly design\"",
+        "quote_verified": true,
+        "suggested_correction": "\"angelic nature and a heavenly design\""
+      },
+      {
+        "block_id": "c28.p6",
+        "severity": "minor",
+        "explanation": "\"Infatuation\" expresses a misguided or irrational fixation; \"madness\" more directly declares Victor insane. This intensifies and narrows the father's immediate judgment, even though he later regards Victor's ideas as disordered.",
+        "source_quote": "\"what infatuation is this?\"",
+        "adapted_quote": "\"what madness is this?\"",
+        "quote_verified": true,
+        "suggested_correction": "\"My dearest Victor, what foolish obsession is this?\""
+      },
+      {
+        "block_id": "c28.p41",
+        "severity": "minor",
+        "explanation": "A spire is the pointed upper part of a building, whereas a tower is the larger structure. The adaptation changes the specific visual detail of the landscape.",
+        "source_quote": "\"The spire of Evian shone\"",
+        "adapted_quote": "\"The tower of Evian shone\"",
+        "quote_verified": true,
+        "suggested_correction": "\"The spire of Evian shone beneath the surrounding woods\""
+      },
+      {
+        "block_id": "c29.p4",
+        "severity": "minor",
+        "explanation": "“In my chest” can suggest that the pistol is physically inside the narrator’s body, rather than concealed in his clothing at his breast. This creates a distracting and potentially confusing image.",
+        "source_quote": "\"a pistol which was hidden in my bosom\"",
+        "adapted_quote": "\"a pistol hidden in my chest\"",
+        "quote_verified": true,
+        "suggested_correction": "\"a pistol hidden inside my coat at my breast\""
+      },
+      {
+        "block_id": "c29.p18",
+        "severity": "minor",
+        "explanation": "The adaptation removes the source image of chains and darkness actively pressing upon him, reducing the sense of physical and psychological confinement.",
+        "source_quote": "\"chains and darkness were the only objects that pressed upon me\"",
+        "adapted_quote": "\"chains and darkness were the only things around me\"",
+        "quote_verified": true,
+        "suggested_correction": "\"chains and darkness were the only things pressing upon me\""
+      },
+      {
+        "block_id": "c30.p48",
+        "severity": "minor",
+        "explanation": "The source asks whether refusal is even possible; “in fact” changes that practical-modality question into one about actuality or factual grounds.",
+        "source_quote": "“in justice, or even in possibility, refuse this demand?”",
+        "adapted_quote": "“in justice—or even in fact—refuse this demand?”",
+        "quote_verified": true,
+        "suggested_correction": "“Yet could I, in justice—or even possibly—refuse this demand?”"
+      }
+    ],
+    "cost_usd": "1.323934",
+    "ai_run_ids": [
+      "f071a7f9-729c-45bd-a81d-346ac8b38040",
+      "bcd056b8-b513-46bc-9d2f-3e867555832b",
+      "2948fcad-28a6-4f7e-a9e4-d8d4b047a55d",
+      "b0331669-e66f-4e5c-9c1a-8657cf833533",
+      "17c8da40-c8cb-4450-a4f7-231a4a8cf317",
+      "3133e1d9-8eb3-4bc6-b75d-730de79e15d2",
+      "9cc04e2e-c508-4d7b-a48e-5c92281d3d66",
+      "fd9f2dc5-ac2f-4bed-a95a-d53ea71913a9",
+      "6ecc8cf6-443d-4ed8-bc7b-47be8b40845b",
+      "a17c87ea-2e26-4dc2-988e-cbbaf80de9f4",
+      "7d53cbb9-2579-4065-8f36-6d483713078a",
+      "6c249047-d5d9-47cc-8ccf-b2aef901602c",
+      "5a1387d8-b6d4-4654-887b-34883ba0c5d7",
+      "7475480b-0491-42a5-a174-9cd2f0a282f7",
+      "9e564123-ff5a-4df6-8453-5b1c994ce182",
+      "f9e54c29-0acb-43ea-8d1b-3172abd78bf8",
+      "c2303173-daf4-440e-8620-49a28cfd9d6a",
+      "562f4da9-d2e3-4ab7-9c27-1014e7672577",
+      "b6d24580-a6d0-4b69-9fe6-47bf0316014d",
+      "0d964a79-3036-4b7e-a1e0-b03e806fc00d",
+      "660255ef-53cb-4bc5-96f9-433bb81f64f1",
+      "3256a6a8-c760-433c-85b1-3e2961173e9c",
+      "1e7bb135-c873-4971-a0fe-646e398920ee",
+      "4639c46d-c00f-4a6e-a1ea-535d58593bd1",
+      "26804436-69b1-44c2-9e65-aafaa4a97b8a",
+      "dc5fa9ff-d019-4c48-8407-7e05b55061ca",
+      "67c7cb24-1fff-4853-902f-8a8cf2607b61",
+      "6db04bce-36cb-43df-a5f0-38d7cfc4d654",
+      "684c6fd0-6c64-4ebe-b593-1cfb9823083b",
+      "ec8c24b2-362f-402f-a7af-d53460294317"
+    ],
+    "assessment": "No material, minor, or uncertain fidelity issues found across the supplied block pairs. All other block pairs preserve the source's propositions, sequence, tone, and imagery through acceptable modernization. Most adaptations retain the source's propositions, speculative tone, imagery, and narrative voice. The noted changes in c3.p5 affect Walton's claimed benefit and the nature of his astronomical aim. No fidelity issues identified. The adaptation is otherwise faithful across all blocks. It preserves the letter’s events, Walton’s confidence and ambition, his men’s apparent resolve, and the emotional tone of his closing. All block pairs were examined. The remaining adaptations preserve the source's propositions, uncertainty, sequence, tone, and narrative stance closely enough for an accessible paraphrase. Most blocks preserve the source's events, relationships, tone, and imagery in accessible language. The issues above alter a distinction of presentation in one case and a central moral-causal statement in another. No material, minor, or uncertain fidelity issues found across the block pairs. No material, minor, or uncertain fidelity issues identified across the provided block pairs. The adaptation preserves the source's propositions, uncertainty, imagery, causal and temporal relationships, and narrative attitude while using more accessible phrasing. No fidelity issues identified across the supplied block pairs. The adaptation otherwise preserves the chapter’s events, imagery, emotional movement, and uncertainty closely. The adaptation is otherwise faithful across the supplied block pairs; most changes are accessible equivalents that preserve the source's meaning and tone. Nearly all blocks preserve the source's events, uncertainty, imagery, and emotional tone. One elliptical line appears to have been given a more definite interpretation. The adaptation is otherwise faithful across the supplied block pairs; it preserves the events, evidentiary details, uncertainty, emotional force, and narrative voice without material omissions or additions. Apart from this minor weakening of moral-religious intensity, the adapted blocks preserve the source’s propositions, imagery, uncertainty, emotional force, and sequence. No fidelity issues identified. The adaptation is otherwise faithful across the supplied blocks; it preserves the sequence of events, uncertainty, causal links, and the creature's developing perceptions. No material, minor, or uncertain fidelity issues found across the block pairs. Most blocks preserve the source's events, uncertainty, imagery, and emotional force. The noted changes slightly alter descriptive precision or social attitude. Most adaptations preserve the source's events, relationships, uncertainty, and emotional force. The listed changes alter distance or narrative attitude. The adaptation otherwise preserves the chapter's events, uncertainties, imagery, emotional movement, and dialogue closely. The remaining block pairs preserve the source’s events, motives, sequence, and narrative stance without material fidelity problems. Most adaptations preserve the source's events, reasoning, imagery, and emotional movement. The listed passages alter a moral nuance and, in one case, reverse a key assurance. Most blocks preserve the source's events, imagery, and emotional movement closely. The issues are limited to small shifts in temporal nuance, age range, attitude, intrusion, and emotional intensity. Most adaptations preserve the source's events, imagery, emotional state, and narrative voice. The two passages above alter a logical relation or become unclear enough to affect understanding. The adaptation is otherwise faithful in meaning, sequence, tone, and causation across the supplied blocks. The adaptation otherwise closely preserves the chapter's events, uncertainty, causal sequence, and despairing narrative voice. No material meaning changes or understanding-impeding grammatical defects were found. Most adaptations preserve the source's propositions, sequence, tone, and uncertainty. The listed items make small but genuine changes to imagery or characterization. The adaptation otherwise preserves the events, causal connections, uncertainty, emotional force, and narrative stance of the source across the block pairs. The adaptation is otherwise faithful across the supplied blocks; it preserves the narrative events, imagery, uncertainty, and shifts in voice and emotion without any material omissions or additions.",
+    "prompt_version": 1
+  },
+  "cost": "1.323934",
+  "findings": [
+    {
+      "id": "8f7d0dc9-e724-4b29-92d1-c2f67507e31c",
+      "stable_block_id": "c3.p5",
+      "code": "fidelity_material",
+      "status": "open"
+    },
+    {
+      "id": "f719c594-1e5e-457e-944a-d720df5a0a89",
+      "stable_block_id": "c6.p29",
+      "code": "fidelity_material",
+      "status": "open"
+    },
+    {
+      "id": "ee4f58a1-f41f-4195-b8de-140373ff7e19",
+      "stable_block_id": "c7.p8",
+      "code": "fidelity_material",
+      "status": "open"
+    },
+    {
+      "id": "28e4e87d-6433-4b3a-85ac-b240bdea9479",
+      "stable_block_id": "c14.p30",
+      "code": "fidelity_material",
+      "status": "open"
+    },
+    {
+      "id": "51bc2dc7-5a99-4edc-bc34-44c07bb2241a",
+      "stable_block_id": "c20.p21",
+      "code": "fidelity_material",
+      "status": "open"
+    },
+    {
+      "id": "f7e844c4-2ac0-47e9-a951-100627fddef8",
+      "stable_block_id": "c23.p18",
+      "code": "fidelity_material",
+      "status": "open"
+    },
+    {
+      "id": "63c2af0d-6276-4044-9429-ffebfd5104be",
+      "stable_block_id": "c25.p14",
+      "code": "fidelity_material",
+      "status": "open"
+    },
+    {
+      "id": "1a1e9896-00df-4507-9a8f-346cfd5e5c9f",
+      "stable_block_id": "c3.p5",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "35f66dcd-ad10-427d-ac4a-b2d4553e6bef",
+      "stable_block_id": "c5.p4",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "33f70844-e119-453a-bc52-059c3f72549b",
+      "stable_block_id": "c6.p6",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "d028b9c0-060e-4ef7-a81b-cd723a6f440d",
+      "stable_block_id": "c6.p8",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "6d97761b-3e38-44f8-bf99-9f1c1fb647ad",
+      "stable_block_id": "c7.p7",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "1e3226d4-d505-494c-9e9c-9ebceb8363b1",
+      "stable_block_id": "c11.p21",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "eb6d6d82-35e6-443c-a11f-378d9cb6a621",
+      "stable_block_id": "c12.p15",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "31b5f2b7-ca47-4901-8fcf-968e2420472b",
+      "stable_block_id": "c12.p22",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "2560f5bb-49fc-4b62-9464-f85518b8fb9c",
+      "stable_block_id": "c15.p8",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "ba73e89a-0828-40c8-a89e-ee1d655e0984",
+      "stable_block_id": "c17.p13",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "c3afb89f-0d3d-4464-afd1-c6ffdbdfac02",
+      "stable_block_id": "c19.p15",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "4ec9da33-5504-46ee-899d-780c56cfc99f",
+      "stable_block_id": "c19.p15",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "656e1e3e-3872-467e-92af-2164a965c1d0",
+      "stable_block_id": "c19.p18",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "13ffca0a-de35-470a-bbd3-8413ea3b4893",
+      "stable_block_id": "c20.p10",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "010112c4-5300-4965-a68e-f2ef6c6693a1",
+      "stable_block_id": "c20.p14",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "78142246-469a-4456-9496-d53172e45e4f",
+      "stable_block_id": "c21.p25",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "56348601-a892-47ab-98b3-6f5943483eb6",
+      "stable_block_id": "c22.p2",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "0fe23799-36d3-46d6-b93f-29b14b3111ee",
+      "stable_block_id": "c22.p2",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "ae7c19e0-be03-4e5e-ad8f-6d766313a956",
+      "stable_block_id": "c23.p10",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "8d597ee4-6876-4227-b4ef-b139b80c8243",
+      "stable_block_id": "c24.p2",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "1349612a-2885-4efa-b6a5-a3210321e852",
+      "stable_block_id": "c24.p6",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "ef4598f9-0422-485a-89a9-ca779bca9199",
+      "stable_block_id": "c24.p8",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "211a7b6d-2f0b-498c-ac38-1a6f72aa610c",
+      "stable_block_id": "c24.p12",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "33fc73eb-9d42-4f3d-840d-8b8b97ef5e98",
+      "stable_block_id": "c24.p17",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "ca7bdeb0-d629-4047-87df-67f4de1391ad",
+      "stable_block_id": "c25.p8",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "12a4f6c6-9679-4ea0-9b8e-42e4e6b51311",
+      "stable_block_id": "c26.p3",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "b21de835-3294-42a9-9e3c-5cae27a4cf51",
+      "stable_block_id": "c27.p3",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "500ef881-bc92-4eae-acec-f8fdeda4c587",
+      "stable_block_id": "c27.p13",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "3a4b7df9-9b20-42d6-841f-efe08876fafb",
+      "stable_block_id": "c27.p14",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "54e3020c-091e-4293-bae8-e1c1b9fa13ad",
+      "stable_block_id": "c27.p48",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "e36f002f-a5b6-4f09-a33d-77ab422221c2",
+      "stable_block_id": "c28.p2",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "ea1f3a35-9d3c-4ee5-899c-4b19361c4830",
+      "stable_block_id": "c28.p6",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "1eb3ce96-8c65-4b7a-9d4e-735c93236e20",
+      "stable_block_id": "c28.p41",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "44c5551d-6174-48df-9957-165beecc2e4f",
+      "stable_block_id": "c29.p4",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "6e8883ea-6a06-4de5-ab44-14ec1a95171d",
+      "stable_block_id": "c29.p18",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "0cb20b1f-d5aa-4a76-ad23-4087dbed0161",
+      "stable_block_id": "c30.p48",
+      "code": "fidelity_minor",
+      "status": "open"
+    },
+    {
+      "id": "88481fd0-fa2a-45ec-ba5d-a2e57d25afe0",
+      "stable_block_id": "c2.p4",
+      "code": "fidelity_uncertain",
+      "status": "open"
+    },
+    {
+      "id": "857a6c94-6fb9-42da-8a2e-13f2f2087e20",
+      "stable_block_id": "c13.p21",
+      "code": "fidelity_uncertain",
+      "status": "open"
+    }
+  ]
+}
