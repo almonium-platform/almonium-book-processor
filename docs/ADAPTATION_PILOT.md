@@ -504,3 +504,51 @@ back clean or with accepted findings; `adapts_to` follows from that, not from
 anyone's say-so. The B1 pilots in the evidence folder were standalone pilots,
 not probes, so B1 stays "untried" on the ladder and will be probed once B2 is
 reached.
+
+## Final B1 follow-up — 18 September, afternoon
+
+| Strategy | Preface | IV | X | Fidelity against original | Added cost |
+| --- | --- | --- | --- | --- | ---: |
+| v1–v5, original → requested B1 | B2 | B2 | B2 | v5: seven minor findings across three passages | See ledger above |
+| v5, published B2 → requested B1 | B2 | B2 | B2 | One uncertain, five minor, one material | $0.269100 |
+
+The [completed two-stage experiment](evidence/b1-20260918/two-stage-b2-to-b1.json)
+uses pilots `3f0d2971`, `d7f333de`, `2df4b589`; it was **not rerun**.
+The material finding is “more necessary beings” becoming “more necessary slaves”.
+The creature's direct accusation becoming passive is a separate **minor** finding.
+Two-stage generation did not lower difficulty and introduced fidelity problems.
+
+The stored chapter-analysis-v3 distribution rules out an aggregation artefact:
+published B2 has **32/32 B2 windows, 100% of analyzed words**, confidence
+0.94–0.98. Original English has **13/32 C1 windows (47% of words)** and
+19/32 B2 windows. These operational estimates support moving the difficult
+windows down to B2, not a hidden B1 core concealed by a maximum-level summary.
+Reproduce from the latest successful chapter-analysis run for each edition:
+
+```python
+from collections import Counter
+from almonium_book_processor.catalog.models import Edition, AIRun
+for slug in ("shelley-frankenstein-en-orig", "shelley-frankenstein-en-orig-b2"):
+    edition = Edition.objects.get(slug=slug)
+    run = edition.pipeline_runs.filter(
+        stage="chapter_analysis", status="succeeded",
+        summary__spec__prompt_version=3,
+    ).order_by("-created_at").first()
+    counts, words, confidence = Counter(), Counter(), []
+    for ai in AIRun.objects.filter(pipeline_run=run, status="succeeded"):
+        result = ai.response_payload["analysis"]
+        level = result["cefr_estimate"]
+        counts[level] += 1
+        words[level] += sum(len(b["text"].split())
+                            for b in ai.request_payload["window"]["blocks"])
+        confidence.append(result["confidence"])
+    print(slug, run.id, counts, words, min(confidence), max(confidence))
+```
+
+**With fidelity as a constraint, B2 is the observed floor for this book and
+these generation strategies.** B1 would be a disclosed abridged retelling, a
+different product requiring the user's decision. Decision 13 forbids forced
+abridgement: no level is promised in advance. `adapts_to` is evidence-derived;
+the product's reached-level gate also requires the B2 edition's own fidelity
+audit, independently of the B1 pilot verdict. A matched B1 source or materially
+different strategy could reopen research, with new evidence rather than relabelling.
