@@ -349,6 +349,40 @@ sure the schema allows multiple ranges per side from the start.
 
 ---
 
+## 13. The adaptation floor is found per book, never promised
+
+**Decided 2026-09-18.** We do not force a book down to a level by abridging
+it. An adapted edition keeps every proposition, image and degree of certainty
+of the original; the level it lands at is whatever that constraint allows.
+
+Evidence that settled it, on Frankenstein: five B1 prompt versions and a
+Terra high-reasoning run all judged B2 by a judge that passes calibration
+(known B1 → B1, published B2 → B2, original → C1); the published B2 edition
+is B2 in 32 of 32 windows, so there is no hidden B1 core; adapting the B2
+edition to B1 in a second pass still judges B2 and adds a material meaning
+change on top of the minor drift (`docs/evidence/b1-20260918/`). Pushing
+harder trades fidelity for a label, and the label is the thing we must not
+sell. Full record in [ADAPTATION_PILOT.md](ADAPTATION_PILOT.md).
+
+Consequences:
+
+- **`adapts_to` is per-book metadata**, discovered by pilots and recorded
+  with their evidence, and it is the lowest level a faithful adaptation of
+  that book reached its gates at (blind difficulty judge at target, fidelity
+  audit clean or with documented acceptable findings). Frankenstein:
+  `adapts_to = B2`. It is never set by hand and never before the pilot.
+- **The library shows it.** A book's card lists the editions it actually
+  has and the levels they reach. Product copy states the rule, not a level:
+  "adapted down to the lowest level that keeps the author's meaning".
+- **No page promises a level in advance.** Marketing, plan features and
+  onboarding may not name B1 (or any level) as something every book gets.
+  Fixed in the web client on 2026-09-18 (`almonium-fe b07c669`).
+- **Abridged retellings are a different product**, if we ever want them:
+  disclosed as retellings, judged on readability and coverage rather than
+  fidelity, chosen for books whose content suits it. Not on the roadmap.
+
+---
+
 ## 12. The thing worth saying plainly
 
 The pipeline is now more finished than the reader.

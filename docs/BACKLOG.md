@@ -68,6 +68,22 @@ Staging is deployed with a web process and worker. Production routing has not
 yet been activated. The public staging catalogue is empty until editions are
 reviewed and deliberately published.
 
+## Now: the adaptation floor as data (decision 13, 2026-09-18)
+
+- [ ] `adapts_to` on the work: derived from pilot evidence (blind judge at
+      target + fidelity audit), stored with the pilot run ids that justify it,
+      recomputed when a new level passes its gates; never editable by hand.
+- [ ] Publish `adapts_to` and the list of reached levels in the
+      published-edition contract; backend serves it per book; Angular and
+      mobile library cards show "Adapted to B2 · Original C1" style facts.
+- [ ] Fidelity audit of the **published** B2 edition. Every fidelity audit in
+      the ledger so far is on B1 pilots; the shipping B2 text has only the
+      manual chapter-IV review. Run `literary-fidelity-editor-v1` over all 30
+      chapters against the original (≈ $0.09/chapter on Terra, under $3;
+      cheaper on Luna), attach findings as review items, fix material ones.
+- [ ] Remove the last level promises from onboarding and plan copy across
+      web and mobile (web landing/Premium done in `b07c669`; audit mobile).
+
 ## Now: deterministic NLP and alignment
 
 - [x] Local spaCy sentence splitting with stable character offsets.
