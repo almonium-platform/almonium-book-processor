@@ -401,7 +401,7 @@ def ladder(edition: Edition, analysis: dict | None = None) -> list[dict]:
         else:
             state, note = "untried", "Not tried."
         can_probe = open_rung and state in ("untried", "error")
-        if not open_rung:
+        if not open_rung and state in ("untried", "error"):
             note = "Reach the level above first."
         rows.append(
             {
