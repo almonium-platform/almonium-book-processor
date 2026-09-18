@@ -99,7 +99,7 @@ def _identity(spec: dict) -> dict:
 
 def _configuration(spec: dict) -> tuple[ModelConfiguration, PromptTemplate]:
     configuration, _ = ModelConfiguration.objects.get_or_create(
-        name=f"fidelity-audit-{_hash(spec)[:32]}",
+        name=f"fidelity-audit-{_hash(_identity(spec))[:32]}",
         defaults={
             "provider": spec["provider"],
             "model": spec["model"],

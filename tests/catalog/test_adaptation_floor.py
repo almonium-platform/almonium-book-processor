@@ -409,6 +409,24 @@ def test_fidelity_suggestions_are_applied_in_bulk_as_audited_revisions(adaptatio
     assert not adaptation.text_quality_findings.filter(status="open").exists()
 
 
+def test_a_price_or_budget_change_does_not_repay_audited_windows(adaptation, monkeypatch):
+    auditor = Auditor()
+    run = queue_edition_audit(adaptation.id)
+    run_edition_audit(run.id, provider=auditor)
+    assert auditor.calls == 4
+    monkeypatch.setattr("almonium_book_processor.catalog.fidelity_audit.MAX_OUTPUT_TOKENS", 99_000)
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.fidelity_audit.TRANSLATION_MODEL_PRICING",
+        {"quality": {"input": "9", "cached_input": "9", "output": "9"}, "draft": {}},
+    )
+    again = queue_edition_audit(adaptation.id)
+    assert again.id == run.id  # same identity, same run
+    run.status = "queued"
+    run.save()
+    run_edition_audit(run.id, provider=auditor)
+    assert auditor.calls == 4
+
+
 def test_edition_audit_needs_block_for_block_lineage(source):
     standalone = Edition.objects.create(
         work=source.work,
