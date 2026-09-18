@@ -1,5 +1,7 @@
 {% extends "catalog/base.html" %}
+{% load catalog_extras %}
 {% block content %}
+<div {% live_work primary %}>
 <h1>Sentence alignment preview</h1>
 <p>{{ primary.title }} ({{ primary.language|upper }} · {{ primary.cefr_level|default:"Level pending" }} · {{ primary.get_edition_type_display }}) ↔ {{ secondary.title }} ({{ secondary.language|upper }} · {{ secondary.cefr_level|default:"Level pending" }} · {{ secondary.get_edition_type_display }})</p>
 <p><a href="{% url 'catalog:edition-detail' primary.id %}">Back to edition review</a> · <a href="{% url 'catalog:edition-reader' primary.id %}?chapter={{ chapter }}&parallel={{ secondary.id }}">Open editable paragraph comparison</a></p>
@@ -14,7 +16,7 @@
     <button class="button" type="submit">Align all chapters offline (no API cost)</button>
   </form>
 </div>
-{% if alignment_run %}<p>Latest offline job: {{ alignment_run.get_status_display }} · {{ alignment_run.summary.model }} · {{ alignment_run.processor_version }} · {{ alignment_run.progress }}%. Refresh this page for progress.</p>{% if alignment_run.error %}<p class="message warning">{{ alignment_run.error }}</p>{% endif %}{% if alignment_run.summary.completed_blocks %}<p>{{ alignment_run.summary.completed_blocks }} blocks processed · {{ alignment_run.summary.highlighted_groups }} highlightable groups · {{ alignment_run.summary.paragraph_fallback_blocks }} blocks kept entirely paragraph-aligned.</p>{% endif %}{% endif %}
+{% if alignment_run %}<p>Latest offline job: {{ alignment_run.get_status_display }} · {{ alignment_run.summary.model }} · {{ alignment_run.processor_version }} · {{ alignment_run.progress }}%.</p>{% if alignment_run.error %}<p class="message warning">{{ alignment_run.error }}</p>{% endif %}{% if alignment_run.summary.completed_blocks %}<p>{{ alignment_run.summary.completed_blocks }} blocks processed · {{ alignment_run.summary.highlighted_groups }} highlightable groups · {{ alignment_run.summary.paragraph_fallback_blocks }} blocks kept entirely paragraph-aligned.</p>{% endif %}{% endif %}
 {% if alignment_run.summary.fallback_reasons %}<p>Paragraph-only reasons: {% for reason, count in alignment_run.summary.fallback_reasons.items %}{{ reason }}: {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}. Uncertain matched groups: {{ alignment_run.summary.uncertain_groups }}; unmatched sentences: {{ alignment_run.summary.unmatched_sentences }}.</p>{% endif %}
 <div id="sentence-preview"></div>
 {{ payload|json_script:"sentence-data" }}
@@ -24,9 +26,14 @@
   .sentence-hit { cursor: pointer; border-bottom: 1px dotted #947838; }
   .sentence-hit.active, .sentence-hit:focus { background: #e4bf6260; }
 </style>
+</div>
 <script>
+// Draws the preview from the embedded payload; runs on load and again after
+// live.js swaps the page in place when an alignment job moves.
+function renderSentencePreview() {
 const payload = JSON.parse(document.getElementById('sentence-data').textContent);
 const root = document.getElementById('sentence-preview');
+root.replaceChildren();
 for (const [rowIndex, block] of payload.blocks.entries()) {
   const row = document.createElement('div'); row.className = 'sentence-row';
   for (const side of ['primary', 'secondary']) {
@@ -69,5 +76,8 @@ for (const [rowIndex, block] of payload.blocks.entries()) {
   }
   root.append(details);
 }
+}
+renderSentencePreview();
+document.addEventListener('live:refreshed', renderSentencePreview);
 </script>
 {% endblock %}

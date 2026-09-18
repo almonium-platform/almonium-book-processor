@@ -4,8 +4,20 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
-from almonium_book_processor.catalog.activity import catalogue_activity, work_activity
-from almonium_book_processor.catalog.models import Edition, PipelineRun, Work
+from almonium_book_processor.catalog.activity import (
+    catalogue_activity,
+    removed_activity,
+    work_activity,
+)
+from almonium_book_processor.catalog.models import (
+    AIRun,
+    Edition,
+    EditionTombstone,
+    ModelConfiguration,
+    PipelineRun,
+    PromptTemplate,
+    Work,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -89,6 +101,47 @@ def test_fingerprint_ignores_a_save_that_changed_nothing_visible(edition):
     assert work_activity(edition.work)["fingerprint"] == before
 
 
+def test_work_scope_moves_as_ai_calls_land(edition):
+    """The alignment review lists AI runs and the rail prints spend: both follow."""
+
+    before = work_activity(edition.work)["fingerprint"]
+    call = AIRun.objects.create(
+        edition=edition,
+        model_configuration=ModelConfiguration.objects.create(
+            name="judge", provider="openai", model="gpt-5-mini", purpose="judge"
+        ),
+        prompt_template=PromptTemplate.objects.create(
+            name="judge", version=1, purpose="judge", system_prompt="s", user_template="u"
+        ),
+        status=AIRun.Status.QUEUED,
+    )
+    queued = work_activity(edition.work)["fingerprint"]
+    assert queued != before
+    call.status = AIRun.Status.SUCCEEDED
+    call.save(update_fields=["status", "updated_at"])
+    assert work_activity(edition.work)["fingerprint"] != queued
+
+
+def test_removed_scope_follows_withdrawals_and_purges(edition):
+    before = removed_activity()["fingerprint"]
+    edition.withdrawal_requested_at = edition.updated_at
+    edition.save(update_fields=["withdrawal_requested_at", "updated_at"])
+    requested = removed_activity()
+    assert requested["fingerprint"] != before
+
+    EditionTombstone.objects.create(
+        edition_id=edition.id,
+        edition_slug="gone-en",
+        work_slug="gone",
+        title="Gone",
+        author="",
+        language="en",
+        edition_type="original",
+        reason=EditionTombstone.Reason.values[0],
+    )
+    assert removed_activity()["fingerprint"] != requested["fingerprint"]
+
+
 def test_work_scope_covers_a_companion_translation_job(edition):
     french = Edition.objects.create(
         work=edition.work,
@@ -156,3 +209,10 @@ def test_pages_carry_the_fingerprint_they_were_rendered_with(client, staff, edit
     page = client.get(reverse("catalog:dashboard")).content.decode()
     fingerprint = catalogue_activity(Work.Visibility.PUBLIC)["fingerprint"]
     assert f'data-live-fingerprint="{fingerprint}"' in page
+
+    page = client.get(reverse("catalog:removed-books")).content.decode()
+    assert f'data-live-fingerprint="{removed_activity()["fingerprint"]}"' in page
+    assert client.get(reverse("catalog:removed-activity")).json()["active"] == []
+
+    page = client.get(reverse("catalog:edition-reader", args=[edition.id])).content.decode()
+    assert reverse("catalog:edition-activity", args=[edition.id]) in page

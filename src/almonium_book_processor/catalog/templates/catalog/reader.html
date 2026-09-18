@@ -1,6 +1,8 @@
 {% extends "catalog/base.html" %}
+{% load catalog_extras %}
 {% block title %}Reader · {{ edition.title|default:"Untitled upload" }}{% endblock %}
 {% block content %}
+<div {% live_work edition %}>
 <div class="page-heading">
   <div>
     <p class="eyebrow">{{ edition.language|upper }} · {{ edition.get_edition_type_display }} · {{ block_count }} block{{ block_count|pluralize }}</p>
@@ -129,4 +131,5 @@
 {% endif %}
 
 {% if recent_revisions %}<section class="panel"><h2>Recent text corrections</h2>{% for revision in recent_revisions %}<details class="revision"><summary>{{ revision.stable_block_id }} · {{ revision.editor|default:"staff" }} · {{ revision.created_at }}</summary><p><strong>Before:</strong> {{ revision.previous_text }}</p><p><strong>After:</strong> {{ revision.revised_text }}</p><p class="muted">{{ revision.notes }}</p></details>{% endfor %}</section>{% endif %}
+</div>
 {% endblock %}

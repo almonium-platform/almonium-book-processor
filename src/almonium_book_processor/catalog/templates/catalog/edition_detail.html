@@ -2,7 +2,7 @@
 {% load catalog_extras %}
 {% block title %}{{ edition.title|display_title|default:"Untitled upload" }} · Almonium Books{% endblock %}
 {% block content %}
-<div class="edition-layout" data-live="{% url 'catalog:edition-activity' edition.id %}" data-live-fingerprint="{{ live_fingerprint }}">
+<div class="edition-layout" {% live_work edition %}>
 <aside class="edition-rail">
   <div class="rail-head">
     {% if is_private %}<a class="rail-crumb" href="{% url 'catalog:private-imports' %}">&larr; User imports</a>{% else %}<a class="rail-crumb" href="{% url 'catalog:dashboard' %}">&larr; Public catalogue · {{ edition.work.title|display_title }}</a>{% endif %}

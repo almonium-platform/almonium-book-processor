@@ -1,4 +1,5 @@
 {% extends "catalog/base.html" %}
+{% load catalog_extras %}
 {% block title %}Removed books · Almonium Books{% endblock %}
 {% block content %}
 <div class="page-heading">
@@ -9,6 +10,7 @@
   </div>
 </div>
 
+<div {% live_removed %}>
 {% if withdrawing %}
 <section class="panel withdrawals">
   <h2>Withdrawals in flight</h2>
@@ -63,4 +65,5 @@
   {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Older</a>{% endif %}
 </nav>
 {% endif %}
+</div>
 {% endblock %}

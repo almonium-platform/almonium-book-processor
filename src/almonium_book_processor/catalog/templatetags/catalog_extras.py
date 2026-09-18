@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from django import template
+from django.urls import reverse
+from django.utils.html import format_html
 
 from almonium_book_processor.catalog.catalogue import display_title as _display_title
 
@@ -84,3 +86,42 @@ def get_item(mapping, key):
     if not hasattr(mapping, "get"):
         return None
     return mapping.get(key)
+
+
+def _live(url: str, fingerprint: str) -> str:
+    return format_html('data-live="{}" data-live-fingerprint="{}"', url, fingerprint)
+
+
+@register.simple_tag
+def live_work(edition):
+    """Attributes that make an element follow every job of the edition's work.
+
+    Put them on the element whose contents jobs change; live.js polls the
+    activity endpoint and swaps that element in place when the work moves.
+    """
+
+    from almonium_book_processor.catalog.activity import work_activity
+
+    return _live(
+        reverse("catalog:edition-activity", args=[edition.id]),
+        work_activity(edition.work)["fingerprint"],
+    )
+
+
+@register.simple_tag
+def live_catalogue(visibility):
+    """Attributes that make a catalogue list follow the jobs of its visibility."""
+
+    from almonium_book_processor.catalog.activity import catalogue_activity
+
+    url = reverse("catalog:catalogue-activity")
+    return _live(f"{url}?visibility={visibility}", catalogue_activity(visibility)["fingerprint"])
+
+
+@register.simple_tag
+def live_removed():
+    """Attributes that make the removal record follow withdrawals and purges."""
+
+    from almonium_book_processor.catalog.activity import removed_activity
+
+    return _live(reverse("catalog:removed-activity"), removed_activity()["fingerprint"])

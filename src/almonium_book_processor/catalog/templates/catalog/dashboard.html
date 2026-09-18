@@ -1,4 +1,5 @@
 {% extends "catalog/base.html" %}
+{% load catalog_extras %}
 {% block title %}Public catalogue · Almonium Books{% endblock %}
 {% block content %}
 <div class="page-heading">
@@ -6,7 +7,7 @@
   <a class="button" href="{% url 'catalog:upload' %}">Upload source</a>
 </div>
 
-<section class="work-list" data-live="{% url 'catalog:catalogue-activity' %}?visibility=public" data-live-fingerprint="{{ live_fingerprint }}">
+<section class="work-list" {% live_catalogue "public" %}>
   {% for group in groups %}
     <article class="work-group">
       <header class="work-header">

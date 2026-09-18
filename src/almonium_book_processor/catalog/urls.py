@@ -1,7 +1,11 @@
 from django.urls import path
 
 from almonium_book_processor.catalog import views
-from almonium_book_processor.catalog.activity import catalogue_activity_view, edition_activity
+from almonium_book_processor.catalog.activity import (
+    catalogue_activity_view,
+    edition_activity,
+    removed_activity_view,
+)
 from almonium_book_processor.catalog.sentence_preview_views import (
     queue_sentence_alignment,
     sentence_preview,
@@ -72,6 +76,7 @@ urlpatterns = [
     ),
     path("", views.dashboard, name="dashboard"),
     path("activity/", catalogue_activity_view, name="catalogue-activity"),
+    path("activity/removed/", removed_activity_view, name="removed-activity"),
     path("editions/<uuid:edition_id>/activity/", edition_activity, name="edition-activity"),
     path("imports/private/", views.private_imports, name="private-imports"),
     path("removed/", views.removed_books, name="removed-books"),

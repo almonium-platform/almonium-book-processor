@@ -1,4 +1,5 @@
 {% extends "catalog/base.html" %}
+{% load catalog_extras %}
 {% block title %}User imports · Almonium Books{% endblock %}
 {% block content %}
 <div class="page-heading">
@@ -9,7 +10,7 @@
   </div>
 </div>
 
-<div data-live="{% url 'catalog:catalogue-activity' %}?visibility=private" data-live-fingerprint="{{ live_fingerprint }}">
+<div {% live_catalogue "private" %}>
 {% if rows %}
 <section class="work-group import-table">
   <div class="import-head"><span></span><span>Book</span><span>Owner</span><span>Uploaded</span><span>Warnings</span><span>Status</span></div>

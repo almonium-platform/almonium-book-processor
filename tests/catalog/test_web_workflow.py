@@ -558,7 +558,7 @@ def test_edition_detail_collapses_long_sections_and_limits_processing_history(cl
 
     # A running job takes over the next-step card with its stage and progress.
     assert "next-step-running" in content
-    assert "Chapter analysis is running." in content
+    assert "Chapter analysis is running; this page follows it." in content
     assert '<span class="run-bar"><span style="width:40%"></span></span>' in content
 
 
