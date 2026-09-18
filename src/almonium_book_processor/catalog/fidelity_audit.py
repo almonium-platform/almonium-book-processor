@@ -586,6 +586,14 @@ def replacement_span(text: str, start: int, end: int, suggestion: str) -> tuple[
         and _same(" ".join(suggested[-3:]), " ".join(text[a:b] for a, b in closing))
     ):
         end = s_end
+    # Punctuation belongs to the sentence, not to the correction: a span that
+    # grew over a closing mark gives it back when the correction has none, and
+    # a correction that ends in a mark the text already has does not add it.
+    trailing = re.search(r"[.!?,;:]+[\"\u201d\u2019']*$", text[start:end])
+    if trailing and not re.search(r"[.!?,;:]$", suggestion):
+        end -= len(trailing.group())
+    elif suggestion and suggestion[-1] in ".!?" and text[end : end + 1] == suggestion[-1]:
+        end += 1
     return start, end
 
 

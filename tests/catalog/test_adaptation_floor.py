@@ -869,6 +869,22 @@ def test_a_correction_written_for_the_whole_clause_replaces_the_whole_clause():
     )
     assert text[span[0] : span[1]].startswith("Nor should any conclusion be drawn from the")
     assert text[span[0] : span[1]].endswith("of whatever kind")
+    # Punctuation stays with the sentence: a correction without a period leaves the
+    # period in the text, and one ending in a period does not double the text's own.
+    text = "It seemed to me. Then night fell."
+    start = text.index("seemed")
+    span = replacement_span(text, start, start + 6, "was beginning to seem to me")
+    assert text[: span[0]] + "was beginning to seem to me" + text[span[1] :] == (
+        "It was beginning to seem to me. Then night fell."
+    )
+    text = 'and do not fear that, when you are ready, I shall appear." He left.'
+    quote = "fear that, when you are ready, I shall appear"
+    start = text.index(quote)
+    fix = "and do not doubt that I shall appear when you are ready."
+    span = replacement_span(text, start, start + len(quote), fix)
+    assert text[: span[0]] + fix + text[span[1] :] == (
+        'and do not doubt that I shall appear when you are ready." He left.'
+    )
     # A correction that shares nothing with its surroundings keeps the quoted span.
     assert replacement_span(text, start, start + len(quote), "of no doctrine") == (
         start,
