@@ -1,3 +1,28 @@
+# Night handoff — 18 September 2026
+
+This section supersedes the historical 16 September walkthrough below.
+
+- **B1:** five prompt versions on Preface, IV and X all assessed B2 with the
+  existing blind Luna judge. No full B1 edition exists. Do not publish or
+  generate a whole book until the calibration and fidelity gates are met.
+- **Published locally:** original C1, B2 adaptation, and original-derived
+  Ukrainian C1 translation. French human translation remains in review.
+- **Authority:** local/staging B1 publication is authorized only after quality
+  passes. Production publication and French editorial approval remain Astra's
+  decisions. No premium model calls; Terra is the ceiling. Tonight's cap is $10.
+- **Checkpoint:** processor `c5f01ed` commits the B1 workflow and prompt v5.
+  All processor checks passed (414 tests). Backend, Angular and mobile were
+  already committed when this run resumed; verification is running sequentially.
+- **Next in progress:** blind judge controls, then a bounded decision on B1;
+  cross-client level handling; Ukrainian analysis language and alignment drift.
+  This is a work-in-progress checkpoint, not a claim that those tasks passed.
+
+The local B2 reader is
+http://localhost:9999/reader/shelley-frankenstein-en-orig-b2 .
+The original and Ukrainian companions remain usable independently of B1.
+
+---
+
 # Morning walkthrough — 16 September
 
 Nothing was editorially approved or published overnight. Those decisions are yours.
