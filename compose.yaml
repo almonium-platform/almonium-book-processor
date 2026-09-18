@@ -41,6 +41,10 @@ services:
       RABBITMQ_DEFAULT_USER: almonium_books
       RABBITMQ_DEFAULT_PASS: almonium_books
       RABBITMQ_DEFAULT_VHOST: almonium_books
+      # A whole-book audit or adaptation holds one delivery for hours; the
+      # broker's default 30-minute acknowledgement timeout would kill the
+      # worker mid-task. Six hours covers the longest job we run.
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit consumer_timeout 21600000"
     ports:
       - "5673:5672"
       - "15673:15672"
