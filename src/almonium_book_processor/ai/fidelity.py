@@ -13,7 +13,9 @@ from pydantic import BaseModel, ConfigDict
 PROMPT_NAME = "literary-fidelity-editor"
 PROMPT_VERSION = 1
 PURPOSE = "adaptation_fidelity"
-MAX_OUTPUT_TOKENS = 10000
+# Reasoning counts against this budget; the cheaper tier at high effort spent all of
+# 10,000 on two long chapters and answered nothing, so leave real headroom.
+MAX_OUTPUT_TOKENS = 24000
 
 SYSTEM_PROMPT = (
     "Compare ALL source/adapted block pairs as a literary editor. This is a fidelity audit,\n"
