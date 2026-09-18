@@ -131,8 +131,25 @@ def enrich_adapted_book(edition_id: str) -> None:
 @shared_task(acks_late=True)
 def adapt_chapter_pilot(run_id: str) -> None:
     from almonium_book_processor.catalog.adaptation import run_pilot
+    from almonium_book_processor.catalog.adaptation_floor import judge_standalone_pilot
 
     run_pilot(run_id)
+    # A staff pilot is evidence only once it is judged blind and audited.
+    judge_standalone_pilot(run_id)
+
+
+@shared_task(acks_late=True)
+def run_floor_probe(run_id: str) -> None:
+    from almonium_book_processor.catalog.adaptation_floor import run_probe
+
+    run_probe(run_id)
+
+
+@shared_task(acks_late=True)
+def audit_edition_fidelity(run_id: str) -> None:
+    from almonium_book_processor.catalog.fidelity_audit import run_edition_audit
+
+    run_edition_audit(run_id)
 
 
 @shared_task(acks_late=True)

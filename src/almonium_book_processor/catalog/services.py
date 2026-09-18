@@ -363,6 +363,10 @@ def complete_review(
         edition.cefr_level = quality["adaptation_target"]
         update_fields.append("cefr_level")
     edition.save(update_fields=update_fields)
+    if quality.get("adaptation_target"):
+        from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor
+
+        refresh_adaptation_floor(edition.work)
     return decision
 
 
@@ -908,6 +912,13 @@ def resolve_review_warning(
         warning.resolved_at = timezone.now()
         warning.resolved_by = reviewer
         warning.save(update_fields=["resolved_at", "resolved_by", "updated_at"])
+        if warning.code == "adaptation_fidelity_finding":
+            # Accepting the last material finding can make the level reached.
+            from almonium_book_processor.catalog.adaptation_floor import (
+                refresh_adaptation_floor,
+            )
+
+            refresh_adaptation_floor(edition.work)
     return warning
 
 

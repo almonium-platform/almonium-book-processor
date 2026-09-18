@@ -15,6 +15,14 @@
   <p>Highest window: {{ run.summary.difficulty_check.max_level }} · judge prompt v{{ run.summary.difficulty_check.prompt_version }} · {{ run.summary.difficulty_check.model }} · ${{ run.summary.difficulty_check.cost_usd }}. Fidelity still needs review.</p>
   {% for window in run.summary.difficulty_check.windows %}<details><summary>{{ window.cefr_estimate }} — assessment evidence</summary>{% for item in window.evidence %}<p><code>{{ item.block_id }}</code>: “{{ item.quote }}” — {{ item.explanation }}</p>{% endfor %}</details>{% endfor %}
   {% endif %}
+  {% if run.summary.fidelity_audit %}
+  <h2>Fidelity audit: {{ run.summary.fidelity_audit.counts.material }} material · {{ run.summary.fidelity_audit.counts.minor }} minor · {{ run.summary.fidelity_audit.counts.uncertain }} uncertain</h2>
+  <p>{{ run.summary.fidelity_audit.blocks }} blocks read beside the source · prompt v{{ run.summary.fidelity_audit.prompt_version }} · {{ run.summary.fidelity_audit.model }} · ${{ run.summary.fidelity_audit.cost_usd }}. Findings are leads for your review, not a certificate.</p>
+  {% if run.summary.fidelity_audit.assessment %}<p class="muted">{{ run.summary.fidelity_audit.assessment }}</p>{% endif %}
+  {% for issue in run.summary.fidelity_audit.issues %}<p class="{% if issue.severity == "material" %}message warning{% else %}muted{% endif %}"><a href="#{{ issue.block_id }}"><code>{{ issue.block_id }}</code></a> {{ issue.severity }}: {{ issue.explanation }} “{{ issue.source_quote }}” → “{{ issue.adapted_quote }}”{% if issue.suggested_correction %} · suggested: {{ issue.suggested_correction }}{% endif %}{% if not issue.quote_verified %} (quotes not found verbatim){% endif %}</p>{% endfor %}
+  {% elif run.status == "succeeded" and run.summary.source_edition_id == run.edition_id|stringformat:"s" %}
+  <p class="muted">Blind judge and fidelity audit run after generation; reload to see them.</p>
+  {% endif %}
   {% if ai.estimated_cost_usd != None %}<p>Estimated cost: ${{ ai.estimated_cost_usd }} · {{ ai.input_tokens }} input / {{ ai.output_tokens }} output tokens (this attempt).</p>{% endif %}
   {% if rows %}<p>{{ run.summary.kept }} / {{ run.summary.blocks }} blocks kept exactly.</p>{% else %}<p>Reload this page to check progress.</p>{% endif %}
   {% for warning in ai.response_payload.warnings %}<p class="message warning">{{ warning }}</p>{% endfor %}

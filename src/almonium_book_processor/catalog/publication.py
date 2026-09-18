@@ -11,6 +11,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPHandler, HTTPSHandler, Request, build_opener
 
+from almonium_book_processor.catalog.adaptation_floor import reached_levels
 from almonium_book_processor.catalog.models import Edition
 
 # A product API that is up answers a publication in well under a second, so a
@@ -151,6 +152,10 @@ def publish_to_almonium(edition: Edition) -> str:
         "publicationYear": edition.work.publication_year,
         "coverUrl": edition.work.cover_url or None,
         "cefrLevel": edition.cefr_level,
+        # The work's adaptation floor and the levels it has gate-passing
+        # editions at: found per book from pilot evidence, never promised.
+        "adaptsTo": edition.work.adapts_to,
+        "reachedLevels": reached_levels(edition.work),
         "wordCount": edition.word_count,
         # What every shelf says "chapter 3 of 24" against; the processor is its one source.
         "chapterCount": edition.chapters.count(),

@@ -22,6 +22,16 @@ urlpatterns = [
         name="queue-book-adaptation",
     ),
     path(
+        "editions/<uuid:edition_id>/adaptation-floor/probe/",
+        views.queue_floor_probe,
+        name="queue-floor-probe",
+    ),
+    path(
+        "editions/<uuid:edition_id>/fidelity-audit/queue/",
+        views.queue_fidelity_audit,
+        name="queue-fidelity-audit",
+    ),
+    path(
         "editions/<uuid:edition_id>/adaptation-pilot/queue/",
         views.queue_adaptation_pilot,
         name="queue-adaptation-pilot",

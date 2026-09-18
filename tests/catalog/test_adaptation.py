@@ -171,7 +171,7 @@ def test_legacy_review_item_recovers_the_pilot_from_its_message(application):
     assert links["Read Chapter I beside the source"] == f"{reader}?chapter=1&{parallel}"
 
     item = review_item(target, fidelity)
-    assert "Nothing automated judges fidelity" in item["guidance"]
+    assert "Run the fidelity audit below" in item["guidance"]
     links = {link["label"]: link["url"] for link in item["links"]}
     assert links["Read beside the source"] == f"{reader}?chapter=1&{parallel}"
     assert links["Paired review workspace"] == reverse("catalog:alignment-review", args=[target.id])

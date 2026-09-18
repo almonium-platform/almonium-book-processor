@@ -443,3 +443,64 @@ matched B1 source, or explicitly disclosed abridgement and fidelity trade-offs.
 The affordable product now is honestly labelled **B2 with reader aids**. Neither
 a higher label tolerance nor another synonym-only prompt revision supplies the
 missing evidence. These routes need fresh blind controls and fidelity gates.
+
+## The floor as data — 2026-09-18
+
+Decision 13 is now machinery rather than a note. Nothing below sets a level by
+hand; every state on the card is read from runs in the ledger.
+
+**Fidelity audit** (`catalog/fidelity_audit.py`, processor
+`fidelity-audit-v1`). The literary-editor prompt from the evidence scripts is
+the saved `literary-fidelity-editor` v1 row, byte for byte. A pilot audit
+reads the sample beside the snapshot it was generated from; an edition audit
+reads every chapter of an adaptation beside its source edition, one paid
+request per chapter (split by block only past 160 KB), each cached by input
+hash so a text fix re-reads one chapter. Material findings become
+`adaptation_fidelity_finding` review items on the block; minor and uncertain
+ones are listed on the audit panel. Resolving a material item records that
+the change is acceptable. A newer audit supersedes the older run's open items.
+
+**Every staff pilot is judged and audited** as soon as it generates: the
+worker task runs the blind difficulty judge and the fidelity audit after the
+pilot, so the pilot page always shows both. Full-book chunks are not judged
+individually; the edition's chapter analysis and edition audit cover them.
+
+**Floor probes** (`catalog/adaptation_floor.py`, processor `floor-probe-v1`).
+A probe at a level generates pilots on the first, middle and last substantive
+chapters that fit the pilot limits, judges each blind and audits each. It
+passes when every chapter's highest judged window is at or below the target
+and no material finding was raised; otherwise it fails and its reasons are
+kept. Its identity is the generation prompt and model, the judge prompt and
+model, the audit prompt and model, and the sampled text, so the same
+configuration is never rolled twice: a rung is retried only under a new
+version. Probes go one rung at a time below the original's level: B1 cannot
+be probed until B2 has a passed probe or a reached edition.
+
+**`adapts_to`** is recomputed by `refresh_adaptation_floor` whenever a gate
+changes (difficulty projections, an audit finishing, a finding resolved, a
+review completed, a purge). It is the lowest level among the work's
+adaptation editions that pass both gates for their current text; the
+evidence records the edition, its chapter-analysis run and its audit run, and
+for probed levels the probe and pilot ids. A promoted work keeps the floor it
+arrived with, because the ledger that justifies it stays in the environment
+that paid for it; the bundle schema is now 4.
+
+**What the operator sees.** The original edition's "Level adaptation" panel
+is a ladder: the original's level, then one rung per level below. Each rung
+shows its state (untried, probing, probe passed, probe failed, edition
+generated, reached) with the runs behind it, and exactly one action where one
+applies: "Probe B2", then "Generate full B2 edition" once the probe passes,
+then "Probe B1" once B2 is reached. A failed probe reads "floor" and leaves no
+button until a new prompt or model version exists. An adaptation's page gains
+a "Fidelity audit" panel with the run, counts and the paid button.
+
+**What ships.** The publication payload carries `adaptsTo` and
+`reachedLevels` alongside `cefrLevel`; the product API ignores unknown fields
+until it stores them, which is the next cross-repository step.
+
+Frankenstein today: the published B2 edition has no edition audit yet, so
+the ladder shows B2 as "edition generated" until the audit runs and comes
+back clean or with accepted findings; `adapts_to` follows from that, not from
+anyone's say-so. The B1 pilots in the evidence folder were standalone pilots,
+not probes, so B1 stays "untried" on the ladder and will be probed once B2 is
+reached.

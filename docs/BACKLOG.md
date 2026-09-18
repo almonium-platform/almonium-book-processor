@@ -70,17 +70,24 @@ reviewed and deliberately published.
 
 ## Now: the adaptation floor as data (decision 13, 2026-09-18)
 
-- [ ] `adapts_to` on the work: derived from pilot evidence (blind judge at
-      target + fidelity audit), stored with the pilot run ids that justify it,
-      recomputed when a new level passes its gates; never editable by hand.
-- [ ] Publish `adapts_to` and the list of reached levels in the
-      published-edition contract; backend serves it per book; Angular and
-      mobile library cards show "Adapted to B2 · Original C1" style facts.
-- [ ] Fidelity audit of the **published** B2 edition. Every fidelity audit in
-      the ledger so far is on B1 pilots; the shipping B2 text has only the
-      manual chapter-IV review. Run `literary-fidelity-editor-v1` over all 30
-      chapters against the original (≈ $0.09/chapter on Terra, under $3;
-      cheaper on Luna), attach findings as review items, fix material ones.
+Implemented 2026-09-18 in the processor; see
+[the ladder, probes and audit](ADAPTATION_PILOT.md#the-floor-as-data--2026-09-18).
+
+- [x] `adapts_to` on the work: derived from the editions that pass both gates
+      (blind judge at target, fidelity audit current with no open material
+      finding), stored with the run ids that justify it, recomputed whenever a
+      gate changes; not a form field anywhere. Floor probes (three-chapter
+      pilots, judged and audited) close the ladder below the last reached
+      level and are recorded as evidence too.
+- [x] The publication payload carries `adaptsTo` and `reachedLevels`, and the
+      floor travels in promotion bundles (schema 4).
+- [ ] Backend stores and serves them per book; Angular and mobile library
+      cards show "Adapted to B2 · Original C1" style facts.
+- [ ] Fidelity audit of the **published** B2 edition. The audit is now a worker
+      job on the adaptation's page ("Audit fidelity (paid)"): every chapter is
+      read beside the original (≈ $0.09/chapter on Terra, under $3), material
+      findings become review items. Run it on staging, fix or accept the
+      material findings, and `adapts_to = B2` follows from the gates.
 - [ ] Remove the last level promises from onboarding and plan copy across
       web and mobile (web landing/Premium done in `b07c669`; audit mobile).
 

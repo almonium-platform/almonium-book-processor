@@ -93,6 +93,10 @@ def purge_edition(
     edition.delete()
     if not work.editions.exists():
         work.delete()
+    else:
+        from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor
+
+        refresh_adaptation_floor(work)
     if source_name:
         # Only once the deletion is committed: a rolled back transaction must
         # not leave an edition pointing at a file that is already gone.

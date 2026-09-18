@@ -45,6 +45,12 @@ class Work(TimestampedModel):
     metadata_provenance = models.JSONField(default=dict, blank=True)
     metadata_detected_at = models.DateTimeField(null=True, blank=True)
     metadata_confirmed_at = models.DateTimeField(null=True, blank=True)
+    # The lowest level a faithful adaptation of this book has reached both of
+    # its gates at: the blind difficulty judge at target and a fidelity audit
+    # with no open material findings. Derived from the editions and floor
+    # probes that exist, never typed in; the evidence names the runs.
+    adapts_to = models.CharField(max_length=2, null=True, blank=True, editable=False)
+    adaptation_evidence = models.JSONField(default=dict, blank=True, editable=False)
 
     class Meta:
         ordering = ["author", "title"]

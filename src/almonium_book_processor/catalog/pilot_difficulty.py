@@ -69,12 +69,10 @@ def assess_pilot(pilot_id, *, provider=None):
     )
     if run.status == PipelineRun.Status.SUCCEEDED:
         return run.summary["assessment"]
-    if not PipelineRun.objects.filter(pk=run.id, status=PipelineRun.Status.QUEUED).update(
-        status=PipelineRun.Status.RUNNING, started_at=timezone.now()
-    ):
-        raise ValueError(
-            "Assessment already running or failed; inspect its ledger before retrying."
-        )
+    if not PipelineRun.objects.filter(
+        pk=run.id, status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.FAILED]
+    ).update(status=PipelineRun.Status.RUNNING, started_at=timezone.now(), error=""):
+        raise ValueError("Assessment already running; inspect its ledger before retrying.")
     try:
         configuration, prompt = _configuration(spec)
         results = []

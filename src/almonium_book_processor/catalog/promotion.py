@@ -70,7 +70,7 @@ logger = logging.getLogger(__name__)
 
 # Bump when the manifest's shape changes. A target running an older build
 # refuses a newer bundle instead of silently dropping what it does not know.
-BUNDLE_SCHEMA_VERSION = 3
+BUNDLE_SCHEMA_VERSION = 4
 MANIFEST_NAME = "manifest.json"
 
 # Runs that describe what an environment did with its own product API, or
@@ -141,6 +141,11 @@ WORK_FIELDS = [
     "metadata_provenance",
     "metadata_detected_at",
     "metadata_confirmed_at",
+    # The floor and its evidence are found where the judge and audit ran;
+    # the receiving environment keeps them rather than recomputing from a
+    # ledger it does not have.
+    "adapts_to",
+    "adaptation_evidence",
     "created_at",
     "updated_at",
 ]

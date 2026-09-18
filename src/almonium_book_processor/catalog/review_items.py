@@ -8,6 +8,7 @@ from django.urls import reverse
 from almonium_book_processor.catalog.models import Edition, PipelineRun, QAWarning
 
 FIDELITY_CODE = "adaptation_fidelity_review"
+FIDELITY_FINDING_CODE = "adaptation_fidelity_finding"
 CHAPTER_REPLACED_CODE = "adaptation_chapter_replaced"
 DIFFICULTY_CODE = "adaptation_difficulty_gate"
 TITLE_PAGE_CODE = "translation_title_page"
@@ -16,9 +17,14 @@ _UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 GUIDANCE = {
     FIDELITY_CODE: (
-        "Nothing automated judges fidelity. Read a sample of chapters side by side with "
-        "the source, then resolve only if the adaptation keeps the events, claims and "
-        "voice you would put your name to."
+        "Run the fidelity audit below, then read a sample of chapters side by side with "
+        "the source. Resolve only if the adaptation keeps the events, claims and voice "
+        "you would put your name to; the audit's findings are leads, not a certificate."
+    ),
+    FIDELITY_FINDING_CODE: (
+        "The fidelity audit read this block beside its source and found a material "
+        "change of meaning. Correct the text, or resolve this item to record that the "
+        "change is acceptable; a resolved finding counts as documented."
     ),
     CHAPTER_REPLACED_CODE: (
         "A reviewed chapter pilot overwrote this chapter. Read the chapter beside the "
@@ -122,6 +128,8 @@ def review_item(edition: Edition, warning: QAWarning) -> dict:
                     "url": reverse("catalog:alignment-review", args=[edition.id]),
                 }
             )
+    elif warning.code == FIDELITY_FINDING_CODE:
+        item["links"].append({"label": "Fidelity audit", "url": "#fidelity-audit"})
     elif warning.code == DIFFICULTY_CODE:
         item["links"].append({"label": "Chapter estimates", "url": "#chapter-analysis"})
     elif warning.code == TITLE_PAGE_CODE:

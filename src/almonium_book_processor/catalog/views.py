@@ -255,6 +255,45 @@ def queue_book_adaptation(request: HttpRequest, edition_id: str) -> HttpResponse
 
 @staff_member_required
 @require_POST
+def queue_floor_probe(request: HttpRequest, edition_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.adaptation_floor import queue_probe
+
+    edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
+    try:
+        run = queue_probe(edition.id, request.POST.get("target_level", ""))
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request,
+            f"{run.summary['target_level']} probe queued on "
+            f"{len(run.summary['chapters'])} chapter(s): each is generated, judged blind "
+            "and audited for fidelity. The verdict appears on the ladder.",
+        )
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def queue_fidelity_audit(request: HttpRequest, edition_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.fidelity_audit import queue_edition_audit
+
+    edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
+    try:
+        run = queue_edition_audit(edition.id)
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request,
+            f"Fidelity audit {run.get_status_display().lower()}: {run.summary['chapters']} "
+            "chapter(s) read beside the source. Material findings become review items.",
+        )
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
 def queue_adaptation_pilot(request: HttpRequest, edition_id: str) -> HttpResponse:
     edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
     try:
@@ -463,10 +502,17 @@ def _metadata_state(edition: Edition) -> str:
 def _render_edition_detail(
     request: HttpRequest, edition: Edition, *, metadata_form: EditionMetadataForm | None = None
 ) -> HttpResponse:
+    from almonium_book_processor.catalog.adaptation_floor import ladder_context
     from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
+    from almonium_book_processor.catalog.fidelity_audit import audit_context
 
     assessment = analysis_context(edition)
     assessment.update(adaptation_quality(edition, assessment))
+    if edition.work.visibility == Work.Visibility.PUBLIC:
+        if edition.edition_type == Edition.EditionType.ADAPTATION:
+            assessment.update(audit_context(edition))
+        else:
+            assessment.update(ladder_context(edition, assessment))
     if assessment.get("chapter_analysis_run"):
         # Only calls this run made: windows it reused were billed to earlier runs.
         assessment["chapter_analysis_spend"] = assessment["chapter_analysis_run"].ai_runs.aggregate(

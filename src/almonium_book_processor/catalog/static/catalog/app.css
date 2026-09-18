@@ -284,3 +284,14 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
   .import-table .edition-row { grid-template-columns: 44px 1fr auto; }
   .import-owner, .import-date { grid-column: 2; }
 }
+
+/* Adaptation ladder: one rung per level below the original, top down. */
+.adaptation-ladder { display: flex; flex-direction: column; gap: .5rem; margin: 1rem 0; }
+.ladder-rung { display: flex; gap: 1rem; align-items: flex-start; padding: .75rem 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.ladder-level { flex-shrink: 0; min-width: 2.5rem; padding: .2rem .5rem; border-radius: 6px; text-align: center; font-weight: 600; border: 1px solid var(--line); }
+.ladder-body { flex: 1; min-width: 0; line-height: 1.5; }
+.ladder-body form { margin-top: .5rem; }
+.ladder-rung-reached .ladder-level, .ladder-rung-probe_passed .ladder-level { border-color: #2e7d32; color: #2e7d32; }
+.ladder-rung-probe_failed .ladder-level, .ladder-rung-error .ladder-level { border-color: #c62828; color: #c62828; }
+.ladder-rung-probing .ladder-level { border-color: #ef6c00; color: #ef6c00; }
+.ladder-rung-original { background: transparent; }

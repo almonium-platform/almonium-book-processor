@@ -108,3 +108,7 @@ def sync_difficulty_warning(edition, run):
             resolved_at=timezone.now(),
             resolved_by=None,
         )
+    if quality.get("adaptation_target"):
+        from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor
+
+        refresh_adaptation_floor(edition.work)

@@ -180,8 +180,25 @@
 
 {% if edition.work.visibility == "public" and edition.edition_type != "adaptation" %}
 <details class="panel collapsible-panel adaptation-panel">
-  <summary><span class="summary-title">Level adaptation</span><span class="summary-meta">Target {{ adaptation_level }}{% if adaptation_pilots %} · {{ adaptation_pilots|length }} pilot{{ adaptation_pilots|length|pluralize }}{% endif %}</span></summary>
-  <p class="muted">Paid, same-language rewrite for a target CEFR level. Keeps accessible wording, simplifies selectively, and never changes the original. The target is what the prompt asks for, not a verified rating; a blind judge estimates what came out. Chapter samples and full-book generation support B1 and B2.</p>
+  <summary><span class="summary-title">Level adaptation</span><span class="summary-meta">{% if adaptation_floor %}Adapts to {{ adaptation_floor }}{% elif adaptation_floor_found %}Floor found{% elif adaptation_next_probe %}Next: probe {{ adaptation_next_probe }}{% else %}Original {{ adaptation_original_level|default:"level unknown" }}{% endif %}{% if adaptation_pilots %} · {{ adaptation_pilots|length }} pilot{{ adaptation_pilots|length|pluralize }}{% endif %}</span></summary>
+  <p class="muted">Paid, same-language rewrite that keeps every proposition, image and degree of certainty of the original. The level a book lands at is whatever that constraint allows: it is found one rung at a time and recorded from evidence, never promised. A probe generates three chapters, judges them blind and audits their fidelity; a passed probe is the green light to generate the full edition, a failed one closes the ladder.</p>
+  <div class="adaptation-ladder" id="adaptation-ladder">
+    <div class="ladder-rung ladder-rung-original"><span class="ladder-level">{{ adaptation_original_level|default:"?" }}</span><div class="ladder-body"><strong>Original</strong> · {% if edition.cefr_level %}editorial level{% elif adaptation_original_level %}judged estimate{% else %}no level yet; set one or run chapter analysis{% endif %}</div></div>
+    {% for rung in adaptation_ladder %}
+    <div class="ladder-rung ladder-rung-{{ rung.state }}"><span class="ladder-level">{{ rung.level }}</span>
+      <div class="ladder-body">
+        <strong>{% if rung.state == "reached" %}Reached{% elif rung.state == "probe_passed" %}Probe passed{% elif rung.state == "probe_failed" %}Probe failed · floor{% elif rung.state == "probing" %}Probing{% elif rung.state == "error" %}Probe error{% elif rung.state == "generated" %}Edition generated{% else %}Untried{% endif %}</strong>
+        {% if rung.note %}· {{ rung.note }}{% endif %}
+        {% if rung.probe %}<a href="#run-{{ rung.probe.id }}">probe {{ rung.probe.id|stringformat:"s"|slice:":8" }}</a>{% if rung.probe.summary.cost_usd %} · ${{ rung.probe.summary.cost_usd }}{% endif %}{% endif %}
+        {% for result in rung.probe.summary.results %}<div class="muted">{{ result.title|default:"chapter" }}: judge {{ result.judge_max_level }}{% if result.judge_estimate != result.judge_max_level %} (est. {{ result.judge_estimate }}){% endif %} · fidelity {{ result.material }} material / {{ result.minor }} minor / {{ result.uncertain }} uncertain · <a href="{% url 'catalog:adaptation-pilot' edition.id result.pilot_id %}">pilot</a></div>{% endfor %}
+        {% for item in rung.editions %}<div class="muted"><a href="{% url 'catalog:edition-detail' item.edition.id %}">{{ item.edition.slug }}</a> · {{ item.edition.get_status_display }} · difficulty gate {% if item.difficulty_ok %}passed{% else %}not passed{% endif %} · fidelity audit {% if item.fidelity_ok %}clean{% elif item.fidelity_state == "current" %}{{ item.fidelity_open_findings }} open material finding{{ item.fidelity_open_findings|pluralize }}{% else %}{{ item.fidelity_state }}{% endif %}</div>{% endfor %}
+        {% if rung.can_probe and chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-floor-probe' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit" name="target_level" value="{{ rung.level }}">Probe {{ rung.level }} (3 chapters, paid)</button></form>{% endif %}
+        {% if rung.can_generate and chapter_analysis_enabled and edition.supports_parallel_reading %}<form method="post" action="{% url 'catalog:queue-book-adaptation' edition.id %}">{% csrf_token %}<button class="button" type="submit" name="target_level" value="{{ rung.level }}">Generate full {{ rung.level }} edition (paid)</button></form>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% if adaptation_floor or adaptation_floor_found %}<p><strong>adapts_to = {{ adaptation_floor|default:"not yet recorded" }}</strong>{% if adaptation_floor_found and not adaptation_floor %} · the floor is known from the probe; it is recorded once an edition at the level above passes both gates{% endif %}. Derived from the runs above; there is nothing to set by hand.</p>{% endif %}
+  </div>
   {% if chapter_analysis_enabled %}
   <h3>Chapter pilot</h3>
   <form method="post" action="{% url 'catalog:queue-adaptation-pilot' edition.id %}">{% csrf_token %}
@@ -206,6 +223,20 @@
   <p>Target {{ book_adaptation_run.summary.target_level }}; editorial level stays unset until confirmed. Source revision: <code>{{ book_adaptation_run.summary.plan.source_hash }}</code>.</p>
   {% if book_adaptation_run.error %}<p class="message error">{{ book_adaptation_run.error }}</p>{% endif %}
   {% if has_blocks %}<a class="button" href="{% url 'catalog:edition-reader' edition.id %}?parallel={{ edition.source_edition.id }}">Read beside source</a>{% endif %}
+</section>
+{% endif %}
+
+{% if edition.edition_type == "adaptation" and not is_private %}
+<section class="panel" id="fidelity-audit">
+  <p class="eyebrow">Fidelity audit</p>
+  <h2>{% if fidelity_audit_state == "current" %}Current{% if fidelity_open_findings %} · {{ fidelity_open_findings }} open material finding{{ fidelity_open_findings|pluralize }}{% else %} · clean{% endif %}{% elif fidelity_audit_state == "stale" %}Stale — the text changed since the last audit{% elif fidelity_audit_state == "queued" or fidelity_audit_state == "running" %}Running{% elif fidelity_audit_state == "failed" %}Failed{% else %}Not run{% endif %}</h2>
+  <p class="muted">A literary-editor prompt reads every block beside its source block and reports changes of meaning, lost imagery, added facts or shifted certainty. Material findings become review items above; minor and uncertain ones are listed here. Accepting a material finding resolves its item and counts as documented. Reaching a level needs this audit current and clean on top of the difficulty gate.</p>
+  {% if fidelity_audit_run %}<p>Run <a href="#run-{{ fidelity_audit_run.id }}">{{ fidelity_audit_run.id|stringformat:"s"|slice:":8" }}</a> · {{ fidelity_audit_run.summary.completed_windows }}/{{ fidelity_audit_run.summary.windows }} windows{% if fidelity_audit_run.summary.review %} · {{ fidelity_audit_run.summary.review.counts.material }} material / {{ fidelity_audit_run.summary.review.counts.minor }} minor / {{ fidelity_audit_run.summary.review.counts.uncertain }} uncertain over {{ fidelity_audit_run.summary.review.blocks }} blocks · ${{ fidelity_audit_run.summary.review.cost_usd }}{% endif %}</p>
+  {% if fidelity_audit_run.error %}<p class="message error">{{ fidelity_audit_run.error }}</p>{% endif %}{% endif %}
+  {% if fidelity_audit_enabled and fidelity_audit_state != "queued" and fidelity_audit_state != "running" %}<form method="post" action="{% url 'catalog:queue-fidelity-audit' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">{% if fidelity_audit_state == "current" %}Audit again{% elif fidelity_audit_state == "none" %}Audit fidelity (paid){% else %}Audit / resume (paid){% endif %}</button></form>{% elif not fidelity_audit_enabled %}<p class="muted">Configure an OpenAI key to audit fidelity.</p>{% endif %}
+  {% if fidelity_secondary_findings %}<details><summary>{{ fidelity_secondary_findings|length }} minor or uncertain finding{{ fidelity_secondary_findings|length|pluralize }}</summary>
+    {% for issue in fidelity_secondary_findings %}<p><code>{{ issue.block_id }}</code> {{ issue.severity }}: {{ issue.explanation }} <span class="muted">“{{ issue.source_quote }}” → “{{ issue.adapted_quote }}”{% if issue.suggested_correction %} · suggested: {{ issue.suggested_correction }}{% endif %}</span></p>{% endfor %}
+  </details>{% endif %}
 </section>
 {% endif %}
 
