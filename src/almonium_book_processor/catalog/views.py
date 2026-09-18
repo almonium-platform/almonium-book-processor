@@ -581,6 +581,9 @@ def _render_edition_detail(
             ai_input_tokens=Sum("ai_runs__input_tokens"),
             ai_output_tokens=Sum("ai_runs__output_tokens"),
         )
+        # Meta.ordering is dropped on grouped queries; newest first is what the
+        # page's "Last:" label, run split and promotion history all assume.
+        .order_by("-created_at", "-id")
     )
     active_runs = [
         run

@@ -652,6 +652,35 @@ def test_the_page_offers_promotion_and_the_form_queues_a_run(monkeypatch):
     assert b"Last: staging" in page.content
 
 
+def test_the_page_lists_promotion_runs_newest_first(staging_target):
+    """The run list is an aggregate query, which drops Meta.ordering; the page
+    orders it itself so "Last:" and the history are not in insertion order."""
+
+    staff = make_user("staff", staff=True)
+    edition = build_edition(slug="book-en")
+    now = timezone.now()
+    for hours_ago, error in ((2, "second"), (1, "newest"), (3, "oldest")):
+        run = PipelineRun.objects.create(
+            edition=edition,
+            stage=PipelineRun.Stage.PROMOTE,
+            status=PipelineRun.Status.FAILED,
+            idempotency_key=f"promote-{error}",
+            summary={"target": "staging", "target_url": staging_target.base_url},
+            error=error,
+        )
+        PipelineRun.objects.filter(id=run.id).update(
+            created_at=now - timezone.timedelta(hours=hours_ago)
+        )
+    client = Client()
+    client.force_login(staff)
+
+    page = client.get(reverse("catalog:edition-detail", args=[edition.id]))
+
+    assert [run.error for run in page.context["promotion_runs"]] == ["newest", "second", "oldest"]
+    history = page.context["recent_pipeline_runs"] + page.context["older_pipeline_runs"]
+    assert [run.error for run in history if run.error] == ["newest", "second", "oldest"]
+
+
 def test_the_form_refuses_a_blocked_edition_and_an_unknown_target(monkeypatch, staging_target):
     staff = make_user("staff", staff=True)
     edition = build_edition(slug="book-en", status=Edition.Status.REVIEW)
