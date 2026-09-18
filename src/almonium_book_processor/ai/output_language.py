@@ -27,12 +27,15 @@ def validate_output_language(texts: list[str], language: str) -> None:
     if not prose:
         return
     candidates = ["\n".join(prose), *(t for t in prose if sum(c.isalpha() for c in t) >= 40)]
-    for text in candidates:
+    for index, text in enumerate(candidates):
         detected, confidence = _identifier().classify(text)
         # langid distinguishes Norwegian Bokmål and Nynorsk; the catalogue does not.
         detected = {"nb": "no", "nn": "no"}.get(detected, detected)
         if detected != expected or confidence < 0.8:
-            raise OutputLanguageError(f"Generated prose did not validate as {expected}.")
+            raise OutputLanguageError(
+                f"Generated prose did not validate as {expected}: sample {index}, "
+                f"detected {detected}, confidence {confidence:.3f}."
+            )
 
 
 def validate_analysis_language(result, language: str) -> None:

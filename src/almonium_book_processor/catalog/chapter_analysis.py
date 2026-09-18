@@ -427,6 +427,7 @@ def _attempt(run: PipelineRun, window: dict, spec: dict, configuration, prompt, 
         },
         "store": False,
     }
+    result = None
     try:
         response = (provider or OpenAIChapterAnalysisProvider()).respond(body)
         if not _record_response(ai_run, response, spec):
@@ -453,6 +454,12 @@ def _attempt(run: PipelineRun, window: dict, spec: dict, configuration, prompt, 
     except Exception as error:
         # Schema and provider exceptions can contain book text, so only our own
         # messages are stored verbatim; source-bearing payloads are handled by purge.
+        if isinstance(error, OutputLanguageError) and result is not None:
+            # Keep rejected prose reviewable without ever projecting it as accepted.
+            # The ownership filter prevents a late failure from undoing a purge.
+            AIRun.objects.filter(id=ai_run.id, edition__isnull=False).update(
+                response_payload={"rejected_analysis": result.model_dump(mode="json")}
+            )
         data = window["data"]
         where = f"Chapter {data['chapter_sequence']} window {data['window']}/{data['window_count']}"
         if isinstance(error, (StaleAnalysis, AnalysisRejected, OutputLanguageError)):

@@ -1014,3 +1014,4 @@ def test_wrong_language_is_rejected_after_recording_cost(edition):
     assert ai.status == AIRun.Status.FAILED
     assert ai.estimated_cost_usd > 0
     assert "analysis" not in ai.response_payload
+    assert "rejected_analysis" in ai.response_payload
