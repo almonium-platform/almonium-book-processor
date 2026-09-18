@@ -94,7 +94,7 @@ def review_item(edition: Edition, warning: QAWarning) -> dict:
         block = warning.block
         item["links"].append(
             {
-                "label": f"Open block {block.block_id}",
+                "label": "Open",
                 "url": _reader_url(
                     edition, block.chapter.sequence if block.chapter else None, block
                 ),

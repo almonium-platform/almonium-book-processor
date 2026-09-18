@@ -140,7 +140,8 @@ def test_applied_pilot_review_item_points_at_the_replaced_chapter(application, c
     staff = get_user_model().objects.create_user("staff", is_staff=True)
     client.force_login(staff)
     content = client.get(reverse("catalog:edition-detail", args=[target.id])).content.decode()
-    assert '<article class="review-item review-item-warning">' in content
+    assert 'class="review-item review-item-warning"' in content
+    assert "<code>adaptation_chapter_replaced</code>" in content
     assert f'<a href="{reader}?chapter=1">Read Chapter I beside the source</a>' in content
     assert 'id="text-corrections"' in content
 

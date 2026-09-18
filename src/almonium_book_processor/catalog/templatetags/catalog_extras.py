@@ -15,6 +15,16 @@ def display_title(title):
 
 
 @register.filter
+def thousands(value):
+    """A count with its thousands spaced, as the catalogue prints word counts."""
+
+    try:
+        return f"{int(value):,}".replace(",", "\u202f")
+    except (TypeError, ValueError):
+        return value
+
+
+@register.filter
 def mark_excerpt(text, quote):
     """The sentence around ``quote`` with the quote itself marked, escaped for HTML."""
 

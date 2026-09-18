@@ -1140,6 +1140,31 @@ def resolve_review_warning(
 
 
 @transaction.atomic
+def resolve_review_warnings(*, edition: Edition, code: str, reviewer: AbstractBaseUser) -> int:
+    """Resolve every open review item of one code; the count resolved.
+
+    The difficulty gate keeps its own rule: its item clears only by a passing
+    reassessment, never by hand.
+    """
+
+    from almonium_book_processor.catalog.adaptation_quality import (
+        DIFFICULTY_WARNING,
+        adaptation_blocker,
+    )
+
+    if not code:
+        raise ValueError("Say which kind of review item to resolve.")
+    if code == DIFFICULTY_WARNING and (blocker := adaptation_blocker(edition)):
+        raise ValueError(blocker)
+    return (
+        edition.warnings.select_for_update()
+        .filter(code=code, resolved_at=None)
+        .exclude(severity=QAWarning.Severity.INFO)
+        .update(resolved_at=timezone.now(), resolved_by=reviewer, updated_at=timezone.now())
+    )
+
+
+@transaction.atomic
 def release_private_import(
     *, edition: Edition, reviewer: AbstractBaseUser, notes: str = ""
 ) -> ReviewDecision | None:

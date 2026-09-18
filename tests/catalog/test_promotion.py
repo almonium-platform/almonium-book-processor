@@ -305,7 +305,8 @@ def test_a_private_import_or_an_unreviewed_source_cannot_travel():
         edition_type=Edition.EditionType.MACHINE_TRANSLATION,
     )
     assert promotion_blocker(derived) == (
-        "Its source draft-en is needs review; only reviewed editions travel."
+        "Its source draft-en has not passed review yet (needs review); "
+        "only reviewed editions travel."
     )
     with pytest.raises(PromotionError):
         export_bundle(derived)

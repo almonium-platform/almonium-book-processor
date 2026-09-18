@@ -526,14 +526,18 @@ def test_edition_detail_collapses_long_sections_and_limits_processing_history(cl
     content = response.content.decode()
 
     assert response.status_code == 200
-    assert '<details class="panel collapsible-panel review-items" open>' in content
-    assert '<details class="panel collapsible-panel content-preview">' in content
-    assert "Showing latest 3 of 5" in content
+    assert 'class="panel collapsible-panel review-items" id="review-items" open>' in content
+    assert 'class="panel collapsible-panel processing-history" id="processing-history">' in content
+    assert "Content preview" not in content  # the reader link covers it
+    assert "5 runs" in content
     assert "Show 2 older runs" in content
-    assert content.index("Review items") < content.index("Reading difficulty")
-    assert content.index("Review items") < content.index("Processing history")
-    assert content.index("Processing history") < content.index("Content preview")
-    assert "Active processing" not in content
+    main = content.split('<div class="edition-main')[1]
+    assert main.index("Review items") < main.index("Reading difficulty")
+    assert main.index("Reading difficulty") < main.index("Processing history")
+    assert main.index("Processing history") < main.index("Remove this book")
+    assert "next-step-resolve" in content
+    assert "Resolve the 1 remaining review item, then approve." in content
+    assert "run-bar" not in content
     assert "2 AI calls · $0.0225 · 7500 in / 2000 out" in content
     assert content.count('class="run-note run-spend"') == 1
 
@@ -548,9 +552,10 @@ def test_edition_detail_collapses_long_sections_and_limits_processing_history(cl
     )
     content = client.get(reverse("catalog:edition-detail", args=[edition.id])).content.decode()
 
-    assert content.index("Active processing") < content.index("Processing history")
-    assert "<strong>Chapter analysis</strong>" in content
-    assert '<progress value="40" max="100">' in content
+    # A running job takes over the next-step card with its stage and progress.
+    assert "next-step-running" in content
+    assert "Chapter analysis is running." in content
+    assert '<span class="run-bar"><span style="width:40%"></span></span>' in content
 
 
 def alignment_review_records() -> tuple:

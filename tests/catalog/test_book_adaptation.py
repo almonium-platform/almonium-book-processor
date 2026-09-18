@@ -221,7 +221,7 @@ def test_adaptation_panel_is_collapsible_and_absent_from_the_generated_edition(c
     target = queue_book(source.id).edition
     source_page = client.get(reverse("catalog:edition-detail", args=[source.id]))
     body = source_page.content.decode()
-    assert '<details class="panel collapsible-panel adaptation-panel">' in body
+    assert '<details class="panel collapsible-panel adaptation-panel" id="adaptation">' in body
     assert "Generate B2 pilot (paid)" in body
     assert "Generate / resume B2 edition (paid)" in body
     # The generated book must not offer to adapt itself again.
@@ -229,7 +229,7 @@ def test_adaptation_panel_is_collapsible_and_absent_from_the_generated_edition(c
     body = target_page.content.decode()
     assert "adaptation-panel" not in body
     assert "Generate B2 pilot" not in body
-    assert "B2 adaptation — " in body
+    assert '<span class="summary-title">B2 adaptation</span>' in body
 
 
 def test_b1_and_b2_are_siblings_with_distinct_generation_identities(source):

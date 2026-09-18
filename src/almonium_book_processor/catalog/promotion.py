@@ -438,7 +438,10 @@ def promotion_blocker(edition: Edition) -> str:
     for item in promotion_chain(edition):
         if item.status not in {Edition.Status.READY, Edition.Status.PUBLISHED}:
             what = "This edition" if item.id == edition.id else f"Its source {item.slug}"
-            return f"{what} is {item.get_status_display().lower()}; only reviewed editions travel."
+            return (
+                f"{what} has not passed review yet ({item.get_status_display().lower()}); "
+                "only reviewed editions travel."
+            )
     return ""
 
 

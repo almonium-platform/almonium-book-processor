@@ -76,24 +76,23 @@ def _published(edition):
     )
 
 
-def test_the_original_title_shows_once_in_grey_under_a_translated_title(
-    client, staff, original, ukrainian
-):
+def test_the_rail_names_the_work_once_above_a_translated_title(client, staff, original, ukrainian):
     page = client.get(reverse("catalog:edition-detail", args=[ukrainian.id])).content.decode()
-    # The lineage link and the editable work-title field name the source too;
-    # the book's own heading names the original exactly once.
-    heading = page.split("<body")[1].split('<section class="metrics">')[0]
-    assert heading.count("Frankenstein; or, the Modern Prometheus") == 1
-    assert '<p class="original-title">Frankenstein; or, the Modern Prometheus</p>' in heading
-    assert "<h1>Франкенштейн, або Сучасний Прометей</h1>" in heading
-    assert "Мері Шеллі" in heading
-    assert '<span class="level-chip">C1</span>' in heading
+    # The lineage line and the editable work-title field name the source too;
+    # the rail's head names the work exactly once, in the breadcrumb.
+    rail = page.split("<body")[1].split('<div class="rail-chips">')[0]
+    assert rail.count("Frankenstein; or, the Modern Prometheus") == 1
+    assert "&larr; Public catalogue · Frankenstein; or, the Modern Prometheus" in rail
+    assert "<h1>Франкенштейн, або Сучасний Прометей</h1>" in rail
+    assert "Мері Шеллі" in rail
+    chips = page.split('<div class="rail-chips">')[1].split("</div>")[0]
+    assert '<span class="level-chip">C1</span>' in chips
 
     page = client.get(reverse("catalog:edition-detail", args=[original.id])).content.decode()
-    heading = page.split("<body")[1].split('<section class="metrics">')[0]
-    assert "original-title" not in page
-    assert heading.count("Frankenstein; or, the Modern Prometheus") == 1
-    assert '<span class="level-chip">C1</span>' in heading
+    rail = page.split("<body")[1].split('<div class="rail-chips">')[0]
+    assert rail.count("Frankenstein; or, the Modern Prometheus") == 2  # breadcrumb and title
+    chips = page.split('<div class="rail-chips">')[1].split("</div>")[0]
+    assert '<span class="level-chip">C1</span>' in chips
 
 
 def test_the_migration_takes_the_level_out_of_titles_and_localises_the_ukrainian_edition(

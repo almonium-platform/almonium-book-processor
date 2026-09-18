@@ -192,6 +192,11 @@ urlpatterns = [
         name="resolve-warning",
     ),
     path(
+        "editions/<uuid:edition_id>/warnings/resolve-all/",
+        views.resolve_warnings_by_code,
+        name="resolve-warnings-by-code",
+    ),
+    path(
         "editions/<uuid:edition_id>/review/complete/",
         views.complete_edition_review,
         name="complete-edition-review",

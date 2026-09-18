@@ -87,6 +87,7 @@ from almonium_book_processor.catalog.services import (
     release_private_import,
     repair_alignment_group,
     resolve_review_warning,
+    resolve_review_warnings,
     review_alignment_chapter,
     review_alignment_group,
     revise_block_text,
@@ -573,9 +574,6 @@ def _render_edition_detail(
             input_tokens=Sum("input_tokens"),
             output_tokens=Sum("output_tokens"),
         )
-    blocks = edition.blocks.select_related("chapter").order_by("chapter__sequence", "sequence")[
-        :300
-    ]
     pipeline_runs = list(
         edition.pipeline_runs.annotate(
             ai_call_count=Count("ai_runs", distinct=True),
@@ -618,100 +616,106 @@ def _render_edition_detail(
     from almonium_book_processor.catalog.release_state import release_rows
 
     release = release_rows(edition)
-    return render(
-        request,
-        "catalog/edition_detail.html",
-        {
-            "edition": edition,
-            "parallel_companions": parallel_companions,
-            "spend": spend,
-            "release_rows": release,
-            "release_behind": sum(row["state"] == "behind" for row in release),
-            "parallel_companions_due": sum(
-                row["state"] in ("stale", "failed", "missing", "incomplete")
-                for row in parallel_companions
+    from almonium_book_processor.catalog.catalogue import SHORT_ROLE_LABELS
+    from almonium_book_processor.catalog.edition_page import next_step, review_groups, work_tree
+
+    context = {
+        "edition": edition,
+        "parallel_companions": parallel_companions,
+        "spend": spend,
+        "release_rows": release,
+        "release_behind": sum(row["state"] == "behind" for row in release),
+        "parallel_companions_due": sum(
+            row["state"] in ("stale", "failed", "missing", "incomplete")
+            for row in parallel_companions
+        ),
+        "parallel_companions_running": sum(
+            row["state"] == "running" for row in parallel_companions
+        ),
+        "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
+        **assessment,
+        "adaptation_level": ADAPTATION_TARGET_LEVEL,
+        "adaptation_pilots": edition.pipeline_runs.filter(
+            stage=PipelineRun.Stage.ADAPT, processor_version__in=PILOT_VERSIONS
+        ),
+        "book_adaptation_run": edition.pipeline_runs.filter(
+            stage=PipelineRun.Stage.ADAPT, processor_version__in=("b1-book-v1", "b2-book-v1")
+        ).first(),
+        "chapter_role_choices": Chapter.AnalysisRole.choices,
+        "metadata_form": metadata_form or EditionMetadataForm.for_edition(edition),
+        "metadata_state": _metadata_state(edition),
+        "metadata_provenance": form_provenance(edition),
+        "has_provisional_slug": has_provisional_slug(edition),
+        "purge_form": EditionPurgeForm(edition=edition),
+        "purge_blocked": removal_blocker(edition),
+        "publish_blocked": (
+            publication_blocker(edition) if edition.status == Edition.Status.READY else ""
+        ),
+        "publication_stale": publication_stale(edition),
+        "is_parallel_translation": edition.is_parallel_translation,
+        "metadata_translation_run": next(
+            (run for run in pipeline_runs if run.stage == PipelineRun.Stage.TRANSLATE_METADATA),
+            None,
+        ),
+        **_promotion_context(edition, pipeline_runs),
+        "has_blocks": edition.blocks.exists(),
+        "active_runs": active_runs,
+        "pipeline_run_count": len(pipeline_runs),
+        "recent_pipeline_runs": pipeline_runs[:3],
+        "older_pipeline_runs": pipeline_runs[3:],
+        "actionable_warnings": [item["warning"] for item in open_review_items],
+        "review_items": open_review_items,
+        "import_notices": [
+            warning
+            for warning in edition.warnings.all()
+            if warning.severity == QAWarning.Severity.INFO
+        ],
+        "current_review": next(
+            (
+                decision
+                for decision in edition.review_decisions.all()
+                if decision.source_sha256 == edition.source_sha256
             ),
-            "parallel_companions_running": sum(
-                row["state"] == "running" for row in parallel_companions
-            ),
-            "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
-            **assessment,
-            "adaptation_level": ADAPTATION_TARGET_LEVEL,
-            "adaptation_pilots": edition.pipeline_runs.filter(
-                stage=PipelineRun.Stage.ADAPT, processor_version__in=PILOT_VERSIONS
-            ),
-            "book_adaptation_run": edition.pipeline_runs.filter(
-                stage=PipelineRun.Stage.ADAPT, processor_version__in=("b1-book-v1", "b2-book-v1")
-            ).first(),
-            "chapter_role_choices": Chapter.AnalysisRole.choices,
-            "metadata_form": metadata_form or EditionMetadataForm.for_edition(edition),
-            "metadata_state": _metadata_state(edition),
-            "metadata_provenance": form_provenance(edition),
-            "has_provisional_slug": has_provisional_slug(edition),
-            "purge_form": EditionPurgeForm(edition=edition),
-            "purge_blocked": removal_blocker(edition),
-            "publish_blocked": (
-                publication_blocker(edition) if edition.status == Edition.Status.READY else ""
-            ),
-            "publication_stale": publication_stale(edition),
-            "is_parallel_translation": edition.is_parallel_translation,
-            "metadata_translation_run": next(
-                (run for run in pipeline_runs if run.stage == PipelineRun.Stage.TRANSLATE_METADATA),
-                None,
-            ),
-            **_promotion_context(edition, pipeline_runs),
-            "has_blocks": edition.blocks.exists(),
-            "blocks": blocks,
-            "active_runs": active_runs,
-            "pipeline_run_count": len(pipeline_runs),
-            "recent_pipeline_runs": pipeline_runs[:3],
-            "older_pipeline_runs": pipeline_runs[3:],
-            "actionable_warnings": [item["warning"] for item in open_review_items],
-            "review_items": open_review_items,
-            "import_notices": [
-                warning
-                for warning in edition.warnings.all()
-                if warning.severity == QAWarning.Severity.INFO
-            ],
-            "current_review": next(
-                (
-                    decision
-                    for decision in edition.review_decisions.all()
-                    if decision.source_sha256 == edition.source_sha256
-                ),
-                None,
-            ),
-            "lexical_profile": edition.artifacts.filter(
-                kind="lexical_profile", is_current=True
-            ).first(),
-            "useful_words": edition.artifacts.filter(kind="useful_words", is_current=True).first(),
-            "source_qa_artifact": source_qa_artifact,
-            "has_source_qa_history": source_qa_artifacts.exists(),
-            "text_quality_findings": text_quality_findings,
-            "bulk_detached_initial_count": text_quality_findings.filter(
-                code="detached_initial",
-                confidence__gte=BULK_DETACHED_INITIAL_MIN_CONFIDENCE,
-                block__isnull=False,
-                start_offset__isnull=False,
-                end_offset__isnull=False,
-            ).count(),
-            "recent_revisions": edition.block_revisions.all()[:10],
-            "translation_form": (
-                ParallelTranslationForm(source_edition=edition)
-                if edition.is_canonical and edition.blocks.exists()
-                else None
-            ),
-            "parallel_editions": parallel_editions,
-            "inferred_alignment_available": (
-                edition.parallel_role == Edition.ParallelRole.STANDALONE
-                and edition.source_edition is not None
-            ),
-            "has_inferred_alignment": (
-                edition.source_edition is not None
-                and BlockAlignment.objects.filter(target_edition=edition).exists()
-            ),
-        },
-    )
+            None,
+        ),
+        "lexical_profile": edition.artifacts.filter(
+            kind="lexical_profile", is_current=True
+        ).first(),
+        "useful_words": edition.artifacts.filter(kind="useful_words", is_current=True).first(),
+        "source_qa_artifact": source_qa_artifact,
+        "has_source_qa_history": source_qa_artifacts.exists(),
+        "text_quality_findings": text_quality_findings,
+        "bulk_detached_initial_count": text_quality_findings.filter(
+            code="detached_initial",
+            confidence__gte=BULK_DETACHED_INITIAL_MIN_CONFIDENCE,
+            block__isnull=False,
+            start_offset__isnull=False,
+            end_offset__isnull=False,
+        ).count(),
+        "recent_revisions": edition.block_revisions.all()[:10],
+        "translation_form": (
+            ParallelTranslationForm(source_edition=edition)
+            if edition.is_canonical and edition.blocks.exists()
+            else None
+        ),
+        "parallel_editions": parallel_editions,
+        "inferred_alignment_available": (
+            edition.parallel_role == Edition.ParallelRole.STANDALONE
+            and edition.source_edition is not None
+        ),
+        "has_inferred_alignment": (
+            edition.source_edition is not None
+            and BlockAlignment.objects.filter(target_edition=edition).exists()
+        ),
+        "review_groups": review_groups(open_review_items),
+        "role_label": SHORT_ROLE_LABELS[edition.parallel_role],
+        "work_tree": work_tree(edition),
+        # An editor who has confirmed metadata anywhere has read the helper
+        # paragraphs once; from then on they fold to a line.
+        "helpers_clamped": Work.objects.filter(metadata_confirmed_at__isnull=False).exists(),
+    }
+    context["next_step"] = next_step(edition, context)
+    return render(request, "catalog/edition_detail.html", context)
 
 
 READER_SEARCH_LIMIT = 200
@@ -1563,11 +1567,30 @@ def resolve_warning(request: HttpRequest, edition_id: str, warning_id: uuid.UUID
         messages.error(request, str(error))
     else:
         messages.success(request, "Review item resolved.")
-    if edition.source_edition_id:
+    if edition.source_edition_id and request.POST.get("return") != "edition":
         return _review_redirect(
             str(edition.id),
             request.POST.get("chapter", "1"),
             request.POST.get("filter", ""),
+        )
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def resolve_warnings_by_code(request: HttpRequest, edition_id: str) -> HttpResponse:
+    """Resolve every open review item of one code at once, from its group bar."""
+
+    edition = get_object_or_404(Edition, id=edition_id)
+    try:
+        count = resolve_review_warnings(
+            edition=edition, code=request.POST.get("code", ""), reviewer=request.user
+        )
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request, f"{count} review item{'' if count == 1 else 's'} resolved under your name."
         )
     return redirect("catalog:edition-detail", edition_id=edition.id)
 
@@ -1590,18 +1613,16 @@ def complete_edition_review(request: HttpRequest, edition_id: str) -> HttpRespon
 
 
 def _promotion_context(edition: Edition, pipeline_runs) -> dict:
-    """The card that carries a finished edition to another environment.
+    """The release rows that carry a finished edition to another environment.
 
-    It appears once the edition could travel or has travelled before; a draft
-    has nothing to carry yet, and a page without configured targets only says
-    where to add one.
+    Every public edition has them, so an editor sees where the book will go
+    before it is approved; the promote button is disabled with the reason
+    until it may travel. A page without configured targets only says where to
+    add one.
     """
 
     promotion_runs = [run for run in pipeline_runs if run.stage == PipelineRun.Stage.PROMOTE]
-    eligible = edition.work.visibility == Work.Visibility.PUBLIC and (
-        edition.status in {Edition.Status.READY, Edition.Status.PUBLISHED} or promotion_runs
-    )
-    if not eligible:
+    if edition.work.visibility != Work.Visibility.PUBLIC:
         return {"promotion_targets": [], "promotion_runs": [], "show_promotion": False}
     return {
         "show_promotion": True,

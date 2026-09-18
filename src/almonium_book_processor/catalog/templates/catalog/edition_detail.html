@@ -1,141 +1,233 @@
 {% extends "catalog/base.html" %}
 {% load catalog_extras %}
-{% block title %}{{ edition.title|default:"Untitled upload" }} · Almonium Books{% endblock %}
+{% block title %}{{ edition.title|display_title|default:"Untitled upload" }} · Almonium Books{% endblock %}
 {% block content %}
-<div class="page-heading">
-  <div>
-    <p class="eyebrow">{% if is_private %}Private user import{% else %}{{ edition.get_edition_type_display }} · {{ edition.language|upper }}{% endif %}</p>
-    <h1>{{ edition.title|default:"Untitled upload" }}</h1>
-    {% if edition.work.title and edition.work.title != edition.title %}<p class="original-title">{{ edition.work.title }}</p>{% endif %}
-    <p>{{ edition.author|default:"Author pending" }}{% if is_private %} · {{ edition.get_edition_type_display }}{% endif %}{% if edition.cefr_level or not is_private %} <span class="level-chip{% if not edition.cefr_level %} level-chip-pending{% endif %}">{{ edition.cefr_level|default:"Level pending" }}</span>{% endif %}</p>
-    {% if is_private %}<p class="muted">Owner {% if edition.work.owner_label %}@{{ edition.work.owner_label }} · {% endif %}{{ edition.work.owner_id }} · Uploaded {{ edition.created_at }} · Last updated {{ edition.updated_at }}</p>{% endif %}
+<div class="edition-layout">
+<aside class="edition-rail">
+  <div class="rail-head">
+    {% if is_private %}<a class="rail-crumb" href="{% url 'catalog:private-imports' %}">&larr; User imports</a>{% else %}<a class="rail-crumb" href="{% url 'catalog:dashboard' %}">&larr; Public catalogue · {{ edition.work.title|display_title }}</a>{% endif %}
+    <p class="eyebrow">{% if is_private %}Private user import{% else %}{{ edition.get_edition_type_display }}{% endif %} · {{ edition.language|upper }}</p>
+    <h1>{{ edition.title|display_title|default:"Untitled upload" }}</h1>
+    <p class="rail-author">{{ edition.author|display_title|default:"Author pending" }}{% if edition.work.publication_year %} · {{ edition.work.publication_year }}{% endif %}</p>
+    {% if is_private %}<p class="rail-note">Owner {% if edition.work.owner_label %}@{{ edition.work.owner_label }} · {% endif %}<span class="rail-owner-id" title="{{ edition.work.owner_id }}">{{ edition.work.owner_id }}</span><br>Uploaded {{ edition.created_at|date:"j M Y, H:i" }} · updated {{ edition.updated_at|date:"j M Y, H:i" }}</p>{% endif %}
+    {% if edition.source_edition %}<p class="rail-note">{% if edition.parallel_role == "parallel" %}Generated block for block from the{% else %}Lineage recorded from the{% endif %} <a href="{% url 'catalog:edition-detail' edition.source_edition.id %}">{{ edition.source_edition.language|upper }} edition</a></p>{% endif %}
+    <div class="rail-chips">
+      {% if is_private and edition.status == "ready" %}<span class="status status-ready">Available</span>{% else %}<span class="status status-{{ edition.status }}">{{ edition.get_status_display }}</span>{% endif %}
+      {% if not is_private %}<span class="role-badge role-badge-{{ edition.parallel_role }}">{{ role_label }}</span>{% endif %}
+      {% if edition.cefr_level or not is_private %}<span class="level-chip{% if not edition.cefr_level %} level-chip-pending{% endif %}">{{ edition.cefr_level|default:"Level pending" }}</span>{% endif %}
+    </div>
   </div>
-  <div class="button-row">
-    {% if has_blocks %}<a class="button button-secondary" href="{% url 'catalog:edition-reader' edition.id %}">Read and edit full text</a>{% endif %}
-    {% if is_private and edition.status == "ready" %}<span class="status status-ready">Available</span>{% else %}<span class="status status-{{ edition.status }}">{{ edition.get_status_display }}</span>{% endif %}
+
+  {% if has_blocks %}<a class="button rail-primary" href="{% url 'catalog:edition-reader' edition.id %}">Read and edit full text</a>{% endif %}
+
+  <div class="next-step next-step-{{ next_step.kind }}">
+    <span class="next-step-label">Next step</span>
+    <p>{{ next_step.text }}</p>
+    {% if next_step.kind == "running" %}
+      <span class="run-stage"><span>{{ next_step.run.get_stage_display }} · {{ next_step.run.get_status_display|lower }}</span><span class="run-bar"><span style="width:{{ next_step.run.progress }}%"></span></span></span>
+      {% if active_runs|length > 1 %}<p class="muted">{{ active_runs|length }} jobs running in all.</p>{% endif %}
+    {% elif next_step.kind == "retry" %}
+      <form method="post" action="{% url 'catalog:retry-edition' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Retry processing</button></form>
+    {% elif next_step.kind == "resolve" %}
+      <a class="next-step-link" href="#review-items">Review items &darr;</a>
+    {% elif next_step.kind == "gate" %}
+      <a class="next-step-link" href="#reading-difficulty">Reading difficulty &darr;</a>
+    {% elif next_step.kind == "approve" %}
+      <form class="next-step-form" method="post" action="{% url 'catalog:complete-edition-review' edition.id %}">
+        {% csrf_token %}
+        <details class="next-step-notes"><summary>Add a note</summary><textarea name="notes" rows="3" placeholder="For example: checked the missing image; it is decorative."></textarea></details>
+        <button class="button button-secondary" type="submit">Complete review</button>
+      </form>
+    {% elif next_step.kind == "publish" %}
+      <form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit"{% if next_step.blocked %} disabled{% endif %}>Publish to Almonium</button></form>
+    {% elif next_step.kind == "update" %}
+      <form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Update in Almonium</button></form>
+    {% elif next_step.kind == "promote" %}
+      <a class="next-step-link" href="#release">Release &darr;</a>
+    {% elif next_step.kind == "repair" %}
+      <a class="next-step-link" href="#recovery">Recovery &darr;</a>
+    {% endif %}
   </div>
-</div>
-{% if active_runs %}
-<section class="panel">
-  <h2>Active processing</h2>
-  {% for run in active_runs %}
-    <div class="run-row"><strong>{{ run.get_stage_display }}</strong><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><progress value="{{ run.progress }}" max="100"></progress></div>
-  {% endfor %}
-</section>
+
+  <div class="rail-metrics">
+    <span><strong>{{ edition.word_count|thousands }}</strong><span>words</span></span>
+    <span><strong>{{ edition.chapters.count }}</strong><span>chapters</span></span>
+    <span><strong>{{ edition.blocks.count|thousands }}</strong><span>blocks</span></span>
+    <a class="metric-link" href="#ai-spend"><strong>{{ spend.edition.usd_label }}</strong><span>AI spend · {{ spend.work.usd_label }} work</span></a>
+  </div>
+
+  {% if work_tree|length > 1 %}
+  <div class="rail-tree">
+    <span class="rail-label">In this work</span>
+    {% for row in work_tree %}
+      {% if row.current %}<span class="rail-tree-row rail-tree-current"><span><span class="edition-lang">{{ row.language }}</span> {{ row.role_label }}{% if row.edition.cefr_level %} · {{ row.edition.cefr_level }}{% endif %}</span><span class="rail-tree-status rail-tree-this">This edition</span></span>
+      {% else %}<a class="rail-tree-row" href="{{ row.url }}"><span><span class="edition-lang">{{ row.language }}</span> {{ row.role_label }}{% if row.edition.cefr_level %} · {{ row.edition.cefr_level }}{% endif %}</span><span class="rail-tree-status rail-tree-{{ row.edition.status }}">{{ row.edition.get_status_display }}</span></a>{% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <nav class="rail-index" aria-label="Sections on this page"></nav>
+</aside>
+
+<div class="edition-main{% if helpers_clamped %} helpers-clamped{% endif %}">
+
+{% if edition.status == "failed" or is_private and edition.status == "review" %}
+<details class="panel collapsible-panel recovery-panel" id="recovery"{% if edition.status == "failed" %} open{% endif %}>
+  <summary><span class="summary-title">Recovery</span><span class="summary-meta">{% if edition.status == "failed" %}Retry failed processing{% else %}Repair this private import{% endif %}</span></summary>
+  {% if edition.status == "failed" %}
+    {% if edition.parallel_role == "parallel" and not has_blocks %}
+    <p>This translation did not produce a usable edition, so no partial text was stored. Retrying resubmits the whole book to the Batch API on the same tier and register as the failed attempt. The canonical original is untouched.</p>
+    {% else %}
+    <p>Retry after correcting the worker, importer, or source problem. Existing normalized content is reused when the original source file is unavailable.</p>
+    {% endif %}
+    <div class="button-row">
+      <form method="post" action="{% url 'catalog:retry-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit">Retry processing</button></form>
+    </div>
+  {% else %}
+    <p>If you repaired the normalized blocks manually, release that content directly to the owner.</p>
+  {% endif %}
+  {% if is_private and has_blocks %}
+  <form class="release-form" method="post" action="{% url 'catalog:release-private-import' edition.id %}">
+    {% csrf_token %}
+    <label><span>Repair notes</span><textarea name="notes" rows="3" placeholder="What was checked or corrected?"></textarea></label>
+    <button class="button button-secondary" type="submit">Make repaired content available</button>
+  </form>
+  {% endif %}
+</details>
 {% endif %}
-<section class="metrics">
-  <div><strong>{{ edition.word_count }}</strong><span>words</span></div>
-  <div><strong>{{ edition.chapters.count }}</strong><span>chapters</span></div>
-  <div><strong>{{ edition.blocks.count }}</strong><span>blocks</span></div>
-  <div><strong>{{ actionable_warnings|length }}</strong><span>review items</span></div>
-  <a class="metric-link" href="#ai-spend"><strong>{{ spend.edition.usd_label }}</strong><span>AI spend · {{ spend.work.usd_label }} on the work</span></a>
-</section>
-{% if release_rows %}
-<section class="panel release-panel{% if release_behind %} release-behind{% endif %}" id="release-state">
-  <div class="section-heading"><h2>{% if release_behind %}Readers are behind in {{ release_behind }} place{{ release_behind|pluralize }}{% else %}Readers have the current edition{% endif %}</h2><span class="muted">What each environment serves</span></div>
-  <p class="muted">Almonium reads this edition's text from this service live, so a correction reaches readers here at once; only the published metadata can fall behind. Other environments hold the copy the last promotion carried and see nothing newer until this edition is promoted again.</p>
+
+<details class="panel collapsible-panel review-items" id="review-items" open>
+  <summary><span class="summary-title">Review items</span><span class="summary-meta">{% if actionable_warnings %}{{ actionable_warnings|length }} open · {{ review_groups|length }} kind{{ review_groups|length|pluralize }}{% elif current_review %}None open · reviewed by {{ current_review.reviewer|default:"a staff member" }} {{ current_review.created_at|date:"Y-m-d H:i" }}{% else %}None open{% endif %}</span></summary>
+  {% if actionable_warnings %}
+  <p class="muted">Each item names what to inspect. Resolve it only after you have looked; resolving records your decision under your name.</p>
+  {% for group in review_groups %}
+  <section class="review-group" data-code="{{ group.code }}">
+    <header class="review-group-bar">
+      <span class="review-group-name"><code>{{ group.code }}</code><span class="muted">{{ group.range_label }}</span></span>
+      <span class="review-group-tools">
+        {% if group.has_confidence %}<label class="review-sort">Sort <select data-sort><option value="confidence">lowest confidence</option><option value="position">book order</option></select></label>{% endif %}
+        {% if group.count > 1 %}<form method="post" action="{% url 'catalog:resolve-warnings-by-code' edition.id %}">{% csrf_token %}<input type="hidden" name="code" value="{{ group.code }}"><button class="button button-small button-secondary" type="submit">Resolve all {{ group.count }}</button></form>{% endif %}
+      </span>
+    </header>
+    {% if group.rows.0.item.guidance %}<p class="review-group-guidance">{{ group.rows.0.item.guidance }}</p>{% endif %}
+    <div class="review-rows">
+    {% for row in group.rows %}{% with warning=row.warning %}
+    <article class="review-item review-item-{{ warning.severity }}"{% if forloop.counter > 5 %} hidden{% endif %} data-confidence="{{ row.confidence|default_if_none:'' }}" data-position="{{ row.position }}">
+      <span class="review-row-block">{% if row.block_label %}{{ row.block_label }}{% else %}<span class="muted">edition</span>{% endif %}</span>
+      <span class="review-row-message" title="{{ warning.message }}{% if warning.source_ref %} ({{ warning.source_ref }}){% endif %}">{{ row.text }}</span>
+      <span class="review-row-confidence {{ row.confidence_class }}">{% if row.confidence_label %}{{ row.confidence_label }}{% else %}<span class="muted">{{ warning.created_at|date:"j M" }}</span>{% endif %}</span>
+      <span class="review-row-actions">{% for link in row.item.links %}<a href="{{ link.url }}">{{ link.label }}</a> · {% endfor %}<form method="post" action="{% url 'catalog:resolve-warning' edition.id warning.id %}">{% csrf_token %}<input type="hidden" name="return" value="edition"><button class="link-button" type="submit">Resolve</button></form></span>
+    </article>
+    {% endwith %}{% endfor %}
+    </div>
+    {% if group.hidden %}<button class="review-more" type="button" data-more>Show {{ group.hidden }} more</button>{% endif %}
+  </section>
+  {% endfor %}
+  {% elif current_review %}
+  <p>Completed by {{ current_review.reviewer|default:"a staff member" }} on {{ current_review.created_at }} after considering {{ current_review.actionable_warning_count }} review item{{ current_review.actionable_warning_count|pluralize }}.</p>
+  {% if current_review.notes %}<p class="muted">{{ current_review.notes }}</p>{% endif %}
+  {% else %}
+  <p>Nothing is waiting for a reviewer.</p>
+  {% endif %}
+</details>
+
+{% if show_promotion %}
+<details class="panel collapsible-panel release-panel{% if release_behind %} release-behind{% endif %}" id="release">
+  <summary><span class="summary-title">Release</span><span class="summary-meta">{% if release_behind %}Readers are behind in {{ release_behind }} place{{ release_behind|pluralize }}{% elif edition.status == "published" %}Readers have the current edition{% else %}Not yet on Almonium{% endif %}</span></summary>
+  <p class="muted">Almonium reads this edition's text from this service live, so a correction reaches readers here at once; only the published metadata can fall behind. Other environments hold the copy the last promotion carried{% if promotion_chain_slugs %}, together with {{ promotion_chain_slugs|join:", " }}, which this edition was generated from,{% endif %} and see nothing newer until this edition is promoted again. The AI spend ledger stays here.</p>
+  {% if publish_blocked %}<p class="publish-blocked">{{ publish_blocked }}</p>{% endif %}
   <div class="table-scroll"><table class="release-table">
     <thead><tr><th>Where</th><th>Has</th><th>Since then</th><th>What to do</th></tr></thead>
     <tbody>
+    {% if edition.status != "published" %}
+    <tr class="release-never">
+      <td>Almonium, this environment</td>
+      <td><span class="status">Not published</span></td>
+      <td><span class="muted">—</span></td>
+      <td class="release-actions">{% if edition.status == "ready" %}<form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit"{% if publish_blocked %} disabled{% endif %}>Publish to Almonium</button></form>{% else %}<button class="button" type="button" disabled title="Only reviewed editions are published.">Publish after approval</button>{% endif %}</td>
+    </tr>
+    {% endif %}
     {% for row in release_rows %}
     <tr class="release-{{ row.state }}">
       <td>{% if row.target == "here" %}Almonium, this environment{% else %}{{ row.target }}{% endif %}</td>
-      <td>{% if row.state == "never" %}<span class="status">Never promoted</span>{% elif row.target == "here" %}<span class="status status-published">Published</span><small class="muted">{{ row.at|date:"j M H:i" }}</small>{% else %}<span class="status status-published">Promoted</span><small class="muted">{{ row.at|date:"j M H:i" }}{% if row.published_there %} · publication queued there{% endif %}</small>{% endif %}</td>
+      <td>{% if row.state == "never" %}<span class="status">Never promoted</span>{% elif row.target == "here" %}<span class="status status-published">Published</span><small class="muted">{{ row.at|date:"j M H:i" }}{% if edition.published_book_id %} · book {{ edition.published_book_id }}{% endif %}</small>{% else %}<span class="status status-published">Promoted</span><small class="muted">{{ row.at|date:"j M H:i" }}{% if row.published_there %} · publication queued there{% endif %}</small>{% endif %}</td>
       <td>{% if row.state == "running" %}<span class="status">Promotion running</span>{% elif row.state == "never" %}<span class="muted">—</span>{% else %}{% if row.metadata_behind %}<span class="status status-review">Metadata behind</span>{% endif %}{% if row.target != "here" and row.corrections or row.target != "here" and row.artifacts %}<span class="status status-review">{{ row.corrections }} correction{{ row.corrections|pluralize }} · {{ row.artifacts }} new artifact{{ row.artifacts|pluralize }}</span>{% endif %}{% if row.state == "current" %}<span class="status status-succeeded">Current</span>{% endif %}{% if row.target == "here" and row.corrections %}<small class="muted">{{ row.corrections }} text correction{{ row.corrections|pluralize }} since, served live.</small>{% endif %}{% endif %}{% if row.run %}<small class="run-error">Last attempt failed: {{ row.run.error|truncatechars:120 }}</small>{% endif %}</td>
-      <td class="release-actions">{% if row.target == "here" %}{% if row.metadata_behind %}<form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit">Update in Almonium</button></form>{% else %}<small class="muted">Nothing to do.</small>{% endif %}{% elif row.state == "behind" or row.state == "never" %}<a class="button button-secondary" href="#promotion">Promote to {{ row.target }}</a>{% elif row.state == "running" %}<small class="muted">Wait for the promotion to land.</small>{% else %}<small class="muted">Nothing to do.</small>{% endif %}</td>
+      <td class="release-actions">
+        {% if row.target == "here" %}{% if row.metadata_behind %}<form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit">Update in Almonium</button></form>{% else %}<small class="muted">Nothing to do.</small>{% endif %}
+        {% elif row.state == "running" %}<small class="muted">Wait for the promotion to land.</small>
+        {% elif row.state == "behind" or row.state == "never" %}
+          {% if promotion_blocked %}<button class="button" type="button" disabled title="{{ promotion_blocked }}">Promote after approval</button>
+          {% else %}<form class="promotion-form" method="post" action="{% url 'catalog:promote-edition' edition.id %}">{% csrf_token %}<input type="hidden" name="target" value="{{ row.target }}"><button class="button" type="submit">Promote to {{ row.target }}</button><label class="checkbox-label"><input type="checkbox" name="publish"> Publish there after the copy lands</label></form>{% endif %}
+        {% else %}<small class="muted">Nothing to do.</small>{% endif %}
+      </td>
     </tr>
     {% endfor %}
     </tbody>
   </table></div>
-</section>
-{% endif %}
-{% if not is_private %}
-<details id="metadata" class="panel collapsible-panel metadata-panel"{% if metadata_state != "confirmed" or metadata_form.errors %} open{% endif %}>
-  <summary>
-    <span class="summary-title">Metadata</span>
-    <span class="summary-meta">{% if metadata_state == "confirmed" %}<span class="status status-ready">Confirmed</span> {{ edition.work.metadata_confirmed_at|date:"Y-m-d H:i" }}{% elif metadata_state == "detected" %}<span class="status status-review">Detected · check and confirm</span>{% else %}<span class="status status-queued">Detection pending</span>{% endif %}</span>
-  </summary>
-  <p class="muted">{% if metadata_state == "pending" %}Values are read from the file header and completed by one small AI call once ingestion finishes. Anything you pinned at upload is kept.{% else %}Each field says where its value came from. Confirming records these as editorial values, replaces provisional slugs, and is required before publication.{% endif %}{% if has_provisional_slug %} <strong>Slugs are still provisional.</strong>{% endif %}</p>
-  <form method="post" action="{% url 'catalog:confirm-edition-metadata' edition.id %}">
-    {% csrf_token %}
-    <div class="form-grid">
-      {% for field in metadata_form %}
-        <label><span>{{ field.label }}{% with source=metadata_provenance|get_item:field.name %}{% if source %} <em class="provenance provenance-{{ source }}">{% if source == "ai" %}AI{% elif source == "source" %}file{% else %}editor{% endif %}</em>{% endif %}{% endwith %}</span>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>
-      {% endfor %}
-    </div>
-    <button class="button" type="submit">Confirm metadata</button>
-  </form>
-  {% if has_blocks %}
-  <div class="action-row">
-    <div>
-      <strong>Detect with AI</strong>
-      <p class="muted">For a book imported before this step existed, or whose model call never completed: one small call reads the opening text, checks the title and author, and proposes a blurb and first-publication year. Fields you confirmed are kept, the language is left alone (change it above if it is wrong), and nothing is final until you confirm.</p>
-    </div>
-    <form method="post" action="{% url 'catalog:queue-metadata-detection' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Detect</button></form>
-  </div>
+  {% if show_promotion and not promotion_targets %}
+    <p class="muted">No promotion targets are configured for this environment. They are deployment configuration: <code>ALMONIUM_BOOKS_PROMOTION_TARGETS</code> names them and <code>ALMONIUM_BOOKS_PROMOTION_TOKEN_&lt;NAME&gt;</code> holds each target's token.</p>
+  {% endif %}
+  {% for target in promotion_targets %}{% if forloop.first %}<p class="release-targets">Targets: {% endif %}{{ target.name }} · {{ target.base_url }}{% if not forloop.last %}; {% else %}</p>{% endif %}{% endfor %}
+  {% if promotion_runs %}
+  <div class="promotion-runs">{% for run in promotion_runs %}<div class="run-row"><span>{% if forloop.first %}Last: {{ run.summary.target }} · {% endif %}{{ run.summary_note }}{% if run.error %}<small class="run-note run-error">{{ run.error }}</small>{% endif %}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{{ run.created_at }}</span></div>{% endfor %}</div>
   {% endif %}
 </details>
 {% endif %}
-{% if not is_private %}
-<section class="panel role-panel role-{{ edition.parallel_role }}">
-  <p class="eyebrow">Role in this work</p>
-  <h2>{{ edition.get_parallel_role_display }}</h2>
-  {% if edition.parallel_role == "canonical" %}
-    <p>This is the original text and the root of the parallel tree. Every generated edition copies its block groups, so all languages stay synchronised through this edition.</p>
-  {% elif edition.parallel_role == "parallel" %}
-    <p>Generated block-for-block from <a href="{% url 'catalog:edition-detail' edition.source_edition.id %}">{{ edition.source_edition.title }} ({{ edition.source_edition.language|upper }})</a>. Paragraph groups are inherited; sentence correspondence is estimated separately. Neither structural pairing nor sentence highlights replace fidelity review.</p>
-    <p class="muted">Publish the source first, then this edition after review. Other companions must be published separately; publishing this edition does not approve or release them. Current sentence correspondences become available through the reader API when both editions are published.</p>
-    <p class="muted">Disclose this as a machine translation in the reader. Translator field: {{ edition.translator|default:"AI" }}.</p>
-  {% else %}
-    <p>An independently sourced edition. It is complete and readable on its own, but it is <strong>not</strong> block-synchronised with the original, so it is not offered for parallel reading.</p>
-    {% if edition.source_edition %}<p class="muted">Lineage recorded from {{ edition.source_edition.title }} ({{ edition.source_edition.language|upper }}) for provenance only.</p>{% endif %}
-  {% endif %}
-  {% if parallel_companions %}
-  <div class="tree-siblings" id="parallel-companions">
-    <div class="section-heading"><h3>Parallel companions</h3><span class="muted">{% if parallel_companions_due %}{{ parallel_companions_due }} of {{ parallel_companions|length }} pair{{ parallel_companions|length|pluralize }} need{{ parallel_companions_due|pluralize:"s," }} attention{% elif parallel_companions_running %}{{ parallel_companions_running }} job{{ parallel_companions_running|pluralize }} running{% else %}All {{ parallel_companions|length }} pair{{ parallel_companions|length|pluralize }} current{% endif %}</span></div>
-    <p class="muted">Paragraph pairing is inherited from the canonical block groups. Sentence highlights come from an offline embedding job per pair and are retired whenever either side is corrected; until the job runs again the reader falls back to paragraph pairing for that pair. A refresh is local, costs nothing, and reuses every unchanged block.</p>
-    <div class="table-scroll">
-    <table class="companion-table">
-      <thead><tr><th>Companion</th><th>Paragraphs</th><th>Sentence alignment</th><th>What to do</th></tr></thead>
-      <tbody>
-      {% for row in parallel_companions %}
-      <tr class="companion-row companion-{{ row.state }}">
-        <td><a href="{% url 'catalog:edition-detail' row.other.id %}">{{ row.other.language|upper }}{% if row.other.cefr_level %} · {{ row.other.cefr_level }}{% endif %}</a><br><small class="muted">{{ row.other.get_edition_type_display }} · {{ row.other.get_parallel_role_display }}</small><br><span class="status status-{{ row.other.status }}">{{ row.other.get_status_display }}</span></td>
-        <td>{% if row.complete %}<span class="status status-succeeded">Complete</span><br><small class="muted">{{ row.total }} inherited group{{ row.total|pluralize }}</small>{% else %}<span class="status status-failed">Incomplete</span><br><small class="muted">Block groups do not match; not readable side by side</small>{% endif %}</td>
-        <td>
-          {% if row.state == "current" %}<span class="status status-succeeded">Current</span><br><small class="muted">{{ row.current }} of {{ row.total }} blocks{% if row.model %} · {{ row.model }}{% endif %}{% if row.run and row.run.finished_at %} · {{ row.run.finished_at|date:"j M H:i" }}{% endif %}</small>
-          {% elif row.state == "running" %}<span class="status">{{ row.run.get_status_display }} · {{ row.run.progress }}%</span><br><small class="muted">{{ row.model }} · refresh this page for progress</small>
-          {% elif row.state == "stale" %}<span class="status status-review">Stale</span><br><small class="muted">{{ row.current }} of {{ row.total }} blocks current · {{ row.changed }} changed since the last job · {{ row.reusable }} unchanged and cached</small>
-          {% elif row.state == "failed" %}<span class="status status-failed">Failed</span><br><small class="muted run-error">{{ row.run.error|default:"The last job failed." }}</small>
-          {% elif row.state == "missing" %}<span class="status status-missing">Not aligned</span><br><small class="muted">Paragraph pairing only; no sentence job has run for this pair</small>
-          {% else %}<span class="muted">—</span>{% endif %}
-        </td>
-        <td class="companion-actions">
-          {% if row.state == "stale" or row.state == "failed" or row.state == "missing" %}<form method="post" action="{% url 'catalog:queue-sentence-alignment' edition.id row.other.id %}">{% csrf_token %}{% if row.model %}<input type="hidden" name="model" value="{{ row.model }}">{% endif %}<button class="button" type="submit">{% if row.state == "missing" %}Align sentences offline{% else %}Refresh offline{% endif %}</button></form><small class="muted">No API cost{% if row.state == "stale" %} · {{ row.changed }} block{{ row.changed|pluralize }} to embed{% endif %}</small>
-          {% elif row.state == "running" %}<small class="muted">Wait for the job to finish.</small>
-          {% elif row.state == "current" %}<small class="muted">Nothing to do.</small>
-          {% else %}<small class="muted">Regenerate this companion from the canonical edition.</small>{% endif %}
-          {% if has_blocks %}<div class="companion-links"><a href="{% url 'catalog:edition-reader' edition.id %}?parallel={{ row.other.id }}">Read side by side</a>{% if row.complete %} · <a href="{% url 'catalog:sentence-preview' edition.id row.other.id %}">Sentence preview</a>{% endif %}</div>{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-    </div>
+
+{% if is_private and edition.status == "ready" %}
+<details class="panel collapsible-panel release-panel" id="release">
+  <summary><span class="summary-title">Release</span><span class="summary-meta">Available to the owner · not a public publication</span></summary>
+  <p>The normalized text is already available in the owner's private reader. This is not a public publication.</p>
+  <form method="post" action="{% url 'catalog:release-private-import' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Resend availability update</button></form>
+</details>
+{% endif %}
+
+<div class="section-divider"><span>Text</span></div>
+
+{% if parallel_companions %}
+<details class="panel collapsible-panel companions-panel" id="parallel-companions"{% if parallel_companions_due or parallel_companions_running %} open{% endif %}>
+  <summary><span class="summary-title">Parallel companions</span><span class="summary-meta">{% if parallel_companions_due %}{{ parallel_companions_due }} of {{ parallel_companions|length }} pair{{ parallel_companions|length|pluralize }} need{{ parallel_companions_due|pluralize:"s," }} attention{% elif parallel_companions_running %}{{ parallel_companions_running }} job{{ parallel_companions_running|pluralize }} running{% else %}All {{ parallel_companions|length }} pair{{ parallel_companions|length|pluralize }} current{% endif %}</span></summary>
+  <p class="muted">{% if edition.parallel_role == "canonical" %}This is the original text and the root of the parallel tree. Every generated edition copies its block groups, so all languages stay synchronised through this edition. {% elif edition.parallel_role == "parallel" %}Generated block-for-block from the source: paragraph groups are inherited; sentence correspondence is estimated separately. Neither structural pairing nor sentence highlights replace fidelity review. Publish the source first, then this edition after review; publishing this edition does not approve or release its companions. Disclose it as a machine translation in the reader (translator field: {{ edition.translator|default:"AI" }}). {% endif %}Sentence highlights come from an offline embedding job per pair and are retired whenever either side is corrected; until the job runs again the reader falls back to paragraph pairing for that pair. A refresh is local, costs nothing, and reuses every unchanged block.</p>
+  <div class="table-scroll">
+  <table class="companion-table">
+    <thead><tr><th>Companion</th><th>Paragraphs</th><th>Sentence alignment</th><th>What to do</th></tr></thead>
+    <tbody>
+    {% for row in parallel_companions %}
+    <tr class="companion-row companion-{{ row.state }}">
+      <td><a href="{% url 'catalog:edition-detail' row.other.id %}">{{ row.other.language|upper }}{% if row.other.cefr_level %} · {{ row.other.cefr_level }}{% endif %}</a><br><small class="muted">{{ row.other.get_edition_type_display }} · {{ row.other.get_parallel_role_display }}</small><br><span class="status status-{{ row.other.status }}">{{ row.other.get_status_display }}</span></td>
+      <td>{% if row.complete %}<span class="status status-succeeded">Complete</span><br><small class="muted">{{ row.total }} inherited group{{ row.total|pluralize }}</small>{% else %}<span class="status status-failed">Incomplete</span><br><small class="muted">Block groups do not match; not readable side by side</small>{% endif %}</td>
+      <td>
+        {% if row.state == "current" %}<span class="status status-succeeded">Current</span><br><small class="muted">{{ row.current }} of {{ row.total }} blocks{% if row.model %} · {{ row.model }}{% endif %}{% if row.run and row.run.finished_at %} · {{ row.run.finished_at|date:"j M H:i" }}{% endif %}</small>
+        {% elif row.state == "running" %}<span class="status">{{ row.run.get_status_display }} · {{ row.run.progress }}%</span><br><small class="muted">{{ row.model }} · refresh this page for progress</small>
+        {% elif row.state == "stale" %}<span class="status status-review">Stale</span><br><small class="muted">{{ row.current }} of {{ row.total }} blocks current · {{ row.changed }} changed since the last job · {{ row.reusable }} unchanged and cached</small>
+        {% elif row.state == "failed" %}<span class="status status-failed">Failed</span><br><small class="muted run-error">{{ row.run.error|default:"The last job failed." }}</small>
+        {% elif row.state == "missing" %}<span class="status status-missing">Not aligned</span><br><small class="muted">Paragraph pairing only; no sentence job has run for this pair</small>
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
+      <td class="companion-actions">
+        {% if row.state == "stale" or row.state == "failed" or row.state == "missing" %}<form method="post" action="{% url 'catalog:queue-sentence-alignment' edition.id row.other.id %}">{% csrf_token %}{% if row.model %}<input type="hidden" name="model" value="{{ row.model }}">{% endif %}<button class="button" type="submit">{% if row.state == "missing" %}Align sentences offline{% else %}Refresh offline{% endif %}</button></form><small class="muted">No API cost{% if row.state == "stale" %} · {{ row.changed }} block{{ row.changed|pluralize }} to embed{% endif %}</small>
+        {% elif row.state == "running" %}<small class="muted">Wait for the job to finish.</small>
+        {% elif row.state == "current" %}<small class="muted">Nothing to do.</small>
+        {% else %}<small class="muted">Regenerate this companion from the canonical edition.</small>{% endif %}
+        {% if has_blocks %}<div class="companion-links"><a href="{% url 'catalog:edition-reader' edition.id %}?parallel={{ row.other.id }}">Read side by side</a>{% if row.complete %} · <a href="{% url 'catalog:sentence-preview' edition.id row.other.id %}">Sentence preview</a>{% endif %}</div>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
   </div>
-  {% elif parallel_editions %}
-  <div class="tree-siblings">
-    <h3>Others in the parallel tree</h3>
-    <ul>{% for sibling in parallel_editions %}<li><a href="{% url 'catalog:edition-detail' sibling.id %}">{{ sibling.language|upper }}</a> · {{ sibling.get_parallel_role_display }} · <span class="status status-{{ sibling.status }}">{{ sibling.get_status_display }}</span>{% if has_blocks and edition.supports_parallel_reading %} · <a href="{% url 'catalog:edition-reader' edition.id %}?parallel={{ sibling.id }}">read side by side</a>{% endif %}</li>{% endfor %}</ul>
-    {% if has_blocks and edition.supports_parallel_reading %}<p class="muted">Side by side pairs blocks through the group they inherit from the canonical edition, so it verifies the translation itself rather than the alignment — anything that fails to pair is flagged as a gap.</p>{% endif %}
-  </div>
-  {% endif %}
-</section>
+</details>
+{% elif not is_private and parallel_editions and has_blocks and edition.supports_parallel_reading %}
+<details class="panel collapsible-panel companions-panel" id="parallel-companions">
+  <summary><span class="summary-title">Parallel companions</span><span class="summary-meta">{{ parallel_editions|length }} other{{ parallel_editions|length|pluralize }} in the tree</span></summary>
+  <ul class="tree-list">{% for sibling in parallel_editions %}<li><a href="{% url 'catalog:edition-detail' sibling.id %}">{{ sibling.language|upper }}</a> · {{ sibling.get_parallel_role_display }} · <span class="status status-{{ sibling.status }}">{{ sibling.get_status_display }}</span> · <a href="{% url 'catalog:edition-reader' edition.id %}?parallel={{ sibling.id }}">read side by side</a></li>{% endfor %}</ul>
+  <p class="muted">Side by side pairs blocks through the group they inherit from the canonical edition, so it verifies the translation itself rather than the alignment — anything that fails to pair is flagged as a gap.</p>
+</details>
 {% endif %}
 
 {% if translation_form %}
-<details class="panel collapsible-panel translation-panel">
-  <summary><span class="summary-title">Generate a parallel edition</span><span class="summary-meta">Adds a language to the tree</span></summary>
+<details class="panel collapsible-panel translation-panel" id="translation">
+  <summary><span class="summary-title">Translation</span><span class="summary-meta">Generate a parallel edition · adds a language to the tree</span></summary>
   <p class="muted">The translator returns one block for every source block and echoes its identifier, so the new edition inherits this edition's canonical block groups. That is what makes side-by-side reading exact. Submitted through the Batch API; results can take up to 24 hours.</p>
   <form method="post" action="{% url 'catalog:queue-parallel-translation' edition.id %}">
     {% csrf_token %}
@@ -147,103 +239,19 @@
 </details>
 {% endif %}
 
-{% if has_blocks %}
-<section class="panel enrichment-panel">
-  <p class="eyebrow">Enrichment</p>
-  <h2>Derived data for this edition</h2>
-  <p class="muted">Enrichments are versioned independently. They do not block reading or publication and do not change book text on their own.</p>
-  <div class="action-list">
-    <div class="action-row">
-      <div>
-        <strong>Scan source text</strong>
-        <p class="muted">Reads this edition's own text and flags Gutenberg boilerplate, malformed Unicode, duplicated blocks, broken hyphenation, and detached drop-cap initials. It only <em>proposes</em> corrections — you approve each one, and every applied change is recorded as an auditable revision.</p>
-      </div>
-      <form method="post" action="{% url 'catalog:queue-source-quality-scan' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Scan</button></form>
-    </div>
-    <div class="action-row">
-      <div>
-        <strong>Run lexical analysis</strong>
-        <p class="muted">Builds the word profile and the ranked “50 useful words from this book” list, with counts, chapter spread, and source evidence. Feeds the reader and the public word page.</p>
-      </div>
-      <form method="post" action="{% url 'catalog:queue-lexical-analysis' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Analyse</button></form>
-    </div>
-    {% if is_parallel_translation %}
-    <div class="action-row" id="metadata-translation">
-      <div>
-        <strong>Translate the title page and contents</strong>
-        <p class="muted">Names this edition as {{ edition.get_language_display }} readers know it — title, author and blurb — and translates the source's chapter descriptions for its contents. Reading difficulty stays the source's: the rubric is never applied to a machine translation. Runs by itself after translation and after the source is analysed; finished calls are reused.</p>
-        {% if metadata_translation_run %}<p class="muted">Last run: <span class="status status-{{ metadata_translation_run.status }}">{{ metadata_translation_run.get_status_display }}</span> · {{ metadata_translation_run.summary.chapters|default:0 }} / {{ metadata_translation_run.summary.chapters_available|default:0 }} chapters{% if metadata_translation_run.summary.note %} · {{ metadata_translation_run.summary.note }}{% endif %}{% if metadata_translation_run.error %} · {{ metadata_translation_run.error }}{% endif %}</p>{% endif %}
-      </div>
-      {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-metadata-translation' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Translate</button></form>{% else %}<p class="muted">Configure an OpenAI key to translate metadata.</p>{% endif %}
-    </div>
-    {% elif not is_private %}
-    <div class="action-row">
-      <div>
-        <strong>Analyze chapters with AI</strong>
-        <p class="muted">Paid analysis of reading difficulty, historical language and summaries. Long chapters are assessed in separate windows. Retries reuse completed results. Estimates are proposals; your editorial CEFR level stays unchanged.</p>
-      </div>
-      {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-chapter-analysis' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Analyze / resume</button></form>{% else %}<p class="muted">Configure an OpenAI key to enable chapter analysis.</p>{% endif %}
-    </div>
-    {% endif %}
+{% if has_inferred_alignment or inferred_alignment_available %}
+<details class="panel collapsible-panel alignment-panel" id="inferred-alignment">
+  <summary><span class="summary-title">Inferred alignment</span><span class="summary-meta">{% if has_inferred_alignment %}Built{% if actionable_warnings %} · {{ actionable_warnings|length }} group{{ actionable_warnings|length|pluralize }} left for a human{% endif %}{% else %}Not built{% endif %}</span></summary>
+  <p class="muted">For two independently imported texts only. Embeddings guess which blocks correspond, then optional AI adjudication resolves what they could not. Expect a residual human-review queue — this is the expensive path, and it is why generated parallel editions exist. Keep it for scanned or user-uploaded pairs.</p>
+  <div class="button-row">
+    {% if has_inferred_alignment %}<a class="button" href="{% url 'catalog:alignment-review' edition.id %}">Open alignment workspace</a>{% endif %}
+    {% if inferred_alignment_available %}<form method="post" action="{% url 'catalog:queue-source-alignment' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">{% if has_inferred_alignment %}Rebuild{% else %}Build{% endif %} inferred alignment</button></form>{% endif %}
   </div>
-</section>
-{% endif %}
-
-{% if actionable_warnings %}<details class="panel collapsible-panel review-items" open><summary><span class="summary-title">Review items</span><span class="summary-meta">{{ actionable_warnings|length }} open</span></summary><p class="muted">Each item names what to inspect. Resolve it only after you have looked; resolving records your decision under your name.</p>
-{% for item in review_items %}{% with warning=item.warning %}<article class="review-item review-item-{{ warning.severity }}">
-  <div class="review-item-body">
-    <p class="review-item-head"><code>{{ warning.code }}</code><span class="muted">{{ warning.created_at|date:"j M H:i" }}</span></p>
-    <p class="review-item-message">{{ warning.message }}{% if warning.source_ref %} <span class="muted">({{ warning.source_ref }})</span>{% endif %}</p>
-    {% if item.guidance %}<p class="review-item-guidance">{{ item.guidance }}</p>{% endif %}
-    {% if item.links %}<p class="review-item-links">{% for link in item.links %}<a href="{{ link.url }}">{{ link.label }}</a>{% endfor %}</p>{% endif %}
-  </div>
-  <form method="post" action="{% url 'catalog:resolve-warning' edition.id warning.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Resolve</button></form>
-</article>{% endwith %}{% endfor %}</details>{% endif %}
-
-{% if not is_private and has_blocks %}
-{% if is_parallel_translation %}
-<section class="panel assessment-panel">
-  <p class="eyebrow">Reading difficulty · borrowed from the source</p>
-  <h2>Assessed on <a href="{% url 'catalog:edition-detail' edition.source_edition.id %}">{{ edition.source_edition.title }} ({{ edition.source_edition.language|upper }})</a></h2>
-  <p class="muted">A parallel translation is read beside its source, so the reading demand that matters is the source's, and the rubric is never applied to machine-translated text. Readers of this edition see the source's chapter levels with descriptions translated into {{ edition.get_language_display }} by the metadata translation above.</p>
-</section>
-{% else %}
-<section class="panel assessment-panel">
-  <p class="eyebrow">Reading difficulty · {{ projection_state|default:"pending" }}</p>
-  <h2>Computed estimate: {{ book_difficulty.cefr_estimate|default:"Pending" }}</h2>
-  {% if adaptation_target %}<p><strong>Adaptation target: {{ adaptation_target }}</strong>. Estimates below target are shown for editorial review; any above-target window blocks completion, including in excluded chapters.</p>{% endif %}
-  {% if adaptation_blocker %}<p class="message warning" role="alert">{{ adaptation_blocker }} The difficulty review item clears automatically after a current, passing reassessment; it cannot be dismissed while the gate fails.</p>{% elif adaptation_target %}<p>Current difficulty check passed. This does not replace fidelity review.</p>{% endif %}
-  {% if adaptation_below_chapters %}<p>Below-target chapters: {{ adaptation_below_chapters|join:", " }}. Check for unnecessary simplification.</p>{% endif %}
-  <p>Editorial level: {{ edition.cefr_level|default:"Not set" }}. Analysis never overwrites this value{% if adaptation_target and not edition.cefr_level %}; completing review sets it to the {{ adaptation_target }} target once the gate passes{% endif %}.</p>
-  <p class="muted">Chapter roles: <strong>Substantive chapter</strong> means the main story or content and counts toward the book estimate. <strong>Front matter</strong> means introductory extras, such as a preface or introduction. <strong>Back matter</strong> means end extras, such as appendices or notes. Extras remain readable and keep their own estimates, but do not count toward the overall book level. Storytelling letters and prologues still count as substantive content. Exclusion does not bypass an adaptation's target-level checks.</p>
-  {% if chapter_analysis_run %}<div class="button-row"><form method="post" action="{% url 'catalog:refresh-chapter-projections' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Refresh saved assessments (no AI calls)</button></form></div>{% endif %}
-  {% if projection_state == "stale" %}<p>Previous assessments are stale. Analyze the current text, or refresh saved assessments after changing chapter roles.</p>{% endif %}
-  {% if book_difficulty %}
-  <p>{{ book_difficulty.chapters_completed }} / {{ book_difficulty.chapters_total }} substantive chapters complete · {{ book_difficulty.chapters_excluded }} front/back-matter chapters excluded. {% if not book_difficulty.chapters_total %}<strong>No substantive chapters selected.</strong>{% elif not book_difficulty.complete %}<strong>Partial coverage: this is a provisional estimate.</strong>{% endif %}</p>
-  <p>{{ book_difficulty.whitespace_tokens_analyzed }} / {{ book_difficulty.whitespace_tokens_total }} whitespace tokens assessed. These counts are not NLP vocabulary measurements.</p>
-  {% if book_difficulty.cefr_estimate %}
-  <p>Range: {{ book_difficulty.min_level }}–{{ book_difficulty.max_level }} · whitespace-token-weighted comparison: {{ book_difficulty.weighted_comparison }}.</p>
-  <p>Chapter distribution: {% for level, count in book_difficulty.distribution.items %}{{ level }}: {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>
-  <p class="muted">Nearest-rank 75th percentile of complete substantive chapters. Model confidence range {{ book_difficulty.confidence_min }}–{{ book_difficulty.confidence_max }} is not calibrated book accuracy.</p>
-  {% endif %}
-  {% for row in chapter_projections %}
-  <details class="chapter-row">
-    <summary>Chapter {{ row.chapter.sequence }} — {{ row.chapter.title }} · {{ row.difficulty.cefr_estimate|default:"Pending" }}{% if row.above_adaptation_target %} · ABOVE TARGET{% endif %}{% if not row.difficulty.complete %} (partial){% endif %} · {{ row.difficulty.windows_completed }}/{{ row.difficulty.windows_total }} windows</summary>
-    <form class="chapter-role-form" method="post" action="{% url 'catalog:update-chapter-role' edition.id row.chapter.id %}">{% csrf_token %}<div class="chapter-role-field"><label for="analysis-role-{{ row.chapter.id }}">Contribution to book estimate</label><select id="analysis-role-{{ row.chapter.id }}" name="analysis_role">{% for value, label in chapter_role_choices %}<option value="{{ value }}"{% if row.chapter.analysis_role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div><button class="button button-secondary" type="submit">Save chapter role</button></form>
-    {% if row.difficulty.cefr_estimate %}<p>Window range: {{ row.difficulty.min_level }}–{{ row.difficulty.max_level }} · archaism rating: {{ row.difficulty.archaism_score }} / 1.</p>{% endif %}
-    {% for window in row.difficulty.windows %}<details><summary>Window {{ window.window }} · {{ window.cefr_estimate }} · judge evidence</summary>{% for item in window.evidence %}<p><code>{{ item.block_id }}</code> · {{ item.dimension }}: “{{ item.quote }}” — {{ item.explanation }}</p>{% endfor %}</details>{% endfor %}
-    {% for section in row.summary.sections %}<p><strong>Window {{ section.window }}</strong> {{ section.spoiler_free_description }}</p>{% endfor %}
-    <details class="spoiler"><summary>Show chapter recap (spoilers)</summary>{% for section in row.summary.sections %}<p><strong>Window {{ section.window }}</strong> {{ section.recap }}</p>{% endfor %}</details>
-    <p class="muted">Multi-window summaries remain ordered sections; no additional AI call merges them.</p>
-  </details>
-  {% endfor %}
-  {% endif %}
-</section>
-{% endif %}
+</details>
 {% endif %}
 
 {% if edition.work.visibility == "public" and edition.edition_type != "adaptation" %}
-<details class="panel collapsible-panel adaptation-panel">
+<details class="panel collapsible-panel adaptation-panel" id="adaptation">
   <summary><span class="summary-title">Level adaptation</span><span class="summary-meta">{% if adaptation_floor %}Adapts to {{ adaptation_floor }}{% elif adaptation_floor_found %}Floor found{% elif adaptation_next_probe %}Next: probe {{ adaptation_next_probe }}{% else %}Original {{ adaptation_original_level|default:"level unknown" }}{% endif %}{% if adaptation_pilots %} · {{ adaptation_pilots|length }} pilot{{ adaptation_pilots|length|pluralize }}{% endif %}</span></summary>
   <p class="muted">Paid, same-language rewrite that keeps every proposition, image and degree of certainty of the original. The level a book lands at is whatever that constraint allows: it is found one rung at a time and recorded from evidence, never promised. A probe generates three chapters, judges them blind and audits their fidelity; a passed probe is the green light to generate the full edition, a failed one closes the ladder.</p>
   <div class="adaptation-ladder" id="adaptation-ladder">
@@ -282,18 +290,18 @@
 {% endif %}
 
 {% if book_adaptation_run %}
-<section class="panel"><h2>{{ book_adaptation_run.summary.target_level }} adaptation — {{ book_adaptation_run.get_status_display }}</h2>
+<details class="panel collapsible-panel generation-panel" id="generation"{% if book_adaptation_run.status != "succeeded" %} open{% endif %}>
+  <summary><span class="summary-title">{{ book_adaptation_run.summary.target_level }} adaptation</span><span class="summary-meta"><span class="status status-{{ book_adaptation_run.status }}">{{ book_adaptation_run.get_status_display }}</span> · {{ book_adaptation_run.summary.completed }} / {{ book_adaptation_run.summary.plan.windows|length }} chunks</span></summary>
   <p>{{ book_adaptation_run.summary.completed }} / {{ book_adaptation_run.summary.plan.windows|length }} generation chunks complete. {% if book_adaptation_run.summary.blocks %}{{ book_adaptation_run.summary.blocks }} blocks · {{ book_adaptation_run.summary.kept }} kept verbatim.{% endif %}</p>
   <p>Target {{ book_adaptation_run.summary.target_level }}; editorial level stays unset until confirmed. Source revision: <code>{{ book_adaptation_run.summary.plan.source_hash }}</code>.</p>
   {% if book_adaptation_run.error %}<p class="message error">{{ book_adaptation_run.error }}</p>{% endif %}
   {% if has_blocks %}<a class="button" href="{% url 'catalog:edition-reader' edition.id %}?parallel={{ edition.source_edition.id }}">Read beside source</a>{% endif %}
-</section>
+</details>
 {% endif %}
 
 {% if edition.edition_type == "adaptation" and not is_private %}
-<section class="panel" id="fidelity-audit">
-  <p class="eyebrow">Fidelity audit</p>
-  <h2>{% if fidelity_audit_state == "current" %}Current{% if fidelity_findings %} · {{ fidelity_findings|length }} open finding{{ fidelity_findings|length|pluralize }}{% else %} · clean{% endif %}{% elif fidelity_audit_state == "stale" %}Stale — {{ fidelity_stale_chapters }} chapter{{ fidelity_stale_chapters|pluralize }} edited by hand since the audit{% elif fidelity_audit_state == "queued" or fidelity_audit_state == "running" %}Running{% elif fidelity_audit_state == "failed" %}Failed{% else %}Not run{% endif %}</h2>
+<details class="panel collapsible-panel fidelity-panel" id="fidelity-audit"{% if fidelity_findings or fidelity_audit_state == "stale" or fidelity_audit_state == "failed" or fidelity_audit_state == "none" %} open{% endif %}>
+  <summary><span class="summary-title">Fidelity audit</span><span class="summary-meta">{% if fidelity_audit_state == "current" %}<span class="status status-succeeded">Current</span>{% if fidelity_findings %} · {{ fidelity_findings|length }} open finding{{ fidelity_findings|length|pluralize }}{% else %} · clean{% endif %}{% elif fidelity_audit_state == "stale" %}<span class="status status-review">Stale</span> · {{ fidelity_stale_chapters }} chapter{{ fidelity_stale_chapters|pluralize }} edited by hand since the audit{% elif fidelity_audit_state == "queued" or fidelity_audit_state == "running" %}<span class="status status-running">Running</span>{% elif fidelity_audit_state == "failed" %}<span class="status status-failed">Failed</span>{% else %}Not run{% endif %}</span></summary>
   <p class="muted">A literary-editor prompt reads every block beside its source block and reports changes of meaning, lost imagery, added facts or shifted certainty. Every finding is yours to act on: <strong>apply</strong> writes the suggested wording into the block as an audited revision, <strong>dismiss</strong> records that the adapted wording keeps the author's meaning. Reaching a level needs the audit current with no open material finding on top of the difficulty gate; minor and uncertain ones do not hold the gate. A suggestion applied as written carries the audit forward, and a phrase-sized change keeps the difficulty verdict too; only text edited by hand is unread, and the page then says what a re-read costs.</p>
   {% if fidelity_audit_run %}<p>Run <a href="#run-{{ fidelity_audit_run.id }}">{{ fidelity_audit_run.id|stringformat:"s"|slice:":8" }}</a> · {{ fidelity_audit_run.summary.spec.model }} · {{ fidelity_audit_run.summary.completed_windows }}/{{ fidelity_audit_run.summary.windows }} windows{% if fidelity_audit_run.summary.review %} · {{ fidelity_audit_run.summary.review.counts.material }} material / {{ fidelity_audit_run.summary.review.counts.minor }} minor / {{ fidelity_audit_run.summary.review.counts.uncertain }} uncertain over {{ fidelity_audit_run.summary.review.blocks }} blocks · ${{ fidelity_audit_run.summary.review.cost_usd }}{% endif %}{% if fidelity_carried %} · carried forward over {{ fidelity_carried }} suggestion{{ fidelity_carried|pluralize }} applied as written{% endif %}</p>
   {% if fidelity_audit_state == "stale" %}<p class="muted">Applying the audit's own suggestions keeps it current; text edited by hand is unread. Re-reading the {{ fidelity_stale_chapters }} changed chapter{{ fidelity_stale_chapters|pluralize }} costs about ${{ fidelity_stale_cost }}; unchanged chapters come from cache.</p>{% endif %}
@@ -347,13 +355,53 @@
     {% endfor %}
   </details>
   {% endif %}
-</section>
+</details>
+{% endif %}
+
+{% if not is_private and has_blocks %}
+{% if is_parallel_translation %}
+<details class="panel collapsible-panel assessment-panel" id="reading-difficulty">
+  <summary><span class="summary-title">Reading difficulty</span><span class="summary-meta">Borrowed from the source · {{ edition.source_edition.cefr_level|default:"level pending" }}</span></summary>
+  <p>Assessed on <a href="{% url 'catalog:edition-detail' edition.source_edition.id %}">{{ edition.source_edition.title|display_title }} ({{ edition.source_edition.language|upper }})</a>.</p>
+  <p class="muted">A parallel translation is read beside its source, so the reading demand that matters is the source's, and the rubric is never applied to machine-translated text. Readers of this edition see the source's chapter levels with descriptions translated into {{ edition.get_language_display }} by the metadata translation under Enrichment.</p>
+</details>
+{% else %}
+<details class="panel collapsible-panel assessment-panel" id="reading-difficulty"{% if adaptation_blocker %} open{% endif %}>
+  <summary><span class="summary-title">Reading difficulty</span><span class="summary-meta">{% if book_difficulty.cefr_estimate %}Computed estimate {{ book_difficulty.cefr_estimate }} · {{ projection_state|default:"pending" }}{% elif projection_state == "stale" %}Stale · analyse again{% else %}Not analysed yet{% endif %}{% if adaptation_blocker %} · <span class="status status-failed">Gate failing</span>{% elif adaptation_target %} · <span class="status status-succeeded">Gate passed</span>{% endif %}</span></summary>
+  {% if adaptation_target %}<p><strong>Adaptation target: {{ adaptation_target }}</strong>. Estimates below target are shown for editorial review; any above-target window blocks completion, including in excluded chapters.</p>{% endif %}
+  {% if adaptation_blocker %}<p class="message warning" role="alert">{{ adaptation_blocker }} The difficulty review item clears automatically after a current, passing reassessment; it cannot be dismissed while the gate fails.</p>{% elif adaptation_target %}<p>Current difficulty check passed. This does not replace fidelity review.</p>{% endif %}
+  {% if adaptation_below_chapters %}<p>Below-target chapters: {{ adaptation_below_chapters|join:", " }}. Check for unnecessary simplification.</p>{% endif %}
+  <p>Editorial level: {{ edition.cefr_level|default:"Not set" }}. Analysis never overwrites this value{% if adaptation_target and not edition.cefr_level %}; completing review sets it to the {{ adaptation_target }} target once the gate passes{% endif %}.</p>
+  <p class="muted">Chapter roles: <strong>Substantive chapter</strong> means the main story or content and counts toward the book estimate. <strong>Front matter</strong> means introductory extras, such as a preface or introduction. <strong>Back matter</strong> means end extras, such as appendices or notes. Extras remain readable and keep their own estimates, but do not count toward the overall book level. Storytelling letters and prologues still count as substantive content. Exclusion does not bypass an adaptation's target-level checks.</p>
+  {% if chapter_analysis_run %}<div class="button-row"><form method="post" action="{% url 'catalog:refresh-chapter-projections' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Refresh saved assessments (no AI calls)</button></form></div>{% endif %}
+  {% if projection_state == "stale" %}<p>Previous assessments are stale. Analyze the current text, or refresh saved assessments after changing chapter roles.</p>{% endif %}
+  {% if book_difficulty %}
+  <p>{{ book_difficulty.chapters_completed }} / {{ book_difficulty.chapters_total }} substantive chapters complete · {{ book_difficulty.chapters_excluded }} front/back-matter chapters excluded. {% if not book_difficulty.chapters_total %}<strong>No substantive chapters selected.</strong>{% elif not book_difficulty.complete %}<strong>Partial coverage: this is a provisional estimate.</strong>{% endif %}</p>
+  <p>{{ book_difficulty.whitespace_tokens_analyzed }} / {{ book_difficulty.whitespace_tokens_total }} whitespace tokens assessed. These counts are not NLP vocabulary measurements.</p>
+  {% if book_difficulty.cefr_estimate %}
+  <p>Range: {{ book_difficulty.min_level }}–{{ book_difficulty.max_level }} · whitespace-token-weighted comparison: {{ book_difficulty.weighted_comparison }}.</p>
+  <p>Chapter distribution: {% for level, count in book_difficulty.distribution.items %}{{ level }}: {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>
+  <p class="muted">Nearest-rank 75th percentile of complete substantive chapters. Model confidence range {{ book_difficulty.confidence_min }}–{{ book_difficulty.confidence_max }} is not calibrated book accuracy.</p>
+  {% endif %}
+  {% for row in chapter_projections %}
+  <details class="chapter-row">
+    <summary>Chapter {{ row.chapter.sequence }} — {{ row.chapter.title }} · {{ row.difficulty.cefr_estimate|default:"Pending" }}{% if row.above_adaptation_target %} · ABOVE TARGET{% endif %}{% if not row.difficulty.complete %} (partial){% endif %} · {{ row.difficulty.windows_completed }}/{{ row.difficulty.windows_total }} windows</summary>
+    <form class="chapter-role-form" method="post" action="{% url 'catalog:update-chapter-role' edition.id row.chapter.id %}">{% csrf_token %}<div class="chapter-role-field"><label for="analysis-role-{{ row.chapter.id }}">Contribution to book estimate</label><select id="analysis-role-{{ row.chapter.id }}" name="analysis_role">{% for value, label in chapter_role_choices %}<option value="{{ value }}"{% if row.chapter.analysis_role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div><button class="button button-secondary" type="submit">Save chapter role</button></form>
+    {% if row.difficulty.cefr_estimate %}<p>Window range: {{ row.difficulty.min_level }}–{{ row.difficulty.max_level }} · archaism rating: {{ row.difficulty.archaism_score }} / 1.</p>{% endif %}
+    {% for window in row.difficulty.windows %}<details><summary>Window {{ window.window }} · {{ window.cefr_estimate }} · judge evidence</summary>{% for item in window.evidence %}<p><code>{{ item.block_id }}</code> · {{ item.dimension }}: “{{ item.quote }}” — {{ item.explanation }}</p>{% endfor %}</details>{% endfor %}
+    {% for section in row.summary.sections %}<p><strong>Window {{ section.window }}</strong> {{ section.spoiler_free_description }}</p>{% endfor %}
+    <details class="spoiler"><summary>Show chapter recap (spoilers)</summary>{% for section in row.summary.sections %}<p><strong>Window {{ section.window }}</strong> {{ section.recap }}</p>{% endfor %}</details>
+    <p class="muted">Multi-window summaries remain ordered sections; no additional AI call merges them.</p>
+  </details>
+  {% endfor %}
+  {% endif %}
+</details>
+{% endif %}
 {% endif %}
 
 {% if chapter_analysis_run %}
-<section class="panel assessment-panel" id="chapter-analysis">
-  <p class="eyebrow">Chapter analysis</p>
-  <h2>{% if chapter_analysis_stale %}Stale — text or analysis configuration changed{% else %}{{ chapter_analysis_run.get_status_display }}{% endif %}</h2>
+<details class="panel collapsible-panel assessment-panel" id="chapter-analysis">
+  <summary><span class="summary-title">Chapter analysis</span><span class="summary-meta">{% if chapter_analysis_stale %}<span class="status status-review">Stale</span> · text or analysis configuration changed{% else %}<span class="status status-{{ chapter_analysis_run.status }}">{{ chapter_analysis_run.get_status_display }}</span>{% endif %} · {{ chapter_analysis_run.summary.completed_windows }} / {{ chapter_analysis_run.summary.windows }} windows</span></summary>
   <p>{{ chapter_analysis_run.summary.completed_windows }} / {{ chapter_analysis_run.summary.windows }} windows completed across {{ chapter_analysis_run.summary.chapters }} chapters.</p>
   <p class="muted">{{ chapter_analysis_run.summary.spec.model }} · {{ chapter_analysis_run.processor_version }}. Window evidence supports the computed chapter and book estimates above. Confidence is a model judgment, not calibrated accuracy.</p>
   {% if chapter_analysis_spend.calls %}<p class="muted">Spent by this run: ${{ chapter_analysis_spend.usd|default_if_none:0|floatformat:4 }} across {{ chapter_analysis_spend.calls }} AI call{{ chapter_analysis_spend.calls|pluralize }} · {{ chapter_analysis_spend.input_tokens }} input / {{ chapter_analysis_spend.output_tokens }} output tokens. Windows whose text and configuration did not change are reused from earlier runs at no cost; a text correction re-bills only the windows of the chapters it touched, while a prompt, model or processor version change re-bills every window.</p>{% endif %}
@@ -369,106 +417,109 @@
     <details class="spoiler"><summary>Show recap (spoilers)</summary><p>{{ result.response_payload.analysis.recap }}</p></details>
   </details>
   {% endfor %}
-</section>
+</details>
 {% endif %}
 
-{% if has_inferred_alignment or inferred_alignment_available %}
-<details class="panel collapsible-panel alignment-panel">
-  <summary><span class="summary-title">Inferred alignment</span><span class="summary-meta">{% if has_inferred_alignment %}Built{% else %}Not built{% endif %}</span></summary>
-  <p class="muted">For two independently imported texts only. Embeddings guess which blocks correspond, then optional AI adjudication resolves what they could not. Expect a residual human-review queue — this is the expensive path, and it is why generated parallel editions exist. Keep it for scanned or user-uploaded pairs.</p>
-  <div class="button-row">
-    {% if has_inferred_alignment %}<a class="button" href="{% url 'catalog:alignment-review' edition.id %}">Open alignment workspace</a>{% endif %}
-    {% if inferred_alignment_available %}<form method="post" action="{% url 'catalog:queue-source-alignment' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">{% if has_inferred_alignment %}Rebuild{% else %}Build{% endif %} inferred alignment</button></form>{% endif %}
+{% if has_blocks %}
+<details class="panel collapsible-panel enrichment-panel" id="enrichment">
+  <summary><span class="summary-title">Enrichment</span><span class="summary-meta">Source scan · lexical analysis · {% if is_parallel_translation %}metadata translation{% elif not is_private %}chapter analysis{% else %}derived data{% endif %}</span></summary>
+  <p class="muted">Enrichments are versioned independently. They do not block reading or publication and do not change book text on their own.</p>
+  <div class="action-list">
+    <div class="action-row">
+      <div>
+        <strong>Scan source text</strong>
+        <p class="muted">Reads this edition's own text and flags Gutenberg boilerplate, malformed Unicode, duplicated blocks, broken hyphenation, and detached drop-cap initials. It only <em>proposes</em> corrections — you approve each one, and every applied change is recorded as an auditable revision.</p>
+      </div>
+      <form method="post" action="{% url 'catalog:queue-source-quality-scan' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Scan</button></form>
+    </div>
+    <div class="action-row">
+      <div>
+        <strong>Run lexical analysis</strong>
+        <p class="muted">Builds the word profile and the ranked “50 useful words from this book” list, with counts, chapter spread, and source evidence. Feeds the reader and the public word page.</p>
+      </div>
+      <form method="post" action="{% url 'catalog:queue-lexical-analysis' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Analyse</button></form>
+    </div>
+    {% if is_parallel_translation %}
+    <div class="action-row" id="metadata-translation">
+      <div>
+        <strong>Translate the title page and contents</strong>
+        <p class="muted">Names this edition as {{ edition.get_language_display }} readers know it — title, author and blurb — and translates the source's chapter descriptions for its contents. Reading difficulty stays the source's: the rubric is never applied to a machine translation. Runs by itself after translation and after the source is analysed; finished calls are reused.</p>
+        {% if metadata_translation_run %}<p class="muted">Last run: <span class="status status-{{ metadata_translation_run.status }}">{{ metadata_translation_run.get_status_display }}</span> · {{ metadata_translation_run.summary.chapters|default:0 }} / {{ metadata_translation_run.summary.chapters_available|default:0 }} chapters{% if metadata_translation_run.summary.note %} · {{ metadata_translation_run.summary.note }}{% endif %}{% if metadata_translation_run.error %} · {{ metadata_translation_run.error }}{% endif %}</p>{% endif %}
+      </div>
+      {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-metadata-translation' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Translate</button></form>{% else %}<p class="muted">Configure an OpenAI key to translate metadata.</p>{% endif %}
+    </div>
+    {% elif not is_private %}
+    <div class="action-row">
+      <div>
+        <strong>Analyze chapters with AI</strong>
+        <p class="muted">Paid analysis of reading difficulty, historical language and summaries. Long chapters are assessed in separate windows. Retries reuse completed results. Estimates are proposals; your editorial CEFR level stays unchanged.</p>
+      </div>
+      {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-chapter-analysis' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Analyze / resume</button></form>{% else %}<p class="muted">Configure an OpenAI key to enable chapter analysis.</p>{% endif %}
+    </div>
+    {% endif %}
   </div>
 </details>
 {% endif %}
-{% if edition.status == "review" and not is_private %}
-<section class="panel review-panel">
-  <p class="eyebrow">Editor decision</p>
-  <h2>Review before continuing</h2>
-  <p>{% if actionable_warnings %}Resolve the {{ actionable_warnings|length }} remaining review item{{ actionable_warnings|length|pluralize }} before approval.{% elif adaptation_blocker %}All review items are resolved, but the difficulty gate is not passing.{% else %}All review items are resolved. Completing review records your decision and marks this edition ready{% if adaptation_target and not edition.cefr_level %} and labels it {{ adaptation_target }}, the level it was generated for{% endif %}; it does not publish it.{% endif %}</p>
-  {% if adaptation_blocker and not actionable_warnings %}<p class="message warning" role="alert">{{ adaptation_blocker }}{% if projection_state == "stale" %} The text changed after the last analysis: run “Analyze / resume” above, then come back.{% endif %}</p>{% endif %}
-  {% if not actionable_warnings and not adaptation_blocker %}
-  <form method="post" action="{% url 'catalog:complete-edition-review' edition.id %}">
+
+{% if source_qa_artifact or has_source_qa_history %}<details class="panel collapsible-panel source-qa" id="source-qa"><summary><span class="summary-title">Source-text QA</span><span class="summary-meta">{{ text_quality_findings|length }} open finding{{ text_quality_findings|length|pluralize }}</span></summary>{% if source_qa_artifact %}<p class="muted">The scan only proposes findings. Text changes require an explicit staff action and create an audit revision.</p>{% else %}<p class="muted">The text changed and derived QA data is refreshing. Findings in unchanged blocks remain available and are validated again when applied.</p>{% endif %}{% if bulk_detached_initial_count %}<form method="post" action="{% url 'catalog:approve-detached-initials' edition.id %}">{% csrf_token %}<p>There are {{ bulk_detached_initial_count }} high-confidence detached drop-cap initial{{ bulk_detached_initial_count|pluralize }}. This deterministic check is restricted to block openings.</p><button class="button" type="submit">Approve all high-confidence drop caps</button></form>{% endif %}{% for finding in text_quality_findings %}<article class="warning"><div><code>{{ finding.code }}</code> <strong>{{ finding.stable_block_id|default:"Edition" }}</strong><p>{{ finding.message }} · {% widthratio finding.confidence 1 100 %}% confidence</p>{% if finding.block %}<p class="muted">{{ finding.block.text|truncatechars:400 }}</p>{% endif %}{% if finding.can_apply %}<form method="post" action="{% url 'catalog:apply-source-quality-finding' edition.id finding.id %}">{% csrf_token %}<label><span>Approved replacement for “{{ finding.original_text }}”</span><textarea name="replacement" rows="2">{{ finding.suggested_text }}</textarea></label><label><span>Revision note (optional)</span><input name="notes" placeholder="Why this correction is valid"></label><button class="button" type="submit">Apply correction</button></form>{% endif %}</div><form method="post" action="{% url 'catalog:dismiss-source-quality-finding' edition.id finding.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Dismiss</button></form></article>{% empty %}{% if source_qa_artifact %}<p>No suspicious source-text findings in the current normalized content.</p>{% else %}<p>No previous findings remain actionable. The refreshed scan will appear when processing finishes.</p>{% endif %}{% endfor %}</details>{% endif %}
+{% if lexical_profile %}<details class="panel collapsible-panel lexical-profile" id="lexical-profile"><summary><span class="summary-title">Lexical profile</span><span class="summary-meta">{{ lexical_profile.payload.total_tokens }} tokens · {{ lexical_profile.payload.distinct_lemmas }} lemmas</span></summary><p class="muted">Deterministic analysis {{ lexical_profile.processor_version }}. This enrichment is versioned independently from the readable edition.</p>{% if useful_words.payload.words %}<h3>50 useful words from this book</h3><ol>{% for word in useful_words.payload.words %}<li><strong>{{ word.display }}</strong> <span class="muted">{{ word.count }} occurrences · {{ word.chapter_count }} chapter{{ word.chapter_count|pluralize }} · {{ word.frequency_band }}</span>{% if word.occurrences %}<br><small>{{ word.occurrences.0.context }}</small>{% endif %}</li>{% endfor %}</ol>{% else %}<p>No words met the current recurrence and frequency policy.</p>{% endif %}</details>{% endif %}
+
+<div class="section-divider"><span>Record</span></div>
+
+{% if not is_private %}
+<details id="metadata" class="panel collapsible-panel metadata-panel"{% if metadata_form.errors %} open{% endif %}>
+  <summary>
+    <span class="summary-title">Metadata</span>
+    <span class="summary-meta">{% if metadata_state == "confirmed" %}<span class="status status-ready">Confirmed</span> {{ edition.work.metadata_confirmed_at|date:"Y-m-d H:i" }}{% elif metadata_state == "detected" %}<span class="status status-review">Detected · check and confirm</span>{% else %}<span class="status status-queued">Detection pending</span>{% endif %}</span>
+  </summary>
+  <p class="muted">{% if metadata_state == "pending" %}Values are read from the file header and completed by one small AI call once ingestion finishes. Anything you pinned at upload is kept.{% else %}Each field says where its value came from. Confirming records these as editorial values, replaces provisional slugs, and is required before publication.{% endif %}{% if has_provisional_slug %} <strong>Slugs are still provisional.</strong>{% endif %}</p>
+  <form method="post" action="{% url 'catalog:confirm-edition-metadata' edition.id %}">
     {% csrf_token %}
-    <label><span>Review notes (optional)</span><textarea name="notes" rows="3" placeholder="For example: checked the missing image; it is decorative."></textarea></label>
-    <button class="button" type="submit">Complete review</button>
+    <div class="form-grid">
+      {% for field in metadata_form %}
+        <label><span>{{ field.label }}{% with source=metadata_provenance|get_item:field.name %}{% if source %} <em class="provenance provenance-{{ source }}">{% if source == "ai" %}AI{% elif source == "source" %}file{% else %}editor{% endif %}</em>{% endif %}{% endwith %}</span>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>
+      {% endfor %}
+    </div>
+    <button class="button" type="submit">Confirm metadata</button>
   </form>
-  {% endif %}
-</section>
-{% elif current_review %}
-<section class="panel review-complete">
-  <h2>Review completed</h2>
-  <p>Completed by {{ current_review.reviewer|default:"a staff member" }} on {{ current_review.created_at }} after considering {{ current_review.actionable_warning_count }} review item{{ current_review.actionable_warning_count|pluralize }}.</p>
-  {% if current_review.notes %}<p class="muted">{{ current_review.notes }}</p>{% endif %}
-</section>
-{% endif %}
-{% if edition.status == "failed" %}
-<section class="panel recovery-panel">
-  <p class="eyebrow">Operator recovery</p>
-  <h2>Retry failed processing</h2>
-  {% if edition.parallel_role == "parallel" and not has_blocks %}
-  <p>This translation did not produce a usable edition, so no partial text was stored. Retrying resubmits the whole book to the Batch API on the same tier and register as the failed attempt. The canonical original is untouched.</p>
-  {% else %}
-  <p>Retry after correcting the worker, importer, or source problem. Existing normalized content is reused when the original source file is unavailable.</p>
-  {% endif %}
-  <div class="button-row">
-    <form method="post" action="{% url 'catalog:retry-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit">Retry processing</button></form>
+  {% if has_blocks %}
+  <div class="action-row">
+    <div>
+      <strong>Detect with AI</strong>
+      <p class="muted">For a book imported before this step existed, or whose model call never completed: one small call reads the opening text, checks the title and author, and proposes a blurb and first-publication year. Fields you confirmed are kept, the language is left alone (change it above if it is wrong), and nothing is final until you confirm.</p>
+    </div>
+    <form method="post" action="{% url 'catalog:queue-metadata-detection' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Detect</button></form>
   </div>
-  {% if is_private and has_blocks %}
-  <form class="release-form" method="post" action="{% url 'catalog:release-private-import' edition.id %}">
-    {% csrf_token %}
-    <label><span>Repair notes</span><textarea name="notes" rows="3" placeholder="What was checked or corrected?"></textarea></label>
-    <button class="button button-secondary" type="submit">Make repaired content available</button>
-  </form>
   {% endif %}
-</section>
-{% endif %}
-{% if is_private %}
-  {% if edition.status == "ready" %}
-    <section class="panel review-complete">
-      <h2>Available to owner</h2>
-      <p>The normalized text is already available in the owner's private reader. This is not a public publication.</p>
-      <form method="post" action="{% url 'catalog:release-private-import' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Resend availability update</button></form>
-    </section>
-  {% elif edition.status == "review" %}
-    <section class="panel recovery-panel">
-      <p class="eyebrow">Operator recovery</p>
-      <h2>Repair this private import</h2>
-      <p>If you repaired the normalized blocks manually, release that content directly to the owner.</p>
-      {% if has_blocks %}
-      <form class="release-form" method="post" action="{% url 'catalog:release-private-import' edition.id %}">
-        {% csrf_token %}
-        <label><span>Repair notes</span><textarea name="notes" rows="3" placeholder="What was checked or corrected?"></textarea></label>
-        <button class="button button-secondary" type="submit">Make repaired content available</button>
-      </form>
-      {% endif %}
-    </section>
-  {% endif %}
-{% else %}
-  {% if edition.status == "ready" %}<section class="panel review-complete"><h2>Ready to publish</h2><p>Publishing sends this reviewed edition to the Almonium product API. It becomes visible on the website only after that hand-off succeeds.</p>{% if publish_blocked %}<p class="publish-blocked">{{ publish_blocked }}</p>{% endif %}<form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit"{% if publish_blocked %} disabled{% endif %}>Publish to Almonium</button></form></section>{% elif edition.status == "published" %}<section class="panel review-complete"><h2>Published to Almonium</h2><p>Published {{ edition.published_at }}{% if edition.published_book_id %} · Almonium book ID {{ edition.published_book_id }}{% endif %}</p>{% if publication_stale %}<p>Almonium still shows the metadata this edition was published with. Its title, author, level or another published value has changed since.</p><form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit">Update in Almonium</button></form>{% endif %}</section>{% endif %}
-{% endif %}
-{% if show_promotion %}
-<details class="panel collapsible-panel promotion-panel" id="promotion"{% if promotion_runs %} open{% endif %}>
-  <summary><span class="summary-title">Promote to another environment</span><span class="summary-meta">{% with run=promotion_runs.0 %}{% if run %}Last: {{ run.summary.target }} · <span class="status status-{{ run.status }}">{{ run.get_status_display }}</span>{% else %}Never promoted{% endif %}{% endwith %}</span></summary>
-  <p class="muted">Copies this edition{% if promotion_chain_slugs %} together with {{ promotion_chain_slugs|join:", " }}, which it was generated from,{% endif %} with every block, artifact, alignment and review decision, so nothing is recomputed there and no model call is paid twice. The AI spend ledger stays here. Publication is that environment's own step; tick the box to queue it there once the copy lands. Promoting again replaces what an earlier promotion left.</p>
-  {% if not promotion_targets %}
-    <p class="muted">No promotion targets are configured for this environment. They are deployment configuration: <code>ALMONIUM_BOOKS_PROMOTION_TARGETS</code> names them and <code>ALMONIUM_BOOKS_PROMOTION_TOKEN_&lt;NAME&gt;</code> holds each target's token.</p>
-  {% elif promotion_blocked %}
-    <p class="publish-blocked">{{ promotion_blocked }}</p>
-  {% else %}
-  <form class="promotion-form" method="post" action="{% url 'catalog:promote-edition' edition.id %}">
-    {% csrf_token %}
-    <label><span>Target</span><select name="target">{% for target in promotion_targets %}<option value="{{ target.name }}">{{ target.name }} · {{ target.base_url }}</option>{% endfor %}</select></label>
-    <label class="checkbox-label"><input type="checkbox" name="publish"> Publish there after the copy lands</label>
-    <button class="button" type="submit">Promote</button>
-  </form>
-  {% endif %}
-  {% for run in promotion_runs %}<div class="run-row"><span>{{ run.summary_note }}{% if run.error %}<small class="run-note run-error">{{ run.error }}</small>{% endif %}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{{ run.created_at }}</span></div>{% endfor %}
 </details>
 {% endif %}
-<details class="panel collapsible-panel danger-zone">
-  <summary><span class="summary-title">Remove this book</span><span class="summary-meta">{% if edition.status == "published" %}Withdraw from Almonium{% else %}Irreversible{% endif %}</span></summary>
+
+<details class="panel collapsible-panel processing-history" id="processing-history"><summary><span class="summary-title">Processing history</span><span class="summary-meta">{{ pipeline_run_count }} run{{ pipeline_run_count|pluralize }}{% with run=recent_pipeline_runs.0 %}{% if run %} · last {{ run.get_stage_display|lower }} <span class="status status-{{ run.status }}">{{ run.get_status_display }}</span>{% endif %}{% endwith %}</span></summary>{% for run in recent_pipeline_runs %}<div class="run-row" id="run-{{ run.id }}"><span>{{ run.get_stage_display }}{% if run.summary_note %}<small class="run-note">{{ run.summary_note }}</small>{% endif %}{% if run.ai_call_count %}<small class="run-note run-spend">{{ run.ai_call_count }} AI call{{ run.ai_call_count|pluralize }} · ${{ run.ai_cost_usd|default_if_none:0|floatformat:4 }} · {{ run.ai_input_tokens }} in / {{ run.ai_output_tokens }} out</small>{% endif %}{% if run.error %}<small class="run-note run-error">{{ run.error }}</small>{% endif %}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{{ run.created_at }}</span></div>{% empty %}<p>No processing runs.</p>{% endfor %}{% if older_pipeline_runs %}<details class="history-older"><summary>Show {{ older_pipeline_runs|length }} older run{{ older_pipeline_runs|length|pluralize }}</summary>{% for run in older_pipeline_runs %}<div class="run-row" id="run-{{ run.id }}"><span>{{ run.get_stage_display }}{% if run.summary_note %}<small class="run-note">{{ run.summary_note }}</small>{% endif %}{% if run.ai_call_count %}<small class="run-note run-spend">{{ run.ai_call_count }} AI call{{ run.ai_call_count|pluralize }} · ${{ run.ai_cost_usd|default_if_none:0|floatformat:4 }} · {{ run.ai_input_tokens }} in / {{ run.ai_output_tokens }} out</small>{% endif %}{% if run.error %}<small class="run-note run-error">{{ run.error }}</small>{% endif %}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{{ run.created_at }}</span></div>{% endfor %}</details>{% endif %}</details>
+
+<details class="panel collapsible-panel spend-panel" id="ai-spend">
+  <summary><span class="summary-title">AI spend</span><span class="summary-meta">{{ spend.edition.usd_label }} · {{ spend.edition.calls }} call{{ spend.edition.calls|pluralize }} on this edition · {{ spend.work.usd_label }} on the work</span></summary>
+  <p class="muted">Estimated from each call's metered tokens and the price table at the time, summed over every attempt, failed ones included. Only calls this environment made are here: an edition promoted from elsewhere was paid for there.</p>
+  {% if spend.edition.lines %}
+  <h3>This edition · {{ spend.edition.usd_label }}</h3>
+  <div class="table-scroll"><table class="spend-table">
+    <thead><tr><th>Purpose</th><th>Model</th><th class="num">Calls</th><th class="num">Tokens in / out</th><th class="num">Cost</th></tr></thead>
+    <tbody>{% for line in spend.edition.lines %}<tr><td>{{ line.purpose }}</td><td>{{ line.model }}</td><td class="num">{{ line.calls }}</td><td class="num">{{ line.input_tokens }} / {{ line.output_tokens }}</td><td class="num">{{ line.usd_label }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p>No model calls have been billed to this edition here.</p>{% endif %}
+  {% if spend.work.editions|length > 1 or spend.work.editions.0.edition_id != edition.id %}
+  <h3>Whole work · {{ spend.work.usd_label }}</h3>
+  <div class="table-scroll"><table class="spend-table">
+    <thead><tr><th>Edition</th><th class="num">Calls</th><th class="num">Cost</th></tr></thead>
+    <tbody>{% for row in spend.work.editions %}<tr{% if row.edition_id == edition.id %} class="spend-this"{% endif %}><td>{% if row.removed %}{{ row.language|upper }} · {{ row.slug }} <span class="status status-failed">Removed</span>{% else %}<a href="{% url 'catalog:edition-detail' row.edition_id %}">{{ row.language|upper }}{% if row.cefr_level %} · {{ row.cefr_level }}{% endif %}</a> <small class="muted">{{ row.slug }}</small>{% endif %}</td><td class="num">{{ row.calls }}</td><td class="num">{{ row.usd_label }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+</details>
+
+{% if recent_revisions %}<details class="panel collapsible-panel" id="text-corrections"><summary><span class="summary-title">Text corrections</span><span class="summary-meta">{{ recent_revisions|length }} shown · latest {{ recent_revisions.0.created_at|date:"Y-m-d H:i" }}</span></summary>{% for revision in recent_revisions %}<details class="revision"><summary>{{ revision.stable_block_id }} · {{ revision.editor|default:"staff" }} · {{ revision.created_at }}</summary><p><strong>Before:</strong> {{ revision.previous_text }}</p><p><strong>After:</strong> {{ revision.revised_text }}</p><p class="muted">{{ revision.notes }}</p></details>{% endfor %}</details>{% endif %}
+{% if import_notices %}<details class="panel collapsible-panel notices" id="import-notices"><summary><span class="summary-title">Import notices</span><span class="summary-meta">{{ import_notices|length }} kept for traceability · no decision needed</span></summary>{% for warning in import_notices %}<div class="warning warning-{{ warning.severity }}"><code>{{ warning.code }}</code><span>{{ warning.message }}{% if warning.source_ref %} <span class="muted">({{ warning.source_ref }})</span>{% endif %}</span></div>{% endfor %}</details>{% endif %}
+
+<details class="panel collapsible-panel danger-zone" id="remove">
+  <summary><span class="summary-title">Remove this book</span><span class="summary-meta">{% if edition.status == "published" %}Withdraw from Almonium · irreversible{% else %}Irreversible{% endif %}</span></summary>
   {% if edition.status == "published" %}
     <p>Almonium stops serving this book first, keeping every reader's progress and favourites; the normalized text and the uploaded file are destroyed once it confirms. The book disappears from the catalogue and cannot be read again without a fresh upload.</p>
   {% else %}
@@ -490,28 +541,108 @@
   </form>
   {% endif %}
 </details>
-<section class="panel processing-history"><div class="section-heading"><h2>Processing history</h2>{% if older_pipeline_runs %}<span class="muted">Showing latest 3 of {{ pipeline_run_count }}</span>{% endif %}</div>{% for run in recent_pipeline_runs %}<div class="run-row"><span>{{ run.get_stage_display }}{% if run.summary_note %}<small class="run-note">{{ run.summary_note }}</small>{% endif %}{% if run.ai_call_count %}<small class="run-note run-spend">{{ run.ai_call_count }} AI call{{ run.ai_call_count|pluralize }} · ${{ run.ai_cost_usd|default_if_none:0|floatformat:4 }} · {{ run.ai_input_tokens }} in / {{ run.ai_output_tokens }} out</small>{% endif %}{% if run.error %}<small class="run-note run-error">{{ run.error }}</small>{% endif %}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{{ run.created_at }}</span></div>{% empty %}<p>No processing runs.</p>{% endfor %}{% if older_pipeline_runs %}<details class="history-older"><summary>Show {{ older_pipeline_runs|length }} older run{{ older_pipeline_runs|length|pluralize }}</summary>{% for run in older_pipeline_runs %}<div class="run-row"><span>{{ run.get_stage_display }}{% if run.summary_note %}<small class="run-note">{{ run.summary_note }}</small>{% endif %}{% if run.ai_call_count %}<small class="run-note run-spend">{{ run.ai_call_count }} AI call{{ run.ai_call_count|pluralize }} · ${{ run.ai_cost_usd|default_if_none:0|floatformat:4 }} · {{ run.ai_input_tokens }} in / {{ run.ai_output_tokens }} out</small>{% endif %}{% if run.error %}<small class="run-note run-error">{{ run.error }}</small>{% endif %}</span><span class="status status-{{ run.status }}">{{ run.get_status_display }}</span><span>{{ run.created_at }}</span></div>{% endfor %}</details>{% endif %}</section>
-<section class="panel spend-panel" id="ai-spend">
-  <div class="section-heading"><h2>AI spend</h2><span class="muted">{{ spend.edition.calls }} call{{ spend.edition.calls|pluralize }} on this edition · {{ spend.work.calls }} on the work</span></div>
-  <p class="muted">Estimated from each call's metered tokens and the price table at the time, summed over every attempt, failed ones included. Only calls this environment made are here: an edition promoted from elsewhere was paid for there.</p>
-  {% if spend.edition.lines %}
-  <h3>This edition · {{ spend.edition.usd_label }}</h3>
-  <div class="table-scroll"><table class="spend-table">
-    <thead><tr><th>Purpose</th><th>Model</th><th class="num">Calls</th><th class="num">Tokens in / out</th><th class="num">Cost</th></tr></thead>
-    <tbody>{% for line in spend.edition.lines %}<tr><td>{{ line.purpose }}</td><td>{{ line.model }}</td><td class="num">{{ line.calls }}</td><td class="num">{{ line.input_tokens }} / {{ line.output_tokens }}</td><td class="num">{{ line.usd_label }}</td></tr>{% endfor %}</tbody>
-  </table></div>
-  {% else %}<p>No model calls have been billed to this edition here.</p>{% endif %}
-  {% if spend.work.editions|length > 1 or spend.work.editions.0.edition_id != edition.id %}
-  <h3>Whole work · {{ spend.work.usd_label }}</h3>
-  <div class="table-scroll"><table class="spend-table">
-    <thead><tr><th>Edition</th><th class="num">Calls</th><th class="num">Cost</th></tr></thead>
-    <tbody>{% for row in spend.work.editions %}<tr{% if row.edition_id == edition.id %} class="spend-this"{% endif %}><td>{% if row.removed %}{{ row.language|upper }} · {{ row.slug }} <span class="status status-failed">Removed</span>{% else %}<a href="{% url 'catalog:edition-detail' row.edition_id %}">{{ row.language|upper }}{% if row.cefr_level %} · {{ row.cefr_level }}{% endif %}</a> <small class="muted">{{ row.slug }}</small>{% endif %}</td><td class="num">{{ row.calls }}</td><td class="num">{{ row.usd_label }}</td></tr>{% endfor %}</tbody>
-  </table></div>
-  {% endif %}
-</section>
-{% if import_notices %}<details class="panel notices"><summary>Import notices ({{ import_notices|length }})</summary><p class="muted">These are retained for traceability but do not require a decision.</p>{% for warning in import_notices %}<div class="warning warning-{{ warning.severity }}"><code>{{ warning.code }}</code><span>{{ warning.message }}{% if warning.source_ref %} <span class="muted">({{ warning.source_ref }})</span>{% endif %}</span></div>{% endfor %}</details>{% endif %}
-{% if source_qa_artifact or has_source_qa_history %}<details class="panel collapsible-panel source-qa"><summary><span class="summary-title">Source-text QA</span><span class="summary-meta">{{ text_quality_findings|length }} open finding{{ text_quality_findings|length|pluralize }}</span></summary>{% if source_qa_artifact %}<p class="muted">The scan only proposes findings. Text changes require an explicit staff action and create an audit revision.</p>{% else %}<p class="muted">The text changed and derived QA data is refreshing. Findings in unchanged blocks remain available and are validated again when applied.</p>{% endif %}{% if bulk_detached_initial_count %}<form method="post" action="{% url 'catalog:approve-detached-initials' edition.id %}">{% csrf_token %}<p>There are {{ bulk_detached_initial_count }} high-confidence detached drop-cap initial{{ bulk_detached_initial_count|pluralize }}. This deterministic check is restricted to block openings.</p><button class="button" type="submit">Approve all high-confidence drop caps</button></form>{% endif %}{% for finding in text_quality_findings %}<article class="warning"><div><code>{{ finding.code }}</code> <strong>{{ finding.stable_block_id|default:"Edition" }}</strong><p>{{ finding.message }} · {% widthratio finding.confidence 1 100 %}% confidence</p>{% if finding.block %}<p class="muted">{{ finding.block.text|truncatechars:400 }}</p>{% endif %}{% if finding.can_apply %}<form method="post" action="{% url 'catalog:apply-source-quality-finding' edition.id finding.id %}">{% csrf_token %}<label><span>Approved replacement for “{{ finding.original_text }}”</span><textarea name="replacement" rows="2">{{ finding.suggested_text }}</textarea></label><label><span>Revision note (optional)</span><input name="notes" placeholder="Why this correction is valid"></label><button class="button" type="submit">Apply correction</button></form>{% endif %}</div><form method="post" action="{% url 'catalog:dismiss-source-quality-finding' edition.id finding.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Dismiss</button></form></article>{% empty %}{% if source_qa_artifact %}<p>No suspicious source-text findings in the current normalized content.</p>{% else %}<p>No previous findings remain actionable. The refreshed scan will appear when processing finishes.</p>{% endif %}{% endfor %}</details>{% endif %}
-{% if lexical_profile %}<details class="panel collapsible-panel lexical-profile"><summary><span class="summary-title">Lexical profile</span><span class="summary-meta">{{ lexical_profile.payload.total_tokens }} tokens · {{ lexical_profile.payload.distinct_lemmas }} lemmas</span></summary><p class="muted">Deterministic analysis {{ lexical_profile.processor_version }}. This enrichment is versioned independently from the readable edition.</p>{% if useful_words.payload.words %}<h3>50 useful words from this book</h3><ol>{% for word in useful_words.payload.words %}<li><strong>{{ word.display }}</strong> <span class="muted">{{ word.count }} occurrences · {{ word.chapter_count }} chapter{{ word.chapter_count|pluralize }} · {{ word.frequency_band }}</span>{% if word.occurrences %}<br><small>{{ word.occurrences.0.context }}</small>{% endif %}</li>{% endfor %}</ol>{% else %}<p>No words met the current recurrence and frequency policy.</p>{% endif %}</details>{% endif %}
-{% if recent_revisions %}<section class="panel" id="text-corrections"><h2>Recent text corrections</h2>{% for revision in recent_revisions %}<details class="revision"><summary>{{ revision.stable_block_id }} · {{ revision.editor|default:"staff" }} · {{ revision.created_at }}</summary><p><strong>Before:</strong> {{ revision.previous_text }}</p><p><strong>After:</strong> {{ revision.revised_text }}</p><p class="muted">{{ revision.notes }}</p></details>{% endfor %}</section>{% endif %}
-<details class="panel collapsible-panel content-preview"><summary><span class="summary-title">Content preview</span><span class="summary-meta">First 300 blocks</span></summary><p class="muted">This is the imported book content used to make your review decision. To read the whole edition or correct a paragraph, <a href="{% url 'catalog:edition-reader' edition.id %}">open the reader</a>.</p>{% for block in blocks %}<article class="block"><aside>{{ block.block_id }}<br>{{ block.get_block_type_display }}</aside><div>{{ block.text|linebreaksbr|default:"—" }}</div></article>{% empty %}<p>No normalized blocks yet.</p>{% endfor %}</details>
+
+</div>
+</div>
+<script>
+(function () {
+  var main = document.querySelector(".edition-main");
+
+  // A hash link into a folded panel opens it first.
+  function reveal() {
+    if (!location.hash) return;
+    var target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    if (!target) return;
+    var panel = target.closest("details");
+    while (panel) { panel.open = true; panel = panel.parentElement && panel.parentElement.closest("details"); }
+    target.scrollIntoView();
+  }
+  window.addEventListener("hashchange", reveal);
+
+  // The rail's section index is read off the panels actually on the page,
+  // grouped under the divider each one sits below.
+  var index = document.querySelector(".rail-index");
+  if (index && main) {
+    var group = null, groups = [];
+    Array.prototype.forEach.call(main.children, function (node) {
+      if (node.classList.contains("section-divider")) {
+        group = { title: node.textContent.trim(), links: [] };
+        groups.push(group);
+      } else if (node.matches("details.collapsible-panel[id]")) {
+        if (!group) { group = { title: "", links: [] }; groups.push(group); }
+        var title = node.querySelector(".summary-title");
+        group.links.push({ id: node.id, text: title ? title.textContent.trim() : node.id });
+      }
+    });
+    groups.forEach(function (item) {
+      if (!item.links.length) return;
+      var block = document.createElement("div");
+      block.className = "rail-index-group";
+      if (item.title) {
+        var heading = document.createElement("span");
+        heading.className = "rail-index-title";
+        heading.textContent = item.title;
+        block.appendChild(heading);
+      }
+      var list = document.createElement("span");
+      list.className = "rail-index-links";
+      item.links.forEach(function (link, position) {
+        if (position) list.appendChild(document.createTextNode(" · "));
+        var anchor = document.createElement("a");
+        anchor.href = "#" + link.id;
+        anchor.textContent = link.text;
+        list.appendChild(anchor);
+      });
+      block.appendChild(list);
+      index.appendChild(block);
+    });
+  }
+
+  // Helper paragraphs fold to one line for an editor who has read them; "more" unfolds one.
+  if (main && main.classList.contains("helpers-clamped")) {
+    main.querySelectorAll("details.collapsible-panel > p.muted").forEach(function (paragraph) {
+      var toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "helper-toggle";
+      toggle.textContent = "more";
+      toggle.addEventListener("click", function () {
+        var expanded = paragraph.classList.toggle("helper-expanded");
+        toggle.textContent = expanded ? "less" : "more";
+      });
+      paragraph.classList.add("helper");
+      paragraph.insertAdjacentElement("afterend", toggle);
+    });
+  }
+
+  // Review groups: sort rows, and show the rows past the first five.
+  document.querySelectorAll(".review-group").forEach(function (section) {
+    var rows = section.querySelector(".review-rows");
+    var more = section.querySelector("[data-more]");
+    var sort = section.querySelector("[data-sort]");
+    var expanded = false;
+    function refold() {
+      Array.prototype.forEach.call(rows.children, function (row, position) {
+        row.hidden = !expanded && position >= 5;
+      });
+    }
+    if (more) more.addEventListener("click", function () { expanded = true; more.remove(); refold(); });
+    if (sort) sort.addEventListener("change", function () {
+      var key = sort.value;
+      var items = Array.prototype.slice.call(rows.children);
+      items.sort(function (a, b) {
+        if (key === "confidence") {
+          var ca = a.dataset.confidence === "" ? Infinity : parseFloat(a.dataset.confidence);
+          var cb = b.dataset.confidence === "" ? Infinity : parseFloat(b.dataset.confidence);
+          if (ca !== cb) return ca - cb;
+        }
+        return parseInt(a.dataset.position, 10) - parseInt(b.dataset.position, 10);
+      });
+      items.forEach(function (row) { rows.appendChild(row); });
+      refold();
+    });
+  });
+
+  reveal();
+})();
+</script>
 {% endblock %}

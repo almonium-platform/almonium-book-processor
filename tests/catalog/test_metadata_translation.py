@@ -383,7 +383,7 @@ def test_the_page_offers_the_translation_and_borrows_the_sources_difficulty(
     page = client.get(reverse("catalog:edition-detail", args=[ukrainian.id])).content.decode()
     assert "Translate the title page and contents" in page
     assert "Analyze chapters with AI" not in page
-    assert "Reading difficulty · borrowed from the source" in page
+    assert "Borrowed from the source" in page
     source_page = client.get(reverse("catalog:edition-detail", args=[source.id])).content.decode()
     assert "Analyze chapters with AI" in source_page
     assert "Translate the title page" not in source_page
