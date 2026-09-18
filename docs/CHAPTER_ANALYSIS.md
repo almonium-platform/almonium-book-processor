@@ -201,6 +201,13 @@ translation**, and translation jobs carry its reader-facing output across:
    text, but only once the output language is an explicit per-run parameter in
    the prompt and the spec hash. Until then the button is English-only.
 
+Point 4 is implemented (a20ca38 on 2026-09-18): an edition in any language
+but English is analysed with `LOCALIZED_SYSTEM_PROMPT`, v4 of the same prompt,
+which writes every generated field in the input language code, and
+`validate_analysis_language` rejects an answer that does not validate as that
+language before it is recorded. The same-language adaptation prompts followed
+on 2026-09-18; see `ADAPTATION_PILOT.md`, "Other languages".
+
 Points 2 and 3 are implemented (2026-09-17) as a run of their own rather than
 inside the translation job: `catalog/metadata_translation.py` names a parallel
 translation (title, author and blurb, from the source's) and translates the

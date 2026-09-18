@@ -701,3 +701,78 @@ def test_b1_application_requires_b1_assessment_and_preserves_provenance(applicat
         == 1
     )
     assert chapter.blocks.get(block_id="b1").attributes["adaptation"]["target_level"] == "B1"
+
+
+UK_SOURCE = "Ще до світанку він вирушив у дорогу, і страх не полишав його ані на мить."
+UK_ADAPTED = "Він вийшов у дорогу ще до світанку, і йому весь час було страшно."
+EN_ADAPTED = "He set out on the road before dawn, and he was frightened the whole time."
+
+
+def _ukrainian(chapter):
+    chapter.edition.language = "uk"
+    chapter.edition.save(update_fields=["language"])
+    chapter.blocks.filter(block_id="b1").update(text=UK_SOURCE)
+    return chapter
+
+
+def _rewrite(text):
+    def hook(response):
+        payload = json.loads(response["output"][0]["content"][0]["text"])
+        payload["blocks"][1].update(text=text, decision="adapted", reason="Простіше.")
+        response["output"][0]["content"][0]["text"] = json.dumps(payload, ensure_ascii=False)
+
+    return hook
+
+
+def test_other_languages_get_the_localized_prompt_under_their_own_version(chapter):
+    from almonium_book_processor.ai.adaptation import (
+        B1_PROMPT_VERSION,
+        LOCALIZED_B1_PROMPT_VERSION,
+        LOCALIZED_PROMPT_VERSION,
+        PROMPT_VERSION,
+    )
+
+    def prompt(**kwargs):
+        run = queue_pilot(chapter.edition_id, chapter.id, dispatch=False, **kwargs)
+        return run.ai_runs.get().prompt_template
+
+    english = prompt()
+    assert english.version == PROMPT_VERSION
+    assert "Use natural English" in english.system_prompt
+    assert "everyday English" in prompt(target_level="B1").system_prompt
+    _ukrainian(chapter)
+    localized = prompt()
+    assert (localized.name, localized.version) == (english.name, LOCALIZED_PROMPT_VERSION)
+    assert "input language code" in localized.system_prompt
+    assert "natural English" not in localized.system_prompt
+    b1 = prompt(target_level="B1")
+    assert b1.version == LOCALIZED_B1_PROMPT_VERSION != B1_PROMPT_VERSION
+    assert "everyday English" not in b1.system_prompt
+    assert "input language code" in b1.system_prompt
+
+
+def test_english_prose_for_a_ukrainian_edition_fails_the_pilot_and_is_not_reused(chapter):
+    from almonium_book_processor.ai.output_language import OutputLanguageError
+
+    _ukrainian(chapter)
+    run = queue_pilot(chapter.edition_id, chapter.id, dispatch=False)
+    wrong = Provider(_rewrite(EN_ADAPTED))
+    with pytest.raises(OutputLanguageError):
+        run_pilot(run.id, provider=wrong)
+    run.refresh_from_db()
+    assert run.status == "failed" and "did not validate as uk" in run.error
+    assert run.ai_runs.get().status == "failed"
+    assert UK_SOURCE not in run.error and EN_ADAPTED not in run.error
+    # The retry gets a fresh call: the English answer is no more reusable than an invalid one.
+    retry = queue_pilot(chapter.edition_id, chapter.id, dispatch=False)
+    assert retry.id == run.id and retry.ai_runs.count() == 2
+    right = Provider(_rewrite(UK_ADAPTED))
+    run_pilot(retry.id, provider=right)
+    retry.refresh_from_db()
+    assert retry.status == "succeeded" and (wrong.calls, right.calls) == (1, 1)
+    assert (
+        retry.ai_runs.get(pk=retry.summary["ai_run_id"]).response_payload["adaptation"]["blocks"][
+            1
+        ]["text"]
+        == UK_ADAPTED
+    )

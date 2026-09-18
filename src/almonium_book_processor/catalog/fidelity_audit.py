@@ -30,6 +30,7 @@ from almonium_book_processor.ai.fidelity import (
     Review,
 )
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai.output_language import validate_rewritten_language
 from almonium_book_processor.catalog.adaptation import (
     PILOT_VERSIONS,
     digest,
@@ -257,6 +258,12 @@ def _audit_window(run, window: dict, spec: dict, configuration, prompt, provider
             raise ValueError("Provider did not complete the audit; partial output is not accepted.")
         review = Review.model_validate_json(response_output_text(response))
         issues = _verified(review, window["data"]["blocks"])
+        # A correction is text an editor may write into the book; the audit
+        # itself may explain in any language, so only the corrections are gated.
+        validate_rewritten_language(
+            [usable_suggestion(issue.suggested_correction) for issue in review.issues],
+            window["data"]["language"],
+        )
         with transaction.atomic():
             current = AIRun.objects.select_for_update().get(pk=ai.id)
             if current.edition_id is None:

@@ -444,6 +444,31 @@ The affordable product now is honestly labelled **B2 with reader aids**. Neither
 a higher label tolerance nor another synonym-only prompt revision supplies the
 missing evidence. These routes need fresh blind controls and fidelity gates.
 
+### Other languages — 18 September 2026
+
+The B2 v7 and B1 v5 prompts are English prompts: v7 asks for "natural English
+(or the source language)", v5 writes "for someone who knows everyday English",
+and every example in both is English. A Ukrainian pilot received them
+verbatim. An edition whose language is not `en` now gets the same
+instructions with that wording removed and the examples declared as English
+examples of a principle, as B2 **v8** and B1 **v6** of the same prompt names
+(`ai/adaptation.py`, `pilot_prompt(level, language)`). The English texts are
+byte-identical, so saved pilots, full-book specs and floor probes keep their
+identities; a book run compares its spec under the source language.
+
+Two gates refuse text in the wrong language before it can reach a book: an
+adapted chapter whose changed blocks do not validate as the edition language
+fails the pilot, and the answer is not reused on retry; a fidelity audit whose
+usable corrections do not validate fails its window. Both use the offline
+detector chapter analysis already trusts, judged on the changed text together
+and only once there are forty letters of it, so a kept verse quotation or a
+two-word fix cannot fail a chapter. The gate catches a whole answer drifting
+to English, not one English phrase among Ukrainian ones.
+
+None of this is evidence that v8 or v6 reach their level in another language.
+The verdicts above are English verdicts; a Ukrainian B2 needs its own blind
+judge run and fidelity audit before it is more than a candidate.
+
 ## The floor as data — 2026-09-18
 
 Decision 13 is now machinery rather than a note. Nothing below sets a level by

@@ -900,3 +900,44 @@ def test_a_correction_written_for_the_whole_clause_replaces_the_whole_clause():
     assert usable_suggestion('Use "so heedlessly bestowed" or "so carelessly bestowed."') == ""
     assert usable_suggestion("Consider keeping the original.") == ""
     assert usable_suggestion("so heedlessly bestowed") == "so heedlessly bestowed"
+
+
+UK_SOURCE = "Ще до світанку він вирушив у дорогу, і страх не полишав його ані на мить."
+UK_ADAPTED = "Він вийшов у дорогу ще до світанку, і йому весь час було страшно."
+
+
+def test_an_english_correction_for_a_ukrainian_edition_fails_the_audit(source):
+    from almonium_book_processor.ai.output_language import OutputLanguageError
+
+    source.language = "uk"
+    source.save(update_fields=["language"])
+    source.blocks.filter(text="Ere dawn, he departed.").update(text=UK_SOURCE)
+
+    class UkrainianGenerator(Generator):
+        def respond(self, body):
+            response = super().respond(body)
+            payload = json.loads(response["output"][0]["content"][0]["text"])
+            for block in payload["blocks"]:
+                if block["text"] == UK_SOURCE:
+                    block.update(text=UK_ADAPTED, decision="adapted", reason="Простіше.")
+            response["output"][0]["content"][0]["text"] = json.dumps(payload, ensure_ascii=False)
+            return response
+
+    pilot = queue_pilot(source.id, source.chapters.first().id, dispatch=False)
+    run_pilot(pilot.id, provider=UkrainianGenerator())
+    issue = {
+        "block_id": "c1.b1",
+        "source_quote": "страх не полишав його",
+        "adapted_quote": "було страшно",
+        "severity": "minor",
+        "explanation": "Fear never leaving him is stronger than being scared.",
+        "suggested_correction": "and fear did not leave him for a single moment of the way",
+    }
+    with pytest.raises(OutputLanguageError, match="uk"):
+        audit_pilot(pilot.id, provider=Auditor([issue]))
+    failed = AIRun.objects.get(prompt_template__name="literary-fidelity-editor")
+    assert failed.status == "failed" and failed.error == "OutputLanguageError"
+    assert PipelineRun.objects.get(processor_version=AUDIT_VERSION).status == "failed"
+    ukrainian = {**issue, "suggested_correction": "і страх ані на мить не полишав його дорогою"}
+    review = audit_pilot(pilot.id, provider=Auditor([ukrainian]))
+    assert review["counts"]["minor"] == 1 and review["issues"][0]["quote_verified"] is True

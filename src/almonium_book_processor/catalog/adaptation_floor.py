@@ -50,7 +50,7 @@ SAMPLE_SIZE = 3
 def probe_spec(target_level: str, language: str) -> dict:
     """Everything a verdict depends on; a change here is a new probe, not a retry."""
 
-    prompt_version, system_prompt = pilot_prompt(target_level)
+    prompt_version, system_prompt = pilot_prompt(target_level, language)
     judge = analysis_spec(language)
     audit = audit_spec()
     return {

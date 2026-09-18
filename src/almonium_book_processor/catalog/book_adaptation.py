@@ -31,8 +31,8 @@ WORKERS = 3
 REVIEW_CODE = "adaptation_fidelity_review"
 
 
-def generation_spec(target_level=TARGET_LEVEL):
-    prompt_version, system_prompt = pilot_prompt(target_level)
+def generation_spec(target_level, language):
+    prompt_version, system_prompt = pilot_prompt(target_level, language)
     return {
         "processor": "b1-book-v1" if target_level == "B1" else VERSION,
         "model": settings.OPENAI_TRANSLATION_QUALITY_MODEL,
@@ -106,7 +106,7 @@ def queue_book(source_id, *, target_level=TARGET_LEVEL):
         raise ValueError("Configure an OpenAI key to generate an adaptation.")
     source = Edition.objects.select_for_update().select_related("work").get(pk=source_id)
     plan = book_plan(source)
-    spec = generation_spec(target_level)
+    spec = generation_spec(target_level, source.language)
     input_hash = digest([plan, spec])
     key = f"{source.id}:{target_level.lower()}-book:{input_hash}"
     run = PipelineRun.objects.filter(idempotency_key=key).select_related("edition").first()
@@ -166,7 +166,7 @@ def run_book(run_id, *, provider=None):
     plan = run.summary["plan"]
     Edition.objects.filter(pk=run.edition_id).update(status=Edition.Status.PROCESSING)
     try:
-        if generation_spec(run.summary["target_level"]) != run.summary["spec"]:
+        if generation_spec(run.summary["target_level"], source.language) != run.summary["spec"]:
             raise ValueError(
                 "Generation configuration changed; start a new version from the source."
             )

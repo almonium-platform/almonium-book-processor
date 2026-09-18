@@ -17,6 +17,11 @@ class OutputLanguageError(ValueError):
     """Safe to record: contains no source or generated text."""
 
 
+# Below this, langid's verdict on a single field is noise ("Before dawn, he left."
+# scores English at 0.61), so shorter samples are only judged together.
+MIN_ASSESSABLE_LETTERS = 40
+
+
 @lru_cache(maxsize=1)
 def _identifier():
     return LanguageIdentifier.from_modelstring(model, norm_probs=True)
@@ -60,7 +65,9 @@ def validate_output_language(texts: list[str], language: str) -> None:
     prose = [text.strip() for text in texts if text.strip()]
     if not prose:
         return
-    candidates = ["\n".join(prose), *(t for t in prose if sum(c.isalpha() for c in t) >= 40)]
+    candidates = ["\n".join(prose)]
+    if len(prose) > 1:
+        candidates += [t for t in prose if sum(c.isalpha() for c in t) >= MIN_ASSESSABLE_LETTERS]
     for index, text in enumerate(candidates):
         detected, confidence = _classify(text, expected)
         # langid distinguishes Norwegian Bokmål and Nynorsk; the catalogue does not.
@@ -85,3 +92,16 @@ def validate_analysis_language(result, language: str) -> None:
         ],
         language,
     )
+
+
+def validate_rewritten_language(texts: list[str], language: str) -> None:
+    """Gate for text written into a book: adapted blocks and audit corrections.
+
+    Judged as one sample. Kept blocks are the source verbatim and a quotation inside
+    a rewritten paragraph does not change its language, so callers pass only the
+    changed text; a handful of short phrases is not enough evidence either way.
+    """
+    prose = "\n".join(text.strip() for text in texts if text.strip())
+    if sum(c.isalpha() for c in prose) < MIN_ASSESSABLE_LETTERS:
+        return
+    validate_output_language([prose], language)

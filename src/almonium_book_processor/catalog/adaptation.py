@@ -15,6 +15,7 @@ from almonium_book_processor.ai.adaptation import (
     pilot_prompt,
 )
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai.output_language import validate_rewritten_language
 from almonium_book_processor.catalog.ai_translation import (
     TRANSLATION_MODEL_PRICING,
     _estimated_cost,
@@ -40,8 +41,8 @@ MAX_BLOCKS = 100
 
 
 def source_snapshot(chapter, block_ids=None, *, target_level=TARGET_LEVEL):
-    pilot_prompt(target_level)
     edition = chapter.edition
+    pilot_prompt(target_level, edition.language)
     if edition.work.visibility != Work.Visibility.PUBLIC:
         raise ValueError("Adaptation pilots currently support public catalogue sources only.")
     if edition.withdrawal_requested_at:
@@ -89,7 +90,6 @@ def queue_pilot(
 ):
     from almonium_book_processor.catalog.tasks import adapt_chapter_pilot
 
-    prompt_version, system_prompt = pilot_prompt(target_level)
     processor_version = B1_VERSION if target_level == "B1" else VERSION
     prompt_name = "literary-b1-adaptation-pilot" if target_level == "B1" else PROMPT_NAME
     if not settings.OPENAI_API_KEY:
@@ -98,6 +98,7 @@ def queue_pilot(
     if len(editorial_feedback) > 4000:
         raise ValueError("Editorial feedback is limited to 4,000 characters.")
     edition = Edition.objects.select_for_update().select_related("work").get(pk=edition_id)
+    prompt_version, system_prompt = pilot_prompt(target_level, edition.language)
     chapter = Chapter.objects.get(pk=chapter_id, edition=edition)
     source = source_snapshot(chapter, block_ids, target_level=target_level)
     owner = edition
@@ -201,12 +202,11 @@ def queue_pilot(
     reusable = False
     if previous and previous.response_payload.get("raw", {}).get("status") == "completed":
         try:
-            validate_result(
-                ChapterAdaptation.model_validate_json(
-                    response_output_text(previous.response_payload["raw"])
-                ),
-                source,
+            result = ChapterAdaptation.model_validate_json(
+                response_output_text(previous.response_payload["raw"])
             )
+            validate_result(result, source)
+            validate_language(result, source)
             reusable = True
         except ValueError:
             pass
@@ -273,6 +273,18 @@ def validate_result(result, source):
     return warnings
 
 
+def validate_language(result, source):
+    """Changed text only: kept blocks are the source, whatever language its quotations use."""
+    validate_rewritten_language(
+        [
+            block.text
+            for block, original in zip(result.blocks, source["blocks"], strict=True)
+            if block.text != original["text"]
+        ],
+        source["language"],
+    )
+
+
 def run_pilot(run_id, *, provider=None):
     # Atomic claim prevents duplicate deliveries from launching duplicate paid calls.
     # A worker lost during a request requires operator reconciliation, not blind repayment.
@@ -311,6 +323,7 @@ def run_pilot(run_id, *, provider=None):
             )
         result = ChapterAdaptation.model_validate_json(response_output_text(response))
         warnings = validate_result(result, source)
+        validate_language(result, source)
         with transaction.atomic():
             Edition.objects.select_for_update().get(pk=run.edition_id)
             chapter = Chapter.objects.select_related("edition__work").get(

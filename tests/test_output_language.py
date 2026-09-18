@@ -4,6 +4,7 @@ from almonium_book_processor.ai.output_language import (
     OutputLanguageError,
     _identifier,
     validate_output_language,
+    validate_rewritten_language,
 )
 from almonium_book_processor.languages import LANGUAGE_CODES
 
@@ -48,3 +49,14 @@ def test_one_ukrainian_letter_cannot_disguise_english():
 def test_mixed_ukrainian_and_russian_markers_are_rejected():
     with pytest.raises(OutputLanguageError):
         validate_output_language([UK + " Это её решение."], "uk")
+
+
+def test_rewritten_prose_is_judged_together_once_there_is_enough_of_it():
+    validate_rewritten_language(["Before dawn, he left."], "uk")  # too short to judge
+    validate_rewritten_language([], "uk")
+    validate_rewritten_language([UK], "uk")
+    validate_rewritten_language(["He was afraid.", "Before dawn, he left, and it was cold."], "en")
+    with pytest.raises(OutputLanguageError, match="uk"):
+        validate_rewritten_language([EN], "uk")
+    with pytest.raises(OutputLanguageError, match="uk"):
+        validate_rewritten_language(["Він вийшов.", EN], "uk")
