@@ -85,13 +85,18 @@ Implemented 2026-09-18 in the processor; see
       Angular tile captions (`a68db79`) and mobile library feet (`2cf5b51`)
       read "Original C1 · Adapted B2" from the editions a work actually has.
       `reachedLevels` rides in the payload but is not stored yet.
-- [ ] Fidelity audit of the **published** B2 edition: done 2026-09-18 on the
-      producing (local) stack, run `f06a3841`, $1.32: 7 material, 36 minor,
-      2 uncertain findings, each open on the edition page to apply or
-      dismiss. Decide them, re-audit the changed chapters, republish;
-      `adapts_to = B2` follows from the gates and travels to staging and
-      production in the next promotion bundle. B1 is recorded as a failed
-      rung from the v5 pilots (`backfill_floor_probe`).
+- [x] Fidelity audit of the **published** B2 edition, 2026-09-18, run
+      `f06a3841` on Terra, $1.32: 7 material, 36 minor, 2 uncertain. All
+      suggestions were applied from the page; the first bulk apply pasted
+      corrections over words still in the text in 14 blocks (the auditor
+      quotes a span but rewrites the clause), which the re-read of chapters
+      1–5 caught and a repair rebuilt from the pre-apply text; two c22.p2
+      "Use ..." suggestions were advice, not text, and were applied by hand.
+      Audit and difficulty verdicts carried forward; `adapts_to = B2` is
+      recorded with the run ids. One minor finding (c6.p23) is left open for
+      the editor. Total incremental spend for the fixes: $0.09 (the
+      interrupted re-read). Next: republish B2 (publication is stale) and
+      promote so the floor reaches staging and production.
 - [ ] Remove the last level promises from onboarding and plan copy across
       web and mobile (web landing/Premium done in `b07c669`; audit mobile).
 
