@@ -1075,6 +1075,46 @@ def apply_source_quality_finding(
 
 @staff_member_required
 @require_POST
+def reopen_source_quality_finding(
+    request: HttpRequest, edition_id: str, finding_id: uuid.UUID
+) -> HttpResponse:
+    from almonium_book_processor.catalog.services import reopen_text_quality_finding
+
+    edition = get_object_or_404(Edition, id=edition_id)
+    try:
+        reopen_text_quality_finding(edition=edition, finding_id=finding_id, reviewer=request.user)
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Finding reopened.")
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def edit_finding_block(
+    request: HttpRequest, edition_id: str, finding_id: uuid.UUID
+) -> HttpResponse:
+    from almonium_book_processor.catalog.services import apply_finding_with_block_text
+
+    edition = get_object_or_404(Edition, id=edition_id)
+    try:
+        apply_finding_with_block_text(
+            edition=edition,
+            finding_id=finding_id,
+            revised_text=request.POST.get("text", ""),
+            reviewer=request.user,
+            notes=request.POST.get("notes", "").strip(),
+        )
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Block revised and the finding closed; refresh queued.")
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
 def dismiss_source_quality_finding(
     request: HttpRequest, edition_id: str, finding_id: uuid.UUID
 ) -> HttpResponse:

@@ -114,6 +114,16 @@ urlpatterns = [
         name="apply-source-quality-finding",
     ),
     path(
+        "editions/<uuid:edition_id>/source-qa/<uuid:finding_id>/reopen/",
+        views.reopen_source_quality_finding,
+        name="reopen-source-quality-finding",
+    ),
+    path(
+        "editions/<uuid:edition_id>/source-qa/<uuid:finding_id>/edit-block/",
+        views.edit_finding_block,
+        name="edit-finding-block",
+    ),
+    path(
         "editions/<uuid:edition_id>/source-qa/<uuid:finding_id>/dismiss/",
         views.dismiss_source_quality_finding,
         name="dismiss-source-quality-finding",

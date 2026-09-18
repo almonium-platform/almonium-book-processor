@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import uuid
 from datetime import timedelta
 from decimal import Decimal
@@ -594,6 +595,37 @@ def _bare(text: str) -> str:
     return text.strip("\"' ")
 
 
+def excerpt(text: str, quote: str, *, whole: bool = False) -> tuple[str, str, str]:
+    """The sentence around ``quote`` in ``text`` as (before, span, after), or the whole text.
+
+    When the quote cannot be placed the text comes back unmarked in ``before``.
+    """
+
+    from almonium_book_processor.catalog.chapter_analysis import _locate
+
+    located = _locate(text, _bare(quote)) if quote else None
+    if located is None:
+        # A quote with ellipses names several spans; the longest piece places it well enough.
+        pieces = sorted(
+            (piece.strip(" ,;") for piece in re.split(r"\.\.\.|\u2026", _bare(quote or ""))),
+            key=len,
+            reverse=True,
+        )
+        for piece in pieces:
+            if len(piece) >= 12 and (located := _locate(text, piece)) is not None:
+                break
+    if located is None:
+        return (text if whole or len(text) <= 320 else text[:300].rsplit(" ", 1)[0] + " …"), "", ""
+    start, end = located
+    if whole:
+        return text[:start], text[start:end], text[end:]
+    left = max((text.rfind(stop, 0, start) for stop in (". ", "! ", "? ", ".\n")), default=-1)
+    left = 0 if left < 0 else left + 2
+    rights = [i for i in (text.find(stop, end) for stop in (". ", "! ", "? ")) if i >= 0]
+    right = min(rights) + 1 if rights else len(text)
+    return text[left:start], text[start:end], text[end:right]
+
+
 def open_findings(edition: Edition):
     return (
         edition.text_quality_findings.filter(
@@ -639,7 +671,27 @@ def audit_context(edition: Edition) -> dict:
     else:
         context["fidelity_audit_state"] = "failed"
     findings = list(open_findings(edition))
+    dismissed = list(
+        edition.text_quality_findings.filter(
+            status=TextQualityFinding.Status.DISMISSED,
+            code__startswith=FINDING_PREFIX,
+            input_hash=run.input_hash,
+        )
+        .select_related("block__chapter")
+        .order_by("-confidence", "block__chapter__sequence", "block__sequence")
+    )
+    originals = dict(
+        edition.source_edition.blocks.filter(
+            block_id__in={f.stable_block_id for f in [*findings, *dismissed]}
+        ).values_list("block_id", "text")
+    )
+    for finding in [*findings, *dismissed]:
+        # Both sides of the change, so the reviewer reads them here, not in the reader.
+        finding.source_text = originals.get(finding.stable_block_id, "")
+        finding.adapted_text = finding.block.text if finding.block else ""
     context["fidelity_findings"] = findings
+    context["fidelity_dismissed"] = dismissed
+    context["fidelity_manual"] = sum(not (f.can_apply and f.suggested_text) for f in findings)
     context["fidelity_counts"] = {
         severity: sum(f.code == FINDING_CODES[severity] for f in findings)
         for severity in SEVERITIES

@@ -1004,6 +1004,71 @@ def dismiss_text_quality_finding(
 
 
 @transaction.atomic
+def reopen_text_quality_finding(
+    *, edition: Edition, finding_id: uuid.UUID, reviewer: AbstractBaseUser
+) -> TextQualityFinding:
+    """A dismissal is a decision, not a deletion: it can be taken back while the text stands."""
+
+    finding = (
+        TextQualityFinding.objects.select_for_update()
+        .select_related("block")
+        .filter(id=finding_id, edition=edition)
+        .first()
+    )
+    if finding is None:
+        raise ValueError("This finding does not belong to the edition.")
+    if finding.status != TextQualityFinding.Status.DISMISSED:
+        raise ValueError("Only a dismissed finding can be reopened.")
+    if finding.block is None or (
+        finding.start_offset is not None
+        and finding.block.text[finding.start_offset : finding.end_offset] != finding.original_text
+    ):
+        raise ValueError("The block changed since this finding was made; audit again instead.")
+    finding.status = TextQualityFinding.Status.OPEN
+    finding.reviewed_by = reviewer
+    finding.reviewed_at = timezone.now()
+    finding.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+    _after_fidelity_decision(edition, finding)
+    return finding
+
+
+@transaction.atomic
+def apply_finding_with_block_text(
+    *,
+    edition: Edition,
+    finding_id: uuid.UUID,
+    revised_text: str,
+    reviewer: AbstractBaseUser,
+    notes: str = "",
+) -> ContentBlockRevision:
+    """Close a finding whose span could not be placed by rewriting its block by hand."""
+
+    finding = (
+        TextQualityFinding.objects.select_for_update(of=("self",))
+        .select_related("block")
+        .filter(id=finding_id, edition=edition)
+        .first()
+    )
+    if finding is None:
+        raise ValueError("This finding does not belong to the edition.")
+    if finding.status != TextQualityFinding.Status.OPEN or finding.block is None:
+        raise ValueError("This finding is no longer open.")
+    revision = revise_block_text(
+        edition=edition,
+        block_id=finding.block_id,
+        revised_text=revised_text,
+        editor=reviewer,
+        notes=notes or f"Hand edit closing {finding.code} finding on {finding.stable_block_id}.",
+    )
+    finding.status = TextQualityFinding.Status.APPLIED
+    finding.reviewed_by = reviewer
+    finding.reviewed_at = timezone.now()
+    finding.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+    _after_fidelity_decision(edition, finding)
+    return revision
+
+
+@transaction.atomic
 def resolve_review_warning(
     *, edition: Edition, warning_id: uuid.UUID, reviewer: AbstractBaseUser
 ) -> QAWarning:

@@ -606,3 +606,56 @@ def test_a_probe_can_be_backfilled_from_pilots_judged_and_audited_by_scripts(sou
     assert rows[1]["state"] == "probe_failed"
     source.work.refresh_from_db()
     assert source.work.adaptation_evidence["levels"]["B1"]["state"] == "probe_failed"
+
+
+def test_excerpts_mark_the_sentence_around_the_quote():
+    from almonium_book_processor.catalog.fidelity_audit import excerpt
+    from almonium_book_processor.catalog.templatetags.catalog_extras import mark_excerpt
+
+    text = "First sentence. Ere dawn, he departed. He was afraid! Last one."
+    assert excerpt(text, "“he departed”") == ("Ere dawn, ", "he departed", ".")
+    assert excerpt(text, "afraid") == ("He was ", "afraid", "!")
+    assert excerpt(text, "not there") == (text, "", "")
+    assert excerpt(text, "\u201cFirst ... he departed\u201d")[1] == "he departed"
+    long = "word " * 200
+    assert excerpt(long, "nope")[0].endswith(" …") and len(excerpt(long, "nope")[0]) < 320
+    at = text.index("afraid")
+    assert excerpt(text, "afraid", whole=True) == (text[:at], "afraid", text[at + 6 :])
+    assert mark_excerpt(text, "afraid") == "He was <mark>afraid</mark>!"
+    assert mark_excerpt("a < b", "nope") == "a &lt; b"
+
+
+def test_a_dismissal_can_be_reopened_and_an_unplaceable_finding_closed_by_hand(adaptation):
+    from almonium_book_processor.catalog.services import (
+        apply_finding_with_block_text,
+        dismiss_text_quality_finding,
+        reopen_text_quality_finding,
+    )
+
+    reviewer = get_user_model().objects.create_user("editor", is_staff=True)
+    run = queue_edition_audit(adaptation.id)
+    run_edition_audit(run.id, provider=Auditor([MATERIAL, MINOR]))
+    material = adaptation.text_quality_findings.get(code="fidelity_material")
+    dismiss_text_quality_finding(edition=adaptation, finding_id=material.id, reviewer=reviewer)
+    context = audit_context(adaptation)
+    assert [f.id for f in context["fidelity_dismissed"]] == [material.id]
+    assert context["fidelity_findings"][0].source_text == "Ere dawn, he departed."
+    assert context["fidelity_manual"] == 1  # the minor finding's quote is not in the text
+    reopen_text_quality_finding(edition=adaptation, finding_id=material.id, reviewer=reviewer)
+    material.refresh_from_db()
+    assert material.status == "open"
+    with pytest.raises(ValueError, match="Only a dismissed"):
+        reopen_text_quality_finding(edition=adaptation, finding_id=material.id, reviewer=reviewer)
+    minor = adaptation.text_quality_findings.get(code="fidelity_minor")
+    assert not minor.can_apply
+    apply_finding_with_block_text(
+        edition=adaptation,
+        finding_id=minor.id,
+        revised_text="He was terrified.",
+        reviewer=reviewer,
+        notes="Kept the stronger word.",
+    )
+    minor.refresh_from_db()
+    assert minor.status == "applied"
+    assert adaptation.blocks.get(block_id="c2.b1").text == "He was terrified."
+    assert adaptation.block_revisions.get().notes == "Kept the stronger word."

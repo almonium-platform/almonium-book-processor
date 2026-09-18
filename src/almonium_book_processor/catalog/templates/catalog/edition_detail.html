@@ -249,31 +249,48 @@
   <div class="fidelity-bulk">
     {% if fidelity_applicable %}<form method="post" action="{% url 'catalog:apply-fidelity-findings' edition.id %}">{% csrf_token %}<label class="checkbox-label"><input type="checkbox" name="confirm" value="1" required> I have read the suggestions</label><button class="button button-small" type="submit">Apply all {{ fidelity_applicable }} suggestions</button></form>{% endif %}
     <form method="post" action="{% url 'catalog:dismiss-fidelity-findings' edition.id %}">{% csrf_token %}<label class="checkbox-label"><input type="checkbox" name="confirm" value="1" required> I have read them beside the source</label><button class="button button-small button-secondary" type="submit">Dismiss all {{ fidelity_findings|length }} open findings</button></form>
+    {% if fidelity_manual %}<p class="muted fidelity-bulk-note">{{ fidelity_manual }} finding{{ fidelity_manual|pluralize }} quote{{ fidelity_manual|pluralize:"s," }} a span that is not in the text as one piece, so {% if fidelity_manual == 1 %}it{% else %}they{% endif %} can only be closed by editing the block by hand. Dismissing is undoable: dismissed findings stay listed below with a reopen button.</p>{% endif %}
   </div>
+  {% endif %}
   {% regroup fidelity_findings by evidence.severity as severity_groups %}
   {% for group in severity_groups %}
   <details class="fidelity-group fidelity-group-{{ group.grouper }}"{% if group.grouper == "material" %} open{% endif %}>
     <summary><span class="summary-title">{{ group.list|length }} {{ group.grouper }}</span><span class="summary-meta">{% if group.grouper == "material" %}hold the gate until applied or dismissed{% else %}do not hold the gate{% endif %}</span></summary>
     {% for finding in group.list %}
     <article class="fidelity-finding">
-      <div class="fidelity-body">
-        <p class="fidelity-head"><code class="severity severity-{{ group.grouper }}">{{ group.grouper }}</code> <strong>{{ finding.stable_block_id }}</strong>{% if finding.block %} · <a href="{% url 'catalog:edition-reader' edition.id %}?chapter={{ finding.block.chapter.sequence }}{% if edition.source_edition_id and edition.supports_parallel_reading %}&parallel={{ edition.source_edition_id }}&diff=1{% endif %}#block-{{ finding.block.id }}">open beside the source</a>{% endif %}</p>
-        <p>{{ finding.message }}</p>
-        <p class="muted fidelity-quotes"><span>Source: “{{ finding.evidence.source_quote }}”</span> <span>Adapted: “{{ finding.evidence.adapted_quote }}”</span>{% if finding.evidence.suggested_correction %} <span>Suggested: “{{ finding.evidence.suggested_correction }}”</span>{% endif %}{% if not finding.evidence.quote_verified %} <span>quotes not found verbatim</span>{% endif %}</p>
-        {% if finding.can_apply and finding.suggested_text %}
-        <details class="fidelity-edit"><summary>Edit the wording before applying</summary>
-          <form method="post" action="{% url 'catalog:apply-source-quality-finding' edition.id finding.id %}">{% csrf_token %}<label><span>Replacement for “{{ finding.original_text }}”</span><textarea name="replacement" rows="2">{{ finding.suggested_text }}</textarea></label><label><span>Revision note (optional)</span><input name="notes" placeholder="Why this wording is closer to the author"></label><button class="button button-small" type="submit">Apply this wording</button></form>
-        </details>
-        {% elif finding.evidence.suggested_correction %}<p class="muted">The quoted span was not found as one piece: edit the block by hand if you agree.</p>{% endif %}
-      </div>
+      <p class="fidelity-head"><code class="severity severity-{{ group.grouper }}">{{ group.grouper }}</code> <strong>{{ finding.stable_block_id }}</strong>{% if finding.block %} · <a href="{% url 'catalog:edition-reader' edition.id %}?chapter={{ finding.block.chapter.sequence }}{% if edition.source_edition_id and edition.supports_parallel_reading %}&parallel={{ edition.source_edition_id }}&diff=1{% endif %}#block-{{ finding.block.id }}">open in the reader</a>{% endif %}</p>
       <div class="fidelity-actions">
         {% if finding.can_apply and finding.suggested_text %}<form method="post" action="{% url 'catalog:apply-source-quality-finding' edition.id finding.id %}">{% csrf_token %}<input type="hidden" name="replacement" value="{{ finding.suggested_text }}"><button class="button button-small" type="submit">Apply</button></form>{% endif %}
-        <form method="post" action="{% url 'catalog:dismiss-source-quality-finding' edition.id finding.id %}">{% csrf_token %}<label class="checkbox-label"><input type="checkbox" name="confirm" value="1" required> read it</label><button class="button button-small button-secondary" type="submit">Dismiss</button></form>
+        <form method="post" action="{% url 'catalog:dismiss-source-quality-finding' edition.id finding.id %}">{% csrf_token %}<button class="button button-small button-secondary" type="submit">Dismiss</button></form>
       </div>
+      <p class="fidelity-explanation">{{ finding.message }}</p>
+      <div class="fidelity-sides">
+        <div class="fidelity-side"><p class="fidelity-side-label">Source</p><p class="fidelity-text">{{ finding.source_text|mark_excerpt:finding.evidence.source_quote }}</p></div>
+        <div class="fidelity-side"><p class="fidelity-side-label">Adapted</p><p class="fidelity-text">{{ finding.adapted_text|mark_excerpt:finding.evidence.adapted_quote }}</p>{% if finding.evidence.suggested_correction %}<p class="fidelity-text fidelity-suggested"><span class="fidelity-side-label">Suggested</span> <ins>{{ finding.evidence.suggested_correction }}</ins></p>{% endif %}</div>
+      </div>
+      {% if finding.can_apply and finding.suggested_text %}
+      <details class="fidelity-edit"><summary>Edit the wording before applying</summary>
+        <form method="post" action="{% url 'catalog:apply-source-quality-finding' edition.id finding.id %}">{% csrf_token %}<label><span>Replacement for “{{ finding.original_text }}”</span><textarea name="replacement" rows="2">{{ finding.suggested_text }}</textarea></label><label><span>Revision note (optional)</span><input name="notes" placeholder="Why this wording is closer to the author"></label><button class="button button-small" type="submit">Apply this wording</button></form>
+      </details>
+      {% else %}
+      <details class="fidelity-edit"><summary>The quoted span is not in the block as one piece: edit the block by hand</summary>
+        <form method="post" action="{% url 'catalog:edit-finding-block' edition.id finding.id %}">{% csrf_token %}<label><span>Block {{ finding.stable_block_id }}</span><textarea name="text" rows="6">{{ finding.adapted_text }}</textarea></label><label><span>Revision note (optional)</span><input name="notes" placeholder="What you changed and why"></label><button class="button button-small" type="submit">Save block and close finding</button></form>
+      </details>
+      {% endif %}
     </article>
     {% endfor %}
   </details>
   {% endfor %}
+  {% if fidelity_dismissed %}
+  <details class="fidelity-group fidelity-group-dismissed">
+    <summary><span class="summary-title">{{ fidelity_dismissed|length }} dismissed</span><span class="summary-meta">kept for the current text; reopen if a click was a mistake</span></summary>
+    {% for finding in fidelity_dismissed %}
+    <article class="fidelity-finding fidelity-finding-dismissed">
+      <p class="fidelity-head"><code class="severity">{{ finding.evidence.severity }}</code> <strong>{{ finding.stable_block_id }}</strong> · {{ finding.message|truncatechars:160 }}</p>
+      <div class="fidelity-actions"><form method="post" action="{% url 'catalog:reopen-source-quality-finding' edition.id finding.id %}">{% csrf_token %}<button class="button button-small button-secondary" type="submit">Reopen</button></form></div>
+    </article>
+    {% endfor %}
+  </details>
   {% endif %}
 </section>
 {% endif %}
