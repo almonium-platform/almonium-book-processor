@@ -86,6 +86,17 @@ def audit_spec(tier: str | None = None) -> dict:
     }
 
 
+def _identity(spec: dict) -> dict:
+    """What can change an answer: model, effort, prompt. Prices and tier names cannot."""
+
+    return {
+        "model": spec["model"],
+        "reasoning_effort": spec["reasoning_effort"],
+        "prompt_version": spec["prompt_version"],
+        "window_bytes": spec["window_bytes"],
+    }
+
+
 def _configuration(spec: dict) -> tuple[ModelConfiguration, PromptTemplate]:
     configuration, _ = ModelConfiguration.objects.get_or_create(
         name=f"fidelity-audit-{_hash(spec)[:32]}",
@@ -313,12 +324,12 @@ def audit_pilot(pilot_id, *, provider=None) -> dict:
     spec = audit_spec()
     windows = [
         {
-            "hash": _hash([spec, str(generation.id), part]),
+            "hash": _hash([_identity(spec), str(generation.id), part]),
             "data": {"language": pilot.edition.language, "blocks": part},
         }
         for part in _windows(pairs, spec)
     ]
-    identity = _hash([spec, str(generation.id), pairs])
+    identity = _hash([_identity(spec), str(generation.id), pairs])
     run, _ = PipelineRun.objects.get_or_create(
         idempotency_key=f"{pilot.id}:fidelity-audit:{identity}",
         defaults={
@@ -412,11 +423,11 @@ def edition_plan(edition: Edition, spec: dict) -> dict:
                 "window_count": len(parts),
                 "blocks": part,
             }
-            windows.append({"hash": _hash([spec, chapter_hash, data]), "data": data})
+            windows.append({"hash": _hash([_identity(spec), chapter_hash, data]), "data": data})
     if not windows:
         raise ValueError("The edition has no text to audit.")
     return {
-        "hash": _hash([spec, [c["hash"] for c in chapters]]),
+        "hash": _hash([_identity(spec), [c["hash"] for c in chapters]]),
         "chapters": chapters,
         "windows": windows,
     }
