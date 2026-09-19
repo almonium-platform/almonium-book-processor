@@ -268,3 +268,61 @@ def test_pending_publish_holds_the_button(published):
     )
     (row,) = release_rows(adapted)
     assert (row["state"], row["run"]) == ("running", None)
+
+
+def test_the_catalogue_catches_a_target_up_on_everything_it_is_behind_on(
+    client, published, monkeypatch
+):
+    original, adapted = published
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TARGETS", "staging=https://staging.example")
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TOKEN_STAGING", "t")
+    queued = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.promote_edition.delay",
+        lambda run_id, publish=False: queued.append((run_id, publish)),
+    )
+    # A third, never-promoted edition stays where it is.
+    fresh = Edition.objects.create(
+        work=original.work,
+        slug="release-fr",
+        title="Livre",
+        language="fr",
+        parallel_role="standalone",
+        status="ready",
+        source_sha256="c" * 64,
+    )
+    client.force_login(get_user_model().objects.create_user(username="staff", is_staff=True))
+    dashboard = client.get(reverse("catalog:dashboard")).content.decode()
+    assert "Promote " not in dashboard  # nothing behind, no button
+
+    # The original was promoted without publication and corrected since; the
+    # adaptation's last attempt, which asked for publication, failed.
+    run = promote(original, "staging")
+    PipelineRun.objects.filter(pk=run.pk).update(summary={"target": "staging", "publish": False})
+    correct(original)
+    promote(adapted, "staging")
+    promote(adapted, "staging", status="failed", when=timezone.now())
+    dashboard = client.get(reverse("catalog:dashboard")).content.decode()
+    assert "Promote 2 behind to staging" in dashboard
+
+    response = client.post(reverse("catalog:promote-behind"), {"target": "staging"}, follow=True)
+    assert "2 promotions to staging queued: release-en, release-en-b2" in response.content.decode()
+    runs = {
+        str(run.edition_id): run
+        for run in PipelineRun.objects.filter(stage="promote", status="queued")
+    }
+    assert set(runs) == {str(original.id), str(adapted.id)}
+    assert [run_id for run_id, _ in queued] == [
+        str(runs[str(original.id)].id),
+        str(runs[str(adapted.id)].id),
+    ]
+    assert runs[str(original.id)].summary["publish"] is False
+    assert runs[str(adapted.id)].summary["publish"] is True
+    assert not PipelineRun.objects.filter(edition=fresh, stage="promote").exists()
+    # Both rows now follow their run, and the button is gone until something lands.
+    dashboard = client.get(reverse("catalog:dashboard")).content.decode()
+    assert dashboard.count('<span class="run-stage"><span>Promotion</span>') == 2
+    assert "Promote 2 behind" not in dashboard
+
+    response = client.post(reverse("catalog:promote-behind"), {"target": "nowhere"}, follow=True)
+    assert "Choose a configured promotion target." in response.content.decode()

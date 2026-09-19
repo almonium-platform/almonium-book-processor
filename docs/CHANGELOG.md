@@ -6,6 +6,10 @@ keeps only what is open. Cross-repository work names its repository.
 
 ## 2026-09-19
 
+- The catalogue heading offers "Promote N behind to <target>" whenever a
+  target is behind on, or last failed for, any edition: one click queues a
+  promotion per such edition, sources first, repeating each edition's last
+  publish choice for that target. Never-promoted editions stay put.
 - Every text revision on a judged public edition refreshes its chapter
   analysis by itself, not only one that applies a fidelity finding: a
   phrase-sized change carries the verdict forward for free, a bigger one

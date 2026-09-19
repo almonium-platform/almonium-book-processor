@@ -177,6 +177,10 @@ class PromotionRollup:
     def label(self) -> str:
         return f"{self.count} {self.state} on {self.target}"
 
+    @property
+    def button_label(self) -> str:
+        return f"Promote {self.count} behind to {self.target}"
+
 
 def promotion_rollups(rows: list[EditionRow]) -> list[PromotionRollup]:
     """Failed first, then behind, each per target in target order."""
@@ -262,6 +266,22 @@ class CatalogueSummary:
             parts.append(f"{self.processing} processing")
         parts.extend(rollup.label for rollup in self.promotions)
         return " · ".join(parts)
+
+    @property
+    def promotable(self) -> list[PromotionRollup]:
+        """One button's worth per target: everything behind or failed there, as one count.
+
+        A failed promotion leaves the target behind too, so the button that
+        catches a target up counts both and its title says how many of each.
+        """
+
+        counts: dict[str, int] = {}
+        for rollup in self.promotions:
+            counts[rollup.target] = counts.get(rollup.target, 0) + rollup.count
+        return [
+            PromotionRollup(state="behind", target=target, count=count)
+            for target, count in counts.items()
+        ]
 
 
 def _surname(author: str) -> str:

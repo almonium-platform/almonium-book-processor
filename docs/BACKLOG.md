@@ -61,8 +61,8 @@ Implemented 2026-09-18 in the processor; see
 - [x] Fidelity audit of the **published** B2, findings applied, `adapts_to =
       B2` recorded (2026-09-18; [CHANGELOG.md](CHANGELOG.md)). One minor
       finding (c6.p23) is left to the editor.
-- [ ] Republish B2 (publication is stale after the fixes) and promote, so the
-      floor reaches staging and production.
+- [x] B2 republished after the fixes (2026-09-18 17:35) and promoted to
+      staging (2026-09-19 06:23), so the floor is on its way to production.
 - [ ] Remove the last level promises from onboarding and plan copy across
       web and mobile (web landing/Premium done in `b07c669`; audit mobile).
 
@@ -79,6 +79,9 @@ Implemented 2026-09-18 in the processor; see
   here only metadata can be behind; a target is behind when the edition or
   anything in its chain gained a correction or artifact after the last
   successful bundle. The catalogue shows a "Behind: …" chip per edition.
+- [x] Catch a target up in one click (2026-09-19): the catalogue heading
+  offers "Promote N behind to <target>" for every target with editions behind
+  or failed; never-promoted editions are not included.
 
 ## Open: other languages (2026-09-18)
 

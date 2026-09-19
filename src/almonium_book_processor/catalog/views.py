@@ -1703,6 +1703,34 @@ def promote_edition_view(request: HttpRequest, edition_id: str) -> HttpResponse:
 
 @staff_member_required
 @require_POST
+def promote_behind_view(request: HttpRequest) -> HttpResponse:
+    """Catch one target up on every edition it is behind on, from the catalogue."""
+
+    from almonium_book_processor.catalog.release_state import (
+        editions_behind,
+        queue_promotions_behind,
+    )
+
+    target = promotion_target(request.POST.get("target"))
+    if target is None:
+        messages.error(request, "Choose a configured promotion target.")
+        return redirect("catalog:dashboard")
+    editions = editions_behind(target.name)
+    if not editions:
+        messages.info(request, f"Nothing is behind on {target.name}.")
+        return redirect("catalog:dashboard")
+    runs = queue_promotions_behind(target, editions)
+    slugs = ", ".join(run.edition.slug for run in runs)
+    messages.success(
+        request,
+        f"{len(runs)} promotion{'s' if len(runs) != 1 else ''} to {target.name} queued: {slugs}. "
+        "Each row shows its promotion as it lands.",
+    )
+    return redirect("catalog:dashboard")
+
+
+@staff_member_required
+@require_POST
 def publish_edition_to_almonium(request: HttpRequest, edition_id: str) -> HttpResponse:
     edition = get_object_or_404(
         Edition.objects.select_related("work", "source_edition"), id=edition_id

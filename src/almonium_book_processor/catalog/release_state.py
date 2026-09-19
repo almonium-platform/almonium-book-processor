@@ -10,6 +10,7 @@ until the edition is promoted again.
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -270,3 +271,64 @@ def _token(edition, target, runs, changed) -> PromotionToken:
     )
     state = "behind" if latest and latest > last.created_at else "current"
     return PromotionToken(target=target, state=state, at=last.finished_at or last.created_at)
+
+
+def editions_behind(target: str) -> list[Edition]:
+    """Every public edition the target is behind on or last failed for, sources first.
+
+    Never-promoted editions are not here: sending a book somewhere for the
+    first time is a decision, catching a target up on what it already holds
+    is not. An edition whose chain has fallen out of review is left out too,
+    as the promote button on its own page would refuse it.
+    """
+
+    from almonium_book_processor.catalog.catalogue import _editions
+    from almonium_book_processor.catalog.models import Work
+    from almonium_book_processor.catalog.promotion import promotion_blocker, promotion_chain
+
+    editions = list(_editions(Work.Visibility.PUBLIC))
+    states = listing_release_state(editions)
+    behind = [
+        edition
+        for edition in editions
+        if any(
+            token.target == target and token.state in ("behind", "failed")
+            for token in states[edition.id].tokens
+        )
+        and not promotion_blocker(edition)
+    ]
+    return sorted(behind, key=lambda edition: (len(promotion_chain(edition)), edition.slug))
+
+
+def queue_promotions_behind(target, editions: list[Edition]) -> list[PipelineRun]:
+    """Queue one promotion per edition, repeating what the last one to that target asked.
+
+    A bundle that carried publication there before, or whose failed attempt
+    asked for it, asks again; nothing is published on a target for the first
+    time from here.
+    """
+
+    from almonium_book_processor import __version__
+    from almonium_book_processor.catalog.tasks import promote_edition
+
+    runs: list[PipelineRun] = []
+    for edition in editions:
+        last = (
+            edition.pipeline_runs.filter(
+                stage=PipelineRun.Stage.PROMOTE, summary__target=target.name
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        publish = bool(last and last.summary.get("publish"))
+        run = PipelineRun.objects.create(
+            edition=edition,
+            stage=PipelineRun.Stage.PROMOTE,
+            processor_version=__version__,
+            input_hash="",
+            idempotency_key=f"{edition.id}:promote:{target.name}:{uuid.uuid4().hex}",
+            summary={"target": target.name, "target_url": target.base_url, "publish": publish},
+        )
+        promote_edition.delay(str(run.id), publish=publish)
+        runs.append(run)
+    return runs

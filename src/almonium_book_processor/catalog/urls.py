@@ -224,6 +224,7 @@ urlpatterns = [
         views.promote_edition_view,
         name="promote-edition",
     ),
+    path("promote-behind/", views.promote_behind_view, name="promote-behind"),
     path(
         "editions/<uuid:edition_id>/purge/",
         views.purge_edition_view,

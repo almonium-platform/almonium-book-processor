@@ -4,7 +4,10 @@
 {% block content %}
 <div class="page-heading">
   <div><p class="eyebrow">Editorial catalogue</p><h1>Public books</h1><p class="muted">{{ summary.label }}</p></div>
-  <a class="button" href="{% url 'catalog:upload' %}">Upload source</a>
+  <div class="button-row">
+    {% for rollup in summary.promotable %}<form method="post" action="{% url 'catalog:promote-behind' %}">{% csrf_token %}<input type="hidden" name="target" value="{{ rollup.target }}"><button class="button button-secondary" type="submit" title="Bundle every edition {{ rollup.target }} is behind on, or last failed for, and send it again. Never-promoted editions stay where they are.">{{ rollup.button_label }}</button></form>{% endfor %}
+    <a class="button" href="{% url 'catalog:upload' %}">Upload source</a>
+  </div>
 </div>
 
 <section class="work-list" {% live_catalogue "public" %}>

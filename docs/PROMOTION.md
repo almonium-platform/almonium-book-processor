@@ -65,6 +65,14 @@ Private imports never travel.
 The run's summary line on the source page says what happened, and its error
 says why not.
 
+When a target has fallen behind on several editions, the catalogue's heading
+offers **Promote N behind to <target>**, one button per target that has
+anything behind or last failed. It queues one promotion per such edition,
+sources first, repeating whether that edition's last promotion to the target
+asked for publication; never-promoted editions are left alone, since sending
+a book somewhere for the first time is a decision. The button is absent when
+nothing is behind.
+
 ## Landing on the target
 
 Import is keyed by primary key and is idempotent:
