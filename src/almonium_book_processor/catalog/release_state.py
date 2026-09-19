@@ -42,16 +42,44 @@ def release_rows(edition: Edition) -> list[dict[str, Any]]:
     from almonium_book_processor.catalog.tasks import publication_stale
 
     rows: list[dict[str, Any]] = []
+    # The local row always exists: a publish that failed, or is still in the
+    # queue, must be visible where the button that queued it stands, or the
+    # editor sees "Update queued" and then nothing at all.
+    publish_runs = list(
+        edition.pipeline_runs.filter(stage=PipelineRun.Stage.PUBLISH).order_by("-created_at")
+    )
+    publish_pending = any(
+        run.status in (PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING)
+        for run in publish_runs
+    )
+    publish_failed = (
+        publish_runs[0]
+        if publish_runs and publish_runs[0].status == PipelineRun.Status.FAILED
+        else None
+    )
     if edition.status == Edition.Status.PUBLISHED and edition.published_at:
         behind = publication_stale(edition)
         changes = _since([edition], edition.published_at)
         rows.append(
             {
                 "target": LOCAL,
-                "state": "behind" if behind else "current",
+                "state": "running" if publish_pending else "behind" if behind else "current",
                 "at": edition.published_at,
                 "metadata_behind": behind,
+                "run": publish_failed,
                 **changes,
+            }
+        )
+    else:
+        rows.append(
+            {
+                "target": LOCAL,
+                "state": "running" if publish_pending else "unpublished",
+                "at": None,
+                "metadata_behind": False,
+                "run": publish_failed,
+                "corrections": 0,
+                "artifacts": 0,
             }
         )
     promotions = edition.pipeline_runs.filter(stage=PipelineRun.Stage.PROMOTE).order_by(

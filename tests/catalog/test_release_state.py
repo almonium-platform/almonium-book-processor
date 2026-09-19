@@ -173,3 +173,67 @@ def test_edition_page_and_dashboard_flag_what_is_behind(client, published):
 
     dashboard = client.get(reverse("catalog:dashboard"))
     assert "Behind: metadata, staging" in dashboard.content.decode()
+
+
+def test_failed_publish_is_shown_where_it_was_queued(client, published):
+    original, adapted = published
+    adapted.title = "Book, adapted"
+    adapted.save()
+    PipelineRun.objects.create(
+        edition=adapted,
+        stage="publish",
+        status="failed",
+        idempotency_key=f"{adapted.id}:publish:again",
+        processor_version="t",
+        input_hash=publication_input_hash(adapted),
+        error="Almonium publication failed: connection refused.",
+    )
+    (row,) = release_rows(adapted)
+    assert (row["state"], row["metadata_behind"]) == ("behind", True)
+    assert row["run"].error == "Almonium publication failed: connection refused."
+
+    client.force_login(get_user_model().objects.create_user(username="staff", is_staff=True))
+    page = client.get(reverse("catalog:edition-detail", args=[adapted.id]))
+    html = page.content.decode()
+    assert "The last metadata update failed: Almonium publication failed" in html
+    assert "Last attempt failed: Almonium publication failed" in html
+    assert "Update again" in html
+
+
+def test_failed_first_publish_is_shown_on_a_ready_edition(client, published, monkeypatch):
+    original, _ = published
+    original.status = "ready"
+    original.published_at = None
+    original.save()
+    monkeypatch.setattr("almonium_book_processor.catalog.views.publication_blocker", lambda e: "")
+    original.pipeline_runs.all().delete()
+    PipelineRun.objects.create(
+        edition=original,
+        stage="publish",
+        status="failed",
+        idempotency_key=f"{original.id}:publish",
+        processor_version="t",
+        input_hash=publication_input_hash(original),
+        error="Almonium publication failed: connection refused.",
+    )
+    (row,) = release_rows(original)
+    assert (row["state"], row["run"].status) == ("unpublished", "failed")
+
+    client.force_login(get_user_model().objects.create_user(username="staff", is_staff=True))
+    html = client.get(reverse("catalog:edition-detail", args=[original.id])).content.decode()
+    assert "The last publication failed: Almonium publication failed" in html
+    assert "Publish again" in html
+
+
+def test_pending_publish_holds_the_button(published):
+    original, adapted = published
+    PipelineRun.objects.create(
+        edition=adapted,
+        stage="publish",
+        status="queued",
+        idempotency_key=f"{adapted.id}:publish:queued",
+        processor_version="t",
+        input_hash="x",
+    )
+    (row,) = release_rows(adapted)
+    assert (row["state"], row["run"]) == ("running", None)

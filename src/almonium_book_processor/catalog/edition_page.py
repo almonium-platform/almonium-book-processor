@@ -239,9 +239,20 @@ def next_step(edition: Edition, context: dict[str, Any]) -> dict[str, Any]:
             "kind": "available",
             "text": "Available in the owner's private reader. Nothing to do.",
         }
+    local = next((row for row in context["release_rows"] if row["target"] == "here"), None)
+    failed = local["run"] if local and local.get("run") else None
+    pending = local is not None and local["state"] == "running"
     if edition.status == Edition.Status.READY:
         if blocked := context.get("publish_blocked"):
             return {"kind": "publish", "blocked": blocked, "text": blocked}
+        if pending:
+            return {"kind": "wait", "text": "Publication is running. Reload in a moment."}
+        if failed is not None:
+            return {
+                "kind": "publish",
+                "text": f"The last publication failed: {failed.error} Publish again once "
+                "Almonium is reachable.",
+            }
         return {
             "kind": "publish",
             "text": (
@@ -251,6 +262,18 @@ def next_step(edition: Edition, context: dict[str, Any]) -> dict[str, Any]:
         }
     if edition.status == Edition.Status.PUBLISHED:
         if context.get("publication_stale"):
+            if pending:
+                return {
+                    "kind": "wait",
+                    "text": "The metadata update is running. Reload in a moment.",
+                }
+            if failed is not None:
+                return {
+                    "kind": "update",
+                    "text": f"The last metadata update failed: {failed.error} Almonium still "
+                    "shows the metadata this edition was published with. Update it again once "
+                    "Almonium is reachable.",
+                }
             return {
                 "kind": "update",
                 "text": (
