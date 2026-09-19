@@ -415,6 +415,26 @@ def compatibility_problem(target: dict[str, Any]) -> str:
     return ""
 
 
+def source_compatibility_problem(source: dict[str, Any]) -> str:
+    """Why a bundle written by that environment cannot land here, or empty."""
+
+    schema = source.get("bundle_schema_version")
+    if schema != BUNDLE_SCHEMA_VERSION:
+        return (
+            f"{source.get('origin') or 'The source'} writes bundle schema {schema}, this "
+            f"build reads {BUNDLE_SCHEMA_VERSION}; deploy the same build to both sides first."
+        )
+    migration = source.get("catalog_migration")
+    ours = catalog_migration()
+    if migration != ours:
+        return (
+            f"{source.get('origin') or 'The source'} is at catalog migration "
+            f"{migration or 'unknown'}, this environment is at {ours}; deploy the same "
+            "build to both sides first."
+        )
+    return ""
+
+
 # --------------------------------------------------------------------------
 # Export.
 
@@ -444,6 +464,45 @@ def promotion_blocker(edition: Edition) -> str:
                 "only reviewed editions travel."
             )
     return ""
+
+
+def exportable_editions() -> list[Edition]:
+    """Every edition that may leave this environment, in slug order."""
+
+    candidates = (
+        Edition.objects.filter(
+            status__in=[Edition.Status.READY, Edition.Status.PUBLISHED],
+            work__visibility=Work.Visibility.PUBLIC,
+        )
+        .select_related("work", "source_edition")
+        .order_by("slug")
+    )
+    return [edition for edition in candidates if not promotion_blocker(edition)]
+
+
+def export_listing() -> dict[str, Any]:
+    """What a puller has to know: what this build writes, and what may leave.
+
+    Each entry names its source edition, so a puller that wants everything
+    can fetch only the editions nothing else was generated from; their
+    bundles carry the sources.
+    """
+
+    return {
+        "processor_version": __version__,
+        "bundle_schema_version": BUNDLE_SCHEMA_VERSION,
+        "catalog_migration": catalog_migration(),
+        "origin": origin_label(),
+        "editions": [
+            {
+                "slug": edition.slug,
+                "id": str(edition.id),
+                "status": edition.status,
+                "source_edition": edition.source_edition.slug if edition.source_edition else None,
+            }
+            for edition in exportable_editions()
+        ],
+    }
 
 
 def _row(instance, fields: list[str], user_field: str | None) -> dict[str, Any]:

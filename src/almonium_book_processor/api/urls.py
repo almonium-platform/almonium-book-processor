@@ -13,6 +13,8 @@ from almonium_book_processor.api.views import (
     PrivateImportSourceView,
     PrivateImportView,
     PromotionCapabilitiesView,
+    PromotionExportListView,
+    PromotionExportView,
     PromotionImportView,
     PublishedEditionViewSet,
     TranslationEstimateView,
@@ -35,6 +37,16 @@ urlpatterns = [
         name="promotion-capabilities",
     ),
     path("internal/promotions/", PromotionImportView.as_view(), name="promotion-import"),
+    path(
+        "internal/promotions/exports/",
+        PromotionExportListView.as_view(),
+        name="promotion-exports",
+    ),
+    path(
+        "internal/promotions/exports/<slug:slug>/",
+        PromotionExportView.as_view(),
+        name="promotion-export",
+    ),
     path("internal/imports/", PrivateImportView.as_view(), name="private-import"),
     path(
         "internal/imports/<uuid:import_id>/",

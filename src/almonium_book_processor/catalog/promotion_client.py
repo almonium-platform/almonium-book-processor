@@ -1,8 +1,9 @@
-"""Pushing an edition bundle to another deployment of this service.
+"""Moving edition bundles between deployments of this service over HTTP.
 
-The source pushes, because a laptop is not reachable from the server while
-every deployed processor has a public host. The token is the one the target
-was deployed with, so the infrastructure decides who may write to it.
+A laptop pushes to staging, because it is not reachable from the server while
+every deployed processor has a public host; for the same reason it pulls from
+staging rather than being pushed to. Both directions use the token the deployed
+side was given, so the infrastructure decides who may write to or read from it.
 """
 
 from __future__ import annotations
@@ -20,10 +21,12 @@ from almonium_book_processor.catalog.publication import _describe, _response_rea
 TOKEN_HEADER = "X-Almonium-Books-Promotion-Token"
 CAPABILITIES_PATH = "/api/v1/internal/promotions/capabilities/"
 IMPORT_PATH = "/api/v1/internal/promotions/"
+EXPORTS_PATH = "/api/v1/internal/promotions/exports/"
 # A small answer about what the target runs; and a whole edition landing in
-# one transaction, which stays under the target's request timeout.
+# one transaction, or being bundled, which stays under the request timeout.
 CAPABILITIES_TIMEOUT_SECONDS = 15
 IMPORT_TIMEOUT_SECONDS = 110
+EXPORT_TIMEOUT_SECONDS = 110
 
 
 def _multipart(fields: dict[str, str], file_name: str, file_data: bytes) -> tuple[bytes, str]:
@@ -41,19 +44,32 @@ def _multipart(fields: dict[str, str], file_name: str, file_data: bytes) -> tupl
     return bytes(body), f"multipart/form-data; boundary={boundary}"
 
 
+def _json_message(error: HTTPError) -> str:
+    try:
+        parsed = json.loads(error.read())
+    except (OSError, ValueError):
+        return ""
+    return str(parsed.get("message") or "") if isinstance(parsed, dict) else ""
+
+
 class PromotionClient:
     def __init__(self, target: PromotionTarget):
         self.target = target
         self.base_url = target.base_url.rstrip("/")
 
-    def _request(self, request: Request, *, timeout: int, failure: str) -> Any:
+    def _fetch(self, request: Request, *, timeout: int, failure: str, accept: str) -> bytes:
         request.add_header(TOKEN_HEADER, self.target.token)
-        request.add_header("Accept", "application/json")
+        request.add_header("Accept", accept)
         try:
             with urlopen(request, timeout=timeout) as response:  # noqa: S310
-                return json.loads(response.read())
+                return response.read()
         except HTTPError as error:
             if error.code == 404:
+                # The endpoint answers 404 in JSON for a slug it does not have;
+                # a build without the endpoint answers with Django's page.
+                message = _json_message(error)
+                if message:
+                    raise PromotionError(f"{failure}: {message}") from error
                 raise PromotionError(
                     f"{failure}: {self.target.name} does not run a build with promotion "
                     "support yet (HTTP 404)."
@@ -69,6 +85,11 @@ class PromotionClient:
             raise PromotionError(
                 f"{failure}: {_describe(error, request.full_url, timeout)}."
             ) from error
+
+    def _request(self, request: Request, *, timeout: int, failure: str) -> Any:
+        body = self._fetch(request, timeout=timeout, failure=failure, accept="application/json")
+        try:
+            return json.loads(body)
         except json.JSONDecodeError as error:
             raise PromotionError(
                 f"{failure}: {self.target.name} returned a non-JSON body."
@@ -97,4 +118,21 @@ class PromotionClient:
             request,
             timeout=IMPORT_TIMEOUT_SECONDS,
             failure=f"Promotion to {self.target.name} failed",
+        )
+
+    def exports(self) -> dict[str, Any]:
+        request = Request(f"{self.base_url}{EXPORTS_PATH}", method="GET")
+        return self._request(
+            request,
+            timeout=CAPABILITIES_TIMEOUT_SECONDS,
+            failure=f"Could not ask {self.target.name} what it offers",
+        )
+
+    def pull(self, slug: str) -> bytes:
+        request = Request(f"{self.base_url}{EXPORTS_PATH}{slug}/", method="GET")
+        return self._fetch(
+            request,
+            timeout=EXPORT_TIMEOUT_SECONDS,
+            failure=f"Pulling {slug} from {self.target.name} failed",
+            accept="application/zip",
         )

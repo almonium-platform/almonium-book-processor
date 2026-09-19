@@ -106,6 +106,36 @@ served. The promotion token is deliberately not the publisher secret: that
 one guards what the product API may do on its processor, and it would
 otherwise have to be copied to every machine that promotes.
 
+## Pulling from a higher environment
+
+Direction is configuration, not code: nothing stops production from being
+given staging as a target. What the push model cannot do is reach a laptop,
+which has no public host. So a laptop pulls instead, with the same token it
+already pushes with:
+
+```bash
+docker compose exec web python manage.py pull_edition_bundle staging --all
+docker compose exec web python manage.py pull_edition_bundle staging <slug> [<slug>...]
+```
+
+The command asks `GET /api/v1/internal/promotions/exports/` what the target
+offers (every reviewed edition of a public work, each naming the edition it
+was generated from) and refuses before fetching anything when the bundle
+schema or catalog migration differ. `--all` fetches only the editions nothing
+else was generated from, because their bundles carry the sources. Each bundle
+comes from `GET /api/v1/internal/promotions/exports/<slug>/` and lands
+through the same import as a push, so the same rules apply: primary keys are
+kept, a local edition with the same id is overwritten, the AI ledger and
+publication state stay where they were. `--publish` queues the local product
+API's publication afterwards and `--save DIR` keeps the zips.
+
+Staging never learns the laptop exists: the token guards reads the way it
+guards writes, and both only ever cover public, reviewed editions.
+
+This is also how a laptop is re-seeded after its Docker volumes are lost:
+anything that reached staging comes back with `--all`; only work that was
+never promoted is gone.
+
 ## Manual transfer
 
 The same bundle can be moved by hand:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import hmac
 import os
 
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import mixins, permissions, status, viewsets
@@ -37,6 +37,8 @@ from almonium_book_processor.catalog.promotion import (
     PromotionError,
     accepted_promotion_token,
     capabilities,
+    export_bundle,
+    export_listing,
     import_bundle,
     queue_publications,
 )
@@ -348,6 +350,42 @@ class PromotionImportView(APIView):
         if publish:
             result["publish_queued"] = queue_publications(result["imported"] + result["skipped"])
         return Response(result)
+
+
+class PromotionExportListView(APIView):
+    """What may leave this deployment, for an environment that pulls instead.
+
+    A laptop is not reachable from staging, so staging cannot push to it; the
+    laptop fetches bundles with the token staging already accepts from it.
+    """
+
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [PromotionPermission]
+
+    def get(self, request):
+        return Response(export_listing())
+
+
+class PromotionExportView(APIView):
+    """The bundle an edition would be promoted as, for a puller to import."""
+
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [PromotionPermission]
+
+    def get(self, request, slug):
+        try:
+            edition = Edition.objects.select_related("work", "source_edition").get(slug=slug)
+        except Edition.DoesNotExist:
+            return Response(
+                {"message": f"No edition with slug {slug}."}, status=status.HTTP_404_NOT_FOUND
+            )
+        try:
+            bundle = export_bundle(edition)
+        except PromotionError as error:
+            return Response({"message": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        response = HttpResponse(bundle, content_type="application/zip")
+        response["Content-Disposition"] = f'attachment; filename="{slug}.zip"'
+        return response
 
 
 def _aware_datetime(value, name):

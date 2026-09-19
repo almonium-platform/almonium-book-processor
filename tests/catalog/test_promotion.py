@@ -8,6 +8,7 @@ import zipfile
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
+from django.core.management.base import CommandError
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
@@ -811,16 +812,17 @@ def test_the_client_names_the_target_and_the_reason_when_the_wire_fails(monkeypa
         "Could not ask staging what it runs: staging.example.test did not answer within 15s."
     )
 
-    def refuse(code):
+    def refuse(code, body=b'{"message": "no"}'):
         def opener(request, timeout=None):
-            raise HTTPError(request.full_url, code, "", {}, io.BytesIO(b'{"message": "no"}'))
+            raise HTTPError(request.full_url, code, "", {}, io.BytesIO(body))
 
         return opener
 
     monkeypatch.setattr(promotion_client, "urlopen", refuse(401))
     with pytest.raises(PromotionError, match="staging rejected the token \\(HTTP 401\\)"):
         client.push(b"zip", file_name="book-en.zip", publish=False)
-    monkeypatch.setattr(promotion_client, "urlopen", refuse(404))
+    # A build without the endpoint answers with Django's own page, not JSON.
+    monkeypatch.setattr(promotion_client, "urlopen", refuse(404, b"<h1>Not Found</h1>"))
     with pytest.raises(PromotionError, match="does not run a build with promotion support yet"):
         client.push(b"zip", file_name="book-en.zip", publish=False)
     monkeypatch.setattr(promotion_client, "urlopen", refuse(400))
@@ -894,3 +896,244 @@ def test_targets_come_from_the_environment_and_need_their_token(monkeypatch):
     ], "prod has no token here, so this environment cannot push to it"
     assert promotion_target("prod") is None
     assert promotion_target("staging").token == "s"
+
+
+# --------------------------------------------------------------------------
+# Pulling from an environment that cannot push here.
+
+
+def test_the_export_listing_offers_what_may_leave_and_names_each_source():
+    original = build_edition(slug="book-en")
+    translation = build_edition(
+        slug="book-uk",
+        work=original.work,
+        source_edition=original,
+        edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+        with_file=False,
+    )
+    build_edition(slug="draft-fr", status=Edition.Status.REVIEW)
+    private = build_edition(slug="private-de")
+    private.work.visibility = Work.Visibility.PRIVATE
+    private.work.save(update_fields=["visibility"])
+    client = APIClient()
+
+    assert client.get(reverse("promotion-exports")).status_code == 403
+    response = client.get(reverse("promotion-exports"), **AUTH)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["bundle_schema_version"] == BUNDLE_SCHEMA_VERSION
+    assert body["catalog_migration"] == promotion.catalog_migration()
+    assert body["editions"] == [
+        {"slug": "book-en", "id": str(original.id), "status": "ready", "source_edition": None},
+        {
+            "slug": "book-uk",
+            "id": str(translation.id),
+            "status": "ready",
+            "source_edition": "book-en",
+        },
+    ]
+
+
+def test_the_export_endpoint_serves_a_bundle_that_lands_or_says_why_not():
+    original = build_edition(slug="book-en")
+    original_id = original.id
+    build_edition(slug="draft-fr", status=Edition.Status.REVIEW)
+    client = APIClient()
+
+    assert client.get(reverse("promotion-export", args=["book-en"])).status_code == 403
+    response = client.get(reverse("promotion-export", args=["book-en"]), **AUTH)
+    missing = client.get(reverse("promotion-export", args=["nope"]), **AUTH)
+    blocked = client.get(reverse("promotion-export", args=["draft-fr"]), **AUTH)
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "application/zip"
+    assert response["Content-Disposition"] == 'attachment; filename="book-en.zip"'
+    bundle = response.content
+    assert manifest_of(bundle)["edition_slug"] == "book-en"
+    wipe(original)
+    assert import_bundle(bundle)["imported"] == ["book-en"]
+    assert Edition.objects.get(id=original_id).promoted_from
+    assert missing.status_code == 404
+    assert missing.json() == {"message": "No edition with slug nope."}
+    assert blocked.status_code == 400
+    assert "has not passed review yet" in blocked.json()["message"]
+
+
+def test_the_client_lists_and_pulls_exports_and_relays_a_refusal(monkeypatch):
+    from urllib.error import HTTPError
+
+    from almonium_book_processor.catalog import promotion_client
+
+    target = PromotionTarget(name="staging", base_url="https://staging.example.test", token="t")
+    seen: list[dict] = []
+
+    class Answer:
+        def __init__(self, body):
+            self.body = body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return self.body
+
+    def serve(request, timeout=None):
+        seen.append({"url": request.full_url, "accept": request.get_header("Accept")})
+        if request.full_url.endswith("/exports/"):
+            return Answer(b'{"editions": []}')
+        return Answer(b"PK-bytes")
+
+    monkeypatch.setattr(promotion_client, "urlopen", serve)
+    client = promotion_client.PromotionClient(target)
+
+    assert client.exports() == {"editions": []}
+    assert client.pull("book-en") == b"PK-bytes"
+    assert seen == [
+        {
+            "url": "https://staging.example.test/api/v1/internal/promotions/exports/",
+            "accept": "application/json",
+        },
+        {
+            "url": "https://staging.example.test/api/v1/internal/promotions/exports/book-en/",
+            "accept": "application/zip",
+        },
+    ]
+
+    def refuse(body):
+        def opener(request, timeout=None):
+            raise HTTPError(request.full_url, 404, "", {}, io.BytesIO(body))
+
+        return opener
+
+    monkeypatch.setattr(
+        promotion_client, "urlopen", refuse(b'{"message": "No edition with slug x."}')
+    )
+    with pytest.raises(
+        PromotionError, match="Pulling x from staging failed: No edition with slug x"
+    ):
+        client.pull("x")
+    monkeypatch.setattr(promotion_client, "urlopen", refuse(b"<h1>Not Found</h1>"))
+    with pytest.raises(PromotionError, match="does not run a build with promotion support yet"):
+        client.pull("x")
+
+
+class FakePuller:
+    """Stands in for staging: offers what this test database holds, bundles it on request."""
+
+    listing_overrides: dict = {}
+    pulled: list[str] = []
+
+    def __init__(self, target):
+        self.target = target
+
+    def exports(self):
+        return {
+            **promotion.export_listing(),
+            "origin": "staging.example.test",
+            **self.listing_overrides,
+        }
+
+    def pull(self, slug):
+        self.pulled.append(slug)
+        return export_bundle(Edition.objects.get(slug=slug))
+
+
+@pytest.fixture
+def fake_puller(monkeypatch, staging_target):
+    FakePuller.listing_overrides = {}
+    FakePuller.pulled = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.management.commands.pull_edition_bundle.PromotionClient",
+        FakePuller,
+    )
+    return FakePuller
+
+
+def test_pulling_everything_fetches_the_leaves_and_lands_their_sources_with_them(
+    fake_puller, monkeypatch, tmp_path
+):
+    from django.core.management import call_command
+
+    original = build_edition(slug="book-en")
+    translation = build_edition(
+        slug="book-uk",
+        work=original.work,
+        source_edition=original,
+        edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+        with_file=False,
+    )
+    standalone = build_edition(slug="other-fr")
+    build_edition(slug="draft-de", status=Edition.Status.REVIEW)
+    ids = {"book-en": original.id, "book-uk": translation.id, "other-fr": standalone.id}
+    # The bundles are built from the same database they land in, so forget the
+    # editions between the fetch and the import as a fresh laptop would.
+    real_pull = fake_puller.pull
+
+    def pull_then_forget(self, slug):
+        bundle = real_pull(self, slug)
+        for item in reversed(promotion_chain(Edition.objects.get(slug=slug))):
+            wipe(Edition.objects.get(id=item.id))
+        return bundle
+
+    monkeypatch.setattr(FakePuller, "pull", pull_then_forget)
+    queued: list[list[str]] = []
+
+    class FakeChain:
+        def __init__(self, *signatures):
+            self.signatures = signatures
+
+        def apply_async(self):
+            queued.append([signature.args[0] for signature in self.signatures])
+
+    monkeypatch.setattr("celery.chain", FakeChain)
+    out = io.StringIO()
+    keep = tmp_path / "bundles"
+
+    call_command(
+        "pull_edition_bundle", "staging", "--all", "--publish", "--save", str(keep), stdout=out
+    )
+
+    assert fake_puller.pulled == ["book-uk", "other-fr"], "book-en arrives inside book-uk's bundle"
+    assert out.getvalue().splitlines() == [
+        "book-uk: imported book-en, book-uk; already current: nothing.",
+        "other-fr: imported other-fr; already current: nothing.",
+        "Publication queued for book-en, book-uk, other-fr.",
+    ]
+    assert {slug: Edition.objects.get(slug=slug).id for slug in ids} == ids
+    assert Edition.objects.get(slug="book-uk").promoted_from == "staging.example.test"
+    assert queued == [[str(ids["book-en"]), str(ids["book-uk"]), str(ids["other-fr"])]]
+    assert sorted(path.name for path in keep.iterdir()) == ["book-uk.zip", "other-fr.zip"]
+
+
+def test_pulling_refuses_before_fetching_when_the_ask_cannot_be_met(fake_puller, monkeypatch):
+    from django.core.management import call_command
+
+    build_edition(slug="book-en")
+
+    with pytest.raises(CommandError, match="No promotion target named 'prod'"):
+        call_command("pull_edition_bundle", "prod", "--all")
+    with pytest.raises(CommandError, match="Name the editions to pull, or pass --all"):
+        call_command("pull_edition_bundle", "staging")
+    with pytest.raises(CommandError, match="staging does not offer nope; only reviewed"):
+        call_command("pull_edition_bundle", "staging", "nope")
+    fake_puller.listing_overrides = {"bundle_schema_version": BUNDLE_SCHEMA_VERSION + 1}
+    with pytest.raises(CommandError, match="staging.example.test writes bundle schema"):
+        call_command("pull_edition_bundle", "staging", "book-en")
+    fake_puller.listing_overrides = {"catalog_migration": "0001_initial"}
+    with pytest.raises(
+        CommandError, match="is at catalog migration 0001_initial, this environment"
+    ):
+        call_command("pull_edition_bundle", "staging", "book-en")
+    assert fake_puller.pulled == []
+
+    # An edition made here, never promoted, has no fingerprint: the pull
+    # overwrites it, and naming it twice pulls it once.
+    fake_puller.listing_overrides = {}
+    out = io.StringIO()
+    call_command("pull_edition_bundle", "staging", "book-en", "book-en", stdout=out)
+    assert fake_puller.pulled == ["book-en"]
+    assert out.getvalue() == "book-en: imported book-en; already current: nothing.\n"
