@@ -4,16 +4,7 @@ from django import template
 from django.urls import reverse
 from django.utils.html import format_html
 
-from almonium_book_processor.catalog.catalogue import display_title as _display_title
-
 register = template.Library()
-
-
-@register.filter
-def display_title(title):
-    """A source title as the reader should see it: an all-capitals one calmed down."""
-
-    return _display_title(title or "")
 
 
 @register.filter

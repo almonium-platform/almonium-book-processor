@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from almonium_book_processor.languages import normalize_language_code
+from almonium_book_processor.titles import calm_title
 
 SCHEMA_VERSION = 3
 
@@ -79,6 +80,13 @@ class EditionMetadata(StrictModel):
     @classmethod
     def normalize_language(cls, value: str) -> str:
         return normalize_language_code(value)
+
+    @field_validator("title", "author", mode="before")
+    @classmethod
+    def calm_casing(cls, value: object) -> object:
+        # A shouting header is settled here, once, so every store and page
+        # downstream holds the same title.
+        return calm_title(value.strip()) if isinstance(value, str) else value
 
     @model_validator(mode="after")
     def validate_identifiers_and_lineage(self) -> EditionMetadata:

@@ -34,6 +34,7 @@ from almonium_book_processor.models import (
     IngestionWarningSeverity,
     ingestion_warning_severity,
 )
+from almonium_book_processor.titles import calm_title
 
 BULK_DETACHED_INITIAL_MIN_CONFIDENCE = 0.9
 
@@ -84,6 +85,11 @@ def create_source_edition(
         provisional_slug,
     )
 
+    work_title, author, edition_title = (
+        calm_title(work_title),
+        calm_title(author),
+        calm_title(edition_title),
+    )
     pinned = initial_provenance(
         title=work_title,
         author=author,
@@ -217,6 +223,7 @@ def create_private_import(
 
     from almonium_book_processor.catalog.metadata import initial_provenance
 
+    title, author = calm_title(title), calm_title(author)
     private_slug = f"private-{import_id}"
     work = Work.objects.create(
         slug=private_slug,

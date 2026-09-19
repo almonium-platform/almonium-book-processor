@@ -42,7 +42,7 @@ def french(work):
     edition = Edition.objects.create(
         work=work,
         slug="shelley-frankenstein-fr",
-        title="FRANKENSTEIN, OU LE PROMÉTHÉE MODERNE",
+        title="Frankenstein, ou le Prométhée Moderne",
         author="Mary Shelley",
         language="fr",
         parallel_role="standalone",

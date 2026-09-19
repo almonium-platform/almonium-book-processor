@@ -64,3 +64,17 @@ def test_edition_rejects_unknown_language_code() -> None:
             language="zz",
             source=SourceMetadata(format="tei", path="book.xml", sha256="c" * 64),
         )
+
+
+def test_edition_metadata_settles_a_shouting_header_title_and_author() -> None:
+    metadata = EditionMetadata(
+        edition_slug="tour-du-monde-fr-orig",
+        work_slug="tour-du-monde",
+        title="LE TOUR DU MONDE EN QUATRE-VINGTS JOURS",
+        author="JULES VERNE",
+        language="fr",
+        source=SourceMetadata(format="epub", path="book.epub", sha256="d" * 64),
+    )
+
+    assert metadata.title == "Le Tour du Monde en Quatre-Vingts Jours"
+    assert metadata.author == "Jules Verne"

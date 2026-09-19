@@ -13,7 +13,6 @@ from django.utils import timezone
 from almonium_book_processor.catalog.catalogue import (
     catalogue_groups,
     catalogue_summary,
-    display_title,
     import_rows,
     uploaded_label,
     word_count_label,
@@ -56,7 +55,7 @@ def frankenstein():
         work,
         "fr",
         Edition.Status.REVIEW,
-        title="FRANKENSTEIN, OU LE PROMÉTHÉE MODERNE",
+        title="Frankenstein, ou le Prométhée Moderne",
         edition_type=Edition.EditionType.HUMAN_TRANSLATION,
         parallel_role=Edition.ParallelRole.STANDALONE,
         word_count=75504,
@@ -82,16 +81,6 @@ def frankenstein():
         word_count=76295,
     )
     return work
-
-
-def test_display_title_calms_a_shouting_source_title_and_leaves_the_rest_alone():
-    assert display_title("FRANKENSTEIN, OU LE PROMÉTHÉE MODERNE") == (
-        "Frankenstein, ou le Prométhée Moderne"
-    )
-    assert display_title("THE PICTURE OF DORIAN GRAY") == "The Picture of Dorian Gray"
-    assert display_title("L'ÉTRANGER") == "L'étranger"
-    assert display_title("Bleak House") == "Bleak House"
-    assert display_title("") == ""
 
 
 def test_word_counts_are_spaced_by_thousands():
@@ -171,7 +160,6 @@ def test_the_catalogue_page_draws_one_panel_per_work(client, staff, frankenstein
     assert 'class="edition-row edition-row-review"' in page
     assert 'edition-warnings edition-warnings-urgent">1 warning<' in page
     assert "Frankenstein, ou le Prométhée Moderne" in page
-    assert "FRANKENSTEIN, OU LE" not in page
     assert "from EN" in page
     assert "Canonical original" not in page
     assert page.count('class="role-badge role-badge-parallel">Parallel<') == 2

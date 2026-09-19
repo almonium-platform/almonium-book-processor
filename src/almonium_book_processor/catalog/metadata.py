@@ -44,6 +44,7 @@ from almonium_book_processor.catalog.models import (
 )
 from almonium_book_processor.languages import LANGUAGES, normalize_language_code
 from almonium_book_processor.models import EditionMetadata
+from almonium_book_processor.titles import calm_title
 
 logger = logging.getLogger(__name__)
 
@@ -294,15 +295,15 @@ def confirm_metadata(
     provenance = dict(work.metadata_provenance)
     language_changed = False
     if title is not None and title.strip():
-        edition.title = title.strip()[:500]
+        edition.title = calm_title(title.strip())[:500]
         if owns_work and work_title is None:
             work.title = edition.title
         provenance["title"] = PROVENANCE_USER
     if work_title is not None and work_title.strip():
-        work.title = work_title.strip()[:500]
+        work.title = calm_title(work_title.strip())[:500]
         provenance["title"] = PROVENANCE_USER
     if author is not None and author.strip():
-        edition.author = author.strip()[:300]
+        edition.author = calm_title(author.strip())[:300]
         if owns_work:
             work.author = edition.author
         provenance["author"] = PROVENANCE_USER
@@ -643,13 +644,13 @@ def _apply_proposal(
     def open_field(name: str) -> bool:
         return name in open_fields
 
-    title = proposal.title.strip()[:500]
+    title = calm_title(proposal.title.strip())[:500]
     if open_field("title") and title and title != edition.title:
         edition.title = title
         if owns_work:
             work.title = title
             provenance["title"] = PROVENANCE_AI
-    author = proposal.author.strip()[:300]
+    author = calm_title(proposal.author.strip())[:300]
     if open_field("author") and author and author != edition.author:
         edition.author = author
         if owns_work:

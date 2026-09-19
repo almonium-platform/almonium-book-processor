@@ -15,7 +15,6 @@ group: one flat table, newest upload first, in the same row grammar.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -56,54 +55,6 @@ SHORT_ROLE_LABELS = {
     Edition.ParallelRole.PARALLEL: "Parallel",
     Edition.ParallelRole.STANDALONE: "Standalone",
 }
-
-# Function words that stay lower-case inside a title once a shouting source
-# title is calmed down. A few languages' worth is enough: the goal is to stop
-# "FRANKENSTEIN, OU LE PROMÉTHÉE MODERNE" reading as a design decision, not to
-# reproduce every house style.
-_SMALL_WORDS = frozenset(
-    # English
-    ("a", "an", "the", "of", "and", "or", "nor", "but", "in", "on", "at", "to", "for", "by")
-    + ("with", "from", "as")
-    # French
-    + ("le", "la", "les", "l", "un", "une", "des", "du", "de", "d", "et", "ou", "à", "au")
-    + ("aux", "en", "sur")
-    # German
-    + ("der", "die", "das", "ein", "eine", "und", "oder", "von", "im", "am", "zu", "für")
-    # Spanish and Italian
-    + ("el", "los", "las", "y", "o", "del", "il", "lo", "gli", "e", "di", "della", "dei")
-    + ("degli",)
-    # Ukrainian and Russian
-    + ("і", "й", "та", "або", "чи", "на", "в", "у", "з", "із", "до", "и", "или", "с", "из", "к")
-)
-
-_WORD = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*", re.UNICODE)
-
-
-def display_title(title: str) -> str:
-    """Render a source title for display, calming an all-capitals one.
-
-    Sources shout titles often enough that the catalogue would otherwise mix
-    "Bleak House" with "FRANKENSTEIN, OU LE PROMÉTHÉE MODERNE". A title with any
-    lower-case letter is left exactly as it came: it already carries its own
-    casing, and re-casing it would only lose information.
-    """
-
-    if not title or any(character.islower() for character in title):
-        return title
-    lowered = title.lower()
-    first_start = None
-    match = _WORD.search(lowered)
-    if match:
-        first_start = match.start()
-
-    def capitalise(match: re.Match[str]) -> str:
-        word = match.group(0)
-        if match.start() != first_start and word in _SMALL_WORDS:
-            return word
-        return word[0].upper() + word[1:]
-
-    return _WORD.sub(capitalise, lowered)
 
 
 def word_count_label(count: int) -> str:
@@ -252,7 +203,7 @@ class WorkGroup:
 
     @property
     def title(self) -> str:
-        return display_title(self.work.title)
+        return self.work.title
 
     @property
     def author(self) -> str:
@@ -352,8 +303,8 @@ def _editions(visibility: str):
 
 
 def _row(edition: Edition, run: PipelineRun | None) -> EditionRow:
-    work_title = display_title(edition.work.title)
-    title = display_title(edition.title)
+    work_title = edition.work.title
+    title = edition.title
     return EditionRow(
         edition=edition,
         title=None if title and title == work_title else title,
@@ -440,7 +391,7 @@ class ImportRow(EditionRow):
 
     @property
     def author(self) -> str:
-        return display_title(self.edition.author)
+        return self.edition.author
 
     @property
     def source_format(self) -> str:
@@ -477,7 +428,7 @@ def import_rows(visibility: str = Work.Visibility.PRIVATE) -> list[ImportRow]:
         rows.append(
             ImportRow(
                 edition=row.edition,
-                title=display_title(edition.title),
+                title=edition.title,
                 type_label=row.type_label,
                 role_label=row.role_label,
                 warning_count=row.warning_count,

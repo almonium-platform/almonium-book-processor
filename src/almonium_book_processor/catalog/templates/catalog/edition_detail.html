@@ -1,14 +1,14 @@
 {% extends "catalog/base.html" %}
 {% load catalog_extras %}
-{% block title %}{{ edition.title|display_title|default:"Untitled upload" }} · Almonium Books{% endblock %}
+{% block title %}{{ edition.title|default:"Untitled upload" }} · Almonium Books{% endblock %}
 {% block content %}
 <div class="edition-layout" {% live_work edition %}>
 <aside class="edition-rail">
   <div class="rail-head">
-    {% if is_private %}<a class="rail-crumb" href="{% url 'catalog:private-imports' %}">&larr; User imports</a>{% else %}<a class="rail-crumb" href="{% url 'catalog:dashboard' %}">&larr; Public catalogue · {{ edition.work.title|display_title }}</a>{% endif %}
+    {% if is_private %}<a class="rail-crumb" href="{% url 'catalog:private-imports' %}">&larr; User imports</a>{% else %}<a class="rail-crumb" href="{% url 'catalog:dashboard' %}">&larr; Public catalogue · {{ edition.work.title }}</a>{% endif %}
     <p class="eyebrow">{% if is_private %}Private user import{% else %}{{ edition.get_edition_type_display }}{% endif %} · {{ edition.language|upper }}</p>
-    <h1>{{ edition.title|display_title|default:"Untitled upload" }}</h1>
-    <p class="rail-author">{{ edition.author|display_title|default:"Author pending" }}{% if edition.work.publication_year %} · {{ edition.work.publication_year }}{% endif %}</p>
+    <h1>{{ edition.title|default:"Untitled upload" }}</h1>
+    <p class="rail-author">{{ edition.author|default:"Author pending" }}{% if edition.work.publication_year %} · {{ edition.work.publication_year }}{% endif %}</p>
     {% if is_private %}<p class="rail-note">Owner {% if edition.work.owner_label %}@{{ edition.work.owner_label }} · {% endif %}<span class="rail-owner-id" title="{{ edition.work.owner_id }}">{{ edition.work.owner_id }}</span><br>Uploaded {{ edition.created_at|date:"j M Y, H:i" }} · updated {{ edition.updated_at|date:"j M Y, H:i" }}</p>{% endif %}
     {% if edition.source_edition %}<p class="rail-note">{% if edition.parallel_role == "parallel" %}Generated block for block from the{% else %}Lineage recorded from the{% endif %} <a href="{% url 'catalog:edition-detail' edition.source_edition.id %}">{{ edition.source_edition.language|upper }} edition</a></p>{% endif %}
     <div class="rail-chips">
@@ -356,7 +356,7 @@
 {% if is_parallel_translation %}
 <details class="panel collapsible-panel assessment-panel" id="reading-difficulty">
   <summary><span class="summary-title">Reading difficulty</span><span class="summary-meta">Borrowed from the source · {{ edition.source_edition.cefr_level|default:"level pending" }}</span></summary>
-  <p>Assessed on <a href="{% url 'catalog:edition-detail' edition.source_edition.id %}">{{ edition.source_edition.title|display_title }} ({{ edition.source_edition.language|upper }})</a>.</p>
+  <p>Assessed on <a href="{% url 'catalog:edition-detail' edition.source_edition.id %}">{{ edition.source_edition.title }} ({{ edition.source_edition.language|upper }})</a>.</p>
   <p class="muted">A parallel translation is read beside its source, so the reading demand that matters is the source's, and the rubric is never applied to machine-translated text. Readers of this edition see the source's chapter levels with descriptions translated into {{ edition.get_language_display }} by the metadata translation under Enrichment.</p>
 </details>
 {% else %}
