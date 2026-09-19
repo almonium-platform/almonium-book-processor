@@ -15,7 +15,7 @@ from almonium_book_processor.catalog.models import (
     PipelineRun,
     Work,
 )
-from almonium_book_processor.catalog.release_state import behind_labels, release_rows
+from almonium_book_processor.catalog.release_state import listing_release_state, release_rows
 from almonium_book_processor.catalog.tasks import publication_input_hash
 
 pytestmark = pytest.mark.django_db
@@ -82,6 +82,12 @@ def promote(edition, target, status="succeeded", when=LONG_AGO):
     return run
 
 
+def tokens(edition):
+    return [
+        (token.target, token.state) for token in listing_release_state([edition])[edition.id].tokens
+    ]
+
+
 def correct(edition):
     block = edition.blocks.get()
     ContentBlockRevision.objects.create(
@@ -107,7 +113,7 @@ def test_local_row_is_current_until_published_metadata_changes(published):
     adapted.save()
     (row,) = release_rows(adapted)
     assert (row["state"], row["metadata_behind"]) == ("behind", True)
-    assert behind_labels([adapted]) == {adapted.id: "metadata"}
+    assert listing_release_state([adapted])[adapted.id].metadata_behind is True
 
 
 def test_promotion_target_falls_behind_when_the_chain_changes(published, monkeypatch):
@@ -116,7 +122,7 @@ def test_promotion_target_falls_behind_when_the_chain_changes(published, monkeyp
     rows = {row["target"]: row for row in release_rows(adapted)}
     assert rows["staging"]["state"] == "current"
     assert rows["staging"]["published_there"] is True
-    assert behind_labels([adapted]) == {}
+    assert tokens(adapted) == [("staging", "current")]
 
     # A correction to the source travels in the adaptation's bundle too.
     correct(original)
@@ -133,12 +139,12 @@ def test_promotion_target_falls_behind_when_the_chain_changes(published, monkeyp
         1,
         1,
     )
-    assert behind_labels([adapted]) == {adapted.id: "staging"}
+    assert tokens(adapted) == [("staging", "behind")]
 
     promote(adapted, "staging", when=timezone.now())
     rows = {row["target"]: row for row in release_rows(adapted)}
     assert rows["staging"]["state"] == "current"
-    assert behind_labels([adapted]) == {}
+    assert tokens(adapted) == [("staging", "current")]
 
 
 def test_configured_targets_and_pending_or_failed_promotions_are_listed(published, monkeypatch):
@@ -153,6 +159,29 @@ def test_configured_targets_and_pending_or_failed_promotions_are_listed(publishe
     assert rows["production"]["state"] == "running"
     assert rows["staging"]["state"] == "never"
     assert rows["staging"]["run"].status == "failed"
+    # The listing says the same in token form: configured targets first.
+    assert tokens(adapted) == [("production", "queued"), ("staging", "failed")]
+    (state,) = listing_release_state([adapted]).values()
+    assert state.tokens[1].title.startswith("The last promotion to staging failed")
+
+
+def test_tokens_wait_for_approval_unless_something_already_went_out(published, monkeypatch):
+    original, adapted = published
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.promotion.promotion_targets",
+        lambda: [type("T", (), {"name": "staging"})()],
+    )
+    Edition.objects.filter(pk=adapted.pk).update(status="review")
+    adapted.refresh_from_db()
+    assert tokens(adapted) == []
+    Edition.objects.filter(pk=adapted.pk).update(status="ready")
+    adapted.refresh_from_db()
+    assert tokens(adapted) == [("staging", "never")]
+    # Sent back to review after a promotion: staging still holds a copy.
+    promote(adapted, "staging")
+    Edition.objects.filter(pk=adapted.pk).update(status="review")
+    adapted.refresh_from_db()
+    assert tokens(adapted) == [("staging", "current")]
 
 
 def test_edition_page_and_dashboard_flag_what_is_behind(client, published):
@@ -171,8 +200,10 @@ def test_edition_page_and_dashboard_flag_what_is_behind(client, published):
     assert "Update in Almonium" in html
     assert "Promote to staging" in html
 
-    dashboard = client.get(reverse("catalog:dashboard"))
-    assert "Behind: metadata, staging" in dashboard.content.decode()
+    dashboard = client.get(reverse("catalog:dashboard")).content.decode()
+    assert "Metadata behind" in dashboard
+    assert '<span class="promotion-dot"></span>staging behind</span>' in dashboard
+    assert "1 behind on staging" in dashboard
 
 
 def test_failed_publish_is_shown_where_it_was_queued(client, published):

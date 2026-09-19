@@ -10,9 +10,12 @@ until the edition is promoted again.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from django.db.models import Max
+from django.utils import timezone
 
 from almonium_book_processor.catalog.models import (
     ContentBlockRevision,
@@ -130,39 +133,97 @@ def release_rows(edition: Edition) -> list[dict[str, Any]]:
     return rows
 
 
-def behind_labels(editions) -> dict[Any, str]:
-    """For a listing: which published editions are behind somewhere, in a few queries.
+@dataclass
+class PromotionToken:
+    """One environment's word on one edition, as the catalogue row shows it.
 
-    Metadata is behind when no successful publish run carries the current
-    publication key. A promotion target is behind when the edition or its
-    source changed after the last successful bundle to that target. Only the
-    direct source is checked here; the edition page walks the whole chain.
+    The state is read off the latest promotion run to that target against the
+    edition's last content change: ``current`` when nothing changed since a
+    successful bundle, ``behind`` when something did, ``failed`` when the last
+    attempt did not land, ``queued`` while one is in the queue or running, and
+    ``never`` when nothing has gone there yet.
     """
 
+    target: str
+    state: str
+    at: datetime | None = None
+    error: str = ""
+
+    @property
+    def label(self) -> str:
+        if self.state in ("behind", "failed", "queued"):
+            return f"{self.target} {self.state}"
+        return self.target
+
+    @property
+    def title(self) -> str:
+        """What the release panel would say, for a hover over the token."""
+
+        when = f" {timezone.localtime(self.at):%-d %b %H:%M}" if self.at else ""
+        if self.state == "current":
+            return f"Promoted to {self.target}{when} · current there. Nothing to do."
+        if self.state == "behind":
+            return f"Promoted to {self.target}{when} · changed since. Promote again."
+        if self.state == "failed":
+            error = f": {self.error}" if self.error else "."
+            return f"The last promotion to {self.target} failed{error} Promote again."
+        if self.state == "queued":
+            return f"Promotion to {self.target} is running. Wait for it to land."
+        return f"Never promoted to {self.target}."
+
+
+@dataclass
+class ListingReleaseState:
+    """What a catalogue row shows about where its edition has been released."""
+
+    metadata_behind: bool = False
+    tokens: list[PromotionToken] = field(default_factory=list)
+
+
+def listing_release_state(editions) -> dict[Any, ListingReleaseState]:
+    """Where each listed edition stands, in a few queries for the whole list.
+
+    Metadata is behind when no successful publish run carries the current
+    publication key. A promotion token exists for every configured target,
+    and for any target an edition has ever been promoted to, on every edition
+    that is approved (ready or published) or has a promotion run: before
+    approval there is nothing to promote and a token would only suggest
+    otherwise. A target is behind when the edition or its source changed after
+    the last successful bundle to it. Only the direct source is checked here;
+    the edition page walks the whole chain.
+    """
+
+    from almonium_book_processor.catalog.promotion import promotion_targets
     from almonium_book_processor.catalog.tasks import publication_input_hash
 
-    editions = [e for e in editions if e.status == Edition.Status.PUBLISHED]
+    editions = list(editions)
     if not editions:
         return {}
     ids = [e.id for e in editions]
+    published_ids = [e.id for e in editions if e.status == Edition.Status.PUBLISHED]
     related = ids + [e.source_edition_id for e in editions if e.source_edition_id]
-    published = {}
-    for edition_id, digest in PipelineRun.objects.filter(
-        edition_id__in=ids, stage=PipelineRun.Stage.PUBLISH, status=PipelineRun.Status.SUCCEEDED
-    ).values_list("edition_id", "input_hash"):
-        published.setdefault(edition_id, set()).add(digest)
-    promoted: dict[Any, dict[str, Any]] = {}
+    published: dict[Any, set[str]] = {}
+    if published_ids:
+        for edition_id, digest in PipelineRun.objects.filter(
+            edition_id__in=published_ids,
+            stage=PipelineRun.Stage.PUBLISH,
+            status=PipelineRun.Status.SUCCEEDED,
+        ).values_list("edition_id", "input_hash"):
+            published.setdefault(edition_id, set()).add(digest)
+    # Newest first per edition and target: the first run seen decides failed
+    # or queued, the first successful one is what the target holds.
+    runs: dict[Any, dict[str, list[PipelineRun]]] = {}
     for run in (
-        PipelineRun.objects.filter(
-            edition_id__in=ids, stage=PipelineRun.Stage.PROMOTE, status=PipelineRun.Status.SUCCEEDED
-        )
-        .order_by("edition_id", "-created_at")
-        .only("edition_id", "created_at", "summary")
+        PipelineRun.objects.filter(edition_id__in=ids, stage=PipelineRun.Stage.PROMOTE)
+        .exclude(status=PipelineRun.Status.CANCELLED)
+        .order_by("-created_at")
+        .only("edition_id", "status", "created_at", "finished_at", "summary", "error")
     ):
         target = run.summary.get("target")
         if target:
-            promoted.setdefault(run.edition_id, {}).setdefault(target, run.created_at)
-    changed = {}
+            runs.setdefault(run.edition_id, {}).setdefault(target, []).append(run)
+    configured = [target.name for target in promotion_targets()]
+    changed: dict[Any, datetime] = {}
     for model, extra in (
         (ContentBlockRevision, {}),
         (EditionArtifact, {"is_current": True}),
@@ -175,23 +236,37 @@ def behind_labels(editions) -> dict[Any, str]:
             changed[row["edition_id"]] = max(
                 changed.get(row["edition_id"], row["last"]), row["last"]
             )
-    labels = {}
+    states: dict[Any, ListingReleaseState] = {}
     for edition in editions:
-        reasons = []
+        state = ListingReleaseState()
         digests = published.get(edition.id)
         if digests and publication_input_hash(edition) not in digests:
-            reasons.append("metadata")
-        latest = max(
-            (
-                moment
-                for moment in (changed.get(edition.id), changed.get(edition.source_edition_id))
-                if moment
-            ),
-            default=None,
-        )
-        for target, moment in promoted.get(edition.id, {}).items():
-            if latest and latest > moment:
-                reasons.append(target)
-        if reasons:
-            labels[edition.id] = ", ".join(reasons)
-    return labels
+            state.metadata_behind = True
+        by_target = runs.get(edition.id, {})
+        approved = edition.status in (Edition.Status.READY, Edition.Status.PUBLISHED)
+        if approved or by_target:
+            names = configured + [name for name in by_target if name not in configured]
+            for name in names:
+                state.tokens.append(_token(edition, name, by_target.get(name, []), changed))
+        states[edition.id] = state
+    return states
+
+
+def _token(edition, target, runs, changed) -> PromotionToken:
+    if runs and runs[0].status in (PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING):
+        return PromotionToken(target=target, state="queued")
+    if runs and runs[0].status == PipelineRun.Status.FAILED:
+        return PromotionToken(target=target, state="failed", error=runs[0].error)
+    last = next((run for run in runs if run.status == PipelineRun.Status.SUCCEEDED), None)
+    if last is None:
+        return PromotionToken(target=target, state="never")
+    latest = max(
+        (
+            moment
+            for moment in (changed.get(edition.id), changed.get(edition.source_edition_id))
+            if moment
+        ),
+        default=None,
+    )
+    state = "behind" if latest and latest > last.created_at else "current"
+    return PromotionToken(target=target, state=state, at=last.finished_at or last.created_at)

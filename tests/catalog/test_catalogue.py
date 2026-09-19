@@ -215,6 +215,89 @@ def test_a_running_stage_replaces_the_status_pill_on_its_row(client, staff):
     assert "1 work · 2 editions · 1 processing" in page
 
 
+def _promote(edition, target, status=PipelineRun.Status.SUCCEEDED, error=""):
+    return PipelineRun.objects.create(
+        edition=edition,
+        stage=PipelineRun.Stage.PROMOTE,
+        status=status,
+        processor_version="test",
+        input_hash="",
+        idempotency_key=f"{edition.id}:promote:{target}:{uuid.uuid4().hex}",
+        summary={"target": target},
+        error=error,
+    )
+
+
+def test_every_approved_row_carries_one_token_per_promotion_target(client, staff, monkeypatch):
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TARGETS", "staging=https://staging.example")
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TOKEN_STAGING", "secret")
+    work = _work("frankenstein", "Frankenstein", "Mary Shelley")
+    current = _edition(work, "en", cefr_level="C1")
+    _promote(current, "staging")
+    behind = _edition(
+        work,
+        "uk",
+        source_edition=current,
+        edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+    )
+    _promote(behind, "staging")
+    from almonium_book_processor.catalog.models import EditionArtifact
+
+    EditionArtifact.objects.create(
+        edition=behind, kind="lexical_profile", input_hash="x", processor_version="v"
+    )
+    failed = _edition(
+        work,
+        "fr",
+        Edition.Status.READY,
+        edition_type=Edition.EditionType.HUMAN_TRANSLATION,
+        parallel_role=Edition.ParallelRole.STANDALONE,
+    )
+    _promote(failed, "staging", PipelineRun.Status.FAILED, error="staging refused the bundle")
+    _edition(
+        work,
+        "de",
+        Edition.Status.READY,
+        edition_type=Edition.EditionType.HUMAN_TRANSLATION,
+        parallel_role=Edition.ParallelRole.STANDALONE,
+    )
+    _edition(
+        work,
+        "es",
+        Edition.Status.REVIEW,
+        edition_type=Edition.EditionType.HUMAN_TRANSLATION,
+        parallel_role=Edition.ParallelRole.STANDALONE,
+    )
+
+    (group,) = catalogue_groups(Work.Visibility.PUBLIC)
+    by_language = {row.language: row for row in group.rows}
+    assert [(t.target, t.state) for t in by_language["EN"].promotions] == [("staging", "current")]
+    assert [t.state for t in by_language["UK"].promotions] == ["behind"]
+    assert [t.state for t in by_language["FR"].promotions] == ["failed"]
+    assert [t.state for t in by_language["DE"].promotions] == ["never"]
+    assert by_language["ES"].promotions == []
+    assert [rollup.label for rollup in group.promotion_rollups] == [
+        "1 failed on staging",
+        "1 behind on staging",
+    ]
+    assert (
+        catalogue_summary([group]).label
+        == "1 work · 5 editions · 1 needs review · 1 failed on staging · 1 behind on staging"
+    )
+
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+    assert page.count('class="promotion-token promotion-') == 4
+    assert '<span class="promotion-dot"></span>staging</span>' in page
+    assert '<span class="promotion-dot"></span>staging behind</span>' in page
+    assert '<span class="promotion-dot"></span>staging failed</span>' in page
+    assert 'title="The last promotion to staging failed: staging refused the bundle' in page
+    assert 'title="Never promoted to staging."' in page
+    assert f'data-release="{reverse("catalog:edition-detail", args=[failed.id])}#release"' in page
+    assert '<span class="status status-failed">1 failed on staging</span>' in page
+    assert '<span class="status status-review">1 behind on staging</span>' in page
+
+
 def test_an_empty_catalogue_still_offers_the_upload(client, staff):
     page = client.get(reverse("catalog:dashboard")).content.decode()
     assert "No public editions yet" in page

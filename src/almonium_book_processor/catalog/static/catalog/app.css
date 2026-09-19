@@ -217,7 +217,8 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .work-header h2 { margin: 0; font-size: 1.4rem; }
 .work-meta, .rollup-stage { color: var(--muted); font-size: .88rem; }
 .work-header .status { flex: none; }
-.edition-row { display: grid; grid-template-columns: 44px 1fr 150px 130px 90px 120px; align-items: center; gap: 0 1rem; padding: .7rem 1.5rem; border-top: 1px solid #ede4d6; font-size: .9rem; text-decoration: none; transition: background .15s ease; }
+.work-rollups { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .4rem; flex: none; }
+.edition-row { display: grid; grid-template-columns: 44px 1fr 150px 130px 90px 220px; align-items: center; gap: 0 1rem; padding: .7rem 1.5rem; border-top: 1px solid #ede4d6; font-size: .9rem; text-decoration: none; transition: background .15s ease; }
 .edition-row:hover { background: #fbf4e7; }
 .edition-row-review { background: #fdf6ea; }
 .edition-row-review:hover { background: #fbefdb; }
@@ -233,15 +234,30 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .edition-row-failed:hover { background: #f8e0dc; }
 .edition-warnings-urgent { color: var(--amber); font-weight: 600; }
 .edition-row-failed .edition-warnings-urgent { color: var(--red); }
-.edition-state { justify-self: end; display: flex; flex-direction: column; align-items: flex-end; gap: .3rem; }
+.edition-state { justify-self: end; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: .3rem .6rem; }
+/* One token per promotion target: a 7px dot and the target's name in mono.
+   Filled green is current there, amber is behind, red failed, muted queued;
+   a hollow ring means nothing has gone there yet. */
+.promotion-token { display: inline-flex; align-items: center; gap: 5px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .69rem; white-space: nowrap; color: #a39a90; cursor: pointer; }
+.promotion-dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid #c4b8b0; flex: none; }
+.promotion-current { color: var(--green); }
+.promotion-current .promotion-dot { background: var(--green); border-color: var(--green); }
+.promotion-behind { color: var(--amber); }
+.promotion-behind .promotion-dot { background: #c9962a; border-color: #c9962a; }
+.promotion-failed { color: var(--red); }
+.promotion-failed .promotion-dot { background: var(--red); border-color: var(--red); }
+.promotion-queued { color: var(--muted); }
+.promotion-queued .promotion-dot { background: #c4b8b0; border-color: #c4b8b0; }
+.promotion-token:hover { text-decoration: underline; }
 .run-stage { display: flex; flex-direction: column; align-items: flex-end; gap: .3rem; min-width: 120px; color: var(--muted); font-size: .75rem; }
 .run-bar { display: block; width: 120px; height: 4px; border-radius: 2px; background: #e9e1d4; overflow: hidden; }
 .run-bar span { display: block; height: 100%; background: var(--accent); }
 @media (max-width: 900px) {
   .edition-row { grid-template-columns: 44px 1fr auto; row-gap: .4rem; }
   .edition-chips, .edition-words, .edition-warnings { grid-column: 2; }
-  .edition-state { grid-column: 3; grid-row: 1; }
+  .edition-state { grid-column: 3; grid-row: 1; flex-direction: column; align-items: flex-end; gap: .3rem; }
   .work-header { flex-direction: column; align-items: flex-start; }
+  .work-rollups { justify-content: flex-start; }
 }
 
 /* User imports: one flat table, the owner beside the book */

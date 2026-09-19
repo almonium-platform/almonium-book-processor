@@ -15,9 +15,10 @@
           <h2>{{ group.title }}</h2>
           <span class="work-meta">{{ group.author }} · {{ group.edition_count_label }}{% if group.spend_label %} · <span class="work-spend" title="AI spend on this work in this environment">{{ group.spend_label }} AI</span>{% endif %}</span>
         </div>
-        {% if group.rollup %}
-          {% if group.rollup.in_flight %}<span class="rollup-stage">{{ group.rollup.label }}</span>{% else %}<span class="status status-{{ group.rollup.status }}">{{ group.rollup.label }}</span>{% endif %}
-        {% endif %}
+        <span class="work-rollups">
+          {% if group.rollup %}{% if group.rollup.in_flight %}<span class="rollup-stage">{{ group.rollup.label }}</span>{% else %}<span class="status status-{{ group.rollup.status }}">{{ group.rollup.label }}</span>{% endif %}{% endif %}
+          {% for rollup in group.promotion_rollups %}<span class="status {% if rollup.state == "failed" %}status-failed{% else %}status-review{% endif %}">{{ rollup.label }}</span>{% endfor %}
+        </span>
       </header>
       {% for row in group.rows %}
         <a class="edition-row{% if row.needs_review %} edition-row-review{% elif row.is_failed %} edition-row-failed{% endif %}" href="{% url 'catalog:edition-detail' row.edition.id %}">
@@ -29,7 +30,7 @@
           <span class="edition-words{% if row.source_language %} edition-source{% endif %}">{{ row.words_label }}</span>
           <span class="edition-warnings{% if row.warnings_urgent %} edition-warnings-urgent{% endif %}">{% if not row.run %}{{ row.warnings_label }}{% endif %}</span>
           <span class="edition-state">
-            {% if row.run %}<span class="run-stage"><span>{{ row.run.get_stage_display }}</span><span class="run-bar"><span style="width:{{ row.run.progress }}%"></span></span></span>{% else %}<span class="status status-{{ row.status }}">{{ row.status_label }}</span>{% if row.behind %}<span class="status status-review edition-behind" title="Readers are served an older version: {{ row.behind }}">Behind: {{ row.behind }}</span>{% endif %}{% endif %}
+            {% if row.run %}<span class="run-stage"><span>{{ row.run.get_stage_display }}</span><span class="run-bar"><span style="width:{{ row.run.progress }}%"></span></span></span>{% else %}<span class="status status-{{ row.status }}">{{ row.status_label }}</span>{% if row.metadata_behind %}<span class="status status-review edition-behind" title="Almonium here still shows this edition's previous metadata. Update it from the edition page.">Metadata behind</span>{% endif %}{% for token in row.promotions %}<span class="promotion-token promotion-{{ token.state }}" title="{{ token.title }}" data-release="{% url 'catalog:edition-detail' row.edition.id %}#release"><span class="promotion-dot"></span>{{ token.label }}</span>{% endfor %}{% endif %}
           </span>
         </a>
       {% endfor %}
@@ -38,4 +39,15 @@
     <div class="empty"><h2>No public editions yet</h2><p>Upload an EPUB or TEI XML file, or import the normalized migration artifacts.</p></div>
   {% endfor %}
 </section>
+
+<script>
+  // The whole row is a link to the edition page; a promotion token goes
+  // straight to its Release panel.
+  document.addEventListener("click", function (event) {
+    var token = event.target.closest(".promotion-token");
+    if (!token) return;
+    event.preventDefault();
+    window.location.href = token.dataset.release;
+  });
+</script>
 {% endblock %}

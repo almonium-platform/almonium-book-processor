@@ -23,6 +23,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from almonium_book_processor.catalog.models import Edition, PipelineRun, QAWarning, Work
+from almonium_book_processor.catalog.release_state import PromotionToken
 
 # Most urgent first. Failed and review need a person; processing and queued
 # need time; draft needs an upload to finish; ready and published need nothing.
@@ -132,9 +133,11 @@ class EditionRow:
     # The run that is working on this edition right now, if any; the row draws
     # the stage and its progress in place of a status pill.
     run: PipelineRun | None
-    # Where readers are served an older version: "metadata", a promotion
-    # target's name, or several, joined; empty when nothing is behind.
-    behind: str = ""
+    # Whether Almonium here still shows this edition's previous metadata.
+    metadata_behind: bool = False
+    # One token per promotion target, in target order, once the edition is
+    # approved or has been promoted; empty before that.
+    promotions: list[PromotionToken] = field(default_factory=list)
 
     @property
     def status(self) -> str:
@@ -208,6 +211,39 @@ class Rollup:
 
 
 @dataclass
+class PromotionRollup:
+    """One promotion sentence for a work header or the page subtitle.
+
+    Only behind and failed are worth a sentence: current is the quiet state
+    and never promoted is what a hollow ring on the row already says.
+    """
+
+    state: str
+    target: str
+    count: int
+
+    @property
+    def label(self) -> str:
+        return f"{self.count} {self.state} on {self.target}"
+
+
+def promotion_rollups(rows: list[EditionRow]) -> list[PromotionRollup]:
+    """Failed first, then behind, each per target in target order."""
+
+    counts: dict[tuple[str, str], int] = {}
+    for row in rows:
+        for token in row.promotions:
+            if token.state in ("failed", "behind"):
+                key = (token.state, token.target)
+                counts[key] = counts.get(key, 0) + 1
+    order = {"failed": 0, "behind": 1}
+    return [
+        PromotionRollup(state=state, target=target, count=count)
+        for (state, target), count in sorted(counts.items(), key=lambda item: order[item[0][0]])
+    ]
+
+
+@dataclass
 class WorkGroup:
     work: Work
     rows: list[EditionRow] = field(default_factory=list)
@@ -243,6 +279,10 @@ class WorkGroup:
             count = open_statuses.count(worst)
         return Rollup(status=worst, count=count)
 
+    @property
+    def promotion_rollups(self) -> list[PromotionRollup]:
+        return promotion_rollups(self.rows)
+
 
 @dataclass
 class CatalogueSummary:
@@ -251,6 +291,7 @@ class CatalogueSummary:
     failed: int
     review: int
     processing: int
+    promotions: list[PromotionRollup] = field(default_factory=list)
 
     @property
     def label(self) -> str:
@@ -268,6 +309,7 @@ class CatalogueSummary:
             parts.append(f"{self.review} needs review")
         if self.processing:
             parts.append(f"{self.processing} processing")
+        parts.extend(rollup.label for rollup in self.promotions)
         return " · ".join(parts)
 
 
@@ -328,16 +370,18 @@ def _row(edition: Edition, run: PipelineRun | None) -> EditionRow:
 def catalogue_groups(visibility: str) -> list[WorkGroup]:
     """Every work of the given visibility with its editions as rows."""
 
-    from almonium_book_processor.catalog.release_state import behind_labels
+    from almonium_book_processor.catalog.release_state import listing_release_state
 
     runs = _active_runs(visibility)
     editions = list(_editions(visibility))
-    behind = behind_labels(editions)
+    release = listing_release_state(editions)
     groups: dict = {}
     for edition in editions:
         group = groups.setdefault(edition.work_id, WorkGroup(work=edition.work))
         row = _row(edition, runs.get(edition.id))
-        row.behind = behind.get(edition.id, "")
+        state = release[edition.id]
+        row.metadata_behind = state.metadata_behind
+        row.promotions = state.tokens
         group.rows.append(row)
     from almonium_book_processor.catalog.spend import spend_by_work
 
@@ -359,6 +403,7 @@ def catalogue_summary(groups: list[WorkGroup]) -> CatalogueSummary:
         failed=sum(1 for row in rows if row.status == Edition.Status.FAILED),
         review=sum(1 for row in rows if row.status == Edition.Status.REVIEW),
         processing=sum(1 for row in rows if row.status in IN_FLIGHT_STATUSES),
+        promotions=promotion_rollups(rows),
     )
 
 
