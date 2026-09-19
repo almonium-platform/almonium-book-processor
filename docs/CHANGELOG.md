@@ -4,6 +4,15 @@ Newest first, one entry per day the service changed, with the commits that
 carry the work. Measurements recorded on the day live here too; the backlog
 keeps only what is open. Cross-repository work names its repository.
 
+## 2026-09-19
+
+- Every text revision on a judged public edition refreshes its chapter
+  analysis by itself, not only one that applies a fidelity finding: a
+  phrase-sized change carries the verdict forward for free, a bigger one
+  re-queues the run and the judge re-reads only the chapters that changed.
+  An edition never judged, a private work or a parallel translation is left
+  alone; applying findings no longer buys a book's first analysis.
+
 ## 2026-09-18
 
 - `source_edition` now means "generated from, block for block" and is set on

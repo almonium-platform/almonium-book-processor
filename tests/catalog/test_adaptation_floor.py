@@ -419,8 +419,8 @@ def test_fidelity_suggestions_are_applied_in_bulk_as_audited_revisions(
     assert context["fidelity_audit_state"] == "current" and context["fidelity_carried"] == 2
     run.refresh_from_db()
     assert {c["block_id"] for c in run.summary["carried"]} == {"c1.b1", "c1.b2"}
-    # The difficulty judge never saw the new wording, so its analysis is queued.
-    assert adaptation.pipeline_runs.filter(stage="chapter_analysis", status="queued").exists()
+    # This book was never judged: a fix refreshes a verdict, it does not buy the first one.
+    assert not adaptation.pipeline_runs.filter(stage="chapter_analysis").exists()
     # The remaining finding is still open on its (unchanged) block.
     assert adaptation.text_quality_findings.get(status="open").block.block_id == "c2.b1"
     assert (
@@ -827,18 +827,36 @@ def test_a_phrase_level_fix_carries_the_difficulty_verdict_forward(
     analysis.refresh_from_db()
     assert analysis.summary["carried"][0]["change"] < 0.02
     assert judge.calls == judged_calls
-    # A rewrite of the block is more than a phrase: a real analysis is queued.
+    # A hand edit of a phrase carries the same way; the editor did not have to ask.
+    with django_capture_on_commit_callbacks(execute=True):
+        revise_block_text(
+            edition=adaptation,
+            block_id=adaptation.blocks.get(block_id="c1.b9").id,
+            revised_text=filler.replace("number 3 keeps", "number three keeps"),
+            editor=reviewer,
+        )
+    assert analysis_context(adaptation)["projection_state"] == "complete"
+    assert (
+        not adaptation.pipeline_runs.filter(stage="chapter_analysis")
+        .exclude(pk=analysis.pk)
+        .exists()
+    )
+    analysis.refresh_from_db()
+    assert len(analysis.summary["carried"]) == 2
+    assert judge.calls == judged_calls
+    # A rewrite of the block is more than a phrase: a real analysis is queued, and
+    # the judge re-reads the rewritten chapter only; the others come from cache.
     with django_capture_on_commit_callbacks(execute=True):
         revise_block_text(
             edition=adaptation,
             block_id=adaptation.blocks.get(block_id="c2.b1").id,
-            revised_text=" ".join(["word"] * 60),
+            revised_text="Before dawn " + " ".join(["word"] * 60),
             editor=reviewer,
         )
-        from almonium_book_processor.catalog.services import _requeue_analysis_after_commit
-
-        _requeue_analysis_after_commit(adaptation)
-    assert adaptation.pipeline_runs.filter(stage="chapter_analysis", status="queued").exists()
+    queued = adaptation.pipeline_runs.get(stage="chapter_analysis", status="queued")
+    analyze_chapters(str(queued.id), provider=judge)
+    assert judge.calls == judged_calls + 1
+    assert analysis_context(adaptation)["projection_state"] == "complete"
 
 
 def test_both_sides_show_the_sentences_that_hold_any_quoted_words():

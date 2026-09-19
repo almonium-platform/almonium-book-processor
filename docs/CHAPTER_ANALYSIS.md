@@ -147,8 +147,10 @@ missing or incomplete keeps serving its latest complete description and level
 from any earlier run, because a stale description is better for a reader than
 none. Its `analysisStatus` is `complete` when the chapter's own text hash still
 matches and `stale` when that chapter's text changed since. A text correction
-therefore never blanks the book page; requeueing analysis re-bills only the
-windows of the chapters that changed. Text already
+therefore never blanks the book page. On an edition that has been judged, a
+correction refreshes the analysis by itself: a phrase-sized change carries
+the verdict forward for free, a bigger one re-queues the run and re-bills
+only the windows of the chapters that changed. Text already
 returned by a provider after deletion is discarded; its usage is retained on
 the tombstone ledger without restoring request/response payloads. A broker
 dispatch failure leaves a visible failed run that the same button can requeue.
@@ -220,9 +222,9 @@ and says "pending" rather than showing the source language while a
 description is untranslated. Publication of a parallel translation requires
 its title page to be current. Point 1, the readiness condition, is still open.
 
-Open follow-ups: an approved text correction on a public edition currently
-leaves the analysis stale and hides every chapter description, not only the
-corrected chapters, until staff requeue by hand. See the backlog.
+Open follow-ups: point 1 above, the readiness condition for translation. A
+text correction on a judged public edition has refreshed its analysis by
+itself since 2026-09-19 (see "Retries, concurrency and revisions").
 
 ## Verification
 

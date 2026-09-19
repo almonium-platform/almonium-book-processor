@@ -172,8 +172,10 @@ is one Batch job with no alignment step.
 - [x] Keep serving each chapter's latest complete description and level while
   its analysis is stale or running, with a per-chapter `stale` status
   (2026-09-17).
-- [ ] Requeue chapter analysis automatically after an approved text correction on a
-  public edition; only the changed chapters' windows are billed.
+- [x] Requeue chapter analysis automatically after an approved text correction on a
+  public edition (2026-09-19): a phrase-sized edit carries the verdict for free,
+  a bigger one re-queues the run and only the changed chapters' windows are
+  billed; a book never judged is not judged because of a fix.
 
 **Model choice (blind chapter comparison, English chapter V into French, 2026-08-30):**
 all of `gpt-5.6-sol`, `gpt-5.6-luna`, and `gpt-5.6-terra` returned 28/28 blocks in

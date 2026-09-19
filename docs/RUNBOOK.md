@@ -81,11 +81,14 @@ An approved block revision retires the edition's artifacts. What comes back
 by itself (free): lexical analysis, source-text QA, and the offline sentence
 alignment of every companion pair that had one. What does not:
 
-- **Chapter analysis**: requeue it from the edition page; unchanged windows
-  are reused and only the changed chapter's windows are billed.
-- **Fidelity audit and difficulty verdict**: carried forward when the edit is
-  a phrase inside a block or one of the audit's own suggestions. A chapter-
-  scale edit leaves the audit stale; the audit panel prices the re-read.
+- **Difficulty verdict**: carried forward for free when the edit changes a
+  window by a phrase (under 2% of its words). A bigger edit re-queues the
+  analysis by itself, but only on an edition that has been judged before:
+  unchanged windows are reused and only the changed chapter's windows are
+  billed. A book never judged is not judged because of a fix.
+- **Fidelity audit**: carried forward when the edit is one of the audit's
+  own suggestions applied verbatim. A hand edit leaves the audit stale; the
+  audit panel prices the re-read.
 - **Publication and promotion**: both are stale after any correction.
   Republish, then promote; check the companions table first.
 

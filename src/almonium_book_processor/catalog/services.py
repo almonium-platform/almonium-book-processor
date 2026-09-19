@@ -757,6 +757,7 @@ def _finish_text_revision(edition: Edition, changed_block_ids: set[uuid.UUID]) -
     from almonium_book_processor.catalog.tasks import refresh_edition_after_revision
 
     transaction.on_commit(lambda: refresh_edition_after_revision.delay(str(edition.id)))
+    _requeue_analysis_after_commit(edition)
 
 
 @transaction.atomic
@@ -895,17 +896,30 @@ def _after_fidelity_decision(
         relocate_fidelity_findings(edition, [finding.block_id])
         if verbatim:
             carry_audit_forward(edition, [finding])
-        _requeue_analysis_after_commit(edition)
     refresh_adaptation_floor(edition.work)
 
 
 def _requeue_analysis_after_commit(edition: Edition) -> None:
     """Text just changed: keep the difficulty verdict if the change is a phrase, re-judge if not.
 
+    Every text revision ends here, whether an editor typed it or applied a
+    finding. Only an edition that has been judged before is touched: a fix
+    never starts the first paid analysis of a book, and a private work or a
+    parallel translation has no analysis to refresh. When a window changed by
+    more than a phrase, the re-read reuses every validated window whose text
+    did not move, so only the changed chapters are billed.
+
     The audit is not re-run here either. Its own suggestions carry it
     forward; a hand edit leaves it stale and the page says what a re-read
     would cost.
     """
+
+    if (
+        edition.work.visibility != Work.Visibility.PUBLIC
+        or edition.is_parallel_translation
+        or not edition.pipeline_runs.filter(stage=PipelineRun.Stage.CHAPTER_ANALYSIS).exists()
+    ):
+        return
 
     def refresh() -> None:
         from almonium_book_processor.catalog.chapter_analysis import (
@@ -1003,7 +1017,6 @@ def apply_fidelity_findings(
     carry_audit_forward(
         edition, [f for group in by_block.values() for f in group if f.status == "applied"]
     )
-    _requeue_analysis_after_commit(edition)
     refresh_adaptation_floor(edition.work)
     return applied
 
