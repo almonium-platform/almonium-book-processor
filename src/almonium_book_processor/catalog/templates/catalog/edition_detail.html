@@ -181,7 +181,7 @@
 {% if parallel_companions %}
 <details class="panel collapsible-panel companions-panel" id="parallel-companions"{% if parallel_companions_due or parallel_companions_running %} open{% endif %}>
   <summary><span class="summary-title">Parallel companions</span><span class="summary-meta">{% if parallel_companions_due %}{{ parallel_companions_due }} of {{ parallel_companions|length }} pair{{ parallel_companions|length|pluralize }} need{{ parallel_companions_due|pluralize:"s," }} attention{% elif parallel_companions_running %}{{ parallel_companions_running }} job{{ parallel_companions_running|pluralize }} running{% else %}All {{ parallel_companions|length }} pair{{ parallel_companions|length|pluralize }} current{% endif %}</span></summary>
-  <p class="muted">{% if edition.parallel_role == "canonical" %}This is the original text and the root of the parallel tree. Every generated edition copies its block groups, so all languages stay synchronised through this edition. {% elif edition.parallel_role == "parallel" %}Generated block-for-block from the source: paragraph groups are inherited; sentence correspondence is estimated separately. Neither structural pairing nor sentence highlights replace fidelity review. Publish the source first, then this edition after review; publishing this edition does not approve or release its companions. Disclose it as a machine translation in the reader (translator field: {{ edition.translator|default:"AI" }}). {% endif %}Sentence highlights come from an offline embedding job per pair and are retired whenever either side is corrected; until the job runs again the reader falls back to paragraph pairing for that pair. A refresh is local, costs nothing, and reuses every unchanged block.</p>
+  <p class="muted">{% if edition.parallel_role == "canonical" %}This is the original text and the root of the parallel tree. Every generated edition copies its block groups, so all languages stay synchronised through this edition. {% elif edition.parallel_role == "parallel" %}Generated block-for-block from the source: paragraph groups are inherited; sentence correspondence is estimated separately. Neither structural pairing nor sentence highlights replace fidelity review. Publish the source first, then this edition after review; publishing this edition does not approve or release its companions. Disclose it as a machine translation in the reader (translator field: {{ edition.translator|default:"AI" }}). {% endif %}Sentence highlights come from an offline job per pair. Uncertain matches remain usable and are marked as uncertain in the artifact; until the job runs again the reader falls back to paragraph pairing. A refresh is local, costs nothing, and reuses every unchanged block.</p>
   <div class="table-scroll">
   <table class="companion-table">
     <thead><tr><th>Companion</th><th>Paragraphs</th><th>Sentence alignment</th><th>What to do</th></tr></thead>
@@ -241,6 +241,32 @@
     {% if has_inferred_alignment %}<a class="button" href="{% url 'catalog:alignment-review' edition.id %}">Open alignment workspace</a>{% endif %}
     <form method="post" action="{% url 'catalog:queue-source-alignment' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">{% if has_inferred_alignment %}Rebuild{% else %}Build{% endif %} inferred alignment</button></form>
   </div>
+</details>
+{% endif %}
+
+{% if edition.work.visibility == "public" and modernisation_available %}
+<details class="panel collapsible-panel" id="modernisation">
+  <summary><span class="summary-title">Same-level modernisation</span><span class="summary-meta">{{ edition.cefr_level }} original · {% if modernisation_advice and modernisation_advice.summary.advice %}{% if modernisation_advice.summary.advice.recommend_full_edition %}recommended{% else %}glosses recommended{% endif %}{% elif modernisation_advice %}{{ modernisation_advice.get_status_display }}{% else %}not assessed{% endif %}</span></summary>
+  <p>Keep the original available. This optional edition would remove obsolete language while keeping the original's {{ edition.cefr_level }} reading level, voice and setting. Chapter flags only screen for candidates; a paid editorial probe reads representative passages and recommends a full edition, contextual glosses, or leaving the text alone. Publication still requires a current difficulty assessment, fidelity audit and staff review.</p>
+  {% if modernisation_advice %}
+    <p>{{ modernisation_advice.get_status_display }} · {{ modernisation_advice.summary.source.flagged_windows }} / {{ modernisation_advice.summary.source.analyzed_windows }} analysis windows flagged potential help. This flag does not decide the outcome.</p>
+    {% if modernisation_advice.error %}<p class="message warning">{{ modernisation_advice.error }}</p>{% endif %}
+    {% if modernisation_advice.summary.advice %}
+      <p><strong>{% if modernisation_advice.summary.advice.recommend_full_edition %}Probe recommends a separate edition{% else %}Probe recommends notes or the original{% endif %}</strong> · {{ modernisation_advice.summary.advice.confidence }} confidence.</p>
+      {% for reason in modernisation_advice.summary.advice.reasons %}<p>{{ reason }}</p>{% endfor %}
+      {% if modernisation_advice.summary.advice.barriers %}<h3>Passage decisions</h3><ul>{% for barrier in modernisation_advice.summary.advice.barriers %}<li><code>{{ barrier.block_id }}</code> · {{ barrier.action }}: “{{ barrier.quote }}” — {{ barrier.reason }}</li>{% endfor %}</ul>{% endif %}
+    {% endif %}
+  {% endif %}
+  {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-modernisation-advice' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Assess modernisation (paid)</button></form>{% endif %}
+  {% if modernisation_recommended %}
+    <h3>Try one chapter</h3>
+    <form method="post" action="{% url 'catalog:queue-modernisation-pilot' edition.id %}">{% csrf_token %}
+      <label for="modernisation-chapter">Source chapter</label> <select id="modernisation-chapter" name="chapter_id">{% for chapter in edition.chapters.all %}<option value="{{ chapter.id }}">{{ chapter.sequence }} — {{ chapter.title }}</option>{% endfor %}</select>
+      <button class="button button-secondary" type="submit">Generate {{ edition.cefr_level }} modernisation sample (paid)</button>
+    </form>
+  {% endif %}
+  {% for pilot in modernisation_pilots %}<p><a href="{% url 'catalog:adaptation-pilot' edition.id pilot.id %}">{{ pilot.summary.chapter_title }} · {{ pilot.get_status_display }} · sample comparison</a></p>{% endfor %}
+  {% if modernisation_can_generate %}<form method="post" action="{% url 'catalog:queue-modernisation-book' edition.id %}">{% csrf_token %}<button class="button" type="submit">Generate full {{ edition.cefr_level }} modernised edition (paid)</button></form>{% elif modernisation_recommended %}<p class="muted">A current sample must pass the blind level check and have no material fidelity finding before whole-book generation.</p>{% endif %}
 </details>
 {% endif %}
 

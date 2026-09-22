@@ -5,7 +5,64 @@ from types import SimpleNamespace
 
 from almonium_book_processor.processing.nlp import _cosine, align_embeddings, embed_texts
 
-VERSION = "offline-sentence-v5"
+VERSION = "offline-sentence-v7"
+
+
+def _cover_groups(primary_count, secondary_count, groups):
+    """Give every sentence a partner while retaining the embedding matches.
+
+    The paragraph pair is already exact. An uncertain sentence correspondence is
+    still useful for reading, provided it is kept marked as uncertain in the
+    artifact. Positional groups fill only the intervals embeddings left open.
+    """
+    anchors = sorted(
+        (g for g in groups if g["primary"] and g["secondary"]),
+        key=lambda g: (g["primary"][0], g["secondary"][0]),
+    )
+    result = []
+    p_cursor = s_cursor = 0
+
+    def gap(p_end, s_end):
+        nonlocal p_cursor, s_cursor
+        primary = list(range(p_cursor, p_end))
+        secondary = list(range(s_cursor, s_end))
+        if primary and secondary:
+            count = min(len(primary), len(secondary))
+            for index in range(count):
+                p_slice = primary[
+                    index * len(primary) // count : (index + 1) * len(primary) // count
+                ]
+                s_slice = secondary[
+                    index * len(secondary) // count : (index + 1) * len(secondary) // count
+                ]
+                result.append(
+                    {
+                        "primary": p_slice,
+                        "secondary": s_slice,
+                        "certain": False,
+                        "acceptance": "positional_fallback",
+                    }
+                )
+        elif primary or secondary:
+            if result:
+                result[-1]["primary"] = [*result[-1]["primary"], *primary]
+                result[-1]["secondary"] = [*result[-1]["secondary"], *secondary]
+                result[-1]["certain"] = False
+            elif anchors:
+                anchors[0].update(
+                    primary=[*primary, *anchors[0]["primary"]],
+                    secondary=[*secondary, *anchors[0]["secondary"]],
+                    certain=False,
+                )
+        p_cursor, s_cursor = p_end, s_end
+
+    for anchor in anchors:
+        gap(anchor["primary"][0], anchor["secondary"][0])
+        result.append(anchor)
+        p_cursor = anchor["primary"][-1] + 1
+        s_cursor = anchor["secondary"][-1] + 1
+    gap(primary_count, secondary_count)
+    return result
 
 
 def sentence_texts(block):
@@ -136,6 +193,7 @@ def correspond(primary, secondary, model_name=None):
     coarse = _correspond(primary, secondary, model_name)
     left, right = clause_spans(primary), clause_spans(secondary)
     if len(left) == len(primary.sentences) and len(right) == len(secondary.sentences):
+        coarse["groups"] = _cover_groups(len(left), len(right), coarse["groups"])
         return coarse
     groups = []
     # Refine accepted parents when at least two useful fine matches survive.
@@ -185,7 +243,7 @@ def correspond(primary, secondary, model_name=None):
             groups.append({**parent, **indexes, "granularity": "sentence"})
     return {
         **coarse,
-        "groups": groups,
+        "groups": _cover_groups(len(left), len(right), groups),
         "primary_spans": left,
         "secondary_spans": right,
         "segmentation": "semicolon-clauses-v2",

@@ -112,6 +112,18 @@ def test_complete_book_is_separate_aligned_review_only_and_idempotent(source, ta
     assert book_plan(source)["source_hash"] == before
 
 
+def test_same_level_modernisation_keeps_original_and_has_distinct_register(source):
+    run = queue_book(source.id, target_level="C1")
+    assert run.processor_version == "modernisation-book-v1"
+    run_book(run.id, provider=Provider())
+    target = Edition.objects.get(pk=run.edition_id)
+    assert target.literary_register == Edition.LiteraryRegister.LIGHTLY_MODERNISED
+    assert target.source_edition_id == source.id
+    assert target.blocks.count() == source.blocks.count()
+    assert source.blocks.count() == 4
+    assert target.status == Edition.Status.REVIEW
+
+
 @pytest.mark.parametrize("target_level", ["B1", "B2"])
 def test_failure_never_creates_partial_book_and_retry_reuses_completed_chunks(source, target_level):
     run = queue_book(source.id, target_level=target_level)

@@ -9,7 +9,7 @@ from almonium_book_processor.catalog.offline_sentence_alignment import (
     run_alignment,
 )
 from almonium_book_processor.catalog.parallel_content import inherited_payload
-from almonium_book_processor.processing.sentence_correspondence import correspond
+from almonium_book_processor.processing.sentence_correspondence import _cover_groups, correspond
 from tests.catalog.test_sentence_alignment import pair  # noqa: F401
 
 pytestmark = pytest.mark.django_db
@@ -67,8 +67,14 @@ def test_uncertain_correspondence_covers_each_index_without_highlights(pair):  #
     ):
         payload = correspond(p.blocks.get(), s.blocks.get())
     assert not any(g["certain"] for g in payload["groups"])
+    assert all(g["primary"] and g["secondary"] for g in payload["groups"])
     for side in ("primary", "secondary"):
         assert sorted(i for g in payload["groups"] for i in g[side]) == [0, 1]
+
+
+def test_unmatched_prefix_is_attached_to_the_first_pair():
+    groups = _cover_groups(4, 2, [{"primary": [2, 3], "secondary": [0, 1], "certain": True}])
+    assert groups == [{"primary": [0, 1, 2, 3], "secondary": [0, 1], "certain": False}]
 
 
 def test_one_to_three_and_oversized_fallback():

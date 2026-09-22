@@ -1,11 +1,11 @@
 {% extends "catalog/base.html" %}
 {% load catalog_extras %}
-{% block title %}{{ run.summary.target_level|default:"B2" }} pilot — {{ run.edition.title }}{% endblock %}
+{% block title %}{{ run.summary.target_level|default:"B2" }} {% if run.summary.modernisation %}modernisation{% else %}adaptation{% endif %} pilot — {{ run.edition.title }}{% endblock %}
 {% block content %}
 <div {% live_work run.edition %}>
 <section class="panel">
   <a href="{% url 'catalog:edition-detail' run.edition.id %}">Back to original edition</a>
-  <h1>{{ run.summary.chapter_title }} — {{ run.summary.target_level|default:"B2" }} adaptation pilot</h1>
+  <h1>{{ run.summary.chapter_title }} — {{ run.summary.target_level|default:"B2" }} {% if run.summary.modernisation %}modernisation{% else %}adaptation{% endif %} pilot</h1>
   <p>{{ run.get_status_display }} · {{ ai.request_payload.body.model }} · prompt v{{ ai.prompt_template.version }} · {{ run.processor_version }}</p>
   <p>Original preserved. {{ run.summary.target_level|default:"B2" }} is the requested target, not an independently verified assessment. This chapter sample is not an edition and cannot be published. Review for ease of reading, lost meaning and literary voice before generating a whole book.</p>
   {% if stale %}<p class="message error">Source has changed. This comparison shows the saved source snapshot, not the current chapter.</p>{% endif %}

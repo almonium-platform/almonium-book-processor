@@ -292,6 +292,8 @@ def refresh_adaptation_floor(work: Work) -> Work:
     for edition in work.editions.filter(edition_type=Edition.EditionType.ADAPTATION).select_related(
         "work", "source_edition"
     ):
+        if edition.literary_register == Edition.LiteraryRegister.LIGHTLY_MODERNISED:
+            continue  # A same-level register variant does not establish a lower floor.
         reached = edition_reached(edition)
         if reached is None:
             continue

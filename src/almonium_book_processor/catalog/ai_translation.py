@@ -22,6 +22,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
+from almonium_book_processor.ai.output_language import validate_output_language
 from almonium_book_processor.ai.translation import (
     TRANSLATION_OUTPUT_SCHEMA,
     TRANSLATION_SYSTEM_PROMPT,
@@ -350,7 +351,13 @@ def _output_text(body: dict[str, Any]) -> str:
     raise ValueError("OpenAI response contained no output text")
 
 
-def _validate_chapter(translation: ChapterTranslation, chapter_manifest: dict[str, Any]) -> None:
+def _validate_chapter(
+    translation: ChapterTranslation,
+    chapter_manifest: dict[str, Any],
+    *,
+    source_edition: Edition | None = None,
+    target_language: str | None = None,
+) -> None:
     expected = chapter_manifest["block_ids"]
     returned = [block.block_id for block in translation.blocks]
     if returned != expected:
@@ -364,6 +371,28 @@ def _validate_chapter(translation: ChapterTranslation, chapter_manifest: dict[st
     empty = [block.block_id for block in translation.blocks if not block.text.strip()]
     if empty:
         raise ValueError(f"Translated blocks must not be empty: {empty}")
+    if source_edition is not None and target_language is not None:
+        source = {
+            block.block_id: block for block in source_edition.blocks.filter(block_id__in=expected)
+        }
+        prose = []
+        for block in translation.blocks:
+            original = source[block.block_id]
+            if original.block_type in {
+                ContentBlock.BlockType.HEADING,
+                ContentBlock.BlockType.SEPARATOR,
+            }:
+                continue
+            if (
+                sum(char.isalpha() for char in block.text) >= 40
+                and block.text.strip() == original.text.strip()
+            ):
+                raise ValueError(f"Block {block.block_id} was copied in the source language")
+            prose.append(block.text)
+        # A chapter made of a single short caption cannot be identified
+        # reliably; structural and exact-copy checks still apply to it.
+        if sum(char.isalpha() for text in prose for char in text) >= 40:
+            validate_output_language(prose, target_language)
 
 
 def _estimated_cost(
@@ -587,7 +616,12 @@ def _complete_translation_batch_locked(
             if response.get("status_code") != 200:
                 raise ValueError(f"Batch request failed with HTTP {response.get('status_code')}")
             translation = ChapterTranslation.model_validate_json(_output_text(body))
-            _validate_chapter(translation, manifest[custom_id])
+            _validate_chapter(
+                translation,
+                manifest[custom_id],
+                source_edition=edition.source_edition,
+                target_language=edition.language,
+            )
         except ValueError as error:
             invalid[custom_id] = str(error)[:2000]
             continue

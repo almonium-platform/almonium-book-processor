@@ -147,6 +147,7 @@ def publish_to_almonium(edition: Edition) -> str:
         "originalLanguage": edition.work.original_language.upper(),
         "language": edition.language.upper(),
         "editionType": edition.edition_type,
+        "literaryRegister": edition.literary_register or None,
         "sourceEditionSlug": edition.source_edition.slug if edition.source_edition else None,
         "translator": edition.translator or None,
         "publicationYear": edition.work.publication_year,

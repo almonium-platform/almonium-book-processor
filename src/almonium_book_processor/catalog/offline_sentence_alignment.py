@@ -138,6 +138,13 @@ def run_alignment(run_id):
                     "model": model,
                 }
             )
+            for side, block in (("primary", primary), ("secondary", secondary)):
+                indexes = sorted(index for group in payload["groups"] for index in group[side])
+                spans = payload.get(f"{side}_spans") or block.sentences
+                if indexes != list(range(len(spans))) or any(
+                    not group["primary"] or not group["secondary"] for group in payload["groups"]
+                ):
+                    raise ValueError("Sentence correspondence does not cover both sides")
             # Match text-revision lock order: blocks first, then editions.
             with transaction.atomic():
                 locked = {

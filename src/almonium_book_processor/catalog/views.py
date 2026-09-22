@@ -242,7 +242,10 @@ def queue_book_adaptation(request: HttpRequest, edition_id: str) -> HttpResponse
 
     edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
     try:
-        run = queue_book(edition.id, target_level=request.POST.get("target_level", "B2"))
+        target_level = request.POST.get("target_level", "B2")
+        if target_level not in {"B1", "B2"}:
+            raise ValueError("Choose B1 or B2 from the level ladder.")
+        run = queue_book(edition.id, target_level=target_level)
     except ValueError as error:
         messages.error(request, str(error))
         return redirect("catalog:edition-detail", edition_id=edition.id)
@@ -356,16 +359,77 @@ def queue_adaptation_pilot(request: HttpRequest, edition_id: str) -> HttpRespons
         return redirect("catalog:edition-detail", edition_id=edition.id)
     chapter = get_object_or_404(edition.chapters, pk=chapter_id)
     try:
+        target_level = request.POST.get("target_level", "B2")
+        if target_level not in {"B1", "B2"}:
+            raise ValueError("Choose B1 or B2 from the level ladder.")
         run = queue_pilot(
             str(edition.id),
             str(chapter.id),
-            target_level=request.POST.get("target_level", "B2"),
+            target_level=target_level,
             editorial_feedback=request.POST.get("editorial_feedback", ""),
         )
     except ValueError as error:
         messages.error(request, str(error))
         return redirect("catalog:edition-detail", edition_id=edition.id)
     return redirect("catalog:adaptation-pilot", edition_id=edition.id, run_id=run.id)
+
+
+@staff_member_required
+@require_POST
+def queue_modernisation_advice_view(request: HttpRequest, edition_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.modernisation import queue_advice
+
+    edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
+    try:
+        queue_advice(edition.id)
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "Modernisation advice queued. The original remains unchanged.")
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def queue_modernisation_pilot_view(request: HttpRequest, edition_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.modernisation import recommended_now
+
+    edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
+    try:
+        if not recommended_now(edition):
+            raise ValueError("Current positive advice is required before a modernisation sample.")
+        chapter_id = uuid.UUID(request.POST.get("chapter_id", ""))
+        if not edition.chapters.filter(pk=chapter_id).exists():
+            raise ValueError("Choose a chapter from this edition.")
+        run = queue_pilot(
+            edition.id,
+            chapter_id,
+            target_level=edition.cefr_level,
+        )
+    except (ValueError, AttributeError) as error:
+        messages.error(request, str(error))
+        return redirect("catalog:edition-detail", edition_id=edition.id)
+    return redirect("catalog:adaptation-pilot", edition_id=edition.id, run_id=run.id)
+
+
+@staff_member_required
+@require_POST
+def queue_modernisation_book_view(request: HttpRequest, edition_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.book_adaptation import queue_book
+    from almonium_book_processor.catalog.modernisation import ready_to_generate
+
+    edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
+    try:
+        if not ready_to_generate(edition):
+            raise ValueError(
+                "A current positive recommendation and a clean judged pilot are required."
+            )
+        run = queue_book(edition.id, target_level=edition.cefr_level)
+    except ValueError as error:
+        messages.error(request, str(error))
+        return redirect("catalog:edition-detail", edition_id=edition.id)
+    messages.success(request, "Same-level modernized edition queued for review.")
+    return redirect("catalog:edition-detail", edition_id=run.edition_id)
 
 
 @staff_member_required
@@ -558,6 +622,7 @@ def _render_edition_detail(
     from almonium_book_processor.catalog.adaptation_floor import ladder_context
     from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
     from almonium_book_processor.catalog.fidelity_audit import audit_context
+    from almonium_book_processor.catalog.modernisation import ready_to_generate, recommended_now
 
     assessment = analysis_context(edition)
     assessment.update(adaptation_quality(edition, assessment))
@@ -639,10 +704,38 @@ def _render_edition_detail(
         **assessment,
         "adaptation_level": ADAPTATION_TARGET_LEVEL,
         "adaptation_pilots": edition.pipeline_runs.filter(
-            stage=PipelineRun.Stage.ADAPT, processor_version__in=PILOT_VERSIONS
+            stage=PipelineRun.Stage.ADAPT,
+            processor_version__in=[
+                v for v in PILOT_VERSIONS if v != "modernisation-chapter-pilot-v1"
+            ],
+        ),
+        "modernisation_pilots": edition.pipeline_runs.filter(
+            stage=PipelineRun.Stage.ADAPT,
+            processor_version="modernisation-chapter-pilot-v1",
+        ),
+        "modernisation_advice": edition.pipeline_runs.filter(
+            stage=PipelineRun.Stage.ADAPT,
+            processor_version="modernisation-advice-v1",
+        ).first(),
+        "modernisation_available": (
+            edition.edition_type == Edition.EditionType.ORIGINAL
+            and edition.cefr_level in {"C1", "C2"}
+        ),
+        "modernisation_can_generate": (
+            ready_to_generate(edition)
+            if edition.edition_type == Edition.EditionType.ORIGINAL
+            and edition.cefr_level in {"C1", "C2"}
+            else False
+        ),
+        "modernisation_recommended": (
+            recommended_now(edition)
+            if edition.edition_type == Edition.EditionType.ORIGINAL
+            and edition.cefr_level in {"C1", "C2"}
+            else False
         ),
         "book_adaptation_run": edition.pipeline_runs.filter(
-            stage=PipelineRun.Stage.ADAPT, processor_version__in=("b1-book-v1", "b2-book-v1")
+            stage=PipelineRun.Stage.ADAPT,
+            processor_version__in=("b1-book-v1", "b2-book-v1", "modernisation-book-v1"),
         ).first(),
         "chapter_role_choices": Chapter.AnalysisRole.choices,
         "metadata_form": metadata_form or EditionMetadataForm.for_edition(edition),
@@ -1810,7 +1903,7 @@ def retry_failed_edition(request: HttpRequest, edition_id: str) -> HttpResponse:
     elif (
         edition.edition_type == Edition.EditionType.ADAPTATION
         and edition.pipeline_runs.filter(
-            processor_version__in=("b1-book-v1", "b2-book-v1")
+            processor_version__in=("b1-book-v1", "b2-book-v1", "modernisation-book-v1")
         ).exists()
     ):
         from almonium_book_processor.catalog.book_adaptation import queue_book

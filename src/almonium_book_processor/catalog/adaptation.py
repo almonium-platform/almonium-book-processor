@@ -35,7 +35,8 @@ TARGET_LEVEL = "B2"
 VERSION = "b2-chapter-pilot-v1"
 PROMPT_NAME = "literary-b2-adaptation-pilot"
 B1_VERSION = "b1-chapter-pilot-v1"
-PILOT_VERSIONS = (VERSION, B1_VERSION)
+MODERNISATION_VERSION = "modernisation-chapter-pilot-v1"
+PILOT_VERSIONS = (VERSION, B1_VERSION, MODERNISATION_VERSION)
 MAX_CHARS = 40000
 MAX_BLOCKS = 100
 
@@ -90,14 +91,27 @@ def queue_pilot(
 ):
     from almonium_book_processor.catalog.tasks import adapt_chapter_pilot
 
-    processor_version = B1_VERSION if target_level == "B1" else VERSION
-    prompt_name = "literary-b1-adaptation-pilot" if target_level == "B1" else PROMPT_NAME
+    modernisation = target_level in {"C1", "C2"}
+    processor_version = (
+        MODERNISATION_VERSION if modernisation else B1_VERSION if target_level == "B1" else VERSION
+    )
+    prompt_name = (
+        "literary-modernisation-pilot"
+        if modernisation
+        else "literary-b1-adaptation-pilot"
+        if target_level == "B1"
+        else PROMPT_NAME
+    )
     if not settings.OPENAI_API_KEY:
         raise ValueError("Configure an OpenAI key to generate a pilot.")
     editorial_feedback = editorial_feedback.strip()
     if len(editorial_feedback) > 4000:
         raise ValueError("Editorial feedback is limited to 4,000 characters.")
     edition = Edition.objects.select_for_update().select_related("work").get(pk=edition_id)
+    if modernisation and (
+        edition.edition_type != Edition.EditionType.ORIGINAL or edition.cefr_level != target_level
+    ):
+        raise ValueError("Modernisation must keep the original edition's assessed level.")
     prompt_version, system_prompt = pilot_prompt(target_level, edition.language)
     chapter = Chapter.objects.get(pk=chapter_id, edition=edition)
     source = source_snapshot(chapter, block_ids, target_level=target_level)
@@ -111,7 +125,9 @@ def queue_pilot(
         )
         if not owner.pipeline_runs.filter(
             stage=PipelineRun.Stage.ADAPT,
-            processor_version=f"{target_level.lower()}-book-v1",
+            processor_version=(
+                "modernisation-book-v1" if modernisation else f"{target_level.lower()}-book-v1"
+            ),
             summary__target_level=target_level,
         ).exists():
             raise ValueError("The target edition must have a matching book generation target.")
@@ -123,6 +139,8 @@ def queue_pilot(
         name=(
             f"adaptation-b1-{digest(model)[:16]}-high-v1"
             if target_level == "B1"
+            else f"modernisation-pilot-{digest(model)[:16]}-v1"
+            if modernisation
             else f"adaptation-pilot-{digest(model)[:16]}-v1"
         ),
         defaults={
@@ -189,6 +207,7 @@ def queue_pilot(
                 "chapter_id": str(chapter.id),
                 "chapter_title": chapter.title,
                 "target_level": target_level,
+                "modernisation": modernisation,
                 "source_hash": digest(source),
                 "source_edition_id": str(edition.id),
                 "block_ids": block_ids,

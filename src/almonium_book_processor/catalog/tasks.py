@@ -141,6 +141,13 @@ def adapt_chapter_pilot(run_id: str) -> None:
 
 
 @shared_task(acks_late=True)
+def modernisation_advice(run_id: str) -> None:
+    from almonium_book_processor.catalog.modernisation import run_advice
+
+    run_advice(run_id)
+
+
+@shared_task(acks_late=True)
 def run_floor_probe(run_id: str) -> None:
     from almonium_book_processor.catalog.adaptation_floor import run_probe
 

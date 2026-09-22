@@ -15,6 +15,21 @@ app_name = "catalog"
 
 urlpatterns = [
     path(
+        "editions/<uuid:edition_id>/modernisation/advice/",
+        views.queue_modernisation_advice_view,
+        name="queue-modernisation-advice",
+    ),
+    path(
+        "editions/<uuid:edition_id>/modernisation/pilot/",
+        views.queue_modernisation_pilot_view,
+        name="queue-modernisation-pilot",
+    ),
+    path(
+        "editions/<uuid:edition_id>/modernisation/book/",
+        views.queue_modernisation_book_view,
+        name="queue-modernisation-book",
+    ),
+    path(
         "editions/<uuid:edition_id>/adaptation-pilot/<uuid:run_id>/apply/",
         views.apply_adaptation_pilot,
         name="apply-adaptation-pilot",

@@ -26,7 +26,8 @@ from almonium_book_processor.catalog.models import (
 )
 
 VERSION = "b2-book-v1"
-BOOK_VERSIONS = (VERSION, "b1-book-v1")
+MODERNISATION_BOOK_VERSION = "modernisation-book-v1"
+BOOK_VERSIONS = (VERSION, "b1-book-v1", MODERNISATION_BOOK_VERSION)
 WORKERS = 3
 REVIEW_CODE = "adaptation_fidelity_review"
 
@@ -34,7 +35,13 @@ REVIEW_CODE = "adaptation_fidelity_review"
 def generation_spec(target_level, language):
     prompt_version, system_prompt = pilot_prompt(target_level, language)
     return {
-        "processor": "b1-book-v1" if target_level == "B1" else VERSION,
+        "processor": (
+            MODERNISATION_BOOK_VERSION
+            if target_level in {"C1", "C2"}
+            else "b1-book-v1"
+            if target_level == "B1"
+            else VERSION
+        ),
         "model": settings.OPENAI_TRANSLATION_QUALITY_MODEL,
         "prompt_version": prompt_version,
         "prompt_hash": digest(system_prompt),
@@ -105,22 +112,35 @@ def queue_book(source_id, *, target_level=TARGET_LEVEL):
     if not settings.OPENAI_API_KEY:
         raise ValueError("Configure an OpenAI key to generate an adaptation.")
     source = Edition.objects.select_for_update().select_related("work").get(pk=source_id)
+    modernisation = target_level in {"C1", "C2"}
+    if modernisation and (
+        source.edition_type != Edition.EditionType.ORIGINAL or source.cefr_level != target_level
+    ):
+        raise ValueError("Modernisation keeps the original's current editorial level.")
     plan = book_plan(source)
     spec = generation_spec(target_level, source.language)
     input_hash = digest([plan, spec])
-    key = f"{source.id}:{target_level.lower()}-book:{input_hash}"
+    operation = "modernisation" if modernisation else f"{target_level.lower()}-book"
+    key = f"{source.id}:{operation}:{input_hash}"
     run = PipelineRun.objects.filter(idempotency_key=key).select_related("edition").first()
     if run is None:
         edition = Edition.objects.create(
             work=source.work,
             source_edition=source,
-            slug=_unique_slug(f"{source.slug[:155]}-{target_level.lower()}"),
+            slug=_unique_slug(
+                f"{source.slug[:145]}-{target_level.lower()}-modern"
+                if modernisation
+                else f"{source.slug[:155]}-{target_level.lower()}"
+            ),
             # The level is a field on the edition and a chip in every UI; it
             # never rides inside the title.
             title=source.title,
             author=source.author,
             language=source.language,
             edition_type=Edition.EditionType.ADAPTATION,
+            literary_register=(
+                Edition.LiteraryRegister.LIGHTLY_MODERNISED if modernisation else ""
+            ),
             parallel_role=Edition.ParallelRole.PARALLEL,
             status=Edition.Status.QUEUED,
             auto_publish=False,
@@ -133,7 +153,13 @@ def queue_book(source_id, *, target_level=TARGET_LEVEL):
             processor_version=spec["processor"],
             input_hash=input_hash,
             idempotency_key=key,
-            summary={"plan": plan, "spec": spec, "target_level": target_level, "completed": 0},
+            summary={
+                "plan": plan,
+                "spec": spec,
+                "target_level": target_level,
+                "modernisation": modernisation,
+                "completed": 0,
+            },
         )
     if run.status in {PipelineRun.Status.SUCCEEDED, PipelineRun.Status.RUNNING}:
         return run

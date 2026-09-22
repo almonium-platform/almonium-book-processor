@@ -332,7 +332,6 @@ def test_a_retried_run_keeps_what_the_failed_attempt_cost(monkeypatch) -> None:
             )
         ],
     )
-
     retried.refresh_from_db()
     assert retried.status == AIRun.Status.SUCCEEDED
     assert retried.input_tokens == 1800
@@ -366,7 +365,6 @@ def test_length_and_confidence_gates_send_edition_to_review(monkeypatch) -> None
             )
         ],
     )
-
     edition.refresh_from_db()
     assert edition.status == Edition.Status.REVIEW
     codes = set(edition.warnings.values_list("code", flat=True))
@@ -375,6 +373,39 @@ def test_length_and_confidence_gates_send_edition_to_review(monkeypatch) -> None
     assert edition.warnings.filter(
         code="translation_low_confidence", severity=QAWarning.Severity.WARNING
     ).exists()
+
+
+@pytest.mark.parametrize(
+    "wrong_text",
+    [
+        "It was on a dreary night of November that I beheld the accomplishment of my toils.",
+        "I watched the work on a cold November night and then went back to my room.",
+    ],
+)
+def test_translation_rejects_source_language_prose(monkeypatch, wrong_text) -> None:
+    source = canonical_edition()
+    edition = create_parallel_translation(
+        source_edition=source,
+        target_language="fr",
+        register="period-faithful",
+        tier="quality",
+    )
+    sink: dict = {}
+    fake_provider(monkeypatch, sink)
+    ai_run = submit_translation_batch(str(edition.id), tier="quality")
+    with pytest.raises(ValueError, match="unusable"):
+        complete_translation_batch(
+            ai_run,
+            [
+                output_line(
+                    sink["requests"][0]["custom_id"],
+                    [translated("c1.h1", "Chapitre premier"), translated("c1.p2", wrong_text)],
+                )
+            ],
+        )
+    edition.refresh_from_db()
+    assert edition.status == Edition.Status.FAILED
+    assert not edition.blocks.exists()
 
 
 def test_translation_requires_a_canonical_source() -> None:

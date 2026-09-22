@@ -622,7 +622,7 @@ def test_b1_pilot_identity_prompt_and_preview(chapter, client):
     assert not response.context["application_targets"]
 
 
-@pytest.mark.parametrize("target_level", ["A2", "C1", "b1", ""])
+@pytest.mark.parametrize("target_level", ["A2", "b1", ""])
 def test_pilot_rejects_unsupported_targets(chapter, target_level):
     with pytest.raises(ValueError, match="Choose B1 or B2"):
         queue_pilot(chapter.edition_id, chapter.id, target_level=target_level, dispatch=False)

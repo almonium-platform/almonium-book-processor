@@ -43,7 +43,7 @@ for (const [rowIndex, block] of payload.blocks.entries()) {
     let cursor = 0;
     for (const [index, span] of block[side + '_sentences'].entries()) {
       pane.append(text.slice(cursor, span.start).join(''));
-      const group = block.sentence_alignment.findIndex(g => g.certain && g.primary.length && g.secondary.length && g[side].includes(index));
+      const group = block.sentence_alignment.findIndex(g => g.primary.length && g.secondary.length && g[side].includes(index));
       const hit = document.createElement('span');
       hit.textContent = text.slice(span.start, span.end).join('');
       if (group >= 0) {
