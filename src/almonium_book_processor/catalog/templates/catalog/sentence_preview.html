@@ -16,8 +16,8 @@
     <button class="button" type="submit">Align all chapters offline (no API cost)</button>
   </form>
 </div>
-{% if alignment_run %}<p>Latest offline job: {{ alignment_run.get_status_display }} · {{ alignment_run.summary.model }} · {{ alignment_run.processor_version }} · {{ alignment_run.progress }}%.</p>{% if alignment_run.error %}<p class="message warning">{{ alignment_run.error }}</p>{% endif %}{% if alignment_run.summary.completed_blocks %}<p>{{ alignment_run.summary.completed_blocks }} blocks processed · {{ alignment_run.summary.highlighted_groups }} highlightable groups · {{ alignment_run.summary.paragraph_fallback_blocks }} blocks kept entirely paragraph-aligned.</p>{% endif %}{% endif %}
-{% if alignment_run.summary.fallback_reasons %}<p>Paragraph-only reasons: {% for reason, count in alignment_run.summary.fallback_reasons.items %}{{ reason }}: {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}. Uncertain matched groups: {{ alignment_run.summary.uncertain_groups }}; unmatched sentences: {{ alignment_run.summary.unmatched_sentences }}.</p>{% endif %}
+{% if alignment_run %}<p>Latest offline job: {{ alignment_run.get_status_display }} · {{ alignment_run.summary.model }} · {{ alignment_run.processor_version }} · {{ alignment_run.progress }}%.</p>{% if alignment_run.error %}<p class="message warning">{{ alignment_run.error }}</p>{% endif %}{% if alignment_run.summary.completed_blocks %}<p>{{ alignment_run.summary.completed_blocks }} blocks processed · {{ alignment_run.summary.highlighted_groups }} confident groups · {{ alignment_run.summary.paragraph_fallback_blocks }} blocks with provisional pairs only.</p>{% endif %}{% endif %}
+{% if alignment_run.summary.fallback_reasons %}<p>Provisional-only reasons: {% for reason, count in alignment_run.summary.fallback_reasons.items %}{{ reason }}: {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}. Uncertain paired groups: {{ alignment_run.summary.uncertain_groups }}; unmatched sentences: {{ alignment_run.summary.unmatched_sentences }}.</p>{% endif %}
 <div id="sentence-preview"></div>
 {{ payload|json_script:"sentence-data" }}
 <style>
