@@ -63,6 +63,7 @@ from almonium_book_processor.catalog.models import (
     ContentBlock,
     Edition,
     EditionTombstone,
+    GlossNote,
     PipelineRun,
     QAWarning,
     TextQualityFinding,
@@ -622,6 +623,7 @@ def _render_edition_detail(
     from almonium_book_processor.catalog.adaptation_floor import ladder_context
     from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
     from almonium_book_processor.catalog.fidelity_audit import audit_context
+    from almonium_book_processor.catalog.glosses import current as current_gloss
     from almonium_book_processor.catalog.modernisation import ready_to_generate, recommended_now
 
     assessment = analysis_context(edition)
@@ -684,6 +686,9 @@ def _render_edition_detail(
     from almonium_book_processor.catalog.release_state import release_rows
 
     release = release_rows(edition)
+    current_glosses = [
+        note for note in edition.glosses.select_related("block") if current_gloss(note)
+    ]
     from almonium_book_processor.catalog.catalogue import SHORT_ROLE_LABELS
     from almonium_book_processor.catalog.edition_page import next_step, review_groups, work_tree
 
@@ -717,6 +722,8 @@ def _render_edition_detail(
             stage=PipelineRun.Stage.ADAPT,
             processor_version="modernisation-advice-v1",
         ).first(),
+        "gloss_drafts": sum(note.status == GlossNote.Status.DRAFT for note in current_glosses),
+        "gloss_approved": sum(note.status == GlossNote.Status.APPROVED for note in current_glosses),
         "modernisation_available": (
             edition.edition_type == Edition.EditionType.ORIGINAL
             and edition.cefr_level in {"C1", "C2"}

@@ -15,6 +15,7 @@ from rest_framework.test import APIClient
 
 from almonium_book_processor.catalog.admin import EditionAdminForm, WorkAdminForm
 from almonium_book_processor.catalog.forms import EditionUploadForm
+from almonium_book_processor.catalog.glosses import add_manual, review
 from almonium_book_processor.catalog.models import (
     AIRun,
     AlignmentGroupReview,
@@ -1908,6 +1909,14 @@ def test_public_parallel_api_exposes_reviewed_alignment(client) -> None:
         confidence=0.98,
         strategy="test",
     )
+    reviewer = get_user_model().objects.create_user("parallel-gloss-editor", is_staff=True)
+    note = add_manual(
+        source_chapter,
+        block_id=source_block.block_id,
+        quote="Original",
+        body="The source text.",
+    )
+    review(note.id, actor=reviewer, approve=True)
 
     response = client.get(
         "/api/v1/public/editions/parallel-work-de-human/parallel/parallel-work-en-orig/"
@@ -1925,6 +1934,18 @@ def test_public_parallel_api_exposes_reviewed_alignment(client) -> None:
                 "block_type": "paragraph",
                 "primary_text": "Übersetzter Text.",
                 "secondary_text": "Original text.",
+                "primary_block_id": "c1.p1",
+                "secondary_block_id": "c1.p1",
+                "primary_notes": [],
+                "secondary_notes": [
+                    {
+                        "id": str(note.id),
+                        "start": 0,
+                        "end": 8,
+                        "quote": "Original",
+                        "body": "The source text.",
+                    }
+                ],
             }
         ],
     }

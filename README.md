@@ -252,12 +252,13 @@ is a withdrawal that never completed.
 - `POST /api/v1/editions/upload/` — staff EPUB or TEI XML upload; returns `202`.
 - `GET /api/v1/editions/` and `/api/v1/runs/` — staff operations.
 - `GET /api/v1/public/editions/` — published editions only.
-- `GET /api/v1/public/editions/{slug}/blocks/` — normalized public content.
+- `GET /api/v1/public/editions/{slug}/blocks/` — normalized public content with
+  approved contextual notes anchored to exact block offsets (`docs/CONTEXTUAL_GLOSSES.md`).
 - `GET /api/v1/public/editions/{slug}/chapters/` and
   `.../chapters/{sequence}/vocabulary/` — chapter list with current difficulty
   and descriptions; attested chapter vocabulary (`docs/CHAPTER_VOCABULARY.md`).
-- `GET /api/v1/public/editions/{slug}/parallel/{other_slug}/` — block pairing
-  and sentence correspondence for a parallel companion.
+- `GET /api/v1/public/editions/{slug}/parallel/{other_slug}/` — block pairing,
+  sentence correspondence and approved notes for both sides of a parallel companion.
 - `POST /api/v1/internal/translations/` and `/internal/library-ingests/` —
   service-authenticated translation orders and library ingests from the backend.
 - `POST /api/v1/internal/promotions/` — receives a promotion bundle from

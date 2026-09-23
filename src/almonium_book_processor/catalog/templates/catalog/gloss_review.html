@@ -1,0 +1,33 @@
+{% extends "catalog/base.html" %}
+{% block content %}
+<div class="page-header"><div><p><a href="{% url 'catalog:edition-detail' edition.id %}">← {{ edition.title }}</a></p><h1>Contextual glosses</h1><p class="muted">Optional explanations beside exact passages. Drafts stay private until approved; editing the passage retires its note from the reader.</p></div></div>
+<section class="panel">
+  <h2>Chapter {{ chapter.sequence }} · {{ chapter.title }}</h2>
+  <form method="get"><label>Choose chapter <select name="chapter" onchange="this.form.submit()">{% for item in chapters %}<option value="{{ item.id }}"{% if item.id == chapter.id %} selected{% endif %}>{{ item.sequence }} — {{ item.title }}</option>{% endfor %}</select></label><button class="button button-secondary" type="submit">Show</button></form>
+  {% if run %}<p>Latest generation: <strong>{{ run.get_status_display }}</strong> · {{ run.progress }}%{% if run.summary.candidates != None %} · {{ run.summary.candidates }} candidates{% endif %}{% if run.error %}<span class="message warning">{{ run.error }}</span>{% endif %}</p>{% endif %}
+  <form method="post" action="{% url 'catalog:queue-glosses' edition.id %}">{% csrf_token %}<input type="hidden" name="chapter_id" value="{{ chapter.id }}"><button class="button" type="submit">Generate chapter glosses (paid)</button></form>
+</section>
+<section class="panel">
+  <h2>Review notes · {{ notes|length }}</h2>
+  {% for note in notes %}
+  <article class="review-item" style="display:block; margin:1rem 0; padding:1rem;">
+    <p><strong>{{ note.quote }}</strong> · <code>{{ note.block.block_id }}</code> · {{ note.get_status_display }}{% if not note.is_current %} · <strong>Stale passage</strong>{% endif %}</p>
+    <p class="muted">{{ note.block.text|truncatechars:360 }}</p>
+    <form method="post" action="{% url 'catalog:review-gloss' edition.id note.id %}">{% csrf_token %}
+      <label>Reader note <textarea name="body" rows="2" maxlength="500">{{ note.body }}</textarea></label>
+      {% if note.is_current %}<div class="button-row"><button class="button button-small" name="action" value="approve" type="submit">Approve wording</button><button class="button button-small button-secondary" name="action" value="reject" type="submit">Reject</button></div>{% endif %}
+    </form>
+  </article>
+  {% empty %}<p class="muted">No notes for this chapter yet. Generate candidates or write one below.</p>{% endfor %}
+</section>
+<section class="panel">
+  <h2>Write a note</h2>
+  <p class="muted">Select a block and paste a short exact phrase that occurs once within one sentence. The explanation stays in the book’s language.</p>
+  <form method="post" action="{% url 'catalog:add-gloss' edition.id %}">{% csrf_token %}<input type="hidden" name="chapter_id" value="{{ chapter.id }}">
+    <label>Passage block <select name="block_id">{% for block in blocks %}<option value="{{ block.block_id }}">{{ block.block_id }} · {{ block.text|truncatechars:95 }}</option>{% endfor %}</select></label>
+    <label>Exact phrase <input name="quote" maxlength="160" required></label>
+    <label>Reader note <textarea name="body" rows="3" maxlength="500" required></textarea></label>
+    <button class="button button-secondary" type="submit">Add draft note</button>
+  </form>
+</section>
+{% endblock %}

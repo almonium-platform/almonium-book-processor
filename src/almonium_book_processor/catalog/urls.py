@@ -1,6 +1,6 @@
 from django.urls import path
 
-from almonium_book_processor.catalog import views
+from almonium_book_processor.catalog import gloss_views, views
 from almonium_book_processor.catalog.activity import (
     catalogue_activity_view,
     edition_activity,
@@ -14,6 +14,18 @@ from almonium_book_processor.catalog.sentence_preview_views import (
 app_name = "catalog"
 
 urlpatterns = [
+    path("editions/<uuid:edition_id>/glosses/", gloss_views.gloss_review, name="gloss-review"),
+    path(
+        "editions/<uuid:edition_id>/glosses/queue/",
+        gloss_views.queue_glosses,
+        name="queue-glosses",
+    ),
+    path("editions/<uuid:edition_id>/glosses/add/", gloss_views.add_gloss, name="add-gloss"),
+    path(
+        "editions/<uuid:edition_id>/glosses/<uuid:note_id>/review/",
+        gloss_views.review_gloss,
+        name="review-gloss",
+    ),
     path(
         "editions/<uuid:edition_id>/modernisation/advice/",
         views.queue_modernisation_advice_view,

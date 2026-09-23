@@ -15,6 +15,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from almonium_book_processor.catalog import promotion
+from almonium_book_processor.catalog.glosses import add_manual, public_notes, review
 from almonium_book_processor.catalog.models import (
     AlignmentGroupReview,
     BlockAlignment,
@@ -24,6 +25,7 @@ from almonium_book_processor.catalog.models import (
     ContentBlockRevision,
     Edition,
     EditionArtifact,
+    GlossNote,
     PipelineRun,
     QAWarning,
     ReviewDecision,
@@ -317,6 +319,29 @@ def test_the_same_content_bundles_to_the_same_hash():
     edition = build_edition(slug="stable-en")
 
     assert bundle_hash(export_bundle(edition)) == bundle_hash(export_bundle(edition))
+
+
+def test_approved_glosses_travel_with_their_exact_anchors():
+    reviewer = make_user()
+    edition = build_edition(slug="glossed-en")
+    chapter = edition.chapters.get(sequence=1)
+    block = chapter.blocks.order_by("sequence").first()
+    quote = block.text.split()[0]
+    note = add_manual(chapter, block_id=block.block_id, quote=quote, body="A short note.")
+    review(note.id, actor=reviewer, approve=True)
+    bundle = export_bundle(edition)
+    manifest = manifest_of(bundle)
+    assert manifest["editions"][0]["glosses"][0]["quote"] == quote
+    wipe(edition)
+    reviewer.delete()
+    make_user()
+
+    import_bundle(bundle, origin="laptop")
+    landed = Edition.objects.get(slug="glossed-en")
+    restored = GlossNote.objects.get(pk=note.id)
+    assert restored.reviewed_by.get_username() == "reviewer"
+    assert restored.status == GlossNote.Status.APPROVED
+    assert public_notes(landed)[block.block_id][0]["body"] == "A short note."
 
 
 # --------------------------------------------------------------------------

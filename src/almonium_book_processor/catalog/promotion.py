@@ -59,6 +59,7 @@ from almonium_book_processor.catalog.models import (
     ContentBlockRevision,
     Edition,
     EditionArtifact,
+    GlossNote,
     PipelineRun,
     QAWarning,
     ReviewDecision,
@@ -70,7 +71,7 @@ logger = logging.getLogger(__name__)
 
 # Bump when the manifest's shape changes. A target running an older build
 # refuses a newer bundle instead of silently dropping what it does not know.
-BUNDLE_SCHEMA_VERSION = 5
+BUNDLE_SCHEMA_VERSION = 6
 MANIFEST_NAME = "manifest.json"
 
 # Runs that describe what an environment did with its own product API, or
@@ -237,6 +238,22 @@ ARTIFACT_FIELDS = [
     "created_at",
     "updated_at",
 ]
+GLOSS_FIELDS = [
+    "id",
+    "edition_id",
+    "chapter_id",
+    "block_id",
+    "pipeline_run_id",
+    "source_text_hash",
+    "start_offset",
+    "end_offset",
+    "quote",
+    "body",
+    "status",
+    "reviewed_at",
+    "created_at",
+    "updated_at",
+]
 FINDING_FIELDS = [
     "id",
     "edition_id",
@@ -326,6 +343,7 @@ EDITION_TABLES = [
     ("blocks", ContentBlock, BLOCK_FIELDS, None, "edition_id"),
     ("pipeline_runs", PipelineRun, RUN_FIELDS, None, "edition_id"),
     ("artifacts", EditionArtifact, ARTIFACT_FIELDS, None, "edition_id"),
+    ("glosses", GlossNote, GLOSS_FIELDS, "reviewed_by", "edition_id"),
     ("block_revisions", ContentBlockRevision, REVISION_FIELDS, "editor", "edition_id"),
     ("text_quality_findings", TextQualityFinding, FINDING_FIELDS, "reviewed_by", "edition_id"),
     ("warnings", QAWarning, WARNING_FIELDS, "resolved_by", "edition_id"),

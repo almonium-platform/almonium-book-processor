@@ -569,6 +569,7 @@ class PipelineRun(TimestampedModel):
         SENTENCES = "sentences", "Sentence splitting"
         ALIGN = "align", "Alignment"
         LEXICAL = "lexical", "Lexical analysis"
+        GLOSSES = "glosses", "Contextual glosses"
         SOURCE_QA = "source_qa", "Source text QA"
         TRANSLATE = "translate", "Translation"
         TRANSLATE_METADATA = "translate_metadata", "Metadata translation"
@@ -701,6 +702,41 @@ class EditionArtifact(TimestampedModel):
                 name="catalog_art_edition_kind_idx",
             )
         ]
+
+
+class GlossNote(TimestampedModel):
+    """An editorial explanation anchored to an exact version of one prose block."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Needs review"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    edition = models.ForeignKey(Edition, related_name="glosses", on_delete=models.CASCADE)
+    chapter = models.ForeignKey(Chapter, related_name="glosses", on_delete=models.CASCADE)
+    block = models.ForeignKey(ContentBlock, related_name="glosses", on_delete=models.CASCADE)
+    pipeline_run = models.ForeignKey(
+        PipelineRun, related_name="glosses", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    source_text_hash = models.CharField(max_length=64)
+    start_offset = models.PositiveIntegerField()
+    end_offset = models.PositiveIntegerField()
+    quote = models.TextField()
+    body = models.TextField()
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="reviewed_glosses",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["chapter__sequence", "block__sequence", "start_offset", "created_at"]
+        indexes = [models.Index(fields=["edition", "status", "chapter"])]
 
 
 class TextQualityFinding(TimestampedModel):

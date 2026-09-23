@@ -454,9 +454,15 @@ class PublishedEditionViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["get"])
     def blocks(self, request, slug=None):
+        from almonium_book_processor.catalog.glosses import public_notes
+
         edition = self.get_object()
         blocks = edition.blocks.select_related("chapter").order_by("chapter__sequence", "sequence")
-        return Response(ContentBlockSerializer(blocks, many=True).data)
+        notes = public_notes(edition)
+        payload = ContentBlockSerializer(blocks, many=True).data
+        for row in payload:
+            row["notes"] = notes.get(row["block_id"], [])
+        return Response(payload)
 
     @action(
         detail=True,
@@ -474,6 +480,12 @@ class PublishedEditionViewSet(viewsets.ReadOnlyModelViewSet):
 
         inherited = inherited_payload(edition, other)
         if inherited is not None:
+            from almonium_book_processor.catalog.glosses import public_notes
+
+            primary_notes, secondary_notes = public_notes(edition), public_notes(other)
+            for row in inherited["blocks"]:
+                row["primary_notes"] = primary_notes.get(row["primary_block_id"], [])
+                row["secondary_notes"] = secondary_notes.get(row["secondary_block_id"], [])
             return Response(inherited)
 
         alignments = BlockAlignment.objects.filter(
@@ -496,6 +508,9 @@ class PublishedEditionViewSet(viewsets.ReadOnlyModelViewSet):
             else ("source_block__chapter__sequence", "source_block__sequence")
         )
         blocks = []
+        from almonium_book_processor.catalog.glosses import public_notes
+
+        primary_notes, secondary_notes = public_notes(edition), public_notes(other)
         for alignment in alignments.order_by(*order_fields):
             primary = alignment.target_block if primary_side == "target" else alignment.source_block
             secondary = (
@@ -509,6 +524,10 @@ class PublishedEditionViewSet(viewsets.ReadOnlyModelViewSet):
                     "block_type": primary.block_type,
                     "primary_text": primary.text,
                     "secondary_text": secondary.text,
+                    "primary_block_id": primary.block_id,
+                    "secondary_block_id": secondary.block_id,
+                    "primary_notes": primary_notes.get(primary.block_id, []),
+                    "secondary_notes": secondary_notes.get(secondary.block_id, []),
                 }
             )
         return Response(

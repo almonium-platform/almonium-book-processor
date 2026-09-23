@@ -83,6 +83,13 @@ def align_edition_sentences(run_id):
     return run_alignment(run_id)
 
 
+@shared_task(acks_late=True)
+def generate_chapter_glosses(run_id):
+    from almonium_book_processor.catalog.glosses import run_chapter
+
+    return run_chapter(run_id)
+
+
 ALIGNMENT_CANDIDATE_MIN_CONFIDENCE = 0.45
 CHAPTER_ALIGNMENT_MIN_CONFIDENCE = 0.32
 ALIGNMENT_REVIEW_CONFIDENCE = 0.72

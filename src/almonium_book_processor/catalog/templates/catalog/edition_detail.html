@@ -244,6 +244,14 @@
 </details>
 {% endif %}
 
+{% if edition.work.visibility == "public" and has_blocks %}
+<details class="panel collapsible-panel" id="contextual-glosses">
+  <summary><span class="summary-title">Contextual glosses</span><span class="summary-meta">{{ gloss_approved }} approved{% if gloss_drafts %} · {{ gloss_drafts }} to review{% endif %}</span></summary>
+  <p>Short marginal explanations for difficult words, idioms and historical references. They sit beside exact phrases without changing the book text. A chapter-batched AI call proposes notes; an editor approves their wording before readers see them.</p>
+  <a class="button button-secondary" href="{% url 'catalog:gloss-review' edition.id %}">Generate and review chapter notes</a>
+</details>
+{% endif %}
+
 {% if edition.work.visibility == "public" and modernisation_available %}
 <details class="panel collapsible-panel" id="modernisation">
   <summary><span class="summary-title">Same-level modernisation</span><span class="summary-meta">{{ edition.cefr_level }} original · {% if modernisation_advice and modernisation_advice.summary.advice %}{% if modernisation_advice.summary.advice.recommend_full_edition %}recommended{% else %}glosses recommended{% endif %}{% elif modernisation_advice %}{{ modernisation_advice.get_status_display }}{% else %}not assessed{% endif %}</span></summary>
