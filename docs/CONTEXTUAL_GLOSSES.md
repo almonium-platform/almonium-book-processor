@@ -13,7 +13,12 @@ for its source text, processor version, prompt version and model.
 
 The model supplies an exact short quote and block ID. The worker accepts a
 candidate only when that quote occurs exactly once in the block and stays in
-one sentence. Notes contain same-language explanations, not translated text.
+one sentence. A candidate that fails a check is dropped and listed with its reason
+in the run summary; it never costs the chapter its other notes. Notes are for what
+the reader's tap-to-define dictionary cannot give (older senses, idioms, historical
+things, allusions), not ordinary hard words. Each chapter's request lists the
+phrases already noted in earlier chapters, and a candidate repeating one of them is
+dropped, so a term is explained once, where the reader first meets it. Notes contain same-language explanations, not translated text.
 All AI candidates begin as drafts; staff approval is required to publish them.
 Approval rejects overlapping notes. A changed source block invalidates its
 existing anchors automatically, including already approved ones.

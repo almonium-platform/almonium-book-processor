@@ -160,24 +160,68 @@ def test_gloss_review_requires_staff_and_approved_content_only(passage):
     assert note.status == GlossNote.Status.APPROVED
 
 
-def test_invalid_paid_output_records_failure_without_publishing(passage):
+def test_unusable_candidates_are_dropped_without_losing_the_rest(passage):
     _, chapter, _ = passage
 
-    class InvalidProvider(Provider):
+    class MixedProvider(Provider):
         def respond(self, body):
             response = super().respond(body)
+            good = json.loads(response["output"][0]["content"][0]["text"])["notes"][0]
             response["output"][0]["content"][0]["text"] = json.dumps(
-                {"notes": [{"block_id": "c1.p1", "quote": "missing", "body": "A note."}]}
+                {
+                    "notes": [
+                        {"block_id": "c1.p1", "quote": "missing", "body": "A note."},
+                        {"block_id": "c9.p9", "quote": "eyry", "body": "A note."},
+                        good,
+                        {**good, "body": "The same phrase explained twice."},
+                    ]
+                }
             )
             return response
 
     run = queue_chapter(chapter.id, dispatch=False)
-    with pytest.raises(ValueError, match="unsupported quote"):
-        run_chapter(run.id, provider=InvalidProvider())
+    run_chapter(run.id, provider=MixedProvider())
     run.refresh_from_db()
-    assert run.status == "failed"
-    assert run.ai_runs.get().status == "failed"
-    assert not GlossNote.objects.exists()
+    assert run.status == "succeeded"
+    assert GlossNote.objects.get().quote == "eyry"
+    assert [row["reason"] for row in run.summary["dropped"]] == [
+        "quote not in the supplied block",
+        "quote not in the supplied block",
+        "already explained earlier",
+    ]
+    assert run.ai_runs.get().status == "succeeded"
+
+
+def test_a_phrase_noted_in_an_earlier_chapter_is_not_noted_again(passage):
+    edition, chapter, block = passage
+    add_manual(chapter, block_id="c1.p1", quote="eyry", body="An eagle's nest.")
+    later = Chapter.objects.create(edition=edition, sequence=2, title="Two")
+    ContentBlock.objects.create(
+        edition=edition,
+        chapter=later,
+        block_id="c2.p1",
+        sequence=2,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="The eyry stood above the valley.",
+        sentences=[{"start": 0, "end": 32}],
+        align_group=uuid.uuid4(),
+    )
+    requests = []
+
+    class Recording(Provider):
+        def respond(self, body):
+            requests.append(json.loads(body["input"]))
+            response = super().respond(body)
+            content = response["output"][0]["content"][0]
+            content["text"] = content["text"].replace("c1.p1", "c2.p1")
+            return response
+
+    run = queue_chapter(later.id, dispatch=False)
+    run_chapter(run.id, provider=Recording())
+    run.refresh_from_db()
+    assert requests[0]["already_explained"] == ["eyry"]
+    assert run.summary["dropped"][0]["reason"] == "already explained earlier"
+    assert not GlossNote.objects.filter(chapter=later).exists()
 
 
 def test_whole_book_queue_skips_generated_and_empty_chapters(passage):

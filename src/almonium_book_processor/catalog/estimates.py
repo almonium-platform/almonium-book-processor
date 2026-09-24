@@ -102,13 +102,19 @@ def _answered(edition: Edition, hashes: list[str]) -> set[str]:
 
 
 def gloss_chapter(chapter: Chapter, source: dict | None = None) -> Estimate:
-    from almonium_book_processor.catalog.glosses import SYSTEM_PROMPT, _windows, chapter_snapshot
+    from almonium_book_processor.catalog.glosses import (
+        SYSTEM_PROMPT,
+        _windows,
+        chapter_snapshot,
+        explained_before,
+    )
 
     try:
         source = source or chapter_snapshot(chapter)
     except ValueError as error:
         return unavailable(str(error))
-    prompt = tokens(len(SYSTEM_PROMPT))
+    # Every window also carries the phrases noted earlier in the book.
+    prompt = tokens(len(SYSTEM_PROMPT)) + _json_tokens(explained_before(chapter))
     pricing = TRANSLATION_MODEL_PRICING["quality"]
     windows = _windows(source)
     usd = sum(
