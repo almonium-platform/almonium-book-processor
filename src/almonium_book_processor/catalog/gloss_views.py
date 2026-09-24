@@ -2,6 +2,7 @@
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Count, Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -22,6 +23,21 @@ from almonium_book_processor.catalog.models import (
     PipelineRun,
     Work,
 )
+
+# Characters of passage shown on each side of a note's phrase.
+CONTEXT_CHARS = 180
+
+
+def _context(note: GlossNote) -> tuple[str, str]:
+    """The text just before and after the phrase, cut at word boundaries."""
+    text = note.block.text
+    before = text[max(0, note.start_offset - CONTEXT_CHARS) : note.start_offset]
+    after = text[note.end_offset : note.end_offset + CONTEXT_CHARS]
+    if note.start_offset > CONTEXT_CHARS and " " in before:
+        before = "…" + before[before.index(" ") + 1 :]
+    if note.end_offset + CONTEXT_CHARS < len(text) and " " in after:
+        after = after[: after.rindex(" ")] + "…"
+    return before, after
 
 
 def _review_url(edition_id, chapter_id):
@@ -49,6 +65,15 @@ def gloss_review(request: HttpRequest, edition_id) -> HttpResponse:
     )
     for note in notes:
         note.is_current = current(note)
+        if note.is_current:
+            note.before, note.after = _context(note)
+    drafts = dict(
+        edition.glosses.values("chapter_id")
+        .annotate(n=Count("id", filter=Q(status=GlossNote.Status.DRAFT)))
+        .values_list("chapter_id", "n")
+    )
+    for chapter in chapters:
+        chapter.draft_count = drafts.get(chapter.id, 0)
     run = edition.pipeline_runs.filter(
         stage=PipelineRun.Stage.GLOSSES, summary__chapter_id=str(selected.id)
     ).first()

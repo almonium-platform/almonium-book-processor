@@ -471,3 +471,22 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
   .review-row-actions { grid-column: 1 / -1; justify-content: flex-start; }
   .review-group-bar { flex-direction: column; align-items: flex-start; }
 }
+
+/* Contextual gloss review */
+.gloss-chapter .section-heading { gap: 1.5rem; }
+.gloss-chapter h2 { margin: .2rem 0 .4rem; }
+.gloss-chapter p { margin: .3rem 0 0; }
+.gloss-note { padding: 1.1rem 0; border-top: 1px solid var(--line); }
+.gloss-note:last-child { padding-bottom: 0; }
+.gloss-note header { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.gloss-note header code { color: var(--muted); font-size: .78rem; }
+.gloss-quote { font: 1.1rem Georgia, serif; }
+.gloss-context { margin: .7rem 0; padding: .6rem .9rem; border-left: 3px solid var(--line); color: var(--muted); font-size: .9rem; line-height: 1.55; }
+.gloss-context mark { background: #f3e4c4; color: var(--ink); padding: 0 .1rem; border-radius: 3px; }
+.gloss-form { display: grid; gap: .7rem; }
+.gloss-form label { display: grid; gap: .4rem; font-size: .82rem; font-weight: 700; }
+.gloss-form textarea, .gloss-form input, .gloss-form select { font: inherit; font-weight: 400; font-size: .95rem; line-height: 1.45; }
+.gloss-form textarea { resize: vertical; }
+.gloss-new { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; gap: 1rem; margin-top: 1rem; }
+.gloss-new .gloss-wide { grid-column: 1 / -1; }
+@media (max-width: 700px) { .gloss-chapter .section-heading { align-items: stretch; flex-direction: column; } .gloss-new { grid-template-columns: 1fr; } }
