@@ -70,6 +70,11 @@ Cross-service integration uses an explicit HTTP or messaging contract.
   must never call paid AI APIs. CI installs only the `dev` extra, so nothing
   there exercises spaCy, `wordfreq`, or `simplemma`; a test that fakes the NLP
   stack proves the surrounding logic, never the stack itself.
+- Every button that spends money on a model shows its price as a
+  "· ~$x" suffix from `catalog/estimates.py` (tooltip for the basis, a
+  confirmation above $1, "· AI" when no estimate exists). Price only the work
+  still to do, reuse the stage's own window plan and price table, and never put
+  a price on a free or offline action.
 - Offline NLP models are pinned dependencies of the `worker` extra, one per
   `NLP_SPACY_MODELS` entry, and `manage.py check --tag nlp` verifies that each
   loads and can lemmatize. Do not let analysis degrade quietly to a blank

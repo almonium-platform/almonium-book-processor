@@ -558,7 +558,7 @@ def test_the_pages_offer_the_next_probe_and_the_audit(client, source):
     client.force_login(get_user_model().objects.create_user("staff", is_staff=True))
     page = client.get(reverse("catalog:edition-detail", args=[source.id])).content.decode()
     assert 'id="adaptation-ladder"' in page
-    assert "Probe B2 (3 chapters, paid)" in page
+    assert "Probe B2 on 3 chapters" in page
     assert "Probe B1" not in page and "Reach the level above first" in page
     response = client.post(
         reverse("catalog:queue-floor-probe", args=[source.id]), {"target_level": "B2"}
@@ -566,19 +566,19 @@ def test_the_pages_offer_the_next_probe_and_the_audit(client, source):
     assert response.status_code == 302
     assert source.pipeline_runs.filter(processor_version=PROBE_VERSION, status="queued").exists()
     page = client.get(reverse("catalog:edition-detail", args=[source.id])).content.decode()
-    assert "Probing" in page and "Probe B2 (3 chapters, paid)" not in page
+    assert "Probing" in page and "Probe B2 on 3 chapters" not in page
 
     book = queue_book(source.id)
     run_book(book.id, provider=Generator())
     adaptation = Edition.objects.get(pk=book.edition_id)
     page = client.get(reverse("catalog:edition-detail", args=[adaptation.id])).content.decode()
-    assert 'id="fidelity-audit"' in page and "Audit fidelity (paid)" in page
+    assert 'id="fidelity-audit"' in page and 'Audit fidelity<span class="cost">' in page
     assert "adaptation-ladder" not in page
     response = client.post(reverse("catalog:queue-fidelity-audit", args=[adaptation.id]))
     assert response.status_code == 302
     audit = adaptation.pipeline_runs.get(processor_version=AUDIT_VERSION)
     page = client.get(reverse("catalog:edition-detail", args=[adaptation.id])).content.decode()
-    assert "Audit fidelity (paid)" not in page and "Running" in page
+    assert 'Audit fidelity<span class="cost">' not in page and "Running" in page
     audit.status = "queued"
     audit.save()
     run_edition_audit(audit.id, provider=Auditor([MATERIAL, MINOR]))

@@ -691,9 +691,11 @@ def _render_edition_detail(
     ]
     from almonium_book_processor.catalog.catalogue import SHORT_ROLE_LABELS
     from almonium_book_processor.catalog.edition_page import next_step, review_groups, work_tree
+    from almonium_book_processor.catalog.estimates import EditionEstimates
 
     context = {
         "edition": edition,
+        "costs": EditionEstimates(edition),
         "parallel_companions": parallel_companions,
         "spend": spend,
         "release_rows": release,
@@ -1295,6 +1297,8 @@ def _inferred_alignment_edition(edition_id: str) -> Edition:
 
 @staff_member_required
 def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.estimates import alignment_review as alignment_estimate
+
     edition = _inferred_alignment_edition(edition_id)
     source_edition = edition.inferred_alignment_source
     chapter_numbers = list(edition.chapters.order_by("sequence").values_list("sequence", flat=True))
@@ -1548,6 +1552,7 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
             ).select_related("editor")[:10],
             "ai_run_summaries": ai_run_summaries,
             "ai_enabled": bool(settings.OPENAI_API_KEY),
+            "ai_estimate": alignment_estimate(edition),
         },
     )
 

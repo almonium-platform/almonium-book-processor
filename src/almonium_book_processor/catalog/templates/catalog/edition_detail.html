@@ -228,7 +228,7 @@
     {% for field in translation_form %}
       <label><span>{{ field.label }}</span>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}</label>
     {% endfor %}
-    <button class="button" type="submit">Generate translation</button>
+    <button class="button" type="submit"{% cost_attrs costs.translation costs.translations "id_tier id_mode" %}>Generate translation{% cost costs.translation %}</button>
   </form>
 </details>
 {% endif %}
@@ -265,16 +265,16 @@
       {% if modernisation_advice.summary.advice.barriers %}<h3>Passage decisions</h3><ul>{% for barrier in modernisation_advice.summary.advice.barriers %}<li><code>{{ barrier.block_id }}</code> · {{ barrier.action }}: “{{ barrier.quote }}” — {{ barrier.reason }}</li>{% endfor %}</ul>{% endif %}
     {% endif %}
   {% endif %}
-  {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-modernisation-advice' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Assess modernisation (paid)</button></form>{% endif %}
+  {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-modernisation-advice' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit"{% cost_attrs costs.advice %}>Assess modernisation{% cost costs.advice %}</button></form>{% endif %}
   {% if modernisation_recommended %}
     <h3>Try one chapter</h3>
     <form method="post" action="{% url 'catalog:queue-modernisation-pilot' edition.id %}">{% csrf_token %}
       <label for="modernisation-chapter">Source chapter</label> <select id="modernisation-chapter" name="chapter_id">{% for chapter in edition.chapters.all %}<option value="{{ chapter.id }}">{{ chapter.sequence }} — {{ chapter.title }}</option>{% endfor %}</select>
-      <button class="button button-secondary" type="submit">Generate {{ edition.cefr_level }} modernisation sample (paid)</button>
+      <button class="button button-secondary" type="submit"{% cost_attrs costs.pilot|at:edition.cefr_level costs.pilots|at:edition.cefr_level "modernisation-chapter" %}>Generate {{ edition.cefr_level }} modernisation sample{% cost costs.pilot|at:edition.cefr_level %}</button>
     </form>
   {% endif %}
   {% for pilot in modernisation_pilots %}<p><a href="{% url 'catalog:adaptation-pilot' edition.id pilot.id %}">{{ pilot.summary.chapter_title }} · {{ pilot.get_status_display }} · sample comparison</a></p>{% endfor %}
-  {% if modernisation_can_generate %}<form method="post" action="{% url 'catalog:queue-modernisation-book' edition.id %}">{% csrf_token %}<button class="button" type="submit">Generate full {{ edition.cefr_level }} modernised edition (paid)</button></form>{% elif modernisation_recommended %}<p class="muted">A current sample must pass the blind level check and have no material fidelity finding before whole-book generation.</p>{% endif %}
+  {% if modernisation_can_generate %}<form method="post" action="{% url 'catalog:queue-modernisation-book' edition.id %}">{% csrf_token %}<button class="button" type="submit"{% cost_attrs costs.book|at:edition.cefr_level %}>Generate full {{ edition.cefr_level }} modernised edition{% cost costs.book|at:edition.cefr_level %}</button></form>{% elif modernisation_recommended %}<p class="muted">A current sample must pass the blind level check and have no material fidelity finding before whole-book generation.</p>{% endif %}
 </details>
 {% endif %}
 
@@ -289,11 +289,11 @@
       <div class="ladder-body">
         <strong>{% if rung.state == "reached" %}Reached{% elif rung.state == "probe_passed" %}Probe passed{% elif rung.state == "probe_failed" %}Probe failed · floor{% elif rung.state == "probing" %}Probing{% elif rung.state == "error" %}Probe error{% elif rung.state == "generated" %}Edition generated{% else %}Untried{% endif %}</strong>
         {% if rung.note %}· {{ rung.note }}{% endif %}
-        {% if rung.probe %}<a href="#run-{{ rung.probe.id }}">probe {{ rung.probe.id|stringformat:"s"|slice:":8" }}</a>{% if rung.probe.summary.cost_usd %} · ${{ rung.probe.summary.cost_usd }}{% endif %}{% endif %}
+        {% if rung.probe %}<a href="#run-{{ rung.probe.id }}">probe {{ rung.probe.id|stringformat:"s"|slice:":8" }}</a>{% if rung.probe.summary.cost_usd %} · {{ rung.probe.summary.cost_usd|usd }}{% endif %}{% endif %}
         {% for result in rung.probe.summary.results %}<div class="muted">{{ result.title|default:"chapter" }}: judge {{ result.judge_max_level }}{% if result.judge_estimate != result.judge_max_level %} (est. {{ result.judge_estimate }}){% endif %} · fidelity {{ result.material }} material / {{ result.minor }} minor / {{ result.uncertain }} uncertain · <a href="{% url 'catalog:adaptation-pilot' edition.id result.pilot_id %}">pilot</a></div>{% endfor %}
         {% for item in rung.editions %}<div class="muted"><a href="{% url 'catalog:edition-detail' item.edition.id %}">{{ item.edition.slug }}</a> · {{ item.edition.get_status_display }} · difficulty gate {% if item.difficulty_ok %}passed{% else %}not passed{% endif %} · fidelity audit {% if item.fidelity_ok %}clean{% elif item.fidelity_state == "current" %}{{ item.fidelity_open_findings }} open material finding{{ item.fidelity_open_findings|pluralize }}{% else %}{{ item.fidelity_state }}{% endif %}</div>{% endfor %}
-        {% if rung.can_probe and chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-floor-probe' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit" name="target_level" value="{{ rung.level }}">Probe {{ rung.level }} (3 chapters, paid)</button></form>{% endif %}
-        {% if rung.can_generate and chapter_analysis_enabled and edition.supports_parallel_reading %}<form method="post" action="{% url 'catalog:queue-book-adaptation' edition.id %}">{% csrf_token %}<button class="button" type="submit" name="target_level" value="{{ rung.level }}">Generate full {{ rung.level }} edition (paid)</button></form>{% endif %}
+        {% if rung.can_probe and chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-floor-probe' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit" name="target_level" value="{{ rung.level }}"{% cost_attrs costs.probe|at:rung.level %}>Probe {{ rung.level }} on 3 chapters{% cost costs.probe|at:rung.level %}</button></form>{% endif %}
+        {% if rung.can_generate and chapter_analysis_enabled and edition.supports_parallel_reading %}<form method="post" action="{% url 'catalog:queue-book-adaptation' edition.id %}">{% csrf_token %}<button class="button" type="submit" name="target_level" value="{{ rung.level }}"{% cost_attrs costs.book|at:rung.level %}>Generate full {{ rung.level }} edition{% cost costs.book|at:rung.level %}</button></form>{% endif %}
       </div>
     </div>
     {% endfor %}
@@ -304,15 +304,15 @@
   <form method="post" action="{% url 'catalog:queue-adaptation-pilot' edition.id %}">{% csrf_token %}
     <label for="source-chapter-select">Source chapter</label> <select id="source-chapter-select" name="chapter_id">{% for chapter in edition.chapters.all %}<option value="{{ chapter.id }}">{{ chapter.sequence }} — {{ chapter.title }}</option>{% endfor %}</select>
     <label>Optional editorial corrections <textarea name="editorial_feedback" maxlength="4000" rows="3" placeholder="Specific meaning or readability problems to address. The new pilot still uses the original source."></textarea></label>
-    <button class="button button-secondary" type="submit" name="target_level" value="B2">Generate B2 pilot (paid)</button>
-    <button class="button button-secondary" type="submit" name="target_level" value="B1">Generate B1 pilot (paid)</button>
+    <button class="button button-secondary" type="submit" name="target_level" value="B2"{% cost_attrs costs.pilot.B2 costs.pilots.B2 "source-chapter-select" %}>Generate B2 pilot{% cost costs.pilot.B2 %}</button>
+    <button class="button button-secondary" type="submit" name="target_level" value="B1"{% cost_attrs costs.pilot.B1 costs.pilots.B1 "source-chapter-select" %}>Generate B1 pilot{% cost costs.pilot.B1 %}</button>
   </form>
   {% else %}<p class="muted">Configure an OpenAI key to generate adaptations.</p>{% endif %}
   {% for pilot in adaptation_pilots %}<p><a href="{% url 'catalog:adaptation-pilot' edition.id pilot.id %}">{{ pilot.summary.chapter_title }} — {{ pilot.summary.target_level|default:adaptation_level }} pilot · {{ pilot.get_status_display }}</a></p>{% endfor %}
   {% if chapter_analysis_enabled and edition.supports_parallel_reading %}
   <h3>Full edition</h3>
   <p>Generates every chapter, then runs sentence splitting, vocabulary and difficulty analysis. The source stays unchanged; the new edition appears beside it in the tree and must be reviewed before publication.</p>
-  <form method="post" action="{% url 'catalog:queue-book-adaptation' edition.id %}">{% csrf_token %}<button class="button" type="submit" name="target_level" value="B2">Generate / resume B2 edition (paid)</button> <button class="button" type="submit" name="target_level" value="B1">Generate / resume B1 edition (paid)</button></form>
+  <form method="post" action="{% url 'catalog:queue-book-adaptation' edition.id %}">{% csrf_token %}<button class="button" type="submit" name="target_level" value="B2"{% cost_attrs costs.book.B2 %}>Generate / resume B2 edition{% cost costs.book.B2 %}</button> <button class="button" type="submit" name="target_level" value="B1"{% cost_attrs costs.book.B1 %}>Generate / resume B1 edition{% cost costs.book.B1 %}</button></form>
   {% endif %}
 </details>
 {% endif %}
@@ -331,10 +331,10 @@
 <details class="panel collapsible-panel fidelity-panel" id="fidelity-audit"{% if fidelity_findings or fidelity_audit_state == "stale" or fidelity_audit_state == "failed" or fidelity_audit_state == "none" %} open{% endif %}>
   <summary><span class="summary-title">Fidelity audit</span><span class="summary-meta">{% if fidelity_audit_state == "current" %}<span class="status status-succeeded">Current</span>{% if fidelity_findings %} · {{ fidelity_findings|length }} open finding{{ fidelity_findings|length|pluralize }}{% else %} · clean{% endif %}{% elif fidelity_audit_state == "stale" %}<span class="status status-review">Stale</span> · {{ fidelity_stale_chapters }} chapter{{ fidelity_stale_chapters|pluralize }} edited by hand since the audit{% elif fidelity_audit_state == "queued" or fidelity_audit_state == "running" %}<span class="status status-running">Running</span>{% elif fidelity_audit_state == "failed" %}<span class="status status-failed">Failed</span>{% else %}Not run{% endif %}</span></summary>
   <p class="muted">A literary-editor prompt reads every block beside its source block and reports changes of meaning, lost imagery, added facts or shifted certainty. Every finding is yours to act on: <strong>apply</strong> writes the suggested wording into the block as an audited revision, <strong>dismiss</strong> records that the adapted wording keeps the author's meaning. Reaching a level needs the audit current with no open material finding on top of the difficulty gate; minor and uncertain ones do not hold the gate. A suggestion applied as written carries the audit forward, and a phrase-sized change keeps the difficulty verdict too; only text edited by hand is unread, and the page then says what a re-read costs.</p>
-  {% if fidelity_audit_run %}<p>Run <a href="#run-{{ fidelity_audit_run.id }}">{{ fidelity_audit_run.id|stringformat:"s"|slice:":8" }}</a> · {{ fidelity_audit_run.summary.spec.model }} · {{ fidelity_audit_run.summary.completed_windows }}/{{ fidelity_audit_run.summary.windows }} windows{% if fidelity_audit_run.summary.review %} · {{ fidelity_audit_run.summary.review.counts.material }} material / {{ fidelity_audit_run.summary.review.counts.minor }} minor / {{ fidelity_audit_run.summary.review.counts.uncertain }} uncertain over {{ fidelity_audit_run.summary.review.blocks }} blocks · ${{ fidelity_audit_run.summary.review.cost_usd }}{% endif %}{% if fidelity_carried %} · carried forward over {{ fidelity_carried }} suggestion{{ fidelity_carried|pluralize }} applied as written{% endif %}</p>
-  {% if fidelity_audit_state == "stale" %}<p class="muted">Applying the audit's own suggestions keeps it current; text edited by hand is unread. Re-reading the {{ fidelity_stale_chapters }} changed chapter{{ fidelity_stale_chapters|pluralize }} costs about ${{ fidelity_stale_cost }}; unchanged chapters come from cache.</p>{% endif %}
+  {% if fidelity_audit_run %}<p>Run <a href="#run-{{ fidelity_audit_run.id }}">{{ fidelity_audit_run.id|stringformat:"s"|slice:":8" }}</a> · {{ fidelity_audit_run.summary.spec.model }} · {{ fidelity_audit_run.summary.completed_windows }}/{{ fidelity_audit_run.summary.windows }} windows{% if fidelity_audit_run.summary.review %} · {{ fidelity_audit_run.summary.review.counts.material }} material / {{ fidelity_audit_run.summary.review.counts.minor }} minor / {{ fidelity_audit_run.summary.review.counts.uncertain }} uncertain over {{ fidelity_audit_run.summary.review.blocks }} blocks · {{ fidelity_audit_run.summary.review.cost_usd|usd }}{% endif %}{% if fidelity_carried %} · carried forward over {{ fidelity_carried }} suggestion{{ fidelity_carried|pluralize }} applied as written{% endif %}</p>
+  {% if fidelity_audit_state == "stale" %}<p class="muted">Applying the audit's own suggestions keeps it current; text edited by hand is unread. Re-reading the {{ fidelity_stale_chapters }} changed chapter{{ fidelity_stale_chapters|pluralize }} costs {{ costs.fidelity.label }}; unchanged chapters come from cache.</p>{% endif %}
   {% if fidelity_audit_run.error %}<p class="message error">{{ fidelity_audit_run.error }}</p>{% endif %}{% endif %}
-  {% if fidelity_audit_enabled and fidelity_audit_state != "queued" and fidelity_audit_state != "running" %}<form method="post" action="{% url 'catalog:queue-fidelity-audit' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">{% if fidelity_audit_state == "current" %}Audit again{% elif fidelity_audit_state == "none" %}Audit fidelity (paid){% else %}Audit / resume (paid){% endif %}</button></form>{% elif not fidelity_audit_enabled %}<p class="muted">Configure an OpenAI key to audit fidelity.</p>{% endif %}
+  {% if fidelity_audit_enabled and fidelity_audit_state != "queued" and fidelity_audit_state != "running" %}<form method="post" action="{% url 'catalog:queue-fidelity-audit' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit"{% cost_attrs costs.fidelity %}>{% if fidelity_audit_state == "current" %}Audit again{% elif fidelity_audit_state == "none" %}Audit fidelity{% else %}Audit / resume{% endif %}{% cost costs.fidelity %}</button></form>{% elif not fidelity_audit_enabled %}<p class="muted">Configure an OpenAI key to audit fidelity.</p>{% endif %}
   {% if fidelity_findings %}
   <div class="fidelity-bulk">
     {% if fidelity_applicable %}<form method="post" action="{% url 'catalog:apply-fidelity-findings' edition.id %}">{% csrf_token %}<label class="checkbox-label"><input type="checkbox" name="confirm" value="1" required> I have read the suggestions</label><button class="button button-small" type="submit">Apply all {{ fidelity_applicable }} suggestions</button></form>{% endif %}
@@ -474,7 +474,7 @@
         <p class="muted">Names this edition as {{ edition.get_language_display }} readers know it — title, author and blurb — and translates the source's chapter descriptions for its contents. Reading difficulty stays the source's: the rubric is never applied to a machine translation. Runs by itself after translation and after the source is analysed; finished calls are reused.</p>
         {% if metadata_translation_run %}<p class="muted">Last run: <span class="status status-{{ metadata_translation_run.status }}">{{ metadata_translation_run.get_status_display }}</span> · {{ metadata_translation_run.summary.chapters|default:0 }} / {{ metadata_translation_run.summary.chapters_available|default:0 }} chapters{% if metadata_translation_run.summary.note %} · {{ metadata_translation_run.summary.note }}{% endif %}{% if metadata_translation_run.error %} · {{ metadata_translation_run.error }}{% endif %}</p>{% endif %}
       </div>
-      {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-metadata-translation' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Translate</button></form>{% else %}<p class="muted">Configure an OpenAI key to translate metadata.</p>{% endif %}
+      {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-metadata-translation' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit"{% cost_attrs costs.metadata_translation %}>Translate{% cost costs.metadata_translation %}</button></form>{% else %}<p class="muted">Configure an OpenAI key to translate metadata.</p>{% endif %}
     </div>
     {% elif not is_private %}
     <div class="action-row">
@@ -482,7 +482,7 @@
         <strong>Analyze chapters with AI</strong>
         <p class="muted">Paid analysis of reading difficulty, historical language and summaries. Long chapters are assessed in separate windows. Retries reuse completed results. Estimates are proposals; your editorial CEFR level stays unchanged.</p>
       </div>
-      {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-chapter-analysis' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Analyze / resume</button></form>{% else %}<p class="muted">Configure an OpenAI key to enable chapter analysis.</p>{% endif %}
+      {% if chapter_analysis_enabled %}<form method="post" action="{% url 'catalog:queue-chapter-analysis' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit"{% cost_attrs costs.analysis %}>Analyze / resume{% cost costs.analysis %}</button></form>{% else %}<p class="muted">Configure an OpenAI key to enable chapter analysis.</p>{% endif %}
     </div>
     {% endif %}
   </div>
@@ -516,7 +516,7 @@
       <strong>Detect with AI</strong>
       <p class="muted">For a book imported before this step existed, or whose model call never completed: one small call reads the opening text, checks the title and author, and proposes a blurb and first-publication year. Fields you confirmed are kept, the language is left alone (change it above if it is wrong), and nothing is final until you confirm.</p>
     </div>
-    <form method="post" action="{% url 'catalog:queue-metadata-detection' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Detect</button></form>
+    <form method="post" action="{% url 'catalog:queue-metadata-detection' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit"{% cost_attrs costs.detect %}>Detect{% cost costs.detect %}</button></form>
   </div>
   {% endif %}
 </details>

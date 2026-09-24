@@ -493,3 +493,8 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .gloss-book { flex: none; display: grid; justify-items: end; gap: .4rem; max-width: 18rem; text-align: right; }
 .gloss-book p { margin: 0; font-size: .8rem; }
 @media (max-width: 700px) { .gloss-book { justify-items: start; text-align: left; max-width: none; } }
+
+/* Price suffix on paid buttons: the verb scans first, the figure sits apart. */
+.cost { font-weight: 500; font-variant-numeric: tabular-nums; }
+.cost-sep { margin: 0 .45em; opacity: .55; }
+.tabular { font-variant-numeric: tabular-nums; }

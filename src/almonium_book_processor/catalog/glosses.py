@@ -156,29 +156,50 @@ def queue_book(edition: Edition, *, dispatch=True) -> dict[str, int]:
     return counts
 
 
+def generation_spec() -> dict:
+    return {
+        "model": settings.OPENAI_TRANSLATION_QUALITY_MODEL,
+        "prompt": SYSTEM_PROMPT,
+        "prompt_version": PROMPT_VERSION,
+        "schema": Output.model_json_schema(),
+    }
+
+
+def input_hash(source: dict, spec: dict) -> str:
+    """What a generation run is keyed by: a chapter's text, hints and the prompt."""
+    return digest([source, spec, VERSION])
+
+
 @transaction.atomic
-def queue_chapter(chapter_id, *, dispatch=True) -> PipelineRun:
+def queue_chapter(chapter_id, *, dispatch=True, regenerate=False) -> PipelineRun:
+    """Queue one chapter; a generated chapter is paid for again only when regenerating."""
     from almonium_book_processor.catalog.tasks import generate_chapter_glosses
 
     if not settings.OPENAI_API_KEY:
         raise ValueError("Configure an OpenAI key to generate glosses.")
     chapter = Chapter.objects.select_related("edition__work").get(pk=chapter_id)
     source = chapter_snapshot(chapter)
-    model = settings.OPENAI_TRANSLATION_QUALITY_MODEL
-    spec = {
-        "model": model,
-        "prompt": SYSTEM_PROMPT,
-        "prompt_version": PROMPT_VERSION,
-        "schema": Output.model_json_schema(),
-    }
-    input_hash = digest([source, spec, VERSION])
+    spec = generation_spec()
+    key = input_hash(source, spec)
+    idempotency_key = f"{chapter.edition_id}:{VERSION}:{key}"
+    if regenerate:
+        # Every regeneration is a fresh, separately keyed run: its calls are new
+        # AIRuns, so the provider is paid again, which the button says.
+        earlier = PipelineRun.objects.filter(idempotency_key__startswith=idempotency_key)
+        active = earlier.filter(
+            status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING]
+        ).first()
+        if active:
+            return active
+        if earlier.filter(status=PipelineRun.Status.SUCCEEDED).exists():
+            idempotency_key = f"{idempotency_key}:again:{earlier.count()}"
     run, created = PipelineRun.objects.get_or_create(
-        idempotency_key=f"{chapter.edition_id}:{VERSION}:{input_hash}",
+        idempotency_key=idempotency_key,
         defaults={
             "edition": chapter.edition,
             "stage": PipelineRun.Stage.GLOSSES,
             "processor_version": VERSION,
-            "input_hash": input_hash,
+            "input_hash": key,
             "summary": {
                 "source": source,
                 "spec": spec,

@@ -1,10 +1,11 @@
 {% extends "catalog/base.html" %}
+{% load catalog_extras %}
 {% block content %}
 <p><a href="{% url 'catalog:edition-detail' edition.id %}">← {{ edition.title }}</a></p>
 <div class="page-heading"><div><p class="eyebrow">Editorial notes</p><h1>Contextual glosses</h1><p class="muted">Optional explanations beside exact passages. Drafts stay private until approved; editing the passage retires its note from the reader.</p></div>
   <form class="gloss-book" method="post" action="{% url 'catalog:queue-book-glosses' edition.id %}">{% csrf_token %}<input type="hidden" name="chapter_id" value="{{ chapter.id }}">
-    <button class="button" type="submit">Generate whole book (paid)</button>
-    <p class="muted">{{ book_generated }} of {{ chapters|length }} chapters generated{% if book_active %} · {{ book_active }} in progress{% endif %}. Generated chapters are not charged again.</p>
+    {% if book_left %}<button class="button" type="submit"{% cost_attrs book_estimate %}>Generate whole book{% cost book_estimate %}</button>{% endif %}
+    <p class="muted">{{ book_helper }}</p>
   </form>
 </div>
 
@@ -18,9 +19,9 @@
     <div>
       <p class="eyebrow">Chapter {{ chapter.sequence }}</p>
       <h2>{{ chapter.title }}</h2>
-      {% if run %}<p class="muted">Latest generation: <span class="status status-{{ run.status }}">{{ run.get_status_display }}</span> · {{ run.progress }}%{% if run.summary.candidates != None %} · {{ run.summary.candidates }} candidates{% endif %}</p>{% if run.error %}<p class="run-error">{{ run.error }}</p>{% endif %}{% else %}<p class="muted">No generation run for this chapter yet.</p>{% endif %}
+      {% if run %}<p class="muted">Latest generation: <span class="status status-{{ run.status }}">{{ run.get_status_display }}</span> · {{ run.progress }}%{% if run.summary.candidates != None %} · {{ run.summary.candidates }} candidates{% endif %}{% if run_cost %} · <span class="tabular">{{ run_cost }}</span>{% endif %}</p>{% if run.error %}<p class="run-error">{{ run.error }}</p>{% endif %}{% else %}<p class="muted">No generation run for this chapter yet.</p>{% endif %}
     </div>
-    <form method="post" action="{% url 'catalog:queue-glosses' edition.id %}">{% csrf_token %}<input type="hidden" name="chapter_id" value="{{ chapter.id }}"><button class="button button-secondary" type="submit">Generate this chapter (paid)</button></form>
+    <form method="post" action="{% url 'catalog:queue-glosses' edition.id %}">{% csrf_token %}<input type="hidden" name="chapter_id" value="{{ chapter.id }}">{% if regenerate %}<input type="hidden" name="regenerate" value="1">{% endif %}<button class="button button-secondary" type="submit"{% cost_attrs chapter_estimate %}>{% if regenerate %}Regenerate{% else %}Generate chapter{% endif %}{% cost chapter_estimate %}</button></form>
   </div>
 </section>
 

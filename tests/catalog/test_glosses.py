@@ -1,11 +1,15 @@
 import json
+import re
 import uuid
+from decimal import Decimal
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
+from django.utils.html import escape
 
+from almonium_book_processor.catalog import estimates
 from almonium_book_processor.catalog.glosses import (
     add_manual,
     chapter_snapshot,
@@ -204,6 +208,88 @@ def test_whole_book_queue_skips_generated_and_empty_chapters(passage):
     )
     assert response.status_code == 302
     assert response.url.endswith(f"?chapter={second.id}")
-    page = client.get(response.url)
-    assert b"1 of 3 chapters generated" in page.content
-    assert b"1 in progress" in page.content
+    page = client.get(response.url).content.decode()
+    assert "1 in progress. Chapter 1 is already generated" not in page  # nothing left to list
+    assert "Every chapter is generated." not in page
+    assert "1 in progress." in page
+    assert "Generate whole book" not in page  # the only chapter left is already queued
+
+
+def test_page_prices_what_is_left_and_offers_to_regenerate(passage):
+    edition, chapter, block = passage
+    run = queue_chapter(chapter.id, dispatch=False)
+    run_chapter(run.id, provider=Provider())
+    second = Chapter.objects.create(edition=edition, sequence=2, title="Two")
+    ContentBlock.objects.create(
+        edition=edition,
+        chapter=second,
+        block_id="c2.p1",
+        sequence=2,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="A second passage. " * 200,
+        sentences=[],
+        align_group=uuid.uuid4(),
+    )
+    staff = get_user_model().objects.create_user("price-staff", is_staff=True)
+    client = Client()
+    client.force_login(staff)
+    url = reverse("catalog:gloss-review", args=[edition.id])
+    page = client.get(f"{url}?chapter={chapter.id}").content.decode()
+    left = estimates.gloss_book([(second, chapter_snapshot(second))])
+    assert 'Generate whole book<span class="cost">' in page
+    assert f'<span class="cost-value">{escape(left.label)}</span>' in page
+    assert "1 chapter left. Chapter 1 is already generated and won’t be charged again." in page
+    # The generated chapter offers to regenerate and shows what its run cost.
+    assert "Regenerate" in page and 'name="regenerate"' in page
+    assert re.search(r'candidates · <span class="tabular">\$0\.\d+</span>', page)
+    response = client.post(
+        reverse("catalog:queue-glosses", args=[edition.id]),
+        {"chapter_id": str(chapter.id), "regenerate": "1"},
+    )
+    assert response.status_code == 302
+    runs = edition.pipeline_runs.filter(stage="glosses", summary__chapter_id=str(chapter.id))
+    assert runs.count() == 2
+    assert runs.filter(status="queued").count() == 1
+    # Without the flag, a generated chapter is never paid for twice.
+    assert queue_chapter(chapter.id, dispatch=False).id == run.id
+    assert runs.count() == 2
+
+
+def test_estimate_labels_confirm_only_above_the_threshold():
+    from decimal import Decimal
+
+    from almonium_book_processor.catalog.estimates import Estimate, unavailable
+
+    small = Estimate(Decimal("0.1432"), "note", "Generate 2 chapters")
+    assert small.label == "~$0.14" and small.confirm == ""
+    large = Estimate(Decimal("4.1"), "note", "Generate 29 chapters")
+    assert large.confirm == "Generate 29 chapters for about $4.10?"
+    assert Estimate(Decimal("0.004")).label == "<$0.01"
+    assert Estimate(Decimal(0)).label == "$0"
+    missing = unavailable("no text")
+    assert missing.label == "AI" and missing.note.startswith("No estimate available")
+
+
+def test_cost_tags_render_the_suffix_tooltip_and_question():
+    from decimal import Decimal
+
+    from django.template import Context, Template
+
+    from almonium_book_processor.catalog.estimates import Estimate
+
+    html = Template(
+        "{% load catalog_extras %}<button{% cost_attrs e %}>Go{% cost e %}</button>"
+    ).render(Context({"e": Estimate(Decimal("4.1"), "Four <chapters>", "Generate 4 chapters")}))
+    assert 'title="Four &lt;chapters&gt;"' in html
+    assert 'data-confirm="Generate 4 chapters for about $4.10?"' in html
+    assert '<span class="cost-value">~$4.10</span>' in html
+
+
+def test_gloss_estimate_prices_each_window_at_the_quality_rate(passage):
+    edition, chapter, block = passage
+    estimate = estimates.gloss_chapter(chapter)
+    # One small window: input tokens of prompt plus text at $2/M, 150 output at $12/M.
+    assert Decimal("0.001") < estimate.usd < Decimal("0.005")
+    Chapter.objects.create(edition=edition, sequence=9, title="Empty")
+    empty = Chapter.objects.get(sequence=9)
+    assert estimates.gloss_chapter(empty).usd is None

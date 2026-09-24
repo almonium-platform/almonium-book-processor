@@ -2,7 +2,11 @@
 
 Staff can open **Contextual glosses** on a public edition, choose a chapter,
 generate paid note candidates, edit their wording, and approve or reject them.
-They can also write a draft without an AI call. Generation uses the edition's
+They can also write a draft without an AI call. **Generate whole book** queues
+every chapter that is not yet generated for its current text; a generated chapter
+is never charged again unless an editor clicks **Regenerate**, which starts a
+fresh, separately keyed run. Both buttons show the estimated price of the work
+still to do, and a chapter's run line shows what it actually cost. Generation uses the edition's
 quality model in chapter windows and records the prompt, model, response, usage,
 cost and failures in the normal AI ledger. A successful request is idempotent
 for its source text, processor version, prompt version and model.

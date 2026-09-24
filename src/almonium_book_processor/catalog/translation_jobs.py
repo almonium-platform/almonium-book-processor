@@ -108,6 +108,26 @@ def estimate_translation(
     edition = _published_canonical(edition_slug)
     _check_options(edition, target_language, tier, mode)
 
+    usage = translation_usage(edition)
+    return {
+        "edition_id": str(edition.id),
+        "edition_slug": edition.slug,
+        "target_language": target_language,
+        "tier": tier,
+        "mode": mode,
+        **usage,
+        "estimated_cost_usd": str(
+            _price(
+                tier,
+                usage["estimated_input_tokens"],
+                usage["estimated_output_tokens"],
+                mode=mode,
+            )
+        ),
+    }
+
+
+def translation_usage(edition: Edition) -> dict[str, int]:
     prompt_tokens = _tokens(len(TRANSLATION_SYSTEM_PROMPT) + len(TRANSLATION_USER_TEMPLATE))
     chapters = blocks = source_chars = 0
     input_tokens = output_tokens = 0
@@ -123,20 +143,27 @@ def estimate_translation(
         input_tokens += text_tokens + prompt_tokens
         output_tokens += math.ceil(text_tokens * OUTPUT_TO_INPUT_RATIO)
         output_tokens += ENVELOPE_TOKENS_PER_BLOCK * len(texts)
-
     return {
-        "edition_id": str(edition.id),
-        "edition_slug": edition.slug,
-        "target_language": target_language,
-        "tier": tier,
-        "mode": mode,
         "chapters": chapters,
         "blocks": blocks,
         "source_chars": source_chars,
         "estimated_input_tokens": input_tokens,
         "estimated_output_tokens": output_tokens,
-        "estimated_cost_usd": str(_price(tier, input_tokens, output_tokens, mode=mode)),
     }
+
+
+def price_edition(
+    edition: Edition, tier: str, *, batch: bool, usage: dict[str, int] | None = None
+) -> Decimal:
+    """The staff form's price for translating this edition, same arithmetic as the API's."""
+
+    usage = usage or translation_usage(edition)
+    return _price(
+        tier,
+        usage["estimated_input_tokens"],
+        usage["estimated_output_tokens"],
+        mode="batch" if batch else "inline",
+    )
 
 
 def start_translation_job(

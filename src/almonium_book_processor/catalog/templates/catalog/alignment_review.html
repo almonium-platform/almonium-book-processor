@@ -10,7 +10,7 @@
     <p class="muted">Compare automatic groups, repair pairings, correct target text, and resolve QA findings before approval.</p>
   </div>
   <div class="button-row">
-    <form method="post" action="{% url 'catalog:queue-ai-alignment-review' edition.id %}">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter|default:1 }}"><input type="hidden" name="filter" value="{{ view_filter }}"><button class="button" type="submit" {% if not ai_enabled %}disabled title="OPENAI_API_KEY is not configured"{% endif %}>Run autonomous AI review</button></form>
+    <form method="post" action="{% url 'catalog:queue-ai-alignment-review' edition.id %}">{% csrf_token %}<input type="hidden" name="chapter" value="{{ chapter|default:1 }}"><input type="hidden" name="filter" value="{{ view_filter }}"><button class="button" type="submit" {% if not ai_enabled %}disabled title="OPENAI_API_KEY is not configured"{% else %}{% cost_attrs ai_estimate %}{% endif %}>Run autonomous AI review{% if ai_enabled %}{% cost ai_estimate %}{% endif %}</button></form>
     <a class="button button-secondary" href="{% url 'catalog:edition-detail' edition.id %}">Edition overview</a>
     <span class="status {% if unresolved_warning_count %}status-failed{% else %}status-ready{% endif %}">{{ unresolved_warning_count }} unresolved</span>
   </div>

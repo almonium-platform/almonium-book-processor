@@ -116,3 +116,63 @@ def live_removed():
     from almonium_book_processor.catalog.activity import removed_activity
 
     return _live(reverse("catalog:removed-activity"), removed_activity()["fingerprint"])
+
+
+@register.simple_tag
+def cost(estimate):
+    """The price suffix on a paid button: "· ~$0.14", or "· AI" when none is known."""
+
+    if estimate is None:
+        return ""
+    return format_html(
+        '<span class="cost"><span class="cost-sep" aria-hidden="true">·</span>'
+        '<span class="cost-value">{}</span></span>',
+        estimate.label,
+    )
+
+
+@register.simple_tag
+def cost_attrs(estimate, choices=None, fields=""):
+    """The button's tooltip and, above the threshold, its confirmation question.
+
+    ``choices`` maps "value|value" of the ``fields`` (space-separated ids) to an
+    estimate each, for a price that follows a select in the same form.
+    """
+
+    import json
+
+    from django.utils.safestring import mark_safe
+
+    if estimate is None:
+        return ""
+    attrs = format_html(' title="{}"', estimate.note)
+    if estimate.confirm:
+        attrs += format_html(' data-confirm="{}"', estimate.confirm)
+    if choices:
+        data = {
+            key: {"label": item.label, "note": item.note, "confirm": item.confirm}
+            for key, item in choices.items()
+        }
+        attrs += format_html(
+            ' data-cost-from="{}" data-costs="{}"', fields, json.dumps(data, ensure_ascii=False)
+        )
+    return mark_safe(attrs)
+
+
+@register.filter
+def at(mapping, key):
+    """``mapping[key]`` for a key the template holds in a variable."""
+
+    try:
+        return mapping[key]
+    except (KeyError, TypeError, IndexError):
+        return None
+
+
+@register.filter
+def usd(value):
+    """Dollars as the AI spend panel prints them."""
+
+    from almonium_book_processor.catalog.spend import format_usd
+
+    return format_usd(value)
