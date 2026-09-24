@@ -12,6 +12,7 @@ from almonium_book_processor.catalog.glosses import (
     GLOSSABLE_BLOCK_TYPES,
     add_manual,
     current,
+    queue_book,
     queue_chapter,
     review,
 )
@@ -74,6 +75,16 @@ def gloss_review(request: HttpRequest, edition_id) -> HttpResponse:
     )
     for chapter in chapters:
         chapter.draft_count = drafts.get(chapter.id, 0)
+    run_states = {
+        (chapter_id, status)
+        for chapter_id, status in edition.pipeline_runs.filter(
+            stage=PipelineRun.Stage.GLOSSES
+        ).values_list("summary__chapter_id", "status")
+    }
+    generated = {chapter_id for chapter_id, status in run_states if status == "succeeded"}
+    active = {
+        chapter_id for chapter_id, status in run_states if status in {"queued", "running"}
+    } - generated
     run = edition.pipeline_runs.filter(
         stage=PipelineRun.Stage.GLOSSES, summary__chapter_id=str(selected.id)
     ).first()
@@ -86,6 +97,8 @@ def gloss_review(request: HttpRequest, edition_id) -> HttpResponse:
             "chapter": selected,
             "notes": notes,
             "run": run,
+            "book_generated": len(generated),
+            "book_active": len(active),
             "blocks": selected.blocks.filter(block_type__in=GLOSSABLE_BLOCK_TYPES).order_by(
                 "sequence"
             ),
@@ -109,6 +122,27 @@ def queue_glosses(request: HttpRequest, edition_id) -> HttpResponse:
             f"for chapter {chapter.sequence}.",
         )
     return redirect(_review_url(edition.id, chapter.id))
+
+
+@staff_member_required
+@require_POST
+def queue_book_glosses(request: HttpRequest, edition_id) -> HttpResponse:
+    edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
+    try:
+        counts = queue_book(edition)
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        parts = [f"{counts['queued']} chapters queued or already running"]
+        if counts["generated"]:
+            parts.append(f"{counts['generated']} already generated")
+        if counts["skipped"]:
+            parts.append(f"{counts['skipped']} without prose skipped")
+        messages.success(request, "Whole-book gloss generation: " + ", ".join(parts) + ".")
+    chapter = edition.chapters.filter(pk=request.POST.get("chapter_id") or None).first()
+    if chapter:
+        return redirect(_review_url(edition.id, chapter.id))
+    return redirect("catalog:gloss-review", edition_id=edition.id)
 
 
 @staff_member_required

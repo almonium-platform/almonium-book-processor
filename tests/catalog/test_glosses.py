@@ -10,6 +10,7 @@ from almonium_book_processor.catalog.glosses import (
     add_manual,
     chapter_snapshot,
     public_notes,
+    queue_book,
     queue_chapter,
     review,
     run_chapter,
@@ -173,3 +174,36 @@ def test_invalid_paid_output_records_failure_without_publishing(passage):
     assert run.status == "failed"
     assert run.ai_runs.get().status == "failed"
     assert not GlossNote.objects.exists()
+
+
+def test_whole_book_queue_skips_generated_and_empty_chapters(passage):
+    edition, chapter, block = passage
+    run = queue_chapter(chapter.id, dispatch=False)
+    run_chapter(run.id, provider=Provider())
+    second = Chapter.objects.create(edition=edition, sequence=2, title="Two")
+    ContentBlock.objects.create(
+        edition=edition,
+        chapter=second,
+        block_id="c2.p1",
+        sequence=2,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="A second passage.",
+        sentences=[{"start": 0, "end": 17}],
+        align_group=uuid.uuid4(),
+    )
+    Chapter.objects.create(edition=edition, sequence=3, title="Blank")
+    assert queue_book(edition, dispatch=False) == {"queued": 1, "generated": 1, "skipped": 1}
+    assert queue_book(edition, dispatch=False) == {"queued": 1, "generated": 1, "skipped": 1}
+    assert edition.pipeline_runs.filter(stage="glosses").count() == 2
+    staff = get_user_model().objects.create_user("book-gloss-staff", is_staff=True)
+    client = Client()
+    client.force_login(staff)
+    response = client.post(
+        reverse("catalog:queue-book-glosses", args=[edition.id]),
+        {"chapter_id": str(second.id)},
+    )
+    assert response.status_code == 302
+    assert response.url.endswith(f"?chapter={second.id}")
+    page = client.get(response.url)
+    assert b"1 of 3 chapters generated" in page.content
+    assert b"1 in progress" in page.content

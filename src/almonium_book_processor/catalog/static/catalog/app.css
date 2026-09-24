@@ -490,3 +490,6 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .gloss-new { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; gap: 1rem; margin-top: 1rem; }
 .gloss-new .gloss-wide { grid-column: 1 / -1; }
 @media (max-width: 700px) { .gloss-chapter .section-heading { align-items: stretch; flex-direction: column; } .gloss-new { grid-template-columns: 1fr; } }
+.gloss-book { flex: none; display: grid; justify-items: end; gap: .4rem; max-width: 18rem; text-align: right; }
+.gloss-book p { margin: 0; font-size: .8rem; }
+@media (max-width: 700px) { .gloss-book { justify-items: start; text-align: left; max-width: none; } }

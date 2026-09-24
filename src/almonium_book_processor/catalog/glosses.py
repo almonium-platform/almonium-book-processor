@@ -140,6 +140,22 @@ def _windows(snapshot: dict) -> list[list[dict]]:
     return windows
 
 
+def queue_book(edition: Edition, *, dispatch=True) -> dict[str, int]:
+    """Queue every chapter with prose; chapters already generated are not paid for again."""
+    counts = {"queued": 0, "generated": 0, "skipped": 0}
+    for chapter in edition.chapters.order_by("sequence"):
+        if (
+            not chapter.blocks.filter(block_type__in=GLOSSABLE_BLOCK_TYPES)
+            .exclude(text="")
+            .exists()
+        ):
+            counts["skipped"] += 1
+            continue
+        run = queue_chapter(chapter.id, dispatch=dispatch)
+        counts["generated" if run.status == PipelineRun.Status.SUCCEEDED else "queued"] += 1
+    return counts
+
+
 @transaction.atomic
 def queue_chapter(chapter_id, *, dispatch=True) -> PipelineRun:
     from almonium_book_processor.catalog.tasks import generate_chapter_glosses

@@ -20,6 +20,11 @@ urlpatterns = [
         gloss_views.queue_glosses,
         name="queue-glosses",
     ),
+    path(
+        "editions/<uuid:edition_id>/glosses/queue-book/",
+        gloss_views.queue_book_glosses,
+        name="queue-book-glosses",
+    ),
     path("editions/<uuid:edition_id>/glosses/add/", gloss_views.add_gloss, name="add-gloss"),
     path(
         "editions/<uuid:edition_id>/glosses/<uuid:note_id>/review/",
