@@ -201,14 +201,16 @@ DIFFICULTY_JUDGES = os.getenv("DIFFICULTY_JUDGES", "")
 FIDELITY_AUDITORS = os.getenv("FIDELITY_AUDITORS", "")
 DIFFICULTY_READINGS = int(os.getenv("DIFFICULTY_READINGS", "3"))
 
-# A task that generates through a plan seat can only run where the plan's CLI is signed in.
-# It is sent to a queue of its own, which the container worker never takes and the owner's
-# host worker does (./plan-worker). With no plan seat configured nothing is routed there.
+# A task that calls a plan seat can only run where the plan's CLI is signed in. It is sent to
+# a queue of its own, which the container worker never takes and the owner's host worker does
+# (./plan-worker). The adaptation tasks generate, judge and audit, so a plan seat in any of
+# those three settings sends them there. With no plan seat configured nothing is routed.
 PLAN_QUEUE = "plans"
 
 
-def plan_task_routes(generator: str) -> dict[str, dict[str, str]]:
-    if generator.partition(":")[0] not in ("codex", "claude-code"):
+def plan_task_routes(*seat_settings: str) -> dict[str, dict[str, str]]:
+    seats = [seat.strip() for setting in seat_settings for seat in setting.split(",")]
+    if not any(seat.partition(":")[0] in ("codex", "claude-code") for seat in seats):
         return {}
     return {
         f"almonium_book_processor.catalog.tasks.{task}": {"queue": PLAN_QUEUE}
@@ -216,7 +218,7 @@ def plan_task_routes(generator: str) -> dict[str, dict[str, str]]:
     }
 
 
-CELERY_TASK_ROUTES = plan_task_routes(ADAPTATION_GENERATOR)
+CELERY_TASK_ROUTES = plan_task_routes(ADAPTATION_GENERATOR, DIFFICULTY_JUDGES, FIDELITY_AUDITORS)
 # Private-import metadata is one small call per book; the cheaper tier is plenty.
 OPENAI_METADATA_MODEL = os.getenv("OPENAI_METADATA_MODEL", "gpt-5.6-luna")
 # The fidelity audit reads adapted text beside its source; "quality" is the

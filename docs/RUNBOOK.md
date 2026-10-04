@@ -38,8 +38,19 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   image: restart it after changing `src/`, as you rebuild the containers.
 - A job on a plan uses up part of the plan's weekly allowance and is recorded
   at that share of the plan's price (`ai/pricing.py`). `manage.py plan_meter`
-  reads the Codex meter. The same pilot's blind judge and fidelity audit still
-  call the API.
+  reads the Codex meter.
+- `DIFFICULTY_JUDGES` and `FIDELITY_AUDITORS` name the pilot's blind judges
+  and fidelity auditors the same way, e.g. `claude-code:opus,codex:gpt-6.1-sol`
+  and `claude-code:opus,codex:gpt-6.1-sol:medium`. Each judge reads
+  `DIFFICULTY_READINGS` times (three) and its middle reading counts; the
+  strictest judge decides. Two auditors each read the whole pilot, and a
+  material finding only one raised holds the gate only if the other confirms
+  it. A plan seat in any of the three settings sends the adaptation tasks to
+  the `plans` queue. Left empty, the pilot is judged and audited by the API's
+  models as before. A probe records its generator, judges and auditors, so
+  changing any of them makes the level probeable again.
+- These settings cover chapter pilots and floor probes. **A whole adapted
+  edition's own gates still use the API's chapter analysis and edition audit.**
 - Set `CODEX_BINARY` in `.env` when an old `codex` is first on the path.
 - A deployed environment leaves `ADAPTATION_GENERATOR` empty and is unchanged.
 

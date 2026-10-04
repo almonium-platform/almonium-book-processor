@@ -19,6 +19,13 @@ def test_a_plan_seat_sends_the_generating_tasks_to_the_host_worker():
     assert all(route == {"queue": PLAN_QUEUE} for route in routes.values())
 
 
+def test_a_plan_judge_or_auditor_alone_also_sends_them_there():
+    # the adaptation tasks judge and audit too, so the generator on the API is not enough
+    assert plan_task_routes("", "claude-code:opus,codex:gpt-6.1-sol", "")
+    assert plan_task_routes("openai:gpt-5.6-terra", "", "openai:x, codex:gpt-6.1-sol:medium")
+    assert plan_task_routes("", "openai:gpt-6.1-sol", "") == {}
+
+
 def test_the_routed_names_are_real_tasks():
     from almonium_book_processor.catalog import tasks
 
