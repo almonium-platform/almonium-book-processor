@@ -9,6 +9,7 @@ inferred alignment pass at all.
 from __future__ import annotations
 
 import json
+import re
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -163,6 +164,22 @@ Target language: {target_language}
 DESCRIPTIONS
 {descriptions}
 """
+
+
+# An apostrophe-like character between two letters. A single quotation mark never stands
+# there, so this cannot flatten nested quotes.
+_APOSTROPHE_IN_WORD = re.compile(r"(?<=[^\W\d_])[\u2019\u02bc\u2018`](?=[^\W\d_])")
+
+
+def straight_apostrophes(text: str) -> str:
+    """Write the apostrophe inside a word as the straight one.
+
+    Models differ: GPT writes the typographic apostrophe, Claude the straight one. Every
+    stored original uses the straight one, and a word must be one string whoever wrote it,
+    since the reader looks words up by their text.
+    """
+
+    return _APOSTROPHE_IN_WORD.sub("'", text)
 
 
 def render_source_block(block) -> str:

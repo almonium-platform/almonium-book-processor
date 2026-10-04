@@ -547,6 +547,39 @@ def test_subscription_tier_translates_through_the_given_provider_at_no_cost() ->
     assert edition.blocks.get(block_id="c1.h1").text == "Розділ I"
 
 
+def test_apostrophes_inside_words_are_stored_straight() -> None:
+    from almonium_book_processor.ai.translation import straight_apostrophes
+    from almonium_book_processor.catalog.ai_translation import CODEX_TIER, run_translation_inline
+
+    # a closing or an opening single quotation mark is not between two letters, and stays
+    assert straight_apostrophes("м\u2019язів і п\u02bcять") == "м'язів і п'ять"
+    assert straight_apostrophes("\u2018so,\u2019 he said") == "\u2018so,\u2019 he said"
+
+    edition = create_parallel_translation(
+        source_edition=canonical_edition(),
+        target_language="uk",
+        register="period-faithful",
+        tier=CODEX_TIER,
+    )
+
+    class FakeCodex:
+        name = "codex"
+
+        def respond(self, body):
+            line = output_line(
+                "chapter-1",
+                [
+                    translated("c1.h1", "Розділ I"),
+                    translated("c1.p2", "Його шкіра ледве прикривала сплетіння м\u2019язів."),
+                ],
+            )
+            return line["response"]["body"]
+
+    run_translation_inline(str(edition.id), tier=CODEX_TIER, provider=FakeCodex())
+
+    assert edition.blocks.get(block_id="c1.p2").text.endswith("сплетіння м'язів.")
+
+
 def test_codex_tier_translates_with_the_codex_model_at_no_cost(settings) -> None:
     from almonium_book_processor.catalog.ai_translation import CODEX_TIER, run_translation_inline
 

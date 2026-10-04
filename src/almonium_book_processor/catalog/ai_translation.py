@@ -31,6 +31,7 @@ from almonium_book_processor.ai.translation import (
     TRANSLATION_USER_TEMPLATE,
     ChapterTranslation,
     render_source_block,
+    straight_apostrophes,
 )
 from almonium_book_processor.catalog.models import (
     AIRun,
@@ -463,6 +464,8 @@ def _materialize_chapter(
             block_id__in=chapter_manifest["block_ids"],
         )
     }
+    for block in translation.blocks:
+        block.text = straight_apostrophes(block.text)
     translated_chars = sum(len(block.text) for block in translation.blocks)
     source_chars = chapter_manifest["source_chars"] or 1
     ratio = translated_chars / source_chars
