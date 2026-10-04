@@ -260,6 +260,23 @@ def test_a_new_fix_ruling_without_a_fix_goes_to_a_person():
     assert finding.suggested_text == "здійснення своїх трудів"
 
 
+@pytest.mark.django_db(transaction=True)
+def test_windows_read_in_parallel_record_the_same_findings():
+    edition = translated_edition()
+    outside = FakeReviewer([issue("побачив завершення", "узрів завершення")])
+    opus = FakeReviewer([issue("побачив завершення", "уздрів завершення", reviewer="claude-code")])
+
+    run = review_translation(
+        str(edition.id),
+        providers={"claude-code": opus, "codex": outside, "adjudicator": FakeReviewer([])},
+        workers=2,
+    )
+
+    assert run.status == PipelineRun.Status.SUCCEEDED
+    finding = TextQualityFinding.objects.get(edition=edition)
+    assert finding.evidence["agreement"] == "both"
+
+
 def test_the_adjudicator_is_never_the_model_that_translated(settings):
     from almonium_book_processor.catalog.translation_review import _adjudicator
 

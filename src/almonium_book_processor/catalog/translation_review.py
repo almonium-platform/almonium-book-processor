@@ -25,11 +25,12 @@ dismiss actions. The kind and the reviewers are kept in each finding's evidence.
 from __future__ import annotations
 
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from typing import Literal
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
@@ -689,12 +690,18 @@ def adjudicate(run, edition, pairs: dict, findings: list[dict], adjudicator, nam
 
 
 def review_translation(
-    edition_id, *, chapters: list[int] | None = None, providers: dict | None = None
+    edition_id,
+    *,
+    chapters: list[int] | None = None,
+    providers: dict | None = None,
+    workers: int = 1,
 ) -> PipelineRun:
     """Read a machine translation twice, cross-check, settle the wording, queue the findings.
 
     ``providers`` maps a reviewer name to a provider, for tests; by default each reviewer gets
     its own. The Claude Code reviewer needs the CLI's login, so this runs where that login is.
+    ``workers`` windows are read at a time: a window is some ten minutes of calls made one
+    after another, and windows do not depend on each other until the findings are recorded.
     """
 
     edition = Edition.objects.select_related("source_edition", "work").get(pk=edition_id)
@@ -736,7 +743,8 @@ def review_translation(
     run.save(update_fields=["status", "started_at", "error", "updated_at"])
     try:
         issues = []
-        for done, window in enumerate(plan["windows"], 1):
+
+        def window_findings(window: dict) -> list[dict]:
             texts = {pair["block_id"]: pair["adapted"] for pair in window["data"]["blocks"]}
             per_reviewer = {
                 reviewer["name"]: _review_window(
@@ -759,9 +767,25 @@ def review_translation(
             adjudicate(
                 run, edition, pairs, found, adjudicator, names, (providers or {}).get("adjudicator")
             )
-            issues.extend(found)
-            run.progress = int(95 * done / len(plan["windows"]))
-            run.save(update_fields=["progress", "updated_at"])
+            return found
+
+        def in_thread(window: dict) -> list[dict]:
+            try:
+                return window_findings(window)
+            finally:
+                # each thread opened its own database connection
+                connection.close()
+
+        with ThreadPoolExecutor(max_workers=max(workers, 1)) as pool:
+            results = (
+                pool.map(in_thread, plan["windows"])
+                if workers > 1
+                else map(window_findings, plan["windows"])
+            )
+            for done, found in enumerate(results, 1):
+                issues.extend(found)
+                run.progress = int(95 * done / len(plan["windows"]))
+                run.save(update_fields=["progress", "updated_at"])
         # The page names the models, which is what a reader recognises.
         models = {reviewer["name"]: reviewer["model"] for reviewer in panel}
         for issue in issues:

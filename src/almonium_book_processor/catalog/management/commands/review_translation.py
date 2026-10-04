@@ -14,13 +14,16 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("edition_slug")
         parser.add_argument("--chapters", nargs="+", type=int, help="chapter sequences to review")
+        parser.add_argument("--workers", type=int, default=4, help="windows read at a time")
 
     def handle(self, *args, **options):
         try:
             edition = Edition.objects.get(slug=options["edition_slug"])
         except Edition.DoesNotExist as error:
             raise CommandError(f"No edition with slug {options['edition_slug']}") from error
-        run = review_translation(str(edition.id), chapters=options["chapters"])
+        run = review_translation(
+            str(edition.id), chapters=options["chapters"], workers=options["workers"]
+        )
         review = run.summary.get("review") or {}
         agreement = review.get("agreement") or {}
         self.stdout.write(
