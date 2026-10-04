@@ -177,7 +177,10 @@ OPENAI_TRANSLATION_DRAFT_MODEL = os.getenv("OPENAI_TRANSLATION_DRAFT_MODEL", "gp
 # from another vendor than the first on purpose. The adjudicator is neither reviewer and must
 # not be the model that wrote the translation, which defends its own text: the first of these
 # candidates that did not translate the edition rules on it.
-TRANSLATION_OUTSIDE_REVIEWER = os.getenv("TRANSLATION_OUTSIDE_REVIEWER", "codex:gpt-6.1-sol")
+# A third part sets the reasoning effort of the seat's review. GPT-6.1-sol reviews at medium:
+# on three chapters it found as much as at high effort, ten of high's eleven material
+# findings among them, on a quarter of the tokens and in a sixth of the time.
+TRANSLATION_OUTSIDE_REVIEWER = os.getenv("TRANSLATION_OUTSIDE_REVIEWER", "codex:gpt-6.1-sol:medium")
 TRANSLATION_ADJUDICATORS = os.getenv(
     "TRANSLATION_ADJUDICATORS", "codex:gpt-6-astra,claude-code:fable"
 )

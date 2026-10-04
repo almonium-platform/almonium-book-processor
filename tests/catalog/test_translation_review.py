@@ -277,6 +277,20 @@ def test_windows_read_in_parallel_record_the_same_findings():
     assert finding.evidence["agreement"] == "both"
 
 
+def test_the_outside_reviewer_reads_at_the_effort_its_seat_names(settings):
+    settings.TRANSLATION_OUTSIDE_REVIEWER = "codex:gpt-6.1-sol:medium"
+    edition = translated_edition()
+    outside, opus = FakeReviewer([]), FakeReviewer([])
+
+    review_translation(
+        str(edition.id),
+        providers={"claude-code": opus, "codex": outside, "adjudicator": FakeReviewer([])},
+    )
+
+    assert outside.bodies[0]["reasoning"] == {"effort": "medium"}
+    assert opus.bodies[0]["reasoning"] == {"effort": "high"}
+
+
 def test_a_block_is_sent_once_however_many_findings_it_has():
     edition = translated_edition()
     outside = FakeReviewer(
@@ -310,6 +324,7 @@ def test_the_adjudicator_is_never_the_model_that_translated(settings):
         "name": "adjudicator",
         "provider": "codex",
         "model": "gpt-6-astra",
+        "effort": "high",
     }
     assert _adjudicator("gpt-6-astra")["model"] == "fable"
 

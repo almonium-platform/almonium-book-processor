@@ -195,15 +195,23 @@ def reviewers() -> list[dict]:
 
 
 def _seat(setting: str, name: str | None = None) -> dict:
-    """A reviewer from a "provider:model" setting."""
+    """A reviewer from a "provider:model" setting, with an optional ":effort" for its review."""
 
-    provider, _, model = setting.strip().partition(":")
+    provider, _, rest = setting.strip().partition(":")
+    model, _, effort = rest.partition(":")
     if provider not in ("codex", "claude-code", "openai") or not model:
         raise ValueError(f"A review seat is <codex|claude-code|openai>:<model>, not {setting!r}")
+    if effort not in ("", "low", "medium", "high"):
+        raise ValueError(f"A review seat's effort is low, medium or high, not {effort!r}")
     if not has_price(model):
         # refused before any call is made, not after one was paid for
         raise ValueError(f"No price is known for {model}; add it to ai/pricing.py")
-    return {"name": name or provider, "provider": provider, "model": model}
+    return {
+        "name": name or provider,
+        "provider": provider,
+        "model": model,
+        "effort": effort or "high",
+    }
 
 
 def _translated_by(edition: Edition) -> tuple[str, str]:
@@ -278,12 +286,16 @@ def review_plan(edition: Edition, chapters: list[int] | None = None) -> dict:
 
 def _configuration(reviewer: dict) -> tuple[ModelConfiguration, PromptTemplate]:
     configuration, _ = ModelConfiguration.objects.get_or_create(
-        name=f"translation-review-{reviewer['provider']}-{reviewer['model']}-v{PROMPT_VERSION}",
+        # the effort is part of the name: a review at another effort is not the same reading
+        name=(
+            f"translation-review-{reviewer['provider']}-{reviewer['model']}"
+            f"-{_effort(reviewer)}-v{PROMPT_VERSION}"
+        ),
         defaults={
             "provider": reviewer["provider"],
             "model": reviewer["model"],
             "purpose": PURPOSE,
-            "parameters": {"reasoning_effort": "high"},
+            "parameters": {"reasoning_effort": _effort(reviewer)},
         },
     )
     prompt, _ = PromptTemplate.objects.get_or_create(
@@ -298,6 +310,10 @@ def _configuration(reviewer: dict) -> tuple[ModelConfiguration, PromptTemplate]:
         },
     )
     return configuration, prompt
+
+
+def _effort(reviewer: dict) -> str:
+    return reviewer.get("effort", "high")
 
 
 def _provider(reviewer: dict):
@@ -341,7 +357,7 @@ def _review_window(run, edition, window: dict, reviewer: dict, system: str, prov
         "model": reviewer["model"],
         "instructions": system,
         "input": _json(window["data"]),
-        "reasoning": {"effort": "high"},
+        "reasoning": {"effort": _effort(reviewer)},
         "store": False,
         "text": {
             "format": {
