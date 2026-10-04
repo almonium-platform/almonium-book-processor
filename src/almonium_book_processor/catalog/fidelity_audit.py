@@ -47,6 +47,8 @@ from almonium_book_processor.catalog.models import (
 )
 
 AUDIT_VERSION = "fidelity-audit-v1"
+# A machine translation's findings come from catalog/translation_review.py and share this queue.
+TRANSLATION_REVIEW_VERSION = "translation-review-v1"
 SEVERITIES = ("material", "minor", "uncertain")
 # Every finding is a reviewable text-quality finding the editor applies or
 # dismisses, never a note to acknowledge. Only material ones hold the gate.
@@ -684,7 +686,8 @@ def _record_findings(run: PipelineRun, edition: Edition, review: dict) -> None:
                 if located
                 else _bare(issue["adapted_quote"]),
                 "suggested_text": suggested if located and suggested else "",
-                "confidence": CONFIDENCE[issue["severity"]],
+                # A translation review ranks by how many reviewers raised the issue.
+                "confidence": issue.get("confidence", CONFIDENCE[issue["severity"]]),
                 "message": issue["explanation"],
                 "evidence": {
                     "severity": issue["severity"],
@@ -693,6 +696,7 @@ def _record_findings(run: PipelineRun, edition: Edition, review: dict) -> None:
                     "suggested_correction": suggested,
                     "quote_verified": issue["quote_verified"],
                     "audit_run_id": str(run.id),
+                    **(issue.get("evidence") or {}),
                 },
             },
         )
@@ -991,7 +995,12 @@ def audit_context(edition: Edition) -> dict:
         "fidelity_findings": [],
         "fidelity_applicable": 0,
         "fidelity_counts": dict.fromkeys(SEVERITIES, 0),
+        # The panel belongs to every adaptation, and to a translation once it was reviewed.
+        "fidelity_panel": edition.edition_type == Edition.EditionType.ADAPTATION,
+        "fidelity_translation": False,
     }
+    if edition.edition_type == Edition.EditionType.MACHINE_TRANSLATION:
+        return _translation_review_context(edition, context)
     if edition.edition_type != Edition.EditionType.ADAPTATION:
         return context
     audits = edition.pipeline_runs.filter(processor_version=AUDIT_VERSION, summary__kind="edition")
@@ -1026,6 +1035,40 @@ def audit_context(edition: Edition) -> dict:
         context["fidelity_audit_state"] = run.status
     else:
         context["fidelity_audit_state"] = "failed"
+    _findings_context(edition, run, context)
+    context["fidelity_carried"] = len(run.summary.get("carried") or [])
+    return context
+
+
+def _translation_review_context(edition: Edition, context: dict) -> dict:
+    """A machine translation's review findings, in the same panel and with the same actions.
+
+    The review is started from the review_translation command on the machine that holds the
+    Claude Code login, so the panel offers no button to queue it.
+    """
+
+    context["fidelity_audit_enabled"] = False
+    run = edition.pipeline_runs.filter(
+        processor_version=TRANSLATION_REVIEW_VERSION, summary__kind="edition"
+    ).first()
+    if run is None or not edition.source_edition_id:
+        return context
+    context["fidelity_panel"] = True
+    context["fidelity_translation"] = True
+    context["fidelity_audit_run"] = run
+    context["fidelity_audit_state"] = (
+        "current"
+        if run.status == PipelineRun.Status.SUCCEEDED
+        else run.status
+        if run.status in (PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING)
+        else "failed"
+    )
+    _findings_context(edition, run, context)
+    context["fidelity_carried"] = 0
+    return context
+
+
+def _findings_context(edition: Edition, run: PipelineRun, context: dict) -> None:
     findings = list(open_findings(edition))
     dismissed = list(
         edition.text_quality_findings.filter(
@@ -1054,8 +1097,6 @@ def audit_context(edition: Edition) -> dict:
     }
     context["fidelity_open_findings"] = context["fidelity_counts"]["material"]
     context["fidelity_applicable"] = sum(f.can_apply and bool(f.suggested_text) for f in findings)
-    context["fidelity_carried"] = len(run.summary.get("carried") or [])
-    return context
 
 
 def fidelity_gate(edition: Edition) -> tuple[bool, PipelineRun | None]:

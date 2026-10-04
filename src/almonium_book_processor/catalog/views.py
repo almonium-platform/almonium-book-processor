@@ -633,6 +633,9 @@ def _render_edition_detail(
             assessment.update(audit_context(edition))
         else:
             assessment.update(ladder_context(edition, assessment))
+            if edition.edition_type == Edition.EditionType.MACHINE_TRANSLATION:
+                # A reviewed translation shows its findings in the same panel.
+                assessment.update(audit_context(edition))
     if assessment.get("chapter_analysis_run"):
         # Only calls this run made: windows it reused were billed to earlier runs.
         assessment["chapter_analysis_spend"] = assessment["chapter_analysis_run"].ai_runs.aggregate(

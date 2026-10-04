@@ -172,6 +172,8 @@ OPENAI_ALIGNMENT_CONFIDENCE = float(os.getenv("OPENAI_ALIGNMENT_CONFIDENCE", "0.
 # tier: the whole-book difference is under a dollar at Batch prices.
 OPENAI_TRANSLATION_QUALITY_MODEL = os.getenv("OPENAI_TRANSLATION_QUALITY_MODEL", "gpt-5.6-terra")
 OPENAI_TRANSLATION_DRAFT_MODEL = os.getenv("OPENAI_TRANSLATION_DRAFT_MODEL", "gpt-5.6-luna")
+# The outside reviewer of a machine translation: a different vendor's model than the translator.
+OPENAI_TRANSLATION_REVIEW_MODEL = os.getenv("OPENAI_TRANSLATION_REVIEW_MODEL", "gpt-6.1-sol")
 # Private-import metadata is one small call per book; the cheaper tier is plenty.
 OPENAI_METADATA_MODEL = os.getenv("OPENAI_METADATA_MODEL", "gpt-5.6-luna")
 # The fidelity audit reads adapted text beside its source; "quality" is the
