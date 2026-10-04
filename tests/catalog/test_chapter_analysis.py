@@ -226,9 +226,8 @@ def test_worker_difficulty_warning_cannot_be_dismissed_and_clears_after_reassess
     edition.edition_type = Edition.EditionType.ADAPTATION
     edition.save()
     edition.blocks.update(attributes={"adaptation": {"target_level": "B2"}})
-    edition.chapters.filter(sequence=2).update(analysis_role=Chapter.AnalysisRole.FRONT)
 
-    def harder_front_matter(response, data):
+    def harder_chapter(response, data):
         if data["chapter_sequence"] == 2:
             content = response["output"][0]["content"][0]
             result = json.loads(content["text"])
@@ -236,11 +235,10 @@ def test_worker_difficulty_warning_cannot_be_dismissed_and_clears_after_reassess
             content["text"] = json.dumps(result)
 
     run = queue_analysis(str(edition.id))
-    analyze_chapters(str(run.id), provider=Provider(harder_front_matter))
+    analyze_chapters(str(run.id), provider=Provider(harder_chapter))
     warning = edition.warnings.get(code=DIFFICULTY_WARNING)
     assert warning.resolved_at is None
     assert "not achieved" in warning.message
-    assert analysis_context(edition)["book_difficulty"]["cefr_estimate"] == "B2"
     with pytest.raises(ValueError, match="not achieved"):
         resolve_review_warning(
             edition=edition,
@@ -256,6 +254,35 @@ def test_worker_difficulty_warning_cannot_be_dismissed_and_clears_after_reassess
     assert warning.resolved_at is not None
     assert warning.resolved_by is None
     assert edition.warnings.filter(code=DIFFICULTY_WARNING).count() == 1
+
+
+def test_front_matter_above_the_target_does_not_hold_the_level(edition):
+    from almonium_book_processor.catalog.adaptation_quality import (
+        DIFFICULTY_WARNING,
+        adaptation_quality,
+    )
+
+    edition.edition_type = Edition.EditionType.ADAPTATION
+    edition.save()
+    edition.blocks.update(attributes={"adaptation": {"target_level": "B2"}})
+    edition.chapters.filter(sequence=2).update(analysis_role=Chapter.AnalysisRole.FRONT)
+
+    def harder_front_matter(response, data):
+        if data["chapter_sequence"] == 2:
+            content = response["output"][0]["content"][0]
+            result = json.loads(content["text"])
+            result["cefr_estimate"] = "C1"
+            content["text"] = json.dumps(result)
+
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider(harder_front_matter))
+
+    # an author's introduction is adapted as far as it goes; the story's chapters decide
+    assert not edition.warnings.filter(code=DIFFICULTY_WARNING, resolved_at=None).exists()
+    quality = adaptation_quality(edition)
+    assert quality["adaptation_blocker"] == ""
+    assert quality["adaptation_above_chapters"] == []
+    assert analysis_context(edition)["book_difficulty"]["cefr_estimate"] == "B2"
 
 
 def test_full_analysis_is_versioned_reusable_and_labels_the_edition(edition):

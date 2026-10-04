@@ -65,7 +65,9 @@ def adaptation_quality(edition, analysis=None):
             result["adaptation_blocker"] = "Every adaptation chapter needs a current estimate."
             return result
         row["above_adaptation_target"] = LEVELS.index(level) > LEVELS.index(target)
-        if row["above_adaptation_target"]:
+        # Front and back matter is adapted as far as it goes and may sit above the target:
+        # an author's introduction is an essay, and must not close a level for the story.
+        if row["above_adaptation_target"] and row["chapter"].analysis_role == "body":
             above.append(row["chapter"].sequence)
         if LEVELS.index(row["difficulty"]["cefr_estimate"]) < LEVELS.index(target):
             below.append(row["chapter"].sequence)
