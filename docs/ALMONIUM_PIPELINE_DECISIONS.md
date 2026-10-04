@@ -400,3 +400,57 @@ Consequences:
 - **Abridged retellings are a different product**, if we ever want them:
   disclosed as retellings, judged on readability and coverage rather than
   fidelity, chosen for books whose content suits it. Not on the roadmap.
+
+## 14. An adaptation's level promises its wording, and the judge is a panel
+
+**Decided 2026-10-05, by the owner.** Section 13 stands: the floor is found
+per book and never promised, and nothing is abridged. What changed is who
+judges and what the level means.
+
+What we learned, on Frankenstein on 2026-10-04:
+
+- **The September judge could not tell B1 from B2.** Given B1 attempts and
+  B2 adaptations of the same chapters, the chapter-analysis model called all
+  sixteen B2, although they differ measurably (2.0 to 2.5 percent rare words
+  against 4.1 to 5.3). Opus 5.5 and GPT-6.1-sol, asked the same blind
+  question, separated them and agreed on 17 of 18 texts. So "five prompt
+  versions all judged B2" was evidence about the judge at least as much as
+  about the book. None of the judges is validated against human-rated text.
+- **A judge wavers at a boundary.** The same judge read the same text B1 once
+  and B2 once.
+- **Ideas raise a holistic level that no rewording lowers.** The
+  confrontation with the creature read B2 for its allusions and sarcasm
+  while its sentences were plain.
+
+The rules now:
+
+- **A level on an adaptation promises the wording**: the vocabulary and
+  sentence structure. The author's ideas, allusions and irony stay as
+  written and do not count toward it. The judges of an adaptation are told
+  to rate the wording alone (`ai/chapter_analysis.py`, `WORDING_NOTE`).
+- **The judge is a panel** (`DIFFICULTY_JUDGES`): each judge reads the text
+  three times and its middle reading counts; the strictest judge decides.
+  With no panel configured, a deployed environment keeps the single judge.
+- **A chapter read above the target goes back to the adapter once** with
+  what the judges cited. The revision stands only if they read it easier.
+- **Front and back matter may sit above the target.** Only substantive
+  chapters hold a level; an author's introduction is an essay.
+- **Fidelity is audited by two auditors from different vendors**
+  (`FIDELITY_AUDITORS`). A material finding only one raised holds the gate
+  only if the other confirms it. A probe's sampled chapter fails on fidelity
+  when more than a tenth of its blocks carry a material finding; every
+  finding of a full edition still goes to the editor's queue and holds
+  publication there.
+- **A whole adaptation is held to what its probe passed at**: the same
+  judges read every chapter (`check_adaptation_wording`), and where they
+  have read a chapter's current text, theirs is the level its gate uses.
+
+Under these rules the B1 probe of Frankenstein passed on 2026-10-05 (Letter
+I, Chapter X after one revision, Chapter XXIII). `adapts_to` still changes
+only when a full edition passes both of its gates.
+
+What this does not settle: the library's own chapter levels, for originals
+and translations, still come from the single chapter-analysis model and the
+holistic rubric. Whether the reader should be told which chapters of an
+adaptation carry demanding ideas at plain wording is a product question,
+open.
