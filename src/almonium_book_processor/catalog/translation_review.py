@@ -33,10 +33,9 @@ from django.db import connection, transaction
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
-from almonium_book_processor.ai.claude_code_provider import ClaudeCodeProvider
-from almonium_book_processor.ai.codex_provider import CodexProvider
-from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.pricing import call_cost, has_price
+from almonium_book_processor.ai.seats import parse_seat, provider_for
 from almonium_book_processor.catalog.ai_translation import language_name
 from almonium_book_processor.catalog.fidelity_audit import (
     SEVERITIES,
@@ -197,20 +196,15 @@ def reviewers() -> list[dict]:
 def _seat(setting: str, name: str | None = None) -> dict:
     """A reviewer from a "provider:model" setting, with an optional ":effort" for its review."""
 
-    provider, _, rest = setting.strip().partition(":")
-    model, _, effort = rest.partition(":")
-    if provider not in ("codex", "claude-code", "openai") or not model:
-        raise ValueError(f"A review seat is <codex|claude-code|openai>:<model>, not {setting!r}")
-    if effort not in ("", "low", "medium", "high"):
-        raise ValueError(f"A review seat's effort is low, medium or high, not {effort!r}")
-    if not has_price(model):
-        # refused before any call is made, not after one was paid for
-        raise ValueError(f"No price is known for {model}; add it to ai/pricing.py")
+    seat = parse_seat(setting)
+    if not has_price(seat.model):
+        # every review call is priced, API ones too; refused before any call is made
+        raise ValueError(f"No price is known for {seat.model}; add it to ai/pricing.py")
     return {
-        "name": name or provider,
-        "provider": provider,
-        "model": model,
-        "effort": effort or "high",
+        "name": name or seat.provider,
+        "provider": seat.provider,
+        "model": seat.model,
+        "effort": seat.effort or "high",
     }
 
 
@@ -317,11 +311,7 @@ def _effort(reviewer: dict) -> str:
 
 
 def _provider(reviewer: dict):
-    if reviewer["provider"] == "claude-code":
-        return ClaudeCodeProvider(model=reviewer["model"])
-    if reviewer["provider"] == "codex":
-        return CodexProvider()
-    return OpenAIBatchProvider()
+    return provider_for(reviewer["provider"], reviewer["model"])
 
 
 def _usage(reviewer: dict, response: dict) -> dict:
