@@ -179,6 +179,14 @@ OPENAI_METADATA_MODEL = os.getenv("OPENAI_METADATA_MODEL", "gpt-5.6-luna")
 OPENAI_FIDELITY_TIER = os.getenv("OPENAI_FIDELITY_TIER", "quality")
 OPENAI_BATCH_POLL_SECONDS = int(os.getenv("OPENAI_BATCH_POLL_SECONDS", "60"))
 
+# The Claude Code CLI on the owner's subscription, for output-heavy generation
+# run from the owner's machine. Never set on a deployed worker: the CLI needs a
+# login that exists only where the owner is signed in.
+CLAUDE_CODE_BINARY = os.getenv("CLAUDE_CODE_BINARY", "claude")
+CLAUDE_CODE_MODEL = os.getenv("CLAUDE_CODE_MODEL", "opus")
+CLAUDE_CODE_TIMEOUT_SECONDS = float(os.getenv("CLAUDE_CODE_TIMEOUT_SECONDS", "1800"))
+CLAUDE_CODE_WORKERS = int(os.getenv("CLAUDE_CODE_WORKERS", "4"))
+
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", not DEBUG)
 SESSION_COOKIE_SECURE = not DEBUG

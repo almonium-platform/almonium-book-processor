@@ -498,3 +498,57 @@ def test_interrupted_direct_run_can_restart(monkeypatch) -> None:
     prepared = _prepare_translation_run(str(edition.id), tier="quality")
     assert isinstance(prepared, tuple)
     assert len(prepared[1]) == 1
+
+
+def test_subscription_tier_translates_through_the_given_provider_at_no_cost() -> None:
+    from almonium_book_processor.catalog.ai_translation import (
+        SUBSCRIPTION_TIER,
+        run_translation_inline,
+    )
+
+    source = canonical_edition()
+    edition = create_parallel_translation(
+        source_edition=source,
+        target_language="uk",
+        register="period-faithful",
+        tier=SUBSCRIPTION_TIER,
+    )
+    bodies: list[dict] = []
+
+    class FakeClaudeCode:
+        name = "claude-code"
+
+        def respond(self, body):
+            bodies.append(body)
+            line = output_line(
+                "chapter-1",
+                [
+                    translated("c1.h1", "Розділ I"),
+                    translated(
+                        "c1.p2",
+                        "Похмурої листопадової ночі я побачив завершення своїх трудів.",
+                    ),
+                ],
+            )
+            return line["response"]["body"]
+
+    ai_run = run_translation_inline(
+        str(edition.id), tier=SUBSCRIPTION_TIER, provider=FakeClaudeCode()
+    )
+
+    ai_run.refresh_from_db()
+    assert ai_run.status == AIRun.Status.SUCCEEDED
+    # the ledger names what really wrote the text, and no money was spent on it
+    assert ai_run.model_configuration.provider == "claude-code"
+    assert ai_run.model_configuration.name == "claude-code-translation-v1"
+    assert ai_run.estimated_cost_usd == 0
+    assert ai_run.output_tokens == 1100
+    assert bodies[0]["model"] == ai_run.model_configuration.model
+    assert edition.blocks.get(block_id="c1.h1").text == "Розділ I"
+
+
+def test_subscription_tier_is_not_offered_by_the_admin() -> None:
+    from almonium_book_processor.catalog.ai_translation import SUBSCRIPTION_TIER
+    from almonium_book_processor.catalog.translation_jobs import TRANSLATION_TIERS
+
+    assert SUBSCRIPTION_TIER not in TRANSLATION_TIERS

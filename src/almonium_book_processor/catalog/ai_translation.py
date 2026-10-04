@@ -21,6 +21,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from almonium_book_processor.ai.claude_code_provider import ClaudeCodeProvider
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
 from almonium_book_processor.ai.output_language import validate_output_language
 from almonium_book_processor.ai.translation import (
@@ -60,6 +61,12 @@ TRANSLATION_MODEL_PRICING = {
     "quality": {"input": "2.00", "cached_input": "0.20", "output": "12.00"},
 }
 
+# Not a member of TRANSLATION_MODEL_PRICING on purpose: the admin's tier choices
+# and price estimates come from that table, and this tier cannot be started
+# from a deployed worker. It runs through the Claude Code CLI on the owner's
+# subscription, from the translate_with_claude_code command, at no metered cost.
+SUBSCRIPTION_TIER = "subscription"
+
 logger = logging.getLogger(__name__)
 
 LANGUAGE_NAMES = {language.code: language.name for language in LANGUAGES}
@@ -72,26 +79,42 @@ def language_name(code: str) -> str:
 
 
 def _configuration(tier: str) -> tuple[ModelConfiguration, PromptTemplate]:
-    if tier not in TRANSLATION_MODEL_PRICING:
-        raise ValueError(f"Unknown translation tier: {tier}")
-    model = (
-        settings.OPENAI_TRANSLATION_DRAFT_MODEL
-        if tier == "draft"
-        else settings.OPENAI_TRANSLATION_QUALITY_MODEL
-    )
-    configuration, _ = ModelConfiguration.objects.get_or_create(
-        name=f"openai-translation-{tier}-v1",
-        defaults={
-            "provider": "openai",
-            "model": model,
-            "purpose": "literary_translation",
-            "parameters": {
-                "reasoning_effort": "medium",
-                "batch_discount": 0.5,
-                "pricing_per_million": TRANSLATION_MODEL_PRICING[tier],
+    if tier == SUBSCRIPTION_TIER:
+        model = settings.CLAUDE_CODE_MODEL
+        configuration, _ = ModelConfiguration.objects.get_or_create(
+            name="claude-code-translation-v1",
+            defaults={
+                "provider": "claude-code",
+                "model": model,
+                "purpose": "literary_translation",
+                "parameters": {
+                    "reasoning_effort": "medium",
+                    "batch_discount": 0,
+                    "pricing_per_million": {"input": "0", "cached_input": "0", "output": "0"},
+                },
             },
-        },
-    )
+        )
+    elif tier in TRANSLATION_MODEL_PRICING:
+        model = (
+            settings.OPENAI_TRANSLATION_DRAFT_MODEL
+            if tier == "draft"
+            else settings.OPENAI_TRANSLATION_QUALITY_MODEL
+        )
+        configuration, _ = ModelConfiguration.objects.get_or_create(
+            name=f"openai-translation-{tier}-v1",
+            defaults={
+                "provider": "openai",
+                "model": model,
+                "purpose": "literary_translation",
+                "parameters": {
+                    "reasoning_effort": "medium",
+                    "batch_discount": 0.5,
+                    "pricing_per_million": TRANSLATION_MODEL_PRICING[tier],
+                },
+            },
+        )
+    else:
+        raise ValueError(f"Unknown translation tier: {tier}")
     if configuration.model != model:
         configuration.model = model
         configuration.save(update_fields=["model", "updated_at"])
@@ -134,7 +157,7 @@ def create_parallel_translation(
         raise ValueError("The target language must differ from the source language")
     if not source_edition.blocks.exists():
         raise ValueError("The canonical edition has no normalized blocks yet")
-    if tier not in TRANSLATION_MODEL_PRICING:
+    if tier not in TRANSLATION_MODEL_PRICING and tier != SUBSCRIPTION_TIER:
         raise ValueError(f"Unknown translation tier: {tier}")
     if register not in {value for value, _ in REGISTER_CHOICES}:
         raise ValueError(f"Unknown register: {register}")
@@ -403,6 +426,8 @@ def _estimated_cost(
     *,
     discounted: bool,
 ) -> Decimal:
+    if tier == SUBSCRIPTION_TIER:
+        return Decimal(0)
     pricing = TRANSLATION_MODEL_PRICING[tier]
     uncached = max(0, input_tokens - cached_input_tokens)
     standard = (
@@ -768,11 +793,12 @@ def _direct_output_line(provider: OpenAIBatchProvider, request: dict[str, Any]) 
     return {"custom_id": request["custom_id"], "response": {"status_code": 200, "body": body}}
 
 
-def run_translation_inline(edition_id: str, *, tier: str = "quality") -> AIRun:
-    """Translate without the Batch API, using direct Responses calls.
+def run_translation_inline(edition_id: str, *, tier: str = "quality", provider=None) -> AIRun:
+    """Translate without the Batch API, using direct calls.
 
     Same requests, same validation, same QA gates. It forfeits the 50% Batch
     discount but finishes in minutes and does not depend on the Batch service.
+    The subscription tier runs the same requests through the Claude Code CLI.
     """
 
     prepared = _prepare_translation_run(edition_id, tier=tier)
@@ -794,9 +820,13 @@ def run_translation_inline(edition_id: str, *, tier: str = "quality") -> AIRun:
         ]
     )
 
-    provider = OpenAIBatchProvider()
-    # Threads only make HTTP calls; every database write happens on this thread.
-    with ThreadPoolExecutor(max_workers=DIRECT_TRANSLATION_WORKERS) as pool:
+    if provider is None:
+        provider = ClaudeCodeProvider() if tier == SUBSCRIPTION_TIER else OpenAIBatchProvider()
+    workers = (
+        settings.CLAUDE_CODE_WORKERS if tier == SUBSCRIPTION_TIER else DIRECT_TRANSLATION_WORKERS
+    )
+    # Threads only make provider calls; every database write happens on this thread.
+    with ThreadPoolExecutor(max_workers=workers) as pool:
         output_lines = list(
             pool.map(lambda request: _direct_output_line(provider, request), requests)
         )
