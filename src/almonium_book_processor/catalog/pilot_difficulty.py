@@ -91,20 +91,55 @@ def _read(run, window, spec, configuration, prompt, provider) -> AIRun:
         return _attempt(run, window, spec, configuration, prompt, provider, reader_facing=False)
 
 
-def _judge(pilot, generation, chapter, parts, blocks, spec, readings, provider) -> dict:
-    """One judge's assessment: every window read ``readings`` times, the middle reading kept."""
+def windows_of(blocks: list[dict], window_bytes: int) -> list[list[dict]]:
+    """The blocks in the windows a judge reads them in."""
 
-    plan = snapshot(pilot.edition, spec)
+    parts, current = [], []
+    for block in blocks:
+        if len(_json([block]).encode()) > window_bytes:
+            raise ValueError("A block exceeds the judge window limit.")
+        if current and len(_json([*current, block]).encode()) > window_bytes:
+            parts.append(current)
+            current = []
+        current.append(block)
+    if current:
+        parts.append(current)
+    return parts
+
+
+def judge_text(
+    *,
+    edition,
+    key: str,
+    seed,
+    summary: dict,
+    chapter_sequence: int,
+    blocks: list[dict],
+    spec: dict,
+    readings: int,
+    provider,
+    processor_version: str = "pilot-difficulty-v1",
+) -> dict:
+    """One judge's assessment of a text: every window read ``readings`` times.
+
+    ``key`` and ``seed`` name what is judged, a pilot or a chapter of an edition; the run is
+    kept under the edition, and a text already judged by this judge is not read again.
+    """
+
+    parts = windows_of(blocks, spec["window_bytes"])
+    if not parts:
+        raise ValueError("No text to assess.")
+    plan = snapshot(edition, spec)
     # A single reading keeps the identity past assessments were saved under.
-    identity = _hash([generation.input_hash, spec, blocks] + ([readings] if readings > 1 else []))
+    identity = _hash([seed, spec, blocks] + ([readings] if readings > 1 else []))
     run, _ = PipelineRun.objects.get_or_create(
-        idempotency_key=f"{pilot.id}:pilot-difficulty:{identity}",
+        idempotency_key=f"{key}:{identity}",
         defaults={
-            "edition": pilot.edition,
+            "edition": edition,
             "stage": PipelineRun.Stage.ADAPT,
-            "processor_version": "pilot-difficulty-v1",
+            "processor_version": processor_version,
             "input_hash": plan["hash"],
-            "summary": {"pilot_id": str(pilot.id), "spec": spec},
+            "summary": {**summary, "spec": spec},
         },
     )
     if run.status == PipelineRun.Status.SUCCEEDED:
@@ -122,8 +157,8 @@ def _judge(pilot, generation, chapter, parts, blocks, spec, readings, provider) 
             results = []
             for index, part in enumerate(parts, 1):
                 data = {
-                    "language": pilot.edition.language,
-                    "chapter_sequence": chapter.sequence,
+                    "language": edition.language,
+                    "chapter_sequence": chapter_sequence,
                     "window": index,
                     "window_count": len(parts),
                     "partial": len(parts) > 1,
@@ -199,29 +234,36 @@ def assess_pilot(pilot_id, *, provider=None):
         for b in source["blocks"]
         if adapted[b["block_id"]]["text"].strip()
     ]
-    window_bytes = specs[0]["window_bytes"]
-    parts, current = [], []
-    for block in blocks:
-        if len(_json([block]).encode()) > window_bytes:
-            raise ValueError("Pilot block exceeds the judge window limit.")
-        if current and len(_json([*current, block]).encode()) > window_bytes:
-            parts.append(current)
-            current = []
-        current.append(block)
-    if current:
-        parts.append(current)
-    if not parts:
+    if not blocks:
         raise ValueError("No pilot text to assess.")
     readings = judge_readings()
     verdicts = [
-        _judge(pilot, generation, chapter, parts, blocks, spec, readings, provider)
+        judge_text(
+            edition=pilot.edition,
+            key=f"{pilot.id}:pilot-difficulty",
+            seed=generation.input_hash,
+            summary={"pilot_id": str(pilot.id)},
+            chapter_sequence=chapter.sequence,
+            blocks=blocks,
+            spec=spec,
+            readings=readings,
+            provider=provider,
+        )
         for spec in specs
     ]
-    # The strictest judge decides, and its windows are the evidence shown.
+    assessment = panel_verdict(verdicts, pilot.edition.language, readings)
+    pilot.summary = {**pilot.summary, "difficulty_check": assessment}
+    pilot.save(update_fields=["summary", "updated_at"])
+    return assessment
+
+
+def panel_verdict(verdicts: list[dict], language: str, readings: int) -> dict:
+    """The panel's assessment: the strictest judge decides, and its windows are the evidence."""
+
     decisive = max(verdicts, key=lambda verdict: LEVELS.index(verdict["max_level"]))
-    assessment = {
+    return {
         "prompt_version": decisive["prompt_version"],
-        "model": judge_label(pilot.edition.language),
+        "model": judge_label(language),
         "cefr_estimate": decisive["cefr_estimate"],
         "max_level": decisive["max_level"],
         "ai_run_ids": [run_id for verdict in verdicts for run_id in verdict["ai_run_ids"]],
@@ -244,6 +286,3 @@ def assess_pilot(pilot_id, *, provider=None):
             else {}
         ),
     }
-    pilot.summary = {**pilot.summary, "difficulty_check": assessment}
-    pilot.save(update_fields=["summary", "updated_at"])
-    return assessment
