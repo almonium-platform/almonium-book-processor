@@ -24,6 +24,7 @@ from almonium_book_processor.catalog.adaptation import (
     MAX_CHARS,
     VERSION,
     digest,
+    generator_seat,
     queue_pilot,
     run_pilot,
     source_snapshot,
@@ -53,10 +54,17 @@ def probe_spec(target_level: str, language: str) -> dict:
     prompt_version, system_prompt = pilot_prompt(target_level, language)
     judge = analysis_spec(language)
     audit = audit_spec()
+    seat = generator_seat()
     return {
         "target_level": target_level,
         "generation_processor": B1_VERSION if target_level == "B1" else VERSION,
-        "generation_model": settings.OPENAI_TRANSLATION_QUALITY_MODEL,
+        "generation_model": seat.model,
+        # named only when it is not the API: a past probe must still read as it was saved
+        **(
+            {"generation_provider": seat.provider, "generation_effort": seat.effort}
+            if seat.on_plan
+            else {}
+        ),
         "generation_prompt_version": prompt_version,
         "generation_prompt_hash": digest(system_prompt),
         "judge_model": judge["model"],

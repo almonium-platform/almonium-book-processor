@@ -63,6 +63,8 @@ def test_respond_returns_a_responses_shaped_body():
     body = provider.respond(BODY)
 
     text = body["output"][0]["content"][0]["text"]
+    # jobs shaped for the API ask whether the answer is complete
+    assert body["status"] == "completed"
     assert json.loads(text) == {"blocks": [{"block_id": "c1.p1", "text": "Привіт"}]}
     # cached tokens are counted inside input_tokens, as the Responses API does
     assert body["usage"] == {

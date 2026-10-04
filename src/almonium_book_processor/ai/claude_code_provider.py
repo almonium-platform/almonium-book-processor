@@ -110,6 +110,8 @@ class ClaudeCodeProvider:
         return {
             "id": result.get("session_id") or f"claude-code-{uuid.uuid4()}",
             "model": self.model,
+            # the CLI answered in full or raised above; callers shaped for the API ask
+            "status": "completed",
             "output": [
                 {
                     "type": "message",

@@ -12,6 +12,7 @@ from almonium_book_processor.catalog.adaptation import (
     MAX_CHARS,
     TARGET_LEVEL,
     digest,
+    generator_seat,
     queue_pilot,
     run_pilot,
 )
@@ -34,6 +35,7 @@ REVIEW_CODE = "adaptation_fidelity_review"
 
 def generation_spec(target_level, language):
     prompt_version, system_prompt = pilot_prompt(target_level, language)
+    seat = generator_seat()
     return {
         "processor": (
             MODERNISATION_BOOK_VERSION
@@ -42,7 +44,9 @@ def generation_spec(target_level, language):
             if target_level == "B1"
             else VERSION
         ),
-        "model": settings.OPENAI_TRANSLATION_QUALITY_MODEL,
+        "model": seat.model,
+        # named only when it is not the API: a past spec must still read as it was saved
+        **({"provider": seat.provider, "effort": seat.effort} if seat.on_plan else {}),
         "prompt_version": prompt_version,
         "prompt_hash": digest(system_prompt),
         "schema_hash": digest(ChapterAdaptation.model_json_schema()),

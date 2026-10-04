@@ -14,8 +14,10 @@ from almonium_book_processor.ai.adaptation import (
     ChapterAdaptation,
     pilot_prompt,
 )
-from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
+from almonium_book_processor.ai.pricing import call_cost
+from almonium_book_processor.ai.seats import Seat, parse_seat, provider_for
 from almonium_book_processor.catalog.ai_translation import (
     TRANSLATION_MODEL_PRICING,
     _estimated_cost,
@@ -39,6 +41,14 @@ MODERNISATION_VERSION = "modernisation-chapter-pilot-v1"
 PILOT_VERSIONS = (VERSION, B1_VERSION, MODERNISATION_VERSION)
 MAX_CHARS = 40000
 MAX_BLOCKS = 100
+
+
+def generator_seat() -> Seat:
+    """Who writes adaptations here: the configured seat, or the API's quality model."""
+
+    if settings.ADAPTATION_GENERATOR:
+        return parse_seat(settings.ADAPTATION_GENERATOR)
+    return Seat("openai", settings.OPENAI_TRANSLATION_QUALITY_MODEL)
 
 
 def source_snapshot(chapter, block_ids=None, *, target_level=TARGET_LEVEL):
@@ -102,7 +112,8 @@ def queue_pilot(
         if target_level == "B1"
         else PROMPT_NAME
     )
-    if not settings.OPENAI_API_KEY:
+    seat = generator_seat()
+    if seat.provider == "openai" and not settings.OPENAI_API_KEY:
         raise ValueError("Configure an OpenAI key to generate a pilot.")
     editorial_feedback = editorial_feedback.strip()
     if len(editorial_feedback) > 4000:
@@ -133,23 +144,30 @@ def queue_pilot(
             raise ValueError("The target edition must have a matching book generation target.")
         if owner.status == Edition.Status.PUBLISHED or owner.withdrawal_requested_at:
             raise ValueError("Cannot generate into a published or withdrawing edition.")
-    model = settings.OPENAI_TRANSLATION_QUALITY_MODEL
-    effort = "high" if target_level == "B1" else "medium"
+    model = seat.model
+    effort = seat.effort or ("high" if target_level == "B1" else "medium")
+    # The API's model at the level's own effort keeps the names its past runs were saved
+    # under; any other seat is a different writer and gets a configuration of its own.
+    writer = model if seat == Seat("openai", model) else f"{seat.provider}:{model}:{effort}"
     configuration, _ = ModelConfiguration.objects.get_or_create(
         name=(
-            f"adaptation-b1-{digest(model)[:16]}-high-v1"
+            f"adaptation-b1-{digest(writer)[:16]}-high-v1"
             if target_level == "B1"
-            else f"modernisation-pilot-{digest(model)[:16]}-v1"
+            else f"modernisation-pilot-{digest(writer)[:16]}-v1"
             if modernisation
-            else f"adaptation-pilot-{digest(model)[:16]}-v1"
+            else f"adaptation-pilot-{digest(writer)[:16]}-v1"
         ),
         defaults={
-            "provider": "openai",
+            "provider": seat.provider,
             "model": model,
             "purpose": "level_adaptation",
             "parameters": {
                 "reasoning_effort": effort,
-                "pricing_per_million": TRANSLATION_MODEL_PRICING["quality"],
+                **(
+                    {}
+                    if seat.on_plan
+                    else {"pricing_per_million": TRANSLATION_MODEL_PRICING["quality"]}
+                ),
             },
         },
     )
@@ -331,7 +349,10 @@ def run_pilot(run_id, *, provider=None):
         ai.save(update_fields=["status", "started_at", "updated_at"])
         response = ai.response_payload.get("raw")
         if response is None:
-            response = (provider or OpenAIBatchProvider()).respond(ai.request_payload["body"])
+            configuration = ai.model_configuration
+            response = (
+                provider or provider_for(configuration.provider, configuration.model)
+            ).respond(ai.request_payload["body"])
             record_response(ai.id, response)
         ai.refresh_from_db()
         if not ai.edition_id:
@@ -397,14 +418,28 @@ def record_response(ai_id, response):
     outputs = usage.get("output_tokens", 0)
     # Lock the ledger, not the network call. Purge may have scrubbed it in flight.
     with transaction.atomic():
-        ai = AIRun.objects.select_for_update().get(pk=ai_id)
+        ai = (
+            AIRun.objects.select_related("model_configuration")
+            .select_for_update(of=("self",))
+            .get(pk=ai_id)
+        )
+        configuration = ai.model_configuration
         ai.add_attempt_usage(
             input_tokens=inputs,
             cached_input_tokens=cached,
             output_tokens=outputs,
             reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
-            estimated_cost_usd=_estimated_cost(
-                "quality", inputs, cached, outputs, discounted=False
+            # a plan call costs the share of the plan it used; an API call its list price
+            estimated_cost_usd=(
+                call_cost(
+                    configuration.provider,
+                    configuration.model,
+                    input_tokens=inputs,
+                    cached_input_tokens=cached,
+                    output_tokens=outputs,
+                )
+                if configuration.provider in ("codex", "claude-code")
+                else _estimated_cost("quality", inputs, cached, outputs, discounted=False)
             ),
         )
         ai.provider_request_id = response.get("id", "")

@@ -184,6 +184,10 @@ TRANSLATION_OUTSIDE_REVIEWER = os.getenv("TRANSLATION_OUTSIDE_REVIEWER", "codex:
 TRANSLATION_ADJUDICATORS = os.getenv(
     "TRANSLATION_ADJUDICATORS", "codex:gpt-6-astra,claude-code:fable"
 )
+# Who writes a level adaptation, as a seat (see ai/seats.py): chapter pilots, floor probes and
+# whole books. Empty means the API's quality model, which is what a deployed worker uses; the
+# owner's machine names a plan seat, e.g. codex:gpt-6-astra.
+ADAPTATION_GENERATOR = os.getenv("ADAPTATION_GENERATOR", "")
 # Private-import metadata is one small call per book; the cheaper tier is plenty.
 OPENAI_METADATA_MODEL = os.getenv("OPENAI_METADATA_MODEL", "gpt-5.6-luna")
 # The fidelity audit reads adapted text beside its source; "quality" is the
