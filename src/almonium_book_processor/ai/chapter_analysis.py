@@ -109,6 +109,22 @@ LOCALIZED_SYSTEM_PROMPT = SYSTEM_PROMPT.replace(
 )
 
 
+# The judges of an adaptation rate its wording alone. An adaptation keeps the author's ideas on
+# purpose, so a level that rises with them can never be reached by rewording: Frankenstein's
+# confrontation with the creature read B2 for its allusions and sarcasm while every sentence
+# was plain. A level on an adaptation therefore promises the wording, not the ideas.
+WORDING_PROMPT_VERSION = 5
+LOCALIZED_WORDING_PROMPT_VERSION = 6
+WORDING_NOTE = """
+WORDING ONLY. Rate the vocabulary and the sentence structure a reader must process, as if the
+ideas themselves were familiar to the reader. Do not raise the level because the text makes a
+biblical, historical or literary allusion, uses irony or sarcasm, argues a moral or
+philosophical point, or expresses strong feeling, when the sentences that carry it are plain.
+Raise it only for words a reader at that level would not know and the text does not explain,
+and for sentences whose structure the reader would have to untangle.
+"""
+
+
 class OpenAIChapterAnalysisProvider(OpenAIBatchProvider):
     """Direct worker requests with no hidden SDK retries and a bounded timeout."""
 

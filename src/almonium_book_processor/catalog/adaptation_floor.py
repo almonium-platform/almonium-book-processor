@@ -30,7 +30,7 @@ from almonium_book_processor.catalog.adaptation import (
     source_snapshot,
 )
 from almonium_book_processor.catalog.adaptation_quality import adaptation_quality, adaptation_target
-from almonium_book_processor.catalog.chapter_analysis import analysis_context, analysis_spec
+from almonium_book_processor.catalog.chapter_analysis import analysis_context
 from almonium_book_processor.catalog.chapter_projections import LEVELS
 from almonium_book_processor.catalog.fidelity_audit import (
     SEVERITIES,
@@ -45,9 +45,22 @@ from almonium_book_processor.catalog.pilot_difficulty import (
     assess_pilot,
     judge_label,
     judge_readings,
+    judge_specs,
 )
 
 PROBE_VERSION = "floor-probe-v1"
+# A probe asks whether the pipeline can reach a level faithfully, not whether three chapters
+# came out flawless. Every material finding of a full edition goes to the editor's queue and
+# holds publication there, so one garbled sentence must not close a level; meaning lost
+# throughout must. A sampled chapter fails when more than this share of its blocks carries a
+# material finding.
+MATERIAL_BLOCK_SHARE = Decimal("0.10")
+
+
+def _faithful(review: dict) -> bool:
+    return review["counts"]["material"] <= MATERIAL_BLOCK_SHARE * review.get("blocks", 0)
+
+
 # Highest first; each has a pilot prompt. A2 has never been tested and is not a rung.
 PROBE_LEVELS = ("B2", "B1")
 SAMPLE_SIZE = 3
@@ -57,7 +70,7 @@ def probe_spec(target_level: str, language: str) -> dict:
     """Everything a verdict depends on; a change here is a new probe, not a retry."""
 
     prompt_version, system_prompt = pilot_prompt(target_level, language)
-    judge = analysis_spec(language)
+    judge = judge_specs(language)[0]
     audit = audit_spec()
     seat = generator_seat()
     readings = judge_readings()
@@ -205,7 +218,7 @@ def run_probe(run_id, *, provider=None, judge=None, auditor=None) -> None:
                     "material": review["counts"]["material"],
                     "minor": review["counts"]["minor"],
                     "uncertain": review["counts"]["uncertain"],
-                    "fidelity_ok": review["counts"]["material"] == 0,
+                    "fidelity_ok": _faithful(review),
                     "cost_usd": str(
                         (pilot.ai_runs.get(pk=pilot.summary["ai_run_id"]).estimated_cost_usd or 0)
                         + Decimal(assessment["cost_usd"])
@@ -462,7 +475,7 @@ def backfill_probe(source: Edition, target_level: str) -> PipelineRun:
     from almonium_book_processor.catalog.fidelity_audit import PROMPT_NAME as AUDIT_PROMPT
 
     spec = probe_spec(target_level, source.language)
-    judge = analysis_spec(source.language)
+    judge = judge_specs(source.language)[0]
     pilots: dict[str, PipelineRun] = {}
     for pilot in source.pipeline_runs.filter(
         stage=PipelineRun.Stage.ADAPT,
@@ -526,7 +539,7 @@ def backfill_probe(source: Edition, target_level: str) -> PipelineRun:
                 "material": review["counts"]["material"],
                 "minor": review["counts"]["minor"],
                 "uncertain": review["counts"]["uncertain"],
-                "fidelity_ok": review["counts"]["material"] == 0,
+                "fidelity_ok": _faithful(review),
                 "cost_usd": str(
                     (pilot.ai_runs.get(pk=pilot.summary["ai_run_id"]).estimated_cost_usd or 0)
                     + Decimal(check["cost_usd"])

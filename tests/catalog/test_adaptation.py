@@ -27,8 +27,8 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def application(chapter, monkeypatch):
-    from almonium_book_processor.catalog.chapter_analysis import analysis_spec
     from almonium_book_processor.catalog.models import PipelineRun
+    from almonium_book_processor.catalog.pilot_difficulty import judge_specs
 
     monkeypatch.setattr(
         "almonium_book_processor.catalog.tasks.refresh_edition_after_revision.delay", lambda _: None
@@ -50,7 +50,7 @@ def application(chapter, monkeypatch):
         status="succeeded",
         summary={
             "pilot_id": str(run.id),
-            "spec": analysis_spec(),
+            "spec": judge_specs("en")[0],
             "assessment": {"max_level": "B2"},
         },
     )
@@ -421,6 +421,28 @@ def test_a_judge_is_not_failed_for_prose_no_reader_sees_and_is_asked_again_when_
 
     assert assess_pilot(run.id, provider=judge)["max_level"] == "B2"
     assert len(judge.models) == 2
+
+
+def test_a_pilots_judge_is_asked_about_the_wording_alone(chapter):
+    from almonium_book_processor.ai.chapter_analysis import SYSTEM_PROMPT
+    from almonium_book_processor.catalog.pilot_difficulty import assess_pilot
+
+    run = queue_pilot(chapter.edition_id, chapter.id, dispatch=False)
+    run_pilot(run.id, provider=Provider())
+    asked = []
+
+    class Judge(PanelJudge):
+        def respond(self, body):
+            asked.append(body["instructions"])
+            return super().respond(body)
+
+    result = assess_pilot(run.id, provider=Judge(["B2"]))
+
+    # the library's rubric, then the instruction that an adaptation's ideas do not raise it
+    assert asked[0].startswith(SYSTEM_PROMPT)
+    assert "WORDING ONLY" in asked[0] and "allusion" in asked[0]
+    # another question is another prompt version, so no earlier assessment answers for it
+    assert result["prompt_version"] == 5
 
 
 def test_a_pilot_is_applied_only_when_every_judge_put_it_at_the_target(application, settings):

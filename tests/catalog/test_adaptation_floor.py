@@ -213,6 +213,21 @@ def test_pilot_audit_verifies_quotes_caches_and_records_on_the_pilot(source):
         audit_pilot(pilot.id, provider=auditor)
 
 
+def test_one_garbled_sentence_does_not_close_a_level_but_meaning_lost_throughout_does():
+    from almonium_book_processor.catalog.adaptation_floor import _faithful
+
+    def review(material, blocks):
+        return {"counts": {"material": material, "minor": 0, "uncertain": 0}, "blocks": blocks}
+
+    assert _faithful(review(0, 3))
+    # one finding in a chapter of seventeen blocks goes to the editor's queue with the rest
+    assert _faithful(review(1, 17))
+    assert not _faithful(review(1, 3))
+    assert not _faithful(review(3, 17))
+    # an old record that does not say how many blocks were read is held to none
+    assert not _faithful({"counts": {"material": 1}})
+
+
 class TwoAuditors:
     """Each auditor's own findings, then the other's verdict on a material one."""
 

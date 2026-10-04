@@ -5,6 +5,11 @@ from decimal import Decimal
 from django.conf import settings
 from django.utils import timezone
 
+from almonium_book_processor.ai.chapter_analysis import (
+    LOCALIZED_WORDING_PROMPT_VERSION,
+    WORDING_NOTE,
+    WORDING_PROMPT_VERSION,
+)
 from almonium_book_processor.ai.pricing import has_price, seat_prices
 from almonium_book_processor.ai.seats import parse_seat, provider_for
 from almonium_book_processor.catalog.adaptation import PILOT_VERSIONS
@@ -24,11 +29,18 @@ from almonium_book_processor.catalog.models import AIRun, PipelineRun
 def judge_specs(language: str) -> list[dict]:
     """The blind judges of a pilot, each as the analysis spec it reads with.
 
-    With no seats configured the judge is the chapter-analysis model alone, with the spec
-    every past assessment was saved under.
+    They read with the chapter-analysis rubric, told to rate the wording alone. With no seats
+    configured the judge is the chapter-analysis model.
     """
 
     base = analysis_spec(language)
+    base = {
+        **base,
+        "prompt_version": (
+            WORDING_PROMPT_VERSION if language == "en" else LOCALIZED_WORDING_PROMPT_VERSION
+        ),
+        "system_prompt": base["system_prompt"] + WORDING_NOTE,
+    }
     if not settings.DIFFICULTY_JUDGES:
         return [base]
     specs = []
