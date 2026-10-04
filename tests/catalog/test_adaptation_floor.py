@@ -970,6 +970,85 @@ def test_applying_one_finding_keeps_its_neighbour_on_the_block_placeable(adaptat
     assert audit_context(adaptation)["fidelity_audit_state"] == "current"
 
 
+def _analysed(adaptation, level):
+    from almonium_book_processor.catalog.chapter_analysis import analyze_chapters, queue_analysis
+
+    analysis = queue_analysis(str(adaptation.id))
+    analyze_chapters(str(analysis.id), provider=Judge(level))
+    return analysis
+
+
+def test_the_judges_wording_level_is_the_adaptations_where_they_read_the_current_text(
+    adaptation,
+):
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
+    from almonium_book_processor.catalog.adaptation_wording import check_edition, wording_levels
+
+    # the library's chapter analysis reads every chapter above the B2 target
+    _analysed(adaptation, "C1")
+    assert "not achieved" in adaptation_quality(adaptation)["adaptation_blocker"]
+    judge = Judge("B2")
+
+    verdicts = check_edition(adaptation, provider=judge)
+
+    assert {v["max_level"] for v in verdicts.values()} == {"B2"}
+    assert set(wording_levels(adaptation).values()) == {"B2"}
+    # the pilot's judges read the wording at the target, and theirs is the level that counts
+    quality = adaptation_quality(adaptation)
+    assert quality["adaptation_blocker"] == "" and quality["adaptation_above_chapters"] == []
+    # a text they have read is not read again
+    calls = judge.calls
+    check_edition(adaptation, provider=judge)
+    assert judge.calls == calls
+    # a chapter whose text changed since is theirs no longer
+    changed = adaptation.blocks.get(block_id="c2.b1")
+    changed.text = "Before dawn, he went away."
+    changed.save()
+    assert str(changed.chapter_id) not in wording_levels(adaptation)
+
+
+def test_a_chapter_read_above_the_target_is_revised_and_applied_only_at_the_target(
+    adaptation, monkeypatch
+):
+    from almonium_book_processor.catalog.adaptation_wording import (
+        check_chapter,
+        revise_chapter,
+    )
+
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.reassess_applied_pilot.delay", lambda _: None
+    )
+    chapter = adaptation.chapters.get(sequence=1)
+    verdict = check_chapter(adaptation, chapter, provider=Judge("C1"))
+
+    class Reviser(RevisingGenerator):
+        def respond(self, body):
+            response = super().respond(body)
+            content = response["output"][0]["content"][0]
+            content["text"] = content["text"].replace("he left.", "he went away.")
+            return response
+
+    generator = Reviser()
+
+    refused = revise_chapter(adaptation, chapter, verdict, provider=generator, judge=Judge("C1"))
+
+    # the adapter was told what the judges cited; the judges read its revision no easier
+    assert "at C1, above B2" in generator.instructions[0]
+    assert refused["applied"] is False and "read at C1" in refused["reason"]
+
+    # another chapter, whose revision the judges read at the target
+    second = adaptation.chapters.get(sequence=2)
+    verdict = check_chapter(adaptation, second, provider=Judge("C1"))
+
+    applied = revise_chapter(adaptation, second, verdict, provider=generator, judge=Judge("B2"))
+
+    assert applied == {"applied": True, "level": "B2", "pilot_id": applied["pilot_id"]}
+    block = adaptation.blocks.get(block_id="c2.b1")
+    assert block.text == "Before dawn, he went away."
+    revision = block.revisions.latest("created_at")
+    assert "Applied automatically" in revision.notes and "No person has reviewed" in revision.notes
+
+
 def test_a_phrase_level_fix_carries_the_difficulty_verdict_forward(
     adaptation, django_capture_on_commit_callbacks
 ):
