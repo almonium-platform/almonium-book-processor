@@ -277,6 +277,30 @@ def test_windows_read_in_parallel_record_the_same_findings():
     assert finding.evidence["agreement"] == "both"
 
 
+def test_a_block_is_sent_once_however_many_findings_it_has():
+    edition = translated_edition()
+    outside = FakeReviewer(
+        [
+            issue("побачив завершення", "узрів завершення"),
+            issue("Похмурої", "Понурої", kind="style", severity="minor"),
+        ]
+    )
+    opus = FakeReviewer([])
+
+    review_translation(
+        str(edition.id),
+        providers={"claude-code": opus, "codex": outside, "adjudicator": FakeReviewer([])},
+    )
+
+    # the second opinion on two findings in one paragraph carries that paragraph once
+    asked = json.loads(opus.bodies[-1]["input"])
+    assert list(asked["blocks"]) == ["c1.p2"]
+    assert asked["blocks"]["c1.p2"]["translated"] == TRANSLATION
+    assert [f["block_id"] for f in asked["findings"]] == ["c1.p2", "c1.p2"]
+    assert all("translated" not in f and "source" not in f for f in asked["findings"])
+    assert "given once under blocks" in opus.bodies[-1]["instructions"]
+
+
 def test_the_adjudicator_is_never_the_model_that_translated(settings):
     from almonium_book_processor.catalog.translation_review import _adjudicator
 

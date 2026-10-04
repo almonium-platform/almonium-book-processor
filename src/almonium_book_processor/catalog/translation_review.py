@@ -471,7 +471,8 @@ def _ask(run, edition, reviewer: dict, step: str, system: str, payload: dict, mo
     )
     prompt, _ = PromptTemplate.objects.get_or_create(
         name=f"literary-translation-{step}",
-        version=1,
+        # 2: the blocks are given once per call instead of beside every finding
+        version=2,
         defaults={
             "purpose": PURPOSE,
             "system_prompt": system,
@@ -522,6 +523,34 @@ def _ask(run, edition, reviewer: dict, step: str, system: str, payload: dict, mo
         raise
 
 
+BLOCKS_NOTE = (
+    " Each finding names its block by block_id; the blocks, source and translation, are given "
+    "once under blocks."
+)
+
+
+def _payload(pairs: dict, items: list[dict], describe) -> dict:
+    """The findings of one call, with every block they touch given once.
+
+    A chapter's findings cluster in the same paragraphs. With the paragraph repeated beside
+    each finding, these short steps cost more input than the reviews themselves.
+    """
+
+    block_ids = list(dict.fromkeys(f["block_id"] for f in items))
+    return {
+        "blocks": {
+            block_id: {
+                "source": pairs[block_id]["source"],
+                "translated": pairs[block_id]["adapted"],
+            }
+            for block_id in block_ids
+        },
+        "findings": [
+            {"id": index, "block_id": f["block_id"], **describe(f)} for index, f in enumerate(items)
+        ],
+    }
+
+
 def second_opinions(run, edition, pairs: dict, findings: list[dict], panel, names, providers):
     """Put every finding one reviewer raised alone to the other reviewer.
 
@@ -538,25 +567,21 @@ def second_opinions(run, edition, pairs: dict, findings: list[dict], panel, name
         ]
         if not items:
             continue
-        payload = {
-            "findings": [
-                {
-                    "id": index,
-                    "source": pairs[f["block_id"]]["source"],
-                    "translated": pairs[f["block_id"]]["adapted"],
-                    "quoted_span": f["adapted_quote"],
-                    "claim": f["explanation"],
-                    "proposed_correction": f["suggested_correction"],
-                }
-                for index, f in enumerate(items)
-            ]
-        }
+        payload = _payload(
+            pairs,
+            items,
+            lambda f: {
+                "quoted_span": f["adapted_quote"],
+                "claim": f["explanation"],
+                "proposed_correction": f["suggested_correction"],
+            },
+        )
         answer = _ask(
             run,
             edition,
             reviewer,
             "second-opinion",
-            SECOND_OPINION_PROMPT.format(**names),
+            SECOND_OPINION_PROMPT.format(**names) + BLOCKS_NOTE,
             payload,
             SecondOpinion,
             (providers or {}).get(reviewer["name"]),
@@ -583,32 +608,28 @@ def final_wording(run, edition, pairs: dict, findings: list[dict], translator, n
     items = [f for f in findings if f.get("quote_verified")]
     if not items:
         return
-    payload = {
-        "findings": [
-            {
-                "id": index,
-                "source": pairs[f["block_id"]]["source"],
-                "translated": pairs[f["block_id"]]["adapted"],
-                "span_to_replace": f["adapted_quote"],
-                "why": f["explanation"],
-                "candidates": [
-                    c
-                    for c in (
-                        f["suggested_correction"],
-                        f["evidence"].get("alternative_correction", ""),
-                    )
-                    if c
-                ],
-            }
-            for index, f in enumerate(items)
-        ]
-    }
+    payload = _payload(
+        pairs,
+        items,
+        lambda f: {
+            "span_to_replace": f["adapted_quote"],
+            "why": f["explanation"],
+            "candidates": [
+                c
+                for c in (
+                    f["suggested_correction"],
+                    f["evidence"].get("alternative_correction", ""),
+                )
+                if c
+            ],
+        },
+    )
     answer = _ask(
         run,
         edition,
         translator,
         "final-wording",
-        FINAL_WORDING_PROMPT.format(**names),
+        FINAL_WORDING_PROMPT.format(**names) + BLOCKS_NOTE,
         payload,
         FinalWording,
         provider,
@@ -641,29 +662,25 @@ def adjudicate(run, edition, pairs: dict, findings: list[dict], adjudicator, nam
     items = [f for f in findings if needs_ruling(f)]
     if not items:
         return
-    payload = {
-        "findings": [
-            {
-                "id": index,
-                "source": pairs[f["block_id"]]["source"],
-                "translated": pairs[f["block_id"]]["adapted"],
-                "quoted_span": f["adapted_quote"],
-                "kind": f["evidence"]["kind"],
-                "claim": f["explanation"],
-                "objection": (f["evidence"].get("second_opinion") or {}).get("reason", "")
-                if f["evidence"]["agreement"] == "disputed"
-                else "",
-                "proposed_replacement": f["suggested_correction"],
-            }
-            for index, f in enumerate(items)
-        ]
-    }
+    payload = _payload(
+        pairs,
+        items,
+        lambda f: {
+            "quoted_span": f["adapted_quote"],
+            "kind": f["evidence"]["kind"],
+            "claim": f["explanation"],
+            "objection": (f["evidence"].get("second_opinion") or {}).get("reason", "")
+            if f["evidence"]["agreement"] == "disputed"
+            else "",
+            "proposed_replacement": f["suggested_correction"],
+        },
+    )
     answer = _ask(
         run,
         edition,
         adjudicator,
         "adjudication",
-        ADJUDICATOR_PROMPT.format(**names),
+        ADJUDICATOR_PROMPT.format(**names) + BLOCKS_NOTE,
         payload,
         Adjudication,
         provider,
