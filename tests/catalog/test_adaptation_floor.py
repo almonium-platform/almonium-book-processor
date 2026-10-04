@@ -213,6 +213,94 @@ def test_pilot_audit_verifies_quotes_caches_and_records_on_the_pilot(source):
         audit_pilot(pilot.id, provider=auditor)
 
 
+class TwoAuditors:
+    """Each auditor's own findings, then the other's verdict on a material one."""
+
+    def __init__(self, by_model, *, confirms):
+        self.by_model = by_model
+        self.confirms = confirms
+        self.calls = []
+
+    def respond(self, body):
+        step = body["text"]["format"]["name"]
+        self.calls.append((step, body["model"], body["reasoning"]["effort"]))
+        data = json.loads(body["input"])
+        if step == "fidelity_second_opinion":
+            assert all("source" not in finding for finding in data["findings"])
+            assert set(data["blocks"]) == {finding["block_id"] for finding in data["findings"]}
+            return _response(
+                {
+                    "verdicts": [
+                        {"id": finding["id"], "material": self.confirms, "reason": "second look"}
+                        for finding in data["findings"]
+                    ]
+                }
+            )
+        present = {pair["block_id"] for pair in data["blocks"]}
+        issues = [i for i in self.by_model[body["model"]] if i["block_id"] in present]
+        return _response({"issues": issues, "assessment": "Read every pair."})
+
+
+@pytest.fixture
+def two_auditors(settings):
+    settings.FIDELITY_AUDITORS = "claude-code:opus,codex:gpt-6.1-sol:medium"
+
+
+def test_a_material_finding_one_auditor_raised_holds_only_if_the_other_confirms(
+    source, two_auditors
+):
+    pilot = _pilot(source)
+    auditors = TwoAuditors({"opus": [], "gpt-6.1-sol": [MATERIAL]}, confirms=False)
+
+    review = audit_pilot(pilot.id, provider=auditors)
+
+    # both read the whole pilot at their own effort, then Opus is asked about sol's finding
+    assert auditors.calls == [
+        ("fidelity_review", "opus", "high"),
+        ("fidelity_review", "gpt-6.1-sol", "medium"),
+        ("fidelity_second_opinion", "opus", "medium"),
+    ]
+    assert review["model"] == "opus + gpt-6.1-sol"
+    assert review["counts"] == {"material": 0, "minor": 0, "uncertain": 1}
+    issue = review["issues"][0]
+    assert issue["raised_by"] == ["gpt-6.1-sol"]
+    assert issue["second_opinion"] == {"by": "opus", "material": False, "reason": "second look"}
+    # every call is in the ledger at the share of the plan it used
+    assert len(review["ai_run_ids"]) == 3 and float(review["cost_usd"]) > 0
+    assert audit_pilot(pilot.id, provider=auditors) == review
+    assert len(auditors.calls) == 3
+    # a probe audited this way says so
+    from almonium_book_processor.catalog.adaptation_floor import probe_spec
+
+    assert probe_spec("B2", "en")["audit_model"] == "opus + gpt-6.1-sol"
+
+
+def test_a_confirmed_material_finding_holds_the_gate(source, two_auditors):
+    pilot = _pilot(source)
+    auditors = TwoAuditors({"opus": [MATERIAL], "gpt-6.1-sol": []}, confirms=True)
+
+    review = audit_pilot(pilot.id, provider=auditors)
+
+    assert review["counts"]["material"] == 1
+    assert review["issues"][0]["second_opinion"]["by"] == "gpt-6.1-sol"
+    assert review["issues"][0]["second_opinion"]["material"] is True
+
+
+def test_a_finding_both_auditors_raised_is_kept_once_at_the_stricter_severity(source, two_auditors):
+    pilot = _pilot(source)
+    auditors = TwoAuditors(
+        {"opus": [{**MATERIAL, "severity": "minor"}], "gpt-6.1-sol": [MATERIAL]}, confirms=False
+    )
+
+    review = audit_pilot(pilot.id, provider=auditors)
+
+    assert len(review["issues"]) == 1
+    assert review["issues"][0]["raised_by"] == ["opus", "gpt-6.1-sol"]
+    assert review["counts"]["material"] == 1
+    # agreement needs no second opinion
+    assert [step for step, _, _ in auditors.calls] == ["fidelity_review", "fidelity_review"]
+
+
 def test_a_standalone_pilot_is_judged_and_audited_after_generation_but_book_chunks_are_not(
     source,
 ):

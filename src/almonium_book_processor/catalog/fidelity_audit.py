@@ -26,11 +26,17 @@ from almonium_book_processor.ai.fidelity import (
     PROMPT_NAME,
     PROMPT_VERSION,
     PURPOSE,
+    SECOND_OPINION_PROMPT,
+    SECOND_OPINION_PROMPT_NAME,
+    SECOND_OPINION_SCHEMA,
     SYSTEM_PROMPT,
     Review,
+    SecondOpinion,
 )
-from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
+from almonium_book_processor.ai.pricing import has_price, seat_prices
+from almonium_book_processor.ai.seats import parse_seat, provider_for
 from almonium_book_processor.catalog.adaptation import (
     PILOT_VERSIONS,
     digest,
@@ -90,10 +96,46 @@ def audit_spec(tier: str | None = None) -> dict:
     }
 
 
+def auditor_specs() -> list[dict]:
+    """The fidelity auditors of a pilot, each as the audit spec it reads with.
+
+    With no seats configured the auditor is the API tier's model alone, under the spec every
+    past pilot audit was saved with.
+    """
+
+    base = audit_spec()
+    if not settings.FIDELITY_AUDITORS:
+        return [base]
+    specs = []
+    for setting in settings.FIDELITY_AUDITORS.split(","):
+        seat = parse_seat(setting)
+        if not has_price(seat.model):
+            raise ValueError(f"No price is known for {seat.model}; add it to ai/pricing.py")
+        specs.append(
+            {
+                **base,
+                "provider": seat.provider,
+                "tier": "seat",
+                "model": seat.model,
+                "reasoning_effort": seat.effort or base["reasoning_effort"],
+                "pricing_per_million": seat_prices(seat.provider, seat.model),
+            }
+        )
+    return specs
+
+
+def auditor_label() -> str:
+    """The auditors by name, as a review and a probe record who audited."""
+
+    return " + ".join(spec["model"] for spec in auditor_specs())
+
+
 def _identity(spec: dict) -> dict:
     """What can change an answer: model, effort, prompt. Prices and tier names cannot."""
 
     return {
+        # a plan's CLI wraps the request in its own instructions, so it is not the API's reader
+        **({"provider": spec["provider"]} if spec["provider"] != "openai" else {}),
         "model": spec["model"],
         "reasoning_effort": spec["reasoning_effort"],
         "prompt_version": spec["prompt_version"],
@@ -254,7 +296,7 @@ def _audit_window(run, window: dict, spec: dict, configuration, prompt, provider
         request_payload={"body": body, "window": window["data"]},
     )
     try:
-        response = (provider or OpenAIBatchProvider()).respond(body)
+        response = (provider or provider_for(spec["provider"], spec["model"])).respond(body)
         _record_usage(ai.id, response, spec)
         if response.get("status") != "completed":
             raise ValueError("Provider did not complete the audit; partial output is not accepted.")
@@ -302,6 +344,180 @@ def _review(results: list[AIRun], spec: dict, pair_count: int) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Two auditors: what only one of them calls material is put to the other.
+
+STRICTNESS = ("uncertain", "minor", "material")
+
+
+def _same_issue(a: dict, b: dict) -> bool:
+    """Two auditors' issues about the same words of the same block."""
+
+    if a["block_id"] != b["block_id"]:
+        return False
+    x, y = _quote(a["adapted_quote"]), _quote(b["adapted_quote"])
+    return bool(x and y and (x in y or y in x))
+
+
+def _second_opinion(run, spec: dict, items: list[dict], pairs: list[dict], language, provider):
+    """One recorded call: ``spec``'s auditor says which of another's findings are material."""
+
+    by_id = {pair["block_id"]: pair for pair in pairs}
+    block_ids = list(dict.fromkeys(item["block_id"] for item in items))
+    payload = {
+        "language": language,
+        "blocks": {
+            block_id: {
+                "source": by_id[block_id]["source"],
+                "adapted": by_id[block_id]["adapted"],
+            }
+            for block_id in block_ids
+            if block_id in by_id
+        },
+        "findings": [
+            {
+                "id": index,
+                "block_id": item["block_id"],
+                "source_quote": item["source_quote"],
+                "adapted_quote": item["adapted_quote"],
+                "claim": item["explanation"],
+            }
+            for index, item in enumerate(items)
+        ],
+    }
+    identity = {**_identity(spec), "step": "second-opinion"}
+    configuration, _ = ModelConfiguration.objects.get_or_create(
+        name=f"fidelity-second-opinion-{_hash(identity)[:32]}",
+        defaults={
+            "provider": spec["provider"],
+            "model": spec["model"],
+            "purpose": PURPOSE,
+            "parameters": {"reasoning_effort": "medium"},
+        },
+    )
+    prompt, _ = PromptTemplate.objects.get_or_create(
+        name=SECOND_OPINION_PROMPT_NAME,
+        version=1,
+        defaults={
+            "purpose": PURPOSE,
+            "system_prompt": SECOND_OPINION_PROMPT,
+            "user_template": "{findings_json}",
+            "output_schema": SECOND_OPINION_SCHEMA,
+            "active": True,
+        },
+    )
+    input_hash = _hash([identity, payload])
+    ai = AIRun.objects.filter(
+        edition_id=run.edition_id,
+        input_hash=input_hash,
+        status=AIRun.Status.SUCCEEDED,
+        prompt_template=prompt,
+        model_configuration=configuration,
+    ).first()
+    if ai is None:
+        body = {
+            "model": spec["model"],
+            "instructions": SECOND_OPINION_PROMPT,
+            "input": _json(payload),
+            "reasoning": {"effort": "medium"},
+            "store": False,
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "fidelity_second_opinion",
+                    "strict": True,
+                    "schema": SECOND_OPINION_SCHEMA,
+                }
+            },
+        }
+        ai = AIRun.objects.create(
+            edition_id=run.edition_id,
+            pipeline_run=run,
+            model_configuration=configuration,
+            prompt_template=prompt,
+            input_hash=input_hash,
+            idempotency_key=f"fidelity-second-opinion:{uuid.uuid4()}",
+            status=AIRun.Status.SUBMITTED,
+            started_at=timezone.now(),
+            request_payload={"body": body},
+        )
+        try:
+            response = (provider or provider_for(spec["provider"], spec["model"])).respond(body)
+            _record_usage(ai.id, response, spec)
+            opinion = SecondOpinion.model_validate_json(response_output_text(response))
+            ai.refresh_from_db()
+            ai.response_payload = {**ai.response_payload, "opinion": opinion.model_dump()}
+            ai.status = AIRun.Status.SUCCEEDED
+            ai.finished_at = timezone.now()
+            ai.save(update_fields=["response_payload", "status", "finished_at", "updated_at"])
+        except Exception as error:
+            AIRun.objects.filter(pk=ai.id).update(
+                status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
+            )
+            raise
+    return ai, {v["id"]: v for v in ai.response_payload["opinion"]["verdicts"]}
+
+
+def _cross_checked(run, reads: list[dict], specs: list[dict], pairs, language, provider) -> dict:
+    """One review from two auditors' readings.
+
+    An issue both raised is kept once, at the stricter severity. A material issue only one
+    raised is put to the other: confirmed, it stays material and holds the gate; not
+    confirmed, it becomes uncertain, kept for the editor with the objection beside it.
+    """
+
+    first, second = reads
+    merged = [{**issue, "raised_by": [first["model"]]} for issue in first["issues"]]
+    for issue in second["issues"]:
+        match = next(
+            (m for m in merged if len(m["raised_by"]) == 1 and _same_issue(m, issue)), None
+        )
+        if match is None:
+            merged.append({**issue, "raised_by": [second["model"]]})
+            continue
+        match["raised_by"].append(second["model"])
+        match["severity"] = max(match["severity"], issue["severity"], key=STRICTNESS.index)
+    opinions = []
+    for asked, raiser in ((specs[1], first["model"]), (specs[0], second["model"])):
+        items = [
+            issue
+            for issue in merged
+            if issue["severity"] == "material" and issue["raised_by"] == [raiser]
+        ]
+        if not items:
+            continue
+        ai, verdicts = _second_opinion(run, asked, items, pairs, language, provider)
+        opinions.append(ai)
+        for index, issue in enumerate(items):
+            verdict = verdicts.get(index)
+            confirmed = bool(verdict and verdict["material"])
+            issue["second_opinion"] = {
+                "by": asked["model"],
+                "material": confirmed,
+                "reason": verdict["reason"] if verdict else "no verdict returned",
+            }
+            if not confirmed:
+                issue["severity"] = "uncertain"
+    return {
+        "prompt_version": first["prompt_version"],
+        "model": " + ".join(read["model"] for read in reads),
+        "blocks": first["blocks"],
+        "issues": merged,
+        "counts": {s: sum(i["severity"] == s for i in merged) for s in SEVERITIES},
+        "assessment": " ".join(
+            f"{read['model']}: {read['assessment']}" for read in reads if read["assessment"]
+        ),
+        "ai_run_ids": [
+            *(run_id for read in reads for run_id in read["ai_run_ids"]),
+            *(str(ai.id) for ai in opinions),
+        ],
+        "cost_usd": str(
+            sum((Decimal(read["cost_usd"]) for read in reads), Decimal("0"))
+            + sum(((ai.estimated_cost_usd or Decimal("0")) for ai in opinions), Decimal("0"))
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Pilot audit: a chapter sample beside the snapshot it was generated from.
 
 
@@ -331,15 +547,18 @@ def audit_pilot(pilot_id, *, provider=None) -> dict:
     ]
     if not pairs:
         raise ValueError("No pilot text to audit.")
-    spec = audit_spec()
-    windows = [
-        {
-            "hash": _hash([_identity(spec), str(generation.id), part]),
-            "data": {"language": pilot.edition.language, "blocks": part},
-        }
-        for part in _windows(pairs, spec)
-    ]
-    identity = _hash([_identity(spec), str(generation.id), pairs])
+    specs = auditor_specs()
+    if len(specs) > 2:
+        raise ValueError("A pilot is audited by one auditor or by two that check each other.")
+    spec = specs[0]
+    # One auditor keeps the identity past audits were saved under.
+    identity = _hash(
+        [
+            _identity(spec) if len(specs) == 1 else [_identity(s) for s in specs],
+            str(generation.id),
+            pairs,
+        ]
+    )
     run, _ = PipelineRun.objects.get_or_create(
         idempotency_key=f"{pilot.id}:fidelity-audit:{identity}",
         defaults={
@@ -347,7 +566,12 @@ def audit_pilot(pilot_id, *, provider=None) -> dict:
             "stage": PipelineRun.Stage.ADAPT,
             "processor_version": AUDIT_VERSION,
             "input_hash": identity,
-            "summary": {"kind": "pilot", "pilot_id": str(pilot.id), "spec": spec},
+            "summary": {
+                "kind": "pilot",
+                "pilot_id": str(pilot.id),
+                "spec": spec,
+                **({"specs": specs} if len(specs) > 1 else {}),
+            },
         },
     )
     if run.status == PipelineRun.Status.SUCCEEDED:
@@ -357,11 +581,29 @@ def audit_pilot(pilot_id, *, provider=None) -> dict:
     ).update(status=PipelineRun.Status.RUNNING, started_at=timezone.now(), error=""):
         raise ValueError("Fidelity audit already running; inspect its ledger before retrying.")
     try:
-        configuration, prompt = _configuration(spec)
-        results = [
-            _audit_window(run, window, spec, configuration, prompt, provider) for window in windows
-        ]
-        review = _review(results, spec, len(pairs))
+        reads = []
+        for auditor in specs:
+            configuration, prompt = _configuration(auditor)
+            results = [
+                _audit_window(
+                    run,
+                    {
+                        "hash": _hash([_identity(auditor), str(generation.id), part]),
+                        "data": {"language": pilot.edition.language, "blocks": part},
+                    },
+                    auditor,
+                    configuration,
+                    prompt,
+                    provider,
+                )
+                for part in _windows(pairs, auditor)
+            ]
+            reads.append(_review(results, auditor, len(pairs)))
+        review = (
+            reads[0]
+            if len(reads) == 1
+            else _cross_checked(run, reads, specs, pairs, pilot.edition.language, provider)
+        )
         run.summary = {**run.summary, "review": review}
         run.status = PipelineRun.Status.SUCCEEDED
         run.finished_at = timezone.now()

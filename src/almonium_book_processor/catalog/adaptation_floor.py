@@ -37,6 +37,7 @@ from almonium_book_processor.catalog.fidelity_audit import (
     audit_context,
     audit_pilot,
     audit_spec,
+    auditor_label,
     fidelity_gate,
 )
 from almonium_book_processor.catalog.models import Chapter, Edition, PipelineRun, Work
@@ -76,7 +77,7 @@ def probe_spec(target_level: str, language: str) -> dict:
         "judge_prompt_version": judge["prompt_version"],
         # named only when a judge reads more than once: a past probe must read as saved
         **({"judge_readings": readings} if readings > 1 else {}),
-        "audit_model": audit["model"],
+        "audit_model": auditor_label(),
         "audit_prompt_version": audit["prompt_version"],
     }
 

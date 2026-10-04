@@ -195,6 +195,10 @@ ADAPTATION_GENERATOR = os.getenv("ADAPTATION_GENERATOR", "")
 # alone, read once: on 2026-10-04 that model called B1 attempts and B2 adaptations alike B2,
 # where Opus and GPT-6.1-sol told them apart, so the owner's machine names those two.
 DIFFICULTY_JUDGES = os.getenv("DIFFICULTY_JUDGES", "")
+# The fidelity auditors of a chapter pilot, as seats separated by commas. With two, each reads
+# the whole pilot, and a material finding only one of them raised holds the gate only if the
+# other confirms it. Empty means the API tier's model alone, as before.
+FIDELITY_AUDITORS = os.getenv("FIDELITY_AUDITORS", "")
 DIFFICULTY_READINGS = int(os.getenv("DIFFICULTY_READINGS", "3"))
 
 # A task that generates through a plan seat can only run where the plan's CLI is signed in.
