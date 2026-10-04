@@ -21,6 +21,28 @@ unless it says so.
   first use, so the first offline alignment after a fresh image takes minutes.
   After changing a model pin: `manage.py check --tag nlp`.
 
+## The plan worker (owner's machine only)
+
+Level adaptation can run on one of the owner's plans instead of the API: set
+`ADAPTATION_GENERATOR` in `.env` to a seat such as `codex:gpt-6-astra`, then
+`docker compose up -d web worker` and start `./plan-worker` in a terminal.
+
+- Chapter pilots, floor probes and whole-book adaptations are then sent to the
+  `plans` queue. The container worker never takes that queue, because the
+  Claude Code and Codex CLIs are signed in on the host and not in the
+  container; `./plan-worker` is a second Celery worker, on the host, that
+  takes only that queue. **With the setting on and `./plan-worker` not
+  running, those jobs wait in the queue**; nothing fails, nothing is paid.
+- It reads the stack's `.env` and reaches the database and broker on their
+  published ports (5433, 5673). It runs the code in the working tree, not the
+  image: restart it after changing `src/`, as you rebuild the containers.
+- A job on a plan uses up part of the plan's weekly allowance and is recorded
+  at that share of the plan's price (`ai/pricing.py`). `manage.py plan_meter`
+  reads the Codex meter. The same pilot's blind judge and fidelity audit still
+  call the API.
+- Set `CODEX_BINARY` in `.env` when an old `codex` is first on the path.
+- A deployed environment leaves `ADAPTATION_GENERATOR` empty and is unchanged.
+
 ## A run stuck in "running"
 
 Symptoms: a pipeline run shows running with no worker activity; a book

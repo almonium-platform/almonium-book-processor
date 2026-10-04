@@ -188,6 +188,23 @@ TRANSLATION_ADJUDICATORS = os.getenv(
 # whole books. Empty means the API's quality model, which is what a deployed worker uses; the
 # owner's machine names a plan seat, e.g. codex:gpt-6-astra.
 ADAPTATION_GENERATOR = os.getenv("ADAPTATION_GENERATOR", "")
+
+# A task that generates through a plan seat can only run where the plan's CLI is signed in.
+# It is sent to a queue of its own, which the container worker never takes and the owner's
+# host worker does (./plan-worker). With no plan seat configured nothing is routed there.
+PLAN_QUEUE = "plans"
+
+
+def plan_task_routes(generator: str) -> dict[str, dict[str, str]]:
+    if generator.partition(":")[0] not in ("codex", "claude-code"):
+        return {}
+    return {
+        f"almonium_book_processor.catalog.tasks.{task}": {"queue": PLAN_QUEUE}
+        for task in ("adapt_chapter_pilot", "adapt_book", "run_floor_probe")
+    }
+
+
+CELERY_TASK_ROUTES = plan_task_routes(ADAPTATION_GENERATOR)
 # Private-import metadata is one small call per book; the cheaper tier is plenty.
 OPENAI_METADATA_MODEL = os.getenv("OPENAI_METADATA_MODEL", "gpt-5.6-luna")
 # The fidelity audit reads adapted text beside its source; "quality" is the
