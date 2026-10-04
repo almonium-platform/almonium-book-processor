@@ -15,6 +15,7 @@
   {% if run.summary.difficulty_check %}
   <h2>Blind judge: {{ run.summary.difficulty_check.cefr_estimate }} · target {{ run.summary.target_level|default:"B2" }}</h2>
   <p>Highest window: {{ run.summary.difficulty_check.max_level }} · judge prompt v{{ run.summary.difficulty_check.prompt_version }} · {{ run.summary.difficulty_check.model }} · ${{ run.summary.difficulty_check.cost_usd }}. Fidelity still needs review.</p>
+  {% if run.summary.difficulty_check.judges %}<p>Each judge's readings, and the middle one that counts:{% for judge in run.summary.difficulty_check.judges %} <strong>{{ judge.model }}</strong> {{ judge.readings|join:", " }} → {{ judge.level }}{% if not forloop.last %} ·{% endif %}{% endfor %}. The strictest judge decides.</p>{% endif %}
   {% for window in run.summary.difficulty_check.windows %}<details><summary>{{ window.cefr_estimate }} — assessment evidence</summary>{% for item in window.evidence %}<p><code>{{ item.block_id }}</code>: “{{ item.quote }}” — {{ item.explanation }}</p>{% endfor %}</details>{% endfor %}
   {% endif %}
   {% if run.summary.fidelity_audit %}

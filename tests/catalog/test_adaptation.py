@@ -314,6 +314,97 @@ def test_pilot_blind_assessment_is_cached_and_displayed(chapter, target_level):
         assess_pilot(run.id, provider=judge)
 
 
+class PanelJudge:
+    """Answers each reading with the next level in the list."""
+
+    def __init__(self, levels):
+        self.levels = list(levels)
+        self.models = []
+
+    def respond(self, body):
+        self.models.append(body["model"])
+        result = {
+            "cefr_estimate": self.levels[len(self.models) - 1],
+            "confidence": 0.7,
+            "archaism_score": 0.0,
+            "modernisation_would_help": False,
+            "evidence": [
+                {
+                    "block_id": "b1",
+                    "quote": "Before dawn",
+                    "dimension": "syntax",
+                    "explanation": "Direct narration.",
+                }
+            ],
+            "spoiler_free_description": "A traveler sets out on a journey before sunrise.",
+            "recap": "He leaves.",
+            "hard_words": [],
+            "themes": [],
+            "characters": [],
+            "setting": "",
+            "content_flags": [],
+        }
+        return {
+            "status": "completed",
+            "usage": {"input_tokens": 1000, "output_tokens": 100},
+            "output": [
+                {
+                    "type": "message",
+                    "content": [{"type": "output_text", "text": json.dumps(result)}],
+                }
+            ],
+        }
+
+
+def test_a_panel_of_judges_reads_three_times_and_the_strictest_middle_reading_decides(
+    chapter, settings
+):
+    from almonium_book_processor.catalog.adaptation_floor import probe_spec
+    from almonium_book_processor.catalog.pilot_difficulty import assess_pilot
+
+    run = queue_pilot(chapter.edition_id, chapter.id, dispatch=False, target_level="B1")
+    run_pilot(run.id, provider=Provider())
+    settings.DIFFICULTY_JUDGES = "claude-code:opus,codex:gpt-6.1-sol"
+    settings.DIFFICULTY_READINGS = 3
+    # the first judge wavers once and lands on B1; the second lands on B2
+    judge = PanelJudge(["B1", "B2", "B1", "B2", "B2", "B1"])
+
+    result = assess_pilot(run.id, provider=judge)
+
+    assert judge.models == ["opus"] * 3 + ["gpt-6.1-sol"] * 3
+    assert result["judges"] == [
+        {"model": "opus", "level": "B1", "readings": ["B1", "B2", "B1"]},
+        {"model": "gpt-6.1-sol", "level": "B2", "readings": ["B2", "B2", "B1"]},
+    ]
+    assert result["max_level"] == "B2"
+    assert result["model"] == "opus + gpt-6.1-sol"
+    # a plan judge's reading costs the share of the plan it used, not nothing
+    assert float(result["cost_usd"]) > 0
+    # nothing is read again for the same pilot under the same panel
+    assert assess_pilot(run.id, provider=judge) == result
+    assert len(judge.models) == 6
+    # a probe judged by this panel says so, and so is a different probe
+    spec = probe_spec("B1", "en")
+    assert (spec["judge_model"], spec["judge_readings"]) == ("opus + gpt-6.1-sol", 3)
+
+
+def test_a_pilot_is_applied_only_when_every_judge_put_it_at_the_target(application, settings):
+    from almonium_book_processor.catalog.pilot_application import apply_pilot, chapter_revision
+
+    run, target, chapter = application
+    # the fixture's assessment is the chapter-analysis model's; this panel never judged the pilot
+    settings.DIFFICULTY_JUDGES = "claude-code:opus,codex:gpt-6.1-sol"
+
+    with pytest.raises(ValueError, match="current, complete assessment"):
+        apply_pilot(
+            pilot_id=run.id,
+            target_id=target.id,
+            expected_revision=chapter_revision(chapter),
+            editor=None,
+            notes="Reviewed for fidelity.",
+        )
+
+
 def test_editorial_feedback_is_versioned_without_mutating_source(chapter):
     first = queue_pilot(chapter.edition_id, chapter.id, dispatch=False)
     revised = queue_pilot(

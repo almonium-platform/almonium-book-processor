@@ -40,7 +40,11 @@ from almonium_book_processor.catalog.fidelity_audit import (
     fidelity_gate,
 )
 from almonium_book_processor.catalog.models import Chapter, Edition, PipelineRun, Work
-from almonium_book_processor.catalog.pilot_difficulty import assess_pilot
+from almonium_book_processor.catalog.pilot_difficulty import (
+    assess_pilot,
+    judge_label,
+    judge_readings,
+)
 
 PROBE_VERSION = "floor-probe-v1"
 # Highest first; each has a pilot prompt. A2 has never been tested and is not a rung.
@@ -55,6 +59,7 @@ def probe_spec(target_level: str, language: str) -> dict:
     judge = analysis_spec(language)
     audit = audit_spec()
     seat = generator_seat()
+    readings = judge_readings()
     return {
         "target_level": target_level,
         "generation_processor": B1_VERSION if target_level == "B1" else VERSION,
@@ -67,8 +72,10 @@ def probe_spec(target_level: str, language: str) -> dict:
         ),
         "generation_prompt_version": prompt_version,
         "generation_prompt_hash": digest(system_prompt),
-        "judge_model": judge["model"],
+        "judge_model": judge_label(language),
         "judge_prompt_version": judge["prompt_version"],
+        # named only when a judge reads more than once: a past probe must read as saved
+        **({"judge_readings": readings} if readings > 1 else {}),
         "audit_model": audit["model"],
         "audit_prompt_version": audit["prompt_version"],
     }
@@ -471,7 +478,7 @@ def backfill_probe(source: Edition, target_level: str) -> PipelineRun:
             or generation.prompt_template.version != spec["generation_prompt_version"]
             or generation.model_configuration.model != spec["generation_model"]
             or check.get("prompt_version") != judge["prompt_version"]
-            or check.get("model") != judge["model"]
+            or check.get("model") != judge_label(source.language)
         ):
             continue
         pilots[pilot.summary["chapter_id"]] = pilot  # the latest matching pilot per chapter

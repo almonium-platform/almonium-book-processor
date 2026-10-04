@@ -189,6 +189,14 @@ TRANSLATION_ADJUDICATORS = os.getenv(
 # owner's machine names a plan seat, e.g. codex:gpt-6-astra.
 ADAPTATION_GENERATOR = os.getenv("ADAPTATION_GENERATOR", "")
 
+# The blind difficulty judges of a chapter pilot, and so of a floor probe, as seats separated
+# by commas. Each judge reads the text DIFFICULTY_READINGS times and its middle reading counts;
+# the pilot's level is the highest of the judges'. Empty means the chapter-analysis model
+# alone, read once: on 2026-10-04 that model called B1 attempts and B2 adaptations alike B2,
+# where Opus and GPT-6.1-sol told them apart, so the owner's machine names those two.
+DIFFICULTY_JUDGES = os.getenv("DIFFICULTY_JUDGES", "")
+DIFFICULTY_READINGS = int(os.getenv("DIFFICULTY_READINGS", "3"))
+
 # A task that generates through a plan seat can only run where the plan's CLI is signed in.
 # It is sent to a queue of its own, which the container worker never takes and the owner's
 # host worker does (./plan-worker). With no plan seat configured nothing is routed there.

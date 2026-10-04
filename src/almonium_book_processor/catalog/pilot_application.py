@@ -3,7 +3,6 @@
 from django.db import transaction
 
 from almonium_book_processor.catalog.adaptation import PILOT_VERSIONS, digest, source_snapshot
-from almonium_book_processor.catalog.chapter_analysis import analysis_spec
 from almonium_book_processor.catalog.chapter_projections import LEVELS
 from almonium_book_processor.catalog.models import (
     AIRun,
@@ -88,13 +87,21 @@ def apply_pilot(*, pilot_id, target_id, expected_revision, editor, notes):
         raise ValueError("The target chapter changed. Reload and review it before applying.")
     if digest(source_snapshot(chapter, target_level=target_level)) != run.summary["source_hash"]:
         raise ValueError("The source chapter changed. Generate a current pilot.")
-    assessment = source.pipeline_runs.filter(
-        processor_version="pilot-difficulty-v1",
-        status="succeeded",
-        summary__pilot_id=str(run.id),
-        summary__spec=analysis_spec(source.language),
-    ).first()
-    level = assessment.summary.get("assessment", {}).get("max_level") if assessment else None
+    from almonium_book_processor.catalog.pilot_difficulty import judge_specs
+
+    # Every judge configured now must have assessed this pilot; the strictest one decides.
+    levels = []
+    for spec in judge_specs(source.language):
+        assessment = source.pipeline_runs.filter(
+            processor_version="pilot-difficulty-v1",
+            status="succeeded",
+            summary__pilot_id=str(run.id),
+            summary__spec=spec,
+        ).first()
+        levels.append(
+            assessment.summary.get("assessment", {}).get("max_level") if assessment else None
+        )
+    level = max(levels, key=LEVELS.index) if all(found in LEVELS for found in levels) else None
     if level not in LEVELS or LEVELS.index(level) > LEVELS.index(target_level):
         raise ValueError(
             f"The pilot needs a current, complete assessment at or below {target_level}."
