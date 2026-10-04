@@ -7,6 +7,7 @@ from almonium_book_processor.ai.pricing import has_price, seat_prices
 from almonium_book_processor.ai.seats import parse_seat, provider_for
 from almonium_book_processor.catalog.adaptation import PILOT_VERSIONS
 from almonium_book_processor.catalog.chapter_analysis import (
+    AnalysisRejected,
     _attempt,
     _configuration,
     _hash,
@@ -63,6 +64,19 @@ def _middle(levels: list[str]) -> str:
     return sorted(levels, key=LEVELS.index)[len(levels) // 2]
 
 
+def _read(run, window, spec, configuration, prompt, provider) -> AIRun:
+    """One reading of one window. A rejected answer is asked for once more.
+
+    A judge is rejected when it cites words that are not in the text. A panel makes many
+    calls for one pilot, and one bad answer should cost a call, not the whole assessment.
+    """
+
+    try:
+        return _attempt(run, window, spec, configuration, prompt, provider, reader_facing=False)
+    except AnalysisRejected:
+        return _attempt(run, window, spec, configuration, prompt, provider, reader_facing=False)
+
+
 def _judge(pilot, generation, chapter, parts, blocks, spec, readings, provider) -> dict:
     """One judge's assessment: every window read ``readings`` times, the middle reading kept."""
 
@@ -104,7 +118,7 @@ def _judge(pilot, generation, chapter, parts, blocks, spec, readings, provider) 
                 # a later reading is a new call, not the first one's cached answer
                 key = [identity, data] if reading == 1 else [identity, data, reading]
                 window = {"hash": _hash(key), "data": data}
-                results.append(_attempt(run, window, spec, configuration, prompt, provider))
+                results.append(_read(run, window, spec, configuration, prompt, provider))
             levels = [r.response_payload["analysis"]["cefr_estimate"] for r in results]
             taken.append({"results": results, "max_level": max(levels, key=LEVELS.index)})
         level = _middle([reading["max_level"] for reading in taken])

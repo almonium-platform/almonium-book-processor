@@ -388,6 +388,39 @@ def test_a_panel_of_judges_reads_three_times_and_the_strictest_middle_reading_de
     assert (spec["judge_model"], spec["judge_readings"]) == ("opus + gpt-6.1-sol", 3)
 
 
+def test_a_judge_is_not_failed_for_prose_no_reader_sees_and_is_asked_again_when_rejected(
+    chapter,
+):
+    from almonium_book_processor.catalog.pilot_difficulty import assess_pilot
+
+    run = queue_pilot(chapter.edition_id, chapter.id, dispatch=False)
+    run_pilot(run.id, provider=Provider())
+
+    class Judge(PanelJudge):
+        def respond(self, body):
+            response = super().respond(body)
+            content = response["output"][0]["content"][0]
+            result = json.loads(content["text"])
+            if len(self.models) == 1:
+                # the first answer cites words that are not in the text
+                result["evidence"][0]["quote"] = "words the chapter never says"
+            # a gloss the language detector takes for Spanish
+            result["hard_words"] = [
+                {
+                    "block_id": "b1",
+                    "surface": "dawn",
+                    "explanation": "Financial protection against specified losses or damage.",
+                }
+            ]
+            content["text"] = json.dumps(result)
+            return response
+
+    judge = Judge(["B2", "B2"])
+
+    assert assess_pilot(run.id, provider=judge)["max_level"] == "B2"
+    assert len(judge.models) == 2
+
+
 def test_a_pilot_is_applied_only_when_every_judge_put_it_at_the_target(application, settings):
     from almonium_book_processor.catalog.pilot_application import apply_pilot, chapter_revision
 

@@ -391,7 +391,23 @@ def _record_response(ai_run: AIRun, response: dict, spec: dict) -> bool:
         return current.edition_id is not None
 
 
-def _attempt(run: PipelineRun, window: dict, spec: dict, configuration, prompt, provider) -> AIRun:
+def _attempt(
+    run: PipelineRun,
+    window: dict,
+    spec: dict,
+    configuration,
+    prompt,
+    provider,
+    *,
+    reader_facing: bool = True,
+) -> AIRun:
+    """One window's analysis. ``reader_facing`` is false when only the level is used.
+
+    The language gate exists for prose a reader is shown. A pilot's blind judge shows none,
+    and the detector misreads short Latinate English ("Financial protection against specified
+    losses or damage." scores as Spanish), which would fail a sound reading.
+    """
+
     cached = (
         AIRun.objects.filter(
             edition_id=run.edition_id,
@@ -440,7 +456,8 @@ def _attempt(run: PipelineRun, window: dict, spec: dict, configuration, prompt, 
         if response.get("status") != "completed":
             raise ValueError("Provider response was incomplete or refused.")
         result = ChapterAnalysis.model_validate_json(response_output_text(response))
-        validate_analysis_language(result, window["data"]["language"])
+        if reader_facing:
+            validate_analysis_language(result, window["data"]["language"])
         result, spans, notes = _verify_citations(result, window["data"])
         _current_plan(run, spec)
         with transaction.atomic():
