@@ -378,8 +378,10 @@ def test_a_panel_of_judges_reads_three_times_and_the_strictest_middle_reading_de
     ]
     assert result["max_level"] == "B2"
     assert result["model"] == "opus + gpt-6.1-sol"
-    # a plan judge's reading costs the share of the plan it used, not nothing
+    # a plan judge's reading costs the share of the plan it used, not nothing, and the sum
+    # is exact: a float's long tail would be printed on the pilot's page
     assert float(result["cost_usd"]) > 0
+    assert len(result["cost_usd"].partition(".")[2]) <= 6
     # nothing is read again for the same pilot under the same panel
     assert assess_pilot(run.id, provider=judge) == result
     assert len(judge.models) == 6

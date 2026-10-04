@@ -1,5 +1,7 @@
 """Worker-side, bounded blind assessment of a saved adaptation pilot."""
 
+from decimal import Decimal
+
 from django.conf import settings
 from django.utils import timezone
 
@@ -212,7 +214,7 @@ def assess_pilot(pilot_id, *, provider=None):
         "max_level": decisive["max_level"],
         "ai_run_ids": [run_id for verdict in verdicts for run_id in verdict["ai_run_ids"]],
         "windows": decisive["windows"],
-        "cost_usd": str(sum(float(verdict["cost_usd"]) for verdict in verdicts))
+        "cost_usd": str(sum((Decimal(verdict["cost_usd"]) for verdict in verdicts), Decimal(0)))
         if len(verdicts) > 1
         else decisive["cost_usd"],
         **(
