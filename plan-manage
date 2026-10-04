@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# manage.py on the owner's host, with the stack's settings: for the commands that call a plan's
+# CLI, which the containers cannot.
+#
+# Usage: ./plan-manage plan_meter
+#        ./plan-manage check_adaptation_wording <edition slug> --revise
+#        ./plan-manage review_translation <edition slug>
+set -euo pipefail
+source "$(dirname "$0")/plan-env"
+
+exec .venv/bin/python manage.py "$@"

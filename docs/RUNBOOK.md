@@ -49,8 +49,20 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   the `plans` queue. Left empty, the pilot is judged and audited by the API's
   models as before. A probe records its generator, judges and auditors, so
   changing any of them makes the level probeable again.
-- These settings cover chapter pilots and floor probes. **A whole adapted
-  edition's own gates still use the API's chapter analysis and edition audit.**
+- `./plan-manage <command>` runs `manage.py` on the host with the same
+  settings, for the commands that call a plan's CLI: `plan_meter`,
+  `translate_on_plan`, `review_translation`, `check_adaptation_wording`.
+- **A whole adapted edition** is held to the level its probe passed at by
+  `./plan-manage check_adaptation_wording <slug>`: the pilot's judges read
+  every chapter for its wording, and where they have read a chapter's current
+  text their level is the one the edition's gate uses. `--revise` sends a
+  substantive chapter read above the target back to the adapter once and
+  applies the revision if the judges read it at the target. Run it again after
+  editing chapters: an edited chapter falls back to the library's chapter
+  analysis until the judges reread it, and they read only what changed.
+- With `FIDELITY_AUDITORS` naming two auditors, the edition's fidelity audit
+  (the page's button) is read by both, `FIDELITY_AUDIT_WORKERS` chapters at a
+  time, and runs on the host worker.
 - Set `CODEX_BINARY` in `.env` when an old `codex` is first on the path.
 - A deployed environment leaves `ADAPTATION_GENERATOR` empty and is unchanged.
 
