@@ -970,6 +970,44 @@ def test_applying_one_finding_keeps_its_neighbour_on_the_block_placeable(adaptat
     assert audit_context(adaptation)["fidelity_audit_state"] == "current"
 
 
+def test_an_edition_audited_by_two_auditors_queues_what_they_raised_and_said(
+    adaptation, two_auditors
+):
+    minor = {**MATERIAL, "block_id": "c2.b1", "severity": "minor"}
+    auditors = TwoAuditors(
+        {"opus": [minor], "gpt-6.1-sol": [MATERIAL, {**MATERIAL, "block_id": "c3.b1"}]},
+        confirms=False,
+    )
+
+    audit = queue_edition_audit(adaptation.id)
+    run_edition_audit(audit.id, provider=auditors)
+
+    audit.refresh_from_db()
+    assert audit.status == "succeeded" and audit.summary["review"]["model"] == "opus + gpt-6.1-sol"
+    # every chapter was read by both; Opus was asked about each chapter's finding it did not raise
+    steps = [step for step, _, _ in auditors.calls]
+    assert steps.count("fidelity_review") == 8 and steps.count("fidelity_second_opinion") == 2
+    findings = {f.stable_block_id: f for f in adaptation.text_quality_findings.all()}
+    assert set(findings) == {"c1.b1", "c2.b1", "c3.b1"}
+    # what only one auditor called material and the other did not confirm is kept as uncertain
+    assert findings["c1.b1"].evidence["severity"] == "uncertain"
+    assert findings["c1.b1"].evidence["raised_by"] == ["gpt-6.1-sol"]
+    assert findings["c1.b1"].evidence["second_opinion"]["by"] == "opus"
+    assert findings["c2.b1"].evidence["raised_by"] == ["opus"]
+    # nothing material is open, so the fidelity gate is not held
+    assert audit.summary["review"]["counts"]["material"] == 0
+    from almonium_book_processor.catalog.fidelity_audit import fidelity_gate
+    from almonium_book_processor.catalog.services import apply_fidelity_findings
+
+    assert audit_context(adaptation)["fidelity_audit_state"] == "current"
+    assert fidelity_gate(adaptation)[0] is True
+    # writing in the auditors' own correction keeps their audit current for the new text
+    reviewer = get_user_model().objects.create_user("panel-editor", is_staff=True)
+    apply_fidelity_findings(edition=adaptation, reviewer=reviewer, severities=["minor"])
+    assert adaptation.blocks.get(block_id="c2.b1").text == "Before dawn, he had already left."
+    assert audit_context(adaptation)["fidelity_audit_state"] == "current"
+
+
 def _analysed(adaptation, level):
     from almonium_book_processor.catalog.chapter_analysis import analyze_chapters, queue_analysis
 

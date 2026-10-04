@@ -360,6 +360,7 @@
       </div>
       <p class="fidelity-explanation">{{ finding.message }}</p>
       {% if finding.evidence.agreement == "disputed" %}<p class="muted">Second opinion: {{ finding.evidence.second_opinion.reason }}</p>{% endif %}
+      {% if finding.evidence.raised_by %}<p class="muted">Raised by {{ finding.evidence.raised_by|join:" and " }}{% if finding.evidence.second_opinion %}; {{ finding.evidence.second_opinion.by }} {% if finding.evidence.second_opinion.material %}confirms it is material{% else %}does not find it material{% endif %}: {{ finding.evidence.second_opinion.reason }}{% endif %}</p>{% endif %}
       {% if finding.evidence.adjudication %}<p class="muted">Adjudicator ({{ finding.evidence.adjudication.by }}): <strong>{% if finding.evidence.adjudication.verdict == "keep" %}keep the text{% elif finding.evidence.adjudication.verdict == "apply_proposed" %}apply the proposal{% elif finding.evidence.adjudication.verdict == "new_fix" %}a different fix{% else %}a person should decide{% endif %}</strong>. {{ finding.evidence.adjudication.reason }}{% if finding.evidence.adjudication.verdict == "keep" and finding.evidence.proposed_before_ruling %} Proposed and set aside: {{ finding.evidence.proposed_before_ruling }}{% endif %}</p>{% endif %}
       <div class="fidelity-sides">
         <div class="fidelity-side"><p class="fidelity-side-label">Source</p><p class="fidelity-text">{% side_excerpt finding.source_text finding.evidence.source_quote finding.evidence.adapted_quote %}</p></div>

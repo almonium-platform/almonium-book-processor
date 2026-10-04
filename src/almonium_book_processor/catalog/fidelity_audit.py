@@ -13,11 +13,12 @@ import hashlib
 import json
 import re
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from almonium_book_processor.ai.fidelity import (
@@ -685,6 +686,13 @@ def edition_plan(edition: Edition, spec: dict) -> dict:
     }
 
 
+def _edition_audit_hash(edition: Edition, specs: list[dict]) -> str:
+    """What an edition audit is of. One auditor keeps the hash past audits were saved under."""
+
+    hashes = [edition_plan(edition, spec)["hash"] for spec in specs]
+    return hashes[0] if len(hashes) == 1 else _hash(hashes)
+
+
 def queue_edition_audit(edition_id, *, tier: str | None = None, record: bool = True) -> PipelineRun:
     """Queue the audit of an edition's current text.
 
@@ -695,22 +703,29 @@ def queue_edition_audit(edition_id, *, tier: str | None = None, record: bool = T
 
     from almonium_book_processor.catalog.tasks import audit_edition_fidelity
 
-    if not settings.OPENAI_API_KEY:
-        raise ValueError("Configure an OpenAI key to audit fidelity.")
     edition = Edition.objects.select_related("source_edition", "work").get(pk=edition_id)
-    spec = audit_spec(tier)
+    # A named tier is one API model, as a comparison asks for; otherwise the configured
+    # auditors, which are that same model alone unless two seats are set.
+    specs = [audit_spec(tier)] if tier else auditor_specs()
+    if len(specs) > 2:
+        raise ValueError("An edition is audited by one auditor or by two that check each other.")
+    if any(s["provider"] == "openai" for s in specs) and not settings.OPENAI_API_KEY:
+        raise ValueError("Configure an OpenAI key to audit fidelity.")
+    spec = specs[0]
     plan = edition_plan(edition, spec)
+    plan_hash = _edition_audit_hash(edition, specs)
     with transaction.atomic():
         run, _ = PipelineRun.objects.get_or_create(
-            idempotency_key=f"{edition.id}:fidelity-audit:{plan['hash']}",
+            idempotency_key=f"{edition.id}:fidelity-audit:{plan_hash}",
             defaults={
                 "edition": edition,
                 "stage": PipelineRun.Stage.ADAPT,
                 "processor_version": AUDIT_VERSION,
-                "input_hash": plan["hash"],
+                "input_hash": plan_hash,
                 "summary": {
                     "kind": "edition" if record else "comparison",
                     "spec": spec,
+                    **({"specs": specs} if len(specs) > 1 else {}),
                     "chapters": len(plan["chapters"]),
                     "chapter_hashes": {c["id"]: c["hash"] for c in plan["chapters"]},
                     "windows": len(plan["windows"]),
@@ -744,6 +759,12 @@ def run_edition_audit(run_id, *, provider=None) -> None:
     edition = run.edition
     spec = run.summary["spec"]
     try:
+        if run.summary.get("specs"):
+            _run_cross_checked_audit(run, edition, run.summary["specs"], provider)
+            from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor
+
+            refresh_adaptation_floor(edition.work)
+            return
         plan = edition_plan(edition, spec)
         if plan["hash"] != run.input_hash:
             raise ValueError("The text changed after this audit was queued; queue it again.")
@@ -779,6 +800,75 @@ def run_edition_audit(run_id, *, provider=None) -> None:
     from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor
 
     refresh_adaptation_floor(edition.work)
+
+
+def _run_cross_checked_audit(run, edition, specs: list[dict], provider) -> None:
+    """An edition read by two auditors, chapter by chapter, each chapter cross-checked.
+
+    Chapters are independent until the findings are recorded, and two readings of a book one
+    window after another take hours, so FIDELITY_AUDIT_WORKERS chapters are read at a time.
+    """
+
+    if _edition_audit_hash(edition, specs) != run.input_hash:
+        raise ValueError("The text changed after this audit was queued; queue it again.")
+    plans = [edition_plan(edition, spec) for spec in specs]
+    configured = [_configuration(spec) for spec in specs]
+    chapters = plans[0]["chapters"]
+
+    def read(sequence: int) -> dict:
+        reads, pairs = [], []
+        for auditor, plan, (configuration, prompt) in zip(specs, plans, configured, strict=True):
+            windows = [w for w in plan["windows"] if w["data"]["chapter_sequence"] == sequence]
+            results = [
+                _audit_window(run, window, auditor, configuration, prompt, provider)
+                for window in windows
+            ]
+            pairs = [pair for window in windows for pair in window["data"]["blocks"]]
+            reads.append(_review(results, auditor, len(pairs)))
+        return _cross_checked(run, reads, specs, pairs, edition.language, provider)
+
+    def in_thread(sequence: int) -> dict:
+        try:
+            return read(sequence)
+        finally:
+            # each thread opened its own database connection
+            connection.close()
+
+    workers = max(1, settings.FIDELITY_AUDIT_WORKERS)
+    sequences = [chapter["sequence"] for chapter in chapters]
+    reviews = []
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for review in pool.map(in_thread, sequences) if workers > 1 else map(read, sequences):
+            reviews.append(review)
+            run.summary = {**run.summary, "completed_chapters": len(reviews)}
+            run.progress = int(95 * len(reviews) / len(sequences))
+            run.save(update_fields=["summary", "progress", "updated_at"])
+    if _edition_audit_hash(edition, specs) != run.input_hash:
+        raise ValueError("The text changed during the audit; queue it again.")
+    issues = [issue for review in reviews for issue in review["issues"]]
+    for issue in issues:
+        # who raised a finding and what the other auditor said go to the editor's queue with it
+        issue["evidence"] = {
+            key: issue[key] for key in ("raised_by", "second_opinion") if key in issue
+        }
+    review = {
+        "prompt_version": reviews[0]["prompt_version"],
+        "model": reviews[0]["model"],
+        "blocks": sum(chapter["pairs"] for chapter in chapters),
+        "issues": issues,
+        "counts": {s: sum(i["severity"] == s for i in issues) for s in SEVERITIES},
+        "assessment": "",
+        "ai_run_ids": [run_id for r in reviews for run_id in r["ai_run_ids"]],
+        "cost_usd": str(sum((Decimal(r["cost_usd"]) for r in reviews), Decimal("0"))),
+    }
+    with transaction.atomic():
+        if run.summary.get("kind") == "edition":
+            _record_findings(run, edition, review)
+        run.summary = {**run.summary, "review": review}
+        run.status = PipelineRun.Status.SUCCEEDED
+        run.progress = 100
+        run.finished_at = timezone.now()
+        run.save(update_fields=["summary", "status", "progress", "finished_at", "updated_at"])
 
 
 def _words(text: str) -> list[tuple[int, int]]:
@@ -1173,8 +1263,10 @@ def carry_audit_forward(
         }
         for f in findings
     )
-    run.input_hash = plan["hash"]
-    run.idempotency_key = f"{edition.id}:fidelity-audit:{plan['hash']}"
+    # an audit by two auditors is keyed by both their readings of the text
+    new_hash = _edition_audit_hash(edition, run.summary.get("specs") or [spec])
+    run.input_hash = new_hash
+    run.idempotency_key = f"{edition.id}:fidelity-audit:{new_hash}"
     run.summary = {
         **run.summary,
         "chapter_hashes": {c["id"]: c["hash"] for c in plan["chapters"]},
@@ -1183,7 +1275,7 @@ def carry_audit_forward(
     run.save(update_fields=["input_hash", "idempotency_key", "summary", "updated_at"])
     edition.text_quality_findings.filter(
         code__startswith=FINDING_PREFIX, input_hash=old_hash
-    ).update(input_hash=plan["hash"])
+    ).update(input_hash=new_hash)
     return run
 
 
@@ -1250,11 +1342,13 @@ def audit_context(edition: Edition) -> dict:
     if latest is None:
         return context
     try:
-        plan = edition_plan(edition, audit_spec())
+        specs = auditor_specs()
+        plan = edition_plan(edition, specs[0])
+        current_hash = _edition_audit_hash(edition, specs)
     except ValueError:
         context.update(fidelity_audit_run=latest, fidelity_audit_state="stale")
         return context
-    current = audits.filter(input_hash=plan["hash"]).first()
+    current = audits.filter(input_hash=current_hash).first()
     run = current or latest
     context["fidelity_audit_run"] = run
     if current is None:
