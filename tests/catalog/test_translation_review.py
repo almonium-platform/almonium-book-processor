@@ -93,13 +93,13 @@ class FakeReviewer:
         }
 
 
-def translated_edition():
+def translated_edition(tier=SUBSCRIPTION_TIER):
     source = canonical_edition()
     edition = create_parallel_translation(
         source_edition=source,
         target_language="uk",
         register="period-faithful",
-        tier=SUBSCRIPTION_TIER,
+        tier=tier,
     )
 
     class Translator:
@@ -112,7 +112,7 @@ def translated_edition():
             )
             return line["response"]["body"]
 
-    run_translation_inline(str(edition.id), tier=SUBSCRIPTION_TIER, provider=Translator())
+    run_translation_inline(str(edition.id), tier=tier, provider=Translator())
     edition.refresh_from_db()
     return edition
 
@@ -258,6 +258,43 @@ def test_a_new_fix_ruling_without_a_fix_goes_to_a_person():
     assert finding.evidence["adjudication"]["verdict"] == "human_review"
     assert finding.code == "fidelity_uncertain"
     assert finding.suggested_text == "здійснення своїх трудів"
+
+
+def test_the_adjudicator_is_never_the_model_that_translated(settings):
+    from almonium_book_processor.catalog.translation_review import _adjudicator
+
+    settings.TRANSLATION_ADJUDICATORS = "codex:gpt-6-astra, claude-code:fable"
+
+    assert _adjudicator("opus") == {
+        "name": "adjudicator",
+        "provider": "codex",
+        "model": "gpt-6-astra",
+    }
+    assert _adjudicator("gpt-6-astra")["model"] == "fable"
+
+
+def test_a_gpt_translation_gets_its_final_wording_from_the_model_that_wrote_it(settings):
+    from almonium_book_processor.catalog.ai_translation import CODEX_TIER
+
+    settings.CODEX_TRANSLATION_MODEL = "gpt-6-astra"
+    edition = translated_edition(tier=CODEX_TIER)
+    outside = FakeReviewer(
+        [issue("побачив завершення", "узрів завершення")], wording="узрів звершення"
+    )
+    opus = FakeReviewer([])
+
+    review_translation(
+        str(edition.id),
+        providers={"claude-code": opus, "codex": outside, "adjudicator": FakeReviewer([])},
+    )
+
+    finding = TextQualityFinding.objects.get(edition=edition)
+    # the Codex reviewer's seat runs another model than the translator; the wording is the
+    # translator's, and the request for it names that model
+    assert finding.evidence["final_wording_by"] == "gpt-6-astra"
+    wording = next(b for b in outside.bodies if "settling the final wording" in b["instructions"])
+    assert wording["model"] == "gpt-6-astra"
+    assert finding.evidence["reviewers"] == ["gpt-6.1-sol"]
 
 
 def test_agreed_meaning_findings_skip_the_adjudicator():

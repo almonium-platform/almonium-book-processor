@@ -196,13 +196,15 @@ def reviewers() -> list[dict]:
 def _seat(setting: str, name: str | None = None) -> dict:
     """A reviewer from a "provider:model" setting."""
 
-    provider, _, model = setting.partition(":")
-    if provider not in ("codex", "openai") or not model:
-        raise ValueError(f"A review seat is codex:<model> or openai:<model>, not {setting!r}")
+    provider, _, model = setting.strip().partition(":")
+    if provider not in ("codex", "claude-code", "openai") or not model:
+        raise ValueError(f"A review seat is <codex|claude-code|openai>:<model>, not {setting!r}")
     return {"name": name or provider, "provider": provider, "model": model}
 
 
-def _translator_provider(edition: Edition) -> str:
+def _translated_by(edition: Edition) -> tuple[str, str]:
+    """The provider and the model of the run that wrote the translation, or empty strings."""
+
     run = (
         edition.ai_runs.filter(
             model_configuration__purpose="literary_translation", status=AIRun.Status.SUCCEEDED
@@ -211,7 +213,16 @@ def _translator_provider(edition: Edition) -> str:
         .order_by("-created_at")
         .first()
     )
-    return run.model_configuration.provider if run else ""
+    if not run:
+        return "", ""
+    return run.model_configuration.provider, run.model_configuration.model
+
+
+def _adjudicator(translator_model: str) -> dict:
+    """The first adjudicator candidate that did not write the translation."""
+
+    seats = [_seat(s, "adjudicator") for s in settings.TRANSLATION_ADJUDICATORS.split(",")]
+    return next((seat for seat in seats if seat["model"] != translator_model), seats[0])
 
 
 def review_plan(edition: Edition, chapters: list[int] | None = None) -> dict:
@@ -287,7 +298,7 @@ def _configuration(reviewer: dict) -> tuple[ModelConfiguration, PromptTemplate]:
 
 def _provider(reviewer: dict):
     if reviewer["provider"] == "claude-code":
-        return ClaudeCodeProvider()
+        return ClaudeCodeProvider(model=reviewer["model"])
     if reviewer["provider"] == "codex":
         return CodexProvider()
     return OpenAIBatchProvider()
@@ -689,12 +700,16 @@ def review_translation(
     edition = Edition.objects.select_related("source_edition", "work").get(pk=edition_id)
     plan = review_plan(edition, chapters)
     panel = reviewers()
-    author_provider = _translator_provider(edition)
+    author_provider, author_model = _translated_by(edition)
+    # The reviewer from the translator's vendor: what it raises alone ranks below what the
+    # other reviewer raises alone.
     author = next((r["name"] for r in panel if r["provider"] == author_provider), "")
-    # The translator's own model settles the final wording; an unknown translator leaves it to
-    # the first reviewer.
-    translator = next((r for r in panel if r["name"] == author), panel[0])
-    adjudicator = _seat(settings.TRANSLATION_ADJUDICATOR, "adjudicator")
+    # The translator's own model settles the final wording, which need not be the model its
+    # vendor's reviewer runs; an unknown translator leaves it to the first reviewer.
+    translator = next(
+        ({**r, "model": author_model} for r in panel if r["name"] == author), panel[0]
+    )
+    adjudicator = _adjudicator(author_model)
     names = {
         "target_language_name": language_name(edition.language),
         "source_language_name": language_name(edition.source_edition.language),
@@ -756,9 +771,7 @@ def review_translation(
                 by = evidence["second_opinion"]["by"]
                 evidence["second_opinion"]["by"] = models.get(by, by)
             if evidence.get("final_wording_by"):
-                evidence["final_wording_by"] = models.get(
-                    evidence["final_wording_by"], evidence["final_wording_by"]
-                )
+                evidence["final_wording_by"] = translator["model"]
         review = {
             "issues": issues,
             "counts": {s: sum(i["severity"] == s for i in issues) for s in SEVERITIES},
