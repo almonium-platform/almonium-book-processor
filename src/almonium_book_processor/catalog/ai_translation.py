@@ -22,6 +22,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from almonium_book_processor.ai.claude_code_provider import ClaudeCodeProvider
+from almonium_book_processor.ai.codex_provider import CodexProvider
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
 from almonium_book_processor.ai.output_language import validate_output_language
 from almonium_book_processor.ai.translation import (
@@ -61,11 +62,17 @@ TRANSLATION_MODEL_PRICING = {
     "quality": {"input": "2.00", "cached_input": "0.20", "output": "12.00"},
 }
 
-# Not a member of TRANSLATION_MODEL_PRICING on purpose: the admin's tier choices
-# and price estimates come from that table, and this tier cannot be started
-# from a deployed worker. It runs through the Claude Code CLI on the owner's
-# subscription, from the translate_with_claude_code command, at no metered cost.
+# Not members of TRANSLATION_MODEL_PRICING on purpose: the admin's tier choices
+# and price estimates come from that table, and these tiers cannot be started
+# from a deployed worker. They run through a CLI signed in to one of the owner's
+# plans, from the translate_on_plan command, at no metered cost: "subscription"
+# through Claude Code, "codex" through Codex.
 SUBSCRIPTION_TIER = "subscription"
+CODEX_TIER = "codex"
+PLAN_TIERS = {
+    SUBSCRIPTION_TIER: {"provider": "claude-code", "model_setting": "CLAUDE_CODE_MODEL"},
+    CODEX_TIER: {"provider": "codex", "model_setting": "CODEX_TRANSLATION_MODEL"},
+}
 
 logger = logging.getLogger(__name__)
 
@@ -79,12 +86,13 @@ def language_name(code: str) -> str:
 
 
 def _configuration(tier: str) -> tuple[ModelConfiguration, PromptTemplate]:
-    if tier == SUBSCRIPTION_TIER:
-        model = settings.CLAUDE_CODE_MODEL
+    if tier in PLAN_TIERS:
+        plan = PLAN_TIERS[tier]
+        model = getattr(settings, plan["model_setting"])
         configuration, _ = ModelConfiguration.objects.get_or_create(
-            name="claude-code-translation-v1",
+            name=f"{plan['provider']}-translation-v1",
             defaults={
-                "provider": "claude-code",
+                "provider": plan["provider"],
                 "model": model,
                 "purpose": "literary_translation",
                 "parameters": {
@@ -157,7 +165,7 @@ def create_parallel_translation(
         raise ValueError("The target language must differ from the source language")
     if not source_edition.blocks.exists():
         raise ValueError("The canonical edition has no normalized blocks yet")
-    if tier not in TRANSLATION_MODEL_PRICING and tier != SUBSCRIPTION_TIER:
+    if tier not in TRANSLATION_MODEL_PRICING and tier not in PLAN_TIERS:
         raise ValueError(f"Unknown translation tier: {tier}")
     if register not in {value for value, _ in REGISTER_CHOICES}:
         raise ValueError(f"Unknown register: {register}")
@@ -426,7 +434,7 @@ def _estimated_cost(
     *,
     discounted: bool,
 ) -> Decimal:
-    if tier == SUBSCRIPTION_TIER:
+    if tier in PLAN_TIERS:
         return Decimal(0)
     pricing = TRANSLATION_MODEL_PRICING[tier]
     uncached = max(0, input_tokens - cached_input_tokens)
@@ -798,7 +806,7 @@ def run_translation_inline(edition_id: str, *, tier: str = "quality", provider=N
 
     Same requests, same validation, same QA gates. It forfeits the 50% Batch
     discount but finishes in minutes and does not depend on the Batch service.
-    The subscription tier runs the same requests through the Claude Code CLI.
+    A plan tier runs the same requests through the Claude Code or the Codex CLI.
     """
 
     prepared = _prepare_translation_run(edition_id, tier=tier)
@@ -821,10 +829,13 @@ def run_translation_inline(edition_id: str, *, tier: str = "quality", provider=N
     )
 
     if provider is None:
-        provider = ClaudeCodeProvider() if tier == SUBSCRIPTION_TIER else OpenAIBatchProvider()
-    workers = (
-        settings.CLAUDE_CODE_WORKERS if tier == SUBSCRIPTION_TIER else DIRECT_TRANSLATION_WORKERS
-    )
+        provider = {SUBSCRIPTION_TIER: ClaudeCodeProvider, CODEX_TIER: CodexProvider}.get(
+            tier, OpenAIBatchProvider
+        )()
+    workers = {
+        SUBSCRIPTION_TIER: settings.CLAUDE_CODE_WORKERS,
+        CODEX_TIER: settings.CODEX_WORKERS,
+    }.get(tier, DIRECT_TRANSLATION_WORKERS)
     # Threads only make provider calls; every database write happens on this thread.
     with ThreadPoolExecutor(max_workers=workers) as pool:
         output_lines = list(

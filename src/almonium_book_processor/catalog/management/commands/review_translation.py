@@ -7,8 +7,8 @@ from almonium_book_processor.catalog.translation_review import review_translatio
 class Command(BaseCommand):
     help = (
         "Have two editors read a machine translation beside its source and queue what they find "
-        "in the edition's fidelity findings. One editor runs through the Claude Code CLI, so run "
-        "this on the machine where the CLI is signed in."
+        "in the edition's fidelity findings. The editors run through the Claude Code and Codex "
+        "CLIs, so run this on the machine where they are signed in."
     )
 
     def add_arguments(self, parser):

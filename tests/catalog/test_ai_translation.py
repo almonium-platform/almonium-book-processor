@@ -547,8 +547,47 @@ def test_subscription_tier_translates_through_the_given_provider_at_no_cost() ->
     assert edition.blocks.get(block_id="c1.h1").text == "Розділ I"
 
 
-def test_subscription_tier_is_not_offered_by_the_admin() -> None:
-    from almonium_book_processor.catalog.ai_translation import SUBSCRIPTION_TIER
+def test_codex_tier_translates_with_the_codex_model_at_no_cost(settings) -> None:
+    from almonium_book_processor.catalog.ai_translation import CODEX_TIER, run_translation_inline
+
+    settings.CODEX_TRANSLATION_MODEL = "gpt-6-sol"
+    edition = create_parallel_translation(
+        source_edition=canonical_edition(),
+        target_language="uk",
+        register="period-faithful",
+        tier=CODEX_TIER,
+    )
+    bodies: list[dict] = []
+
+    class FakeCodex:
+        name = "codex"
+
+        def respond(self, body):
+            bodies.append(body)
+            line = output_line(
+                "chapter-1",
+                [
+                    translated("c1.h1", "Розділ I"),
+                    translated(
+                        "c1.p2",
+                        "Похмурої листопадової ночі я побачив завершення своїх трудів.",
+                    ),
+                ],
+            )
+            return line["response"]["body"]
+
+    ai_run = run_translation_inline(str(edition.id), tier=CODEX_TIER, provider=FakeCodex())
+
+    ai_run.refresh_from_db()
+    assert ai_run.status == AIRun.Status.SUCCEEDED
+    assert ai_run.model_configuration.provider == "codex"
+    assert ai_run.model_configuration.name == "codex-translation-v1"
+    assert ai_run.estimated_cost_usd == 0
+    assert bodies[0]["model"] == "gpt-6-sol"
+
+
+def test_plan_tiers_are_not_offered_by_the_admin() -> None:
+    from almonium_book_processor.catalog.ai_translation import PLAN_TIERS
     from almonium_book_processor.catalog.translation_jobs import TRANSLATION_TIERS
 
-    assert SUBSCRIPTION_TIER not in TRANSLATION_TIERS
+    assert not set(PLAN_TIERS) & set(TRANSLATION_TIERS)

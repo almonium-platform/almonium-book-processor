@@ -34,6 +34,7 @@ from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
 from almonium_book_processor.ai.claude_code_provider import ClaudeCodeProvider
+from almonium_book_processor.ai.codex_provider import CodexProvider
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
 from almonium_book_processor.catalog.ai_translation import language_name
 from almonium_book_processor.catalog.fidelity_audit import (
@@ -188,8 +189,17 @@ def reviewers() -> list[dict]:
 
     return [
         {"name": "claude-code", "provider": "claude-code", "model": settings.CLAUDE_CODE_MODEL},
-        {"name": "openai", "provider": "openai", "model": settings.OPENAI_TRANSLATION_REVIEW_MODEL},
+        _seat(settings.TRANSLATION_OUTSIDE_REVIEWER),
     ]
+
+
+def _seat(setting: str, name: str | None = None) -> dict:
+    """A reviewer from a "provider:model" setting."""
+
+    provider, _, model = setting.partition(":")
+    if provider not in ("codex", "openai") or not model:
+        raise ValueError(f"A review seat is codex:<model> or openai:<model>, not {setting!r}")
+    return {"name": name or provider, "provider": provider, "model": model}
 
 
 def _translator_provider(edition: Edition) -> str:
@@ -276,7 +286,11 @@ def _configuration(reviewer: dict) -> tuple[ModelConfiguration, PromptTemplate]:
 
 
 def _provider(reviewer: dict):
-    return ClaudeCodeProvider() if reviewer["provider"] == "claude-code" else OpenAIBatchProvider()
+    if reviewer["provider"] == "claude-code":
+        return ClaudeCodeProvider()
+    if reviewer["provider"] == "codex":
+        return CodexProvider()
+    return OpenAIBatchProvider()
 
 
 def _review_window(run, edition, window: dict, reviewer: dict, system: str, provider) -> list[dict]:
@@ -680,11 +694,7 @@ def review_translation(
     # The translator's own model settles the final wording; an unknown translator leaves it to
     # the first reviewer.
     translator = next((r for r in panel if r["name"] == author), panel[0])
-    adjudicator = {
-        "name": "adjudicator",
-        "provider": "openai",
-        "model": settings.OPENAI_TRANSLATION_ADJUDICATOR_MODEL,
-    }
+    adjudicator = _seat(settings.TRANSLATION_ADJUDICATOR, "adjudicator")
     names = {
         "target_language_name": language_name(edition.language),
         "source_language_name": language_name(edition.source_edition.language),
@@ -737,6 +747,18 @@ def review_translation(
             issues.extend(found)
             run.progress = int(95 * done / len(plan["windows"]))
             run.save(update_fields=["progress", "updated_at"])
+        # The page names the models, which is what a reader recognises.
+        models = {reviewer["name"]: reviewer["model"] for reviewer in panel}
+        for issue in issues:
+            evidence = issue["evidence"]
+            evidence["reviewers"] = [models.get(n, n) for n in evidence["reviewers"]]
+            if evidence.get("second_opinion"):
+                by = evidence["second_opinion"]["by"]
+                evidence["second_opinion"]["by"] = models.get(by, by)
+            if evidence.get("final_wording_by"):
+                evidence["final_wording_by"] = models.get(
+                    evidence["final_wording_by"], evidence["final_wording_by"]
+                )
         review = {
             "issues": issues,
             "counts": {s: sum(i["severity"] == s for i in issues) for s in SEVERITIES},

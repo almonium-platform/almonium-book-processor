@@ -19,7 +19,7 @@ pytestmark = pytest.mark.django_db
 TRANSLATION = "Похмурої листопадової ночі я побачив завершення своїх трудів і зрадів."
 
 
-def issue(quote, correction, *, kind="meaning", severity="material", reviewer="openai"):
+def issue(quote, correction, *, kind="meaning", severity="material", reviewer="codex"):
     return {
         "block_id": "c1.p2",
         "source_quote": "accomplishment of my toils",
@@ -125,7 +125,7 @@ def test_merge_ranks_by_agreement_and_never_rejects():
                 issue("завершення своїх трудів", "здійснення своїх трудів", reviewer="claude-code"),
                 issue("зрадів", "утішився", kind="style", severity="minor", reviewer="claude-code"),
             ],
-            "openai": [
+            "codex": [
                 issue("побачив завершення", "узрів завершення"),
                 issue("Похмурої", "Понурої", kind="style", severity="minor"),
             ],
@@ -138,7 +138,7 @@ def test_merge_ranks_by_agreement_and_never_rejects():
     assert len(merged) == 3
     both = by_quote["побачив завершення"]
     assert both["evidence"]["agreement"] == "both"
-    assert both["evidence"]["reviewers"] == ["openai", "claude-code"]
+    assert both["evidence"]["reviewers"] == ["codex", "claude-code"]
     # the outside reviewer's wording is proposed; the translator's own is kept beside it
     assert both["suggested_correction"] == "узрів завершення"
     assert both["evidence"]["alternative_correction"] == "здійснення своїх трудів"
@@ -159,7 +159,7 @@ def test_review_cross_checks_and_queues_every_finding():
         str(edition.id),
         providers={
             "claude-code": opus,
-            "openai": outside,
+            "codex": outside,
             "adjudicator": FakeReviewer([], verdict="apply_proposed"),
         },
     )
@@ -169,14 +169,15 @@ def test_review_cross_checks_and_queues_every_finding():
     findings = {f.evidence["agreement"]: f for f in edition.text_quality_findings.all()}
     confirmed, disputed = findings["confirmed"], findings["disputed"]
     assert confirmed.evidence["agreement"] == "confirmed"
-    assert confirmed.evidence["reviewers"] == ["claude-code"]
-    assert confirmed.evidence["second_opinion"]["by"] == "openai"
+    # findings are labelled with the models that raised and judged them
+    assert confirmed.evidence["reviewers"] == ["opus"]
+    assert confirmed.evidence["second_opinion"]["by"] == "gpt-6.1-sol"
     # a "no" from the other reviewer lowers the rank and keeps the reason; nothing is dropped
     assert disputed.status == TextQualityFinding.Status.OPEN
     assert disputed.original_text == "завершення своїх трудів"
     assert disputed.suggested_text == "здійснення своїх трудів"
     assert disputed.evidence["agreement"] == "disputed"
-    assert disputed.evidence["second_opinion"] == {"by": "claude-code", "reason": "second look"}
+    assert disputed.evidence["second_opinion"] == {"by": "opus", "reason": "second look"}
     # the adjudicator ruled on the disputed finding and on the style one
     assert disputed.evidence["adjudication"]["verdict"] == "apply_proposed"
     assert confirmed.evidence["adjudication"]["verdict"] == "apply_proposed"
@@ -193,14 +194,14 @@ def test_the_translator_writes_the_final_wording_from_every_candidate():
 
     review_translation(
         str(edition.id),
-        providers={"claude-code": opus, "openai": outside, "adjudicator": FakeReviewer([])},
+        providers={"claude-code": opus, "codex": outside, "adjudicator": FakeReviewer([])},
     )
 
     finding = edition.text_quality_findings.get()
     # the translator's wording is what is queued; what the editors proposed is kept beside it
     assert finding.suggested_text == "звершення своїх трудів"
     assert finding.evidence["candidates"] == ["здійснення своїх трудів", "досягнення своїх трудів"]
-    assert finding.evidence["final_wording_by"] == "claude-code"
+    assert finding.evidence["final_wording_by"] == "opus"
     asked = json.loads(opus.bodies[-1]["input"])["findings"][0]
     assert asked["span_to_replace"] == "завершення своїх трудів"
 
@@ -212,7 +213,7 @@ def test_an_empty_final_wording_keeps_the_reviewers_correction():
 
     review_translation(
         str(edition.id),
-        providers={"claude-code": opus, "openai": outside, "adjudicator": FakeReviewer([])},
+        providers={"claude-code": opus, "codex": outside, "adjudicator": FakeReviewer([])},
     )
 
     assert edition.text_quality_findings.get().suggested_text == "здійснення своїх трудів"
@@ -226,7 +227,7 @@ def disputed_edition(adjudicator):
         str(edition.id),
         providers={
             "claude-code": FakeReviewer([], agrees=False),
-            "openai": FakeReviewer([issue("завершення своїх трудів", "здійснення своїх трудів")]),
+            "codex": FakeReviewer([issue("завершення своїх трудів", "здійснення своїх трудів")]),
             "adjudicator": adjudicator,
         },
     )
@@ -266,7 +267,7 @@ def test_agreed_meaning_findings_skip_the_adjudicator():
         str(edition.id),
         providers={
             "claude-code": FakeReviewer([]),
-            "openai": FakeReviewer([issue("завершення своїх трудів", "здійснення своїх трудів")]),
+            "codex": FakeReviewer([issue("завершення своїх трудів", "здійснення своїх трудів")]),
             "adjudicator": adjudicator,
         },
     )
@@ -284,7 +285,7 @@ def test_a_reviewed_translation_shows_its_findings_in_the_audit_panel():
         str(edition.id),
         providers={
             "claude-code": FakeReviewer([]),
-            "openai": FakeReviewer([issue("завершення своїх трудів", "здійснення своїх трудів")]),
+            "codex": FakeReviewer([issue("завершення своїх трудів", "здійснення своїх трудів")]),
             "adjudicator": FakeReviewer([]),
         },
     )

@@ -172,12 +172,11 @@ OPENAI_ALIGNMENT_CONFIDENCE = float(os.getenv("OPENAI_ALIGNMENT_CONFIDENCE", "0.
 # tier: the whole-book difference is under a dollar at Batch prices.
 OPENAI_TRANSLATION_QUALITY_MODEL = os.getenv("OPENAI_TRANSLATION_QUALITY_MODEL", "gpt-5.6-terra")
 OPENAI_TRANSLATION_DRAFT_MODEL = os.getenv("OPENAI_TRANSLATION_DRAFT_MODEL", "gpt-5.6-luna")
-# The outside reviewer of a machine translation: a different vendor's model than the translator.
-OPENAI_TRANSLATION_REVIEW_MODEL = os.getenv("OPENAI_TRANSLATION_REVIEW_MODEL", "gpt-6.1-sol")
-# The adjudicator rules on disputed and style findings; a third model, neither reviewer.
-OPENAI_TRANSLATION_ADJUDICATOR_MODEL = os.getenv(
-    "OPENAI_TRANSLATION_ADJUDICATOR_MODEL", "gpt-6-astra"
-)
+# A translation review's two seats beside the translator's own model, as "provider:model" with
+# provider codex (the plan) or openai (the metered API). The outside reviewer is from another
+# vendor than the translator on purpose; the adjudicator is a third model, neither reviewer.
+TRANSLATION_OUTSIDE_REVIEWER = os.getenv("TRANSLATION_OUTSIDE_REVIEWER", "codex:gpt-6.1-sol")
+TRANSLATION_ADJUDICATOR = os.getenv("TRANSLATION_ADJUDICATOR", "codex:gpt-6-astra")
 # Private-import metadata is one small call per book; the cheaper tier is plenty.
 OPENAI_METADATA_MODEL = os.getenv("OPENAI_METADATA_MODEL", "gpt-5.6-luna")
 # The fidelity audit reads adapted text beside its source; "quality" is the
@@ -192,6 +191,12 @@ CLAUDE_CODE_BINARY = os.getenv("CLAUDE_CODE_BINARY", "claude")
 CLAUDE_CODE_MODEL = os.getenv("CLAUDE_CODE_MODEL", "opus")
 CLAUDE_CODE_TIMEOUT_SECONDS = float(os.getenv("CLAUDE_CODE_TIMEOUT_SECONDS", "1800"))
 CLAUDE_CODE_WORKERS = int(os.getenv("CLAUDE_CODE_WORKERS", "4"))
+# The Codex CLI on the owner's ChatGPT plan, for the same owner-machine jobs. Name the binary
+# explicitly when an old one is first on the path: 0.114 cannot refresh the login.
+CODEX_BINARY = os.getenv("CODEX_BINARY", "codex")
+CODEX_TRANSLATION_MODEL = os.getenv("CODEX_TRANSLATION_MODEL", "gpt-6-sol")
+CODEX_TIMEOUT_SECONDS = float(os.getenv("CODEX_TIMEOUT_SECONDS", "1800"))
+CODEX_WORKERS = int(os.getenv("CODEX_WORKERS", "4"))
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", not DEBUG)
