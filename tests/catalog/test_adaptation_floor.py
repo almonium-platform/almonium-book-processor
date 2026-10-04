@@ -395,6 +395,90 @@ def test_a_failed_probe_closes_the_ladder(source, problem):
     assert len(evidence["pilot_ids"]) == 3
 
 
+class RevisingGenerator(Generator):
+    def __init__(self):
+        super().__init__()
+        self.instructions = []
+
+    def respond(self, body):
+        self.instructions.append(body["instructions"])
+        return super().respond(body)
+
+
+class FirstDraftJudge(Judge):
+    """Reads a first draft at one level and its revision at another."""
+
+    def __init__(self, first, revised):
+        super().__init__(first)
+        self.first, self.revised = first, revised
+
+    def respond(self, body):
+        self.level = self.first if self.calls % 2 == 0 else self.revised
+        return super().respond(body)
+
+
+def test_a_chapter_read_above_its_target_goes_back_to_the_adapter_once(source):
+    run = queue_probe(source.id, "B2")
+    generator = RevisingGenerator()
+
+    run_probe(run.id, provider=generator, judge=FirstDraftJudge("C1", "B2"), auditor=Auditor())
+
+    run.refresh_from_db()
+    assert run.summary["verdict"] == "passed"
+    # every chapter was written twice: the draft, then the revision the judges read at B2
+    assert generator.calls == 6
+    assert all(r["revised_from"]["level"] == "C1" for r in run.summary["results"])
+    assert all(r["judge_max_level"] == "B2" for r in run.summary["results"])
+    # the adapter was told what the judges cited, and to keep the meaning
+    feedback = generator.instructions[1]
+    assert "EDITORIAL CORRECTIONS FROM THE REVIEWER" in feedback
+    assert (
+        "at C1, above B2" in feedback and "\u201cBefore dawn\u201d: Direct narration." in feedback
+    )
+    assert "Keep every idea" in feedback
+    assert "EDITORIAL CORRECTIONS" not in generator.instructions[0]
+
+
+def test_a_revision_the_judges_read_no_easier_leaves_the_first_draft_standing(source):
+    run = queue_probe(source.id, "B2")
+    generator = RevisingGenerator()
+
+    run_probe(run.id, provider=generator, judge=Judge("C1"), auditor=Auditor())
+
+    run.refresh_from_db()
+    assert run.summary["verdict"] == "failed"
+    assert generator.calls == 6
+    assert all("revised_from" not in r for r in run.summary["results"])
+
+
+def test_feedback_names_the_cited_words_and_passages_but_not_the_content_notes():
+    from almonium_book_processor.catalog.adaptation_floor import level_feedback
+
+    assessment = {
+        "max_level": "B2",
+        "windows": [
+            {
+                "hard_words": [{"surface": "wretch"}, {"surface": "pleas"}, {"surface": "wretch"}],
+                "evidence": [
+                    {
+                        "quote": "Human laws are bloody",
+                        "dimension": "syntax",
+                        "explanation": "Long.",
+                    },
+                    {"quote": "I will feed it", "dimension": "content", "explanation": "Violence."},
+                ],
+            }
+        ],
+    }
+
+    feedback = level_feedback(assessment, "B1")
+
+    assert "Do not use these words" in feedback and "wretch, pleas." in feedback
+    assert "\u201cHuman laws are bloody\u201d: Long." in feedback
+    # what a passage is about is the author's; only its wording is the adapter's to change
+    assert "I will feed it" not in feedback
+
+
 def test_a_probe_under_a_superseded_configuration_can_be_run_again(source, settings):
     run = queue_probe(source.id, "B2")
     run_probe(run.id, provider=Generator(), judge=Judge("C1"), auditor=Auditor())

@@ -61,6 +61,95 @@ def _faithful(review: dict) -> bool:
     return review["counts"]["material"] <= MATERIAL_BLOCK_SHARE * review.get("blocks", 0)
 
 
+# How often a chapter the judges read above its target goes back to the adapter with what they
+# cited. Without it a few words kept a level closed: Frankenstein's Chapter X read B2 for
+# "wretch", "despised", "pleas" and one long sentence, and the adapter was never told.
+REVISION_ROUNDS = 1
+FEEDBACK_LIMIT = 3800
+
+
+def level_feedback(assessment: dict, target_level: str) -> str:
+    """What the judges cited, as corrections the adapter can act on."""
+
+    words, passages = [], []
+    for window in assessment["windows"]:
+        for item in window.get("hard_words", []):
+            if item["surface"] not in words:
+                words.append(item["surface"])
+        for item in window.get("evidence", []):
+            if item["dimension"] != "content":
+                passages.append(f"\u201c{item['quote']}\u201d: {item['explanation']}")
+    lines = [
+        f"The blind level judges read your previous adaptation of this chapter at "
+        f"{assessment['max_level']}, above {target_level}, for its wording. Adapt the chapter "
+        "again from the original and change what they cited.",
+    ]
+    if words:
+        lines.append(
+            "Do not use these words; use a plainer word, or explain the thing in passing: "
+            + ", ".join(words)
+            + "."
+        )
+    if passages:
+        lines.append(
+            "They cited these passages of that adaptation. Where the note says a passage is "
+            "demanding, use shorter sentences and plainer words there; where it says a passage "
+            "is accessible, write the rest like it:"
+        )
+        lines.extend(f"- {passage}" for passage in passages)
+    lines.append(
+        "Keep every idea, image, allusion and degree of certainty of the original. Do not "
+        "shorten the chapter or leave anything out to make it easier."
+    )
+    return "\n".join(lines)[:FEEDBACK_LIMIT]
+
+
+class GenerationFailed(ValueError):
+    """The adapter did not produce a chapter; judging and auditing never started."""
+
+
+def judged_pilot(source, chapter, level: str, *, provider=None, judge=None, auditor=None) -> dict:
+    """Adapt one chapter, judge it blind, revise it once if it reads too hard, and audit it.
+
+    The audit is of the version that stands, so a chapter that was revised is audited once.
+    """
+
+    def generate(feedback: str = ""):
+        pilot = queue_pilot(
+            source.id, chapter.id, target_level=level, dispatch=False, editorial_feedback=feedback
+        )
+        if pilot.status == PipelineRun.Status.QUEUED:
+            try:
+                run_pilot(pilot.id, provider=provider)
+            except Exception as error:
+                detail = str(error) if isinstance(error, ValueError) else type(error).__name__
+                raise GenerationFailed(f"generation failed. {detail}") from error
+        pilot.refresh_from_db()
+        if pilot.status != PipelineRun.Status.SUCCEEDED:
+            raise GenerationFailed(f"generation {pilot.status}. {pilot.error}".strip())
+        return pilot, assess_pilot(pilot.id, provider=judge)
+
+    def above(assessment: dict) -> bool:
+        return LEVELS.index(assessment["max_level"]) > LEVELS.index(level)
+
+    pilot, assessment = generate()
+    first = None
+    for _ in range(REVISION_ROUNDS):
+        if not above(assessment):
+            break
+        revised, reassessment = generate(level_feedback(assessment, level))
+        # a revision the judges read no easier is not an improvement; the first stands
+        if LEVELS.index(reassessment["max_level"]) < LEVELS.index(assessment["max_level"]):
+            first = first or {"pilot_id": str(pilot.id), "level": assessment["max_level"]}
+            pilot, assessment = revised, reassessment
+    return {
+        "pilot": pilot,
+        "assessment": assessment,
+        "review": audit_pilot(pilot.id, provider=auditor),
+        "revised_from": first,
+    }
+
+
 # Highest first; each has a pilot prompt. A2 has never been tested and is not a rung.
 PROBE_LEVELS = ("B2", "B1")
 SAMPLE_SIZE = 3
@@ -86,6 +175,8 @@ def probe_spec(target_level: str, language: str) -> dict:
         ),
         "generation_prompt_version": prompt_version,
         "generation_prompt_hash": digest(system_prompt),
+        # a probe that lets the adapter revise is not the probe that judged a first draft
+        "revision_rounds": REVISION_ROUNDS,
         "judge_model": judge_label(language),
         "judge_prompt_version": judge["prompt_version"],
         # named only when a judge reads more than once: a past probe must read as saved
@@ -193,18 +284,13 @@ def run_probe(run_id, *, provider=None, judge=None, auditor=None) -> None:
         for entry in run.summary["chapters"]:
             title = entry["title"] or f"chapter {entry['sequence']}"
             chapter = source.chapters.get(pk=entry["id"])
-            pilot = queue_pilot(source.id, chapter.id, target_level=level, dispatch=False)
-            if pilot.status == PipelineRun.Status.QUEUED:
-                try:
-                    run_pilot(pilot.id, provider=provider)
-                except Exception as error:
-                    detail = str(error) if isinstance(error, ValueError) else type(error).__name__
-                    raise ValueError(f"{title}: generation failed. {detail}") from error
-            pilot.refresh_from_db()
-            if pilot.status != PipelineRun.Status.SUCCEEDED:
-                raise ValueError(f"{title}: generation {pilot.status}. {pilot.error}".strip())
-            assessment = assess_pilot(pilot.id, provider=judge)
-            review = audit_pilot(pilot.id, provider=auditor)
+            try:
+                outcome = judged_pilot(
+                    source, chapter, level, provider=provider, judge=judge, auditor=auditor
+                )
+            except GenerationFailed as error:
+                raise ValueError(f"{title}: {error}") from error
+            pilot, assessment, review = outcome["pilot"], outcome["assessment"], outcome["review"]
             judged = assessment["max_level"]
             results.append(
                 {
@@ -223,6 +309,9 @@ def run_probe(run_id, *, provider=None, judge=None, auditor=None) -> None:
                         (pilot.ai_runs.get(pk=pilot.summary["ai_run_id"]).estimated_cost_usd or 0)
                         + Decimal(assessment["cost_usd"])
                         + Decimal(review["cost_usd"])
+                    ),
+                    **(
+                        {"revised_from": outcome["revised_from"]} if outcome["revised_from"] else {}
                     ),
                 }
             )
