@@ -25,7 +25,7 @@ class Command(BaseCommand):
         agreement = review.get("agreement") or {}
         self.stdout.write(
             f"{run.status}: {len(review.get('issues', []))} findings "
-            f"(both {agreement.get('both', 0)}, "
-            f"outside reviewer only {agreement.get('outside', 0)}, "
-            f"translator's model only {agreement.get('author', 0)})"
+            f"(raised by both {agreement.get('both', 0)}, "
+            f"confirmed by the other {agreement.get('confirmed', 0)}, "
+            f"disputed {agreement.get('disputed', 0)})"
         )

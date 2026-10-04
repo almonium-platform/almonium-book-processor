@@ -536,3 +536,42 @@ def test_staff_can_queue_alignment_rebuild_from_edition_page(client, monkeypatch
     assert "Build inferred alignment" in page.content.decode()
     assert response.status_code == 302
     assert queued == [str(target.id)]
+
+
+def test_a_source_rescan_leaves_review_findings_open(monkeypatch) -> None:
+    edition, block = edition_with_split_word()
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.importlib.metadata.version",
+        lambda package: "test",
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.analyze_source_quality",
+        lambda blocks, language: [],
+    )
+    review_finding = TextQualityFinding.objects.create(
+        edition=edition,
+        block=block,
+        stable_block_id=block.block_id,
+        input_hash="b" * 64,
+        fingerprint="c" * 64,
+        code="fidelity_material",
+        confidence=0.9,
+        message="A translation review raised this.",
+    )
+    stale_scan_finding = TextQualityFinding.objects.create(
+        edition=edition,
+        block=block,
+        stable_block_id=block.block_id,
+        input_hash="d" * 64,
+        fingerprint="e" * 64,
+        code="probable_split_word",
+        confidence=0.9,
+        message="An earlier scan raised this.",
+    )
+
+    analyze_edition_source_quality.run(str(edition.id))
+
+    review_finding.refresh_from_db()
+    stale_scan_finding.refresh_from_db()
+    assert review_finding.status == TextQualityFinding.Status.OPEN
+    assert stale_scan_finding.status == TextQualityFinding.Status.SUPERSEDED

@@ -34,19 +34,43 @@ def issue(quote, correction, *, kind="meaning", severity="material", reviewer="o
 
 
 class FakeReviewer:
-    def __init__(self, issues):
+    """Answers the three steps by the schema name of the request: review, opinion, wording."""
+
+    def __init__(self, issues, *, agrees=True, better="", wording=""):
         self.issues = issues
+        self.agrees = agrees
+        self.better = better
+        self.wording = wording
         self.bodies = []
 
     def respond(self, body):
         self.bodies.append(body)
-        payload = {
-            "issues": [
-                {k: v for k, v in i.items() if k not in ("quote_verified", "reviewer")}
-                for i in self.issues
-            ],
-            "assessment": "ok",
-        }
+        step = body["text"]["format"]["name"]
+        asked = json.loads(body["input"]).get("findings", [])
+        if step == "second_opinion":
+            payload = {
+                "verdicts": [
+                    {
+                        "id": f["id"],
+                        "real_error": self.agrees,
+                        "reason": "second look",
+                        "better_correction": self.better,
+                    }
+                    for f in asked
+                ]
+            }
+        elif step == "final_wording":
+            payload = {
+                "replacements": [{"id": f["id"], "replacement": self.wording} for f in asked]
+            }
+        else:
+            payload = {
+                "issues": [
+                    {k: v for k, v in i.items() if k not in ("quote_verified", "reviewer")}
+                    for i in self.issues
+                ],
+                "assessment": "ok",
+            }
         return {
             "output": [
                 {
@@ -115,28 +139,59 @@ def test_merge_ranks_by_agreement_and_never_rejects():
     assert [m["evidence"]["agreement"] for m in merged] == ["both", "outside", "author"]
 
 
-def test_review_queues_every_finding_in_the_fidelity_queue():
+def test_review_cross_checks_and_queues_every_finding():
     edition = translated_edition()
-    opus = FakeReviewer([issue("зрадів", "утішився", kind="style", severity="minor")])
+    # the translator's model disputes what the outside reviewer raised; the outside reviewer
+    # confirms what the translator's model raised
+    opus = FakeReviewer([issue("зрадів", "утішився", kind="style", severity="minor")], agrees=False)
     outside = FakeReviewer([issue("завершення своїх трудів", "здійснення своїх трудів")])
 
     run = review_translation(str(edition.id), providers={"claude-code": opus, "openai": outside})
 
     assert run.status == PipelineRun.Status.SUCCEEDED
-    assert run.summary["review"]["agreement"] == {"both": 0, "outside": 1, "author": 1}
+    assert run.summary["review"]["agreement"] == {"both": 0, "confirmed": 1, "disputed": 1}
     findings = list(edition.text_quality_findings.order_by("-confidence"))
-    assert [f.code for f in findings] == ["fidelity_material", "fidelity_minor"]
-    material = findings[0]
-    assert material.status == TextQualityFinding.Status.OPEN
-    assert material.original_text == "завершення своїх трудів"
-    assert material.suggested_text == "здійснення своїх трудів"
-    assert material.evidence["kind"] == "meaning"
-    assert material.evidence["agreement"] == "outside"
-    # a single reviewer's style finding is queued too, lower down, not dropped
-    assert findings[1].evidence == {**findings[1].evidence, "kind": "style", "agreement": "author"}
+    confirmed, disputed = findings
+    assert confirmed.evidence["agreement"] == "confirmed"
+    assert confirmed.evidence["reviewers"] == ["claude-code"]
+    assert confirmed.evidence["second_opinion"]["by"] == "openai"
+    # a "no" from the other reviewer lowers the rank and keeps the reason; nothing is dropped
+    assert disputed.status == TextQualityFinding.Status.OPEN
+    assert disputed.original_text == "завершення своїх трудів"
+    assert disputed.suggested_text == "здійснення своїх трудів"
+    assert disputed.evidence["agreement"] == "disputed"
+    assert disputed.evidence["second_opinion"] == {"by": "claude-code", "reason": "second look"}
+    assert disputed.confidence < confirmed.confidence
     # both reviewers saw the source and the translation, in the edition's languages
     assert "Ukrainian" in outside.bodies[0]["instructions"]
     assert json.loads(opus.bodies[0]["input"])["blocks"][1]["adapted"] == TRANSLATION
+
+
+def test_the_translator_writes_the_final_wording_from_every_candidate():
+    edition = translated_edition()
+    opus = FakeReviewer([], wording="звершення своїх трудів")
+    outside = FakeReviewer([issue("завершення своїх трудів", "здійснення своїх трудів")])
+    opus.better = "досягнення своїх трудів"
+
+    review_translation(str(edition.id), providers={"claude-code": opus, "openai": outside})
+
+    finding = edition.text_quality_findings.get()
+    # the translator's wording is what is queued; what the editors proposed is kept beside it
+    assert finding.suggested_text == "звершення своїх трудів"
+    assert finding.evidence["candidates"] == ["здійснення своїх трудів", "досягнення своїх трудів"]
+    assert finding.evidence["final_wording_by"] == "claude-code"
+    asked = json.loads(opus.bodies[-1]["input"])["findings"][0]
+    assert asked["span_to_replace"] == "завершення своїх трудів"
+
+
+def test_an_empty_final_wording_keeps_the_reviewers_correction():
+    edition = translated_edition()
+    opus = FakeReviewer([], wording="")
+    outside = FakeReviewer([issue("завершення своїх трудів", "здійснення своїх трудів")])
+
+    review_translation(str(edition.id), providers={"claude-code": opus, "openai": outside})
+
+    assert edition.text_quality_findings.get().suggested_text == "здійснення своїх трудів"
 
 
 def test_a_reviewed_translation_shows_its_findings_in_the_audit_panel():

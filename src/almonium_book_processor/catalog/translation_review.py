@@ -2,12 +2,14 @@
 
 Writing a translation is the expensive step and reading one is cheap, so every chapter is read
 twice: by the model that translated it, in a fresh session, and by a model from another vendor.
-Nothing either raises is rejected by the other. On the trial that shaped this (Frankenstein,
-Letter I, 2026-10-04) the translator's model, asked for a yes or no on the outside reviewer's
-findings, rejected four of four, three of them in defence of its own wording; and style findings
-from one reviewer alone, first left out as taste, were all ones the owner would accept. So every
-finding is queued, ranked by agreement: raised by both, then by the outside reviewer alone, then
-by the translator's own model alone.
+Nothing either raises is dropped. On the trial that shaped this (Frankenstein, Letter I,
+2026-10-04) the translator's model, asked for a yes or no on the outside reviewer's findings,
+rejected four of four, three of them in defence of its own wording; and style findings from one
+reviewer alone, first left out as taste, were all ones the owner would accept. So a finding one
+reviewer raised alone goes to the other for a second opinion, and a "no" lowers its rank without
+removing it: raised by both first, then raised by one and confirmed by the other, then raised
+by one and disputed. Last, the translator's model writes the final wording of each correction
+from every candidate on the table, so what is queued is one replacement, not a choice.
 
 Findings land in the fidelity findings queue the admin already has, with the same apply and
 dismiss actions. The kind and the reviewers are kept in each finding's evidence.
@@ -51,7 +53,24 @@ PROMPT_VERSION = 1
 PURPOSE = "translation_review"
 WINDOW_BYTES = 160_000
 # Ranked by agreement, not by one reviewer's severity: what both raised comes first.
-CONFIDENCE = {"both": 0.9, "outside": 0.6, "author": 0.4}
+CONFIDENCE = {"both": 0.9, "confirmed": 0.75, "disputed": 0.35}
+
+SECOND_OPINION_PROMPT = (
+    "You are a literary translation editor giving a second opinion. Another editor raised each "
+    "finding below on a {target_language_name} translation of a {source_language_name} source. "
+    "For each, say whether it is a real defect that should be corrected before publication, with "
+    "one sentence of reason. Judge the finding, not who made the translation. If you agree and "
+    "know a better correction than the one proposed, give it as better_correction, replacing "
+    "exactly the quoted span; otherwise leave better_correction empty."
+)
+FINAL_WORDING_PROMPT = (
+    "You are the translator, settling the final wording of corrections to your "
+    "{target_language_name} translation. For each finding you are given the block, the span to "
+    "replace and the candidate corrections editors proposed. Write the one replacement for that "
+    "span that is most faithful to the source and reads best in the sentence around it: a "
+    "candidate as it stands, or a better wording of your own. The replacement stands in for "
+    "exactly the quoted span and nothing else, so its grammar must fit what surrounds it."
+)
 
 SYSTEM_PROMPT = (
     "You are a literary translation editor preparing a {target_language_name} translation of a "
@@ -94,6 +113,34 @@ class Review(BaseModel):
 
 
 OUTPUT_SCHEMA = Review.model_json_schema()
+
+
+class Verdict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    real_error: bool
+    reason: str
+    better_correction: str
+
+
+class SecondOpinion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    verdicts: list[Verdict]
+
+
+class Wording(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    replacement: str
+
+
+class FinalWording(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    replacements: list[Wording]
 
 
 def reviewers() -> list[dict]:
@@ -321,7 +368,9 @@ def _ranked(issue, agreement, raised_by, alternative, secondary, match) -> dict:
         raised_by = [*raised_by, secondary[match]["reviewer"]]
     return {
         **{k: v for k, v in issue.items() if k != "reviewer"},
-        "confidence": CONFIDENCE[agreement],
+        # "outside" and "author" are provisional: a second opinion turns each into confirmed or
+        # disputed. Until then a finding the translator's own model raised alone ranks lowest.
+        "confidence": {"both": 0.9, "outside": 0.6, "author": 0.4}[agreement],
         "evidence": {
             "kind": issue["kind"],
             "agreement": agreement,
@@ -331,10 +380,184 @@ def _ranked(issue, agreement, raised_by, alternative, secondary, match) -> dict:
     }
 
 
+def _ask(run, edition, reviewer: dict, step: str, system: str, payload: dict, model, provider):
+    """One recorded call of a later step, second opinion or final wording; the parsed answer."""
+
+    configuration, _ = ModelConfiguration.objects.get_or_create(
+        name=f"translation-{step}-{reviewer['provider']}-{reviewer['model']}-v1",
+        defaults={
+            "provider": reviewer["provider"],
+            "model": reviewer["model"],
+            "purpose": PURPOSE,
+            "parameters": {"reasoning_effort": "medium"},
+        },
+    )
+    prompt, _ = PromptTemplate.objects.get_or_create(
+        name=f"literary-translation-{step}",
+        version=1,
+        defaults={
+            "purpose": PURPOSE,
+            "system_prompt": system,
+            "user_template": "{findings_json}",
+            "output_schema": model.model_json_schema(),
+            "active": True,
+        },
+    )
+    body = {
+        "model": reviewer["model"],
+        "instructions": system,
+        "input": _json(payload),
+        "reasoning": {"effort": "medium"},
+        "store": False,
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": step.replace("-", "_"),
+                "strict": True,
+                "schema": model.model_json_schema(),
+            }
+        },
+    }
+    ai = AIRun.objects.create(
+        edition=edition,
+        pipeline_run=run,
+        model_configuration=configuration,
+        prompt_template=prompt,
+        input_hash=_hash([step, payload]),
+        idempotency_key=f"translation-{step}:{uuid.uuid4()}",
+        status=AIRun.Status.SUBMITTED,
+        started_at=timezone.now(),
+        request_payload={"step": step, "reviewer": reviewer["name"], "payload": payload},
+    )
+    try:
+        response = (provider or _provider(reviewer)).respond(body)
+        answer = model.model_validate_json(response_output_text(response))
+        usage = response.get("usage") or {}
+        ai.add_attempt_usage(
+            input_tokens=usage.get("input_tokens", 0),
+            cached_input_tokens=(usage.get("input_tokens_details") or {}).get("cached_tokens", 0),
+            output_tokens=usage.get("output_tokens", 0),
+            reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
+            estimated_cost_usd=Decimal("0"),
+        )
+        ai.response_payload = {"answer": answer.model_dump()}
+        ai.status = AIRun.Status.SUCCEEDED
+        ai.finished_at = timezone.now()
+        ai.save()
+        return answer
+    except Exception as error:
+        AIRun.objects.filter(pk=ai.id).update(
+            status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
+        )
+        raise
+
+
+def second_opinions(run, edition, pairs: dict, findings: list[dict], panel, names, providers):
+    """Put every finding one reviewer raised alone to the other reviewer.
+
+    A yes marks it confirmed, a no marks it disputed and keeps the reason; neither removes it.
+    A better correction offered with a yes joins the candidates for the final wording.
+    """
+
+    for reviewer in panel:
+        items = [
+            f
+            for f in findings
+            if f["evidence"]["agreement"] != "both"
+            and f["evidence"]["reviewers"] != [reviewer["name"]]
+        ]
+        if not items:
+            continue
+        payload = {
+            "findings": [
+                {
+                    "id": index,
+                    "source": pairs[f["block_id"]]["source"],
+                    "translated": pairs[f["block_id"]]["adapted"],
+                    "quoted_span": f["adapted_quote"],
+                    "claim": f["explanation"],
+                    "proposed_correction": f["suggested_correction"],
+                }
+                for index, f in enumerate(items)
+            ]
+        }
+        answer = _ask(
+            run,
+            edition,
+            reviewer,
+            "second-opinion",
+            SECOND_OPINION_PROMPT.format(**names),
+            payload,
+            SecondOpinion,
+            (providers or {}).get(reviewer["name"]),
+        )
+        verdicts = {v.id: v for v in answer.verdicts}
+        for index, finding in enumerate(items):
+            verdict = verdicts.get(index)
+            agreed = bool(verdict and verdict.real_error)
+            evidence = finding["evidence"]
+            evidence["agreement"] = "confirmed" if agreed else "disputed"
+            evidence["second_opinion"] = {
+                "by": reviewer["name"],
+                "reason": verdict.reason if verdict else "no verdict returned",
+            }
+            if agreed and verdict.better_correction.strip():
+                evidence["alternative_correction"] = verdict.better_correction.strip()
+            finding["confidence"] = CONFIDENCE[evidence["agreement"]]
+    findings.sort(key=lambda f: -f["confidence"])
+
+
+def final_wording(run, edition, pairs: dict, findings: list[dict], translator, names, provider):
+    """The translator's model writes the one replacement for each span from every candidate."""
+
+    items = [f for f in findings if f.get("quote_verified")]
+    if not items:
+        return
+    payload = {
+        "findings": [
+            {
+                "id": index,
+                "source": pairs[f["block_id"]]["source"],
+                "translated": pairs[f["block_id"]]["adapted"],
+                "span_to_replace": f["adapted_quote"],
+                "why": f["explanation"],
+                "candidates": [
+                    c
+                    for c in (
+                        f["suggested_correction"],
+                        f["evidence"].get("alternative_correction", ""),
+                    )
+                    if c
+                ],
+            }
+            for index, f in enumerate(items)
+        ]
+    }
+    answer = _ask(
+        run,
+        edition,
+        translator,
+        "final-wording",
+        FINAL_WORDING_PROMPT.format(**names),
+        payload,
+        FinalWording,
+        provider,
+    )
+    written = {w.id: w.replacement.strip() for w in answer.replacements}
+    for index, finding in enumerate(items):
+        replacement = written.get(index, "")
+        candidates = payload["findings"][index]["candidates"]
+        finding["evidence"]["candidates"] = candidates
+        # An empty answer, or the span given back unchanged, leaves the reviewers' correction.
+        if replacement and replacement != finding["adapted_quote"].strip():
+            finding["suggested_correction"] = replacement
+            finding["evidence"]["final_wording_by"] = translator["name"]
+
+
 def review_translation(
     edition_id, *, chapters: list[int] | None = None, providers: dict | None = None
 ) -> PipelineRun:
-    """Read a machine translation twice and queue what the readings found.
+    """Read a machine translation twice, cross-check, settle the wording, queue the findings.
 
     ``providers`` maps a reviewer name to a provider, for tests; by default each reviewer gets
     its own. The Claude Code reviewer needs the CLI's login, so this runs where that login is.
@@ -345,11 +568,14 @@ def review_translation(
     panel = reviewers()
     author_provider = _translator_provider(edition)
     author = next((r["name"] for r in panel if r["provider"] == author_provider), "")
-    system = SYSTEM_PROMPT.format(
-        target_language_name=language_name(edition.language),
-        source_language_name=language_name(edition.source_edition.language),
-        register=edition.literary_register or "faithful",
-    )
+    # The translator's own model settles the final wording; an unknown translator leaves it to
+    # the first reviewer.
+    translator = next((r for r in panel if r["name"] == author), panel[0])
+    names = {
+        "target_language_name": language_name(edition.language),
+        "source_language_name": language_name(edition.source_edition.language),
+    }
+    system = SYSTEM_PROMPT.format(register=edition.literary_register or "faithful", **names)
     run, _ = PipelineRun.objects.get_or_create(
         idempotency_key=f"{edition.id}:translation-review:{plan['hash']}",
         defaults={
@@ -374,7 +600,19 @@ def review_translation(
                 )
                 for reviewer in panel
             }
-            issues.extend(merge(per_reviewer, texts, author))
+            found = merge(per_reviewer, texts, author)
+            pairs = {pair["block_id"]: pair for pair in window["data"]["blocks"]}
+            second_opinions(run, edition, pairs, found, panel, names, providers)
+            final_wording(
+                run,
+                edition,
+                pairs,
+                found,
+                translator,
+                names,
+                (providers or {}).get(translator["name"]),
+            )
+            issues.extend(found)
             run.progress = int(95 * done / len(plan["windows"]))
             run.save(update_fields=["progress", "updated_at"])
         review = {

@@ -80,7 +80,10 @@ def test_respond_runs_the_cli_without_tools_servers_or_project_context():
     provider.respond(BODY)
 
     command, kwargs = calls[0]
-    assert command[:3] == ["claude", "-p", "Translate this chapter."]
+    # the prompt travels on standard input, so its length is not bounded by an argument's
+    assert command[:2] == ["claude", "-p"]
+    assert "Translate this chapter." not in command
+    assert kwargs["input"] == "Translate this chapter."
     assert command[command.index("--tools") + 1] == ""
     assert command[command.index("--system-prompt") + 1] == "You are a translator."
     assert command[command.index("--effort") + 1] == "medium"

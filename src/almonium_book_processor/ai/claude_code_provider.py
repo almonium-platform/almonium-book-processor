@@ -60,10 +60,11 @@ class ClaudeCodeProvider:
         if not schema:
             raise ValueError("Claude Code requests need a JSON schema for the output")
         effort = (body.get("reasoning") or {}).get("effort", "medium")
+        # The prompt goes in on standard input: a chapter's worth of findings with their
+        # blocks is longer than the operating system lets a single argument be.
         command = [
             self.binary,
             "-p",
-            body["input"],
             "--model",
             self.model,
             "--effort",
@@ -83,6 +84,7 @@ class ClaudeCodeProvider:
         ]
         completed = self.runner(
             command,
+            input=body["input"],
             capture_output=True,
             text=True,
             timeout=self.timeout_seconds,

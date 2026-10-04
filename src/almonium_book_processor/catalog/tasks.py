@@ -847,9 +847,13 @@ def analyze_edition_source_quality(edition_id: str) -> None:
             ).update(is_current=False)
             existing_artifact.is_current = True
             existing_artifact.save(update_fields=["is_current", "updated_at"])
+            # Only this scan's own findings: an audit's or a translation review's findings
+            # belong to their own run and outlive a rescan of the text.
             edition.text_quality_findings.filter(status=TextQualityFinding.Status.OPEN).exclude(
                 input_hash=input_hash
-            ).update(status=TextQualityFinding.Status.SUPERSEDED)
+            ).exclude(code__startswith="fidelity_").update(
+                status=TextQualityFinding.Status.SUPERSEDED
+            )
         return
 
     run.status = PipelineRun.Status.RUNNING
@@ -895,9 +899,13 @@ def analyze_edition_source_quality(edition_id: str) -> None:
                     "is_current": True,
                 },
             )
+            # Only this scan's own findings: an audit's or a translation review's findings
+            # belong to their own run and outlive a rescan of the text.
             edition.text_quality_findings.filter(status=TextQualityFinding.Status.OPEN).exclude(
                 input_hash=input_hash
-            ).update(status=TextQualityFinding.Status.SUPERSEDED)
+            ).exclude(code__startswith="fidelity_").update(
+                status=TextQualityFinding.Status.SUPERSEDED
+            )
             blocks_by_id = {block.id: block for block in edition.blocks.all()}
             for finding in findings:
                 TextQualityFinding.objects.update_or_create(

@@ -330,8 +330,8 @@
 {% if fidelity_panel and not is_private %}
 <details class="panel collapsible-panel fidelity-panel" id="fidelity-audit"{% if fidelity_findings or fidelity_audit_state == "stale" or fidelity_audit_state == "failed" or fidelity_audit_state == "none" %} open{% endif %}>
   <summary><span class="summary-title">{% if fidelity_translation %}Translation review{% else %}Fidelity audit{% endif %}</span><span class="summary-meta">{% if fidelity_audit_state == "current" %}<span class="status status-succeeded">Current</span>{% if fidelity_findings %} · {{ fidelity_findings|length }} open finding{{ fidelity_findings|length|pluralize }}{% else %} · clean{% endif %}{% elif fidelity_audit_state == "stale" %}<span class="status status-review">Stale</span> · {{ fidelity_stale_chapters }} chapter{{ fidelity_stale_chapters|pluralize }} edited by hand since the audit{% elif fidelity_audit_state == "queued" or fidelity_audit_state == "running" %}<span class="status status-running">Running</span>{% elif fidelity_audit_state == "failed" %}<span class="status status-failed">Failed</span>{% else %}Not run{% endif %}</span></summary>
-  {% if fidelity_translation %}<p class="muted">Two editors read every translated block beside its source, independently: the model that translated it, in a fresh session, and a model from another vendor. Nothing either raises is dropped; findings are ranked by agreement, both first, then the outside reviewer alone, then the translator's own model alone. Every finding is yours to act on: <strong>apply</strong> writes the suggested wording into the block as an audited revision, <strong>dismiss</strong> records that the translation stands. The review is started with <code>manage.py review_translation {{ edition.slug }}</code> on the machine where the Claude Code CLI is signed in.</p>
-  {% if fidelity_audit_run %}<p>Run <a href="#run-{{ fidelity_audit_run.id }}">{{ fidelity_audit_run.id|stringformat:"s"|slice:":8" }}</a> · {% for reviewer in fidelity_audit_run.summary.reviewers %}{{ reviewer.model }}{% if not forloop.last %} and {% endif %}{% endfor %} · {{ fidelity_audit_run.summary.windows }} window{{ fidelity_audit_run.summary.windows|pluralize }}{% if fidelity_audit_run.summary.review %} · {{ fidelity_audit_run.summary.review.issues|length }} findings: {{ fidelity_audit_run.summary.review.agreement.both }} raised by both, {{ fidelity_audit_run.summary.review.agreement.outside }} by the outside reviewer only, {{ fidelity_audit_run.summary.review.agreement.author }} by the translator's model only{% endif %}</p>
+  {% if fidelity_translation %}<p class="muted">Two editors read every translated block beside its source, independently: the model that translated it, in a fresh session, and a model from another vendor. A finding one raised alone goes to the other for a second opinion, and nothing is dropped: findings are ranked by agreement, raised by both first, then confirmed by the other, then disputed. The translator's model then writes the final wording of each correction from every candidate. Every finding is yours to act on: <strong>apply</strong> writes the suggested wording into the block as an audited revision, <strong>dismiss</strong> records that the translation stands. The review is started with <code>manage.py review_translation {{ edition.slug }}</code> on the machine where the Claude Code CLI is signed in.</p>
+  {% if fidelity_audit_run %}<p>Run <a href="#run-{{ fidelity_audit_run.id }}">{{ fidelity_audit_run.id|stringformat:"s"|slice:":8" }}</a> · {% for reviewer in fidelity_audit_run.summary.reviewers %}{{ reviewer.model }}{% if not forloop.last %} and {% endif %}{% endfor %} · {{ fidelity_audit_run.summary.windows }} window{{ fidelity_audit_run.summary.windows|pluralize }}{% if fidelity_audit_run.summary.review %} · {{ fidelity_audit_run.summary.review.issues|length }} findings: {{ fidelity_audit_run.summary.review.agreement.both }} raised by both, {{ fidelity_audit_run.summary.review.agreement.confirmed }} raised by one and confirmed by the other, {{ fidelity_audit_run.summary.review.agreement.disputed }} disputed{% endif %}</p>
   {% if fidelity_audit_run.error %}<p class="message error">{{ fidelity_audit_run.error }}</p>{% endif %}{% endif %}
   {% else %}
   <p class="muted">A literary-editor prompt reads every block beside its source block and reports changes of meaning, lost imagery, added facts or shifted certainty. Every finding is yours to act on: <strong>apply</strong> writes the suggested wording into the block as an audited revision, <strong>dismiss</strong> records that the adapted wording keeps the author's meaning. Reaching a level needs the audit current with no open material finding on top of the difficulty gate; minor and uncertain ones do not hold the gate. A suggestion applied as written carries the audit forward, and a phrase-sized change keeps the difficulty verdict too; only text edited by hand is unread, and the page then says what a re-read costs.</p>
@@ -353,12 +353,13 @@
     <summary><span class="summary-title">{{ group.list|length }} {{ group.grouper }}</span><span class="summary-meta">{% if group.grouper == "material" %}hold the gate until applied or dismissed{% else %}do not hold the gate{% endif %}</span></summary>
     {% for finding in group.list %}
     <article class="fidelity-finding">
-      <p class="fidelity-head"><code class="severity severity-{{ group.grouper }}">{{ group.grouper }}</code> <strong>{{ finding.stable_block_id }}</strong>{% if finding.evidence.kind %} · {{ finding.evidence.kind }} · {% if finding.evidence.agreement == "both" %}raised by both reviewers{% elif finding.evidence.agreement == "outside" %}outside reviewer only{% else %}translator's model only{% endif %}{% endif %}{% if finding.block %} · <a href="{% url 'catalog:edition-reader' edition.id %}?chapter={{ finding.block.chapter.sequence }}{% if edition.source_edition_id and edition.supports_parallel_reading %}&parallel={{ edition.source_edition_id }}&diff=1{% endif %}#block-{{ finding.block.id }}">open in the reader</a>{% endif %}</p>
+      <p class="fidelity-head"><code class="severity severity-{{ group.grouper }}">{{ group.grouper }}</code> <strong>{{ finding.stable_block_id }}</strong>{% if finding.evidence.kind %} · {{ finding.evidence.kind }} · {% if finding.evidence.agreement == "both" %}raised by both reviewers{% elif finding.evidence.agreement == "confirmed" %}raised by {{ finding.evidence.reviewers.0 }}, confirmed by {{ finding.evidence.second_opinion.by }}{% elif finding.evidence.agreement == "disputed" %}raised by {{ finding.evidence.reviewers.0 }}, disputed by {{ finding.evidence.second_opinion.by }}{% else %}raised by {{ finding.evidence.reviewers.0 }}{% endif %}{% endif %}{% if finding.block %} · <a href="{% url 'catalog:edition-reader' edition.id %}?chapter={{ finding.block.chapter.sequence }}{% if edition.source_edition_id and edition.supports_parallel_reading %}&parallel={{ edition.source_edition_id }}&diff=1{% endif %}#block-{{ finding.block.id }}">open in the reader</a>{% endif %}</p>
       <div class="fidelity-actions">
         {% if finding.can_apply and finding.suggested_text %}<form method="post" action="{% url 'catalog:apply-source-quality-finding' edition.id finding.id %}">{% csrf_token %}<input type="hidden" name="replacement" value="{{ finding.suggested_text }}"><button class="button button-small" type="submit">Apply</button></form>{% endif %}
         <form method="post" action="{% url 'catalog:dismiss-source-quality-finding' edition.id finding.id %}">{% csrf_token %}<button class="button button-small button-secondary" type="submit">Dismiss</button></form>
       </div>
       <p class="fidelity-explanation">{{ finding.message }}</p>
+      {% if finding.evidence.agreement == "disputed" %}<p class="muted">Second opinion: {{ finding.evidence.second_opinion.reason }}</p>{% endif %}
       <div class="fidelity-sides">
         <div class="fidelity-side"><p class="fidelity-side-label">Source</p><p class="fidelity-text">{% side_excerpt finding.source_text finding.evidence.source_quote finding.evidence.adapted_quote %}</p></div>
         <div class="fidelity-side"><p class="fidelity-side-label">{% if fidelity_translation %}Translation{% else %}Adapted{% endif %}</p><p class="fidelity-text">{% side_excerpt finding.adapted_text finding.evidence.adapted_quote finding.evidence.source_quote %}</p></div>
@@ -578,6 +579,25 @@
 </div>
 </div>
 <script>
+// A decision inside a panel (apply, dismiss) posts and comes back to this page;
+// come back to where the reader was, with that panel open, not to the top.
+(function () {
+  var key = "edition-scroll:" + location.pathname, saved = null;
+  try { saved = sessionStorage.getItem(key); sessionStorage.removeItem(key); } catch (e) {}
+  document.addEventListener("submit", function (event) {
+    var panel = event.target.closest && event.target.closest("details.collapsible-panel");
+    if (!panel) return;
+    try { sessionStorage.setItem(key, JSON.stringify({ y: window.scrollY, panel: panel.id })); } catch (e) {}
+  });
+  if (!saved) return;
+  var state = JSON.parse(saved);
+  window.addEventListener("load", function () {
+    var panel = state.panel && document.getElementById(state.panel);
+    if (panel) panel.open = true;
+    window.scrollTo(0, state.y);
+  });
+})();
+
 // A hash link into a folded panel opens it first.
 function revealEditionHash() {
   if (!location.hash) return;
