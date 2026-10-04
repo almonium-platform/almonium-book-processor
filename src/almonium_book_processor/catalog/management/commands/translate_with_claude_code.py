@@ -44,6 +44,8 @@ class Command(BaseCommand):
             )
         self.stdout.write(f"Translating into {edition.slug} through Claude Code ...")
         run = run_translation_inline(str(edition.id), tier=SUBSCRIPTION_TIER)
+        # the run is completed under a lock on a fresh row; this instance is stale
+        run.refresh_from_db()
         summary = (run.response_payload or {}).get("summary") or {}
         self.stdout.write(
             f"{run.status}: {summary.get('chapters', 0)} chapters, "
