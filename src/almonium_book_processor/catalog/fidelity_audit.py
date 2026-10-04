@@ -48,7 +48,7 @@ from almonium_book_processor.catalog.models import (
 
 AUDIT_VERSION = "fidelity-audit-v1"
 # A machine translation's findings come from catalog/translation_review.py and share this queue.
-TRANSLATION_REVIEW_VERSION = "translation-review-v2"
+TRANSLATION_REVIEW_VERSION = "translation-review-v3"
 SEVERITIES = ("material", "minor", "uncertain")
 # Every finding is a reviewable text-quality finding the editor applies or
 # dismisses, never a note to acknowledge. Only material ones hold the gate.

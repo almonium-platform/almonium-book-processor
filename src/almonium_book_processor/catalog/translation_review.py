@@ -8,8 +8,15 @@ rejected four of four, three of them in defence of its own wording; and style fi
 reviewer alone, first left out as taste, were all ones the owner would accept. So a finding one
 reviewer raised alone goes to the other for a second opinion, and a "no" lowers its rank without
 removing it: raised by both first, then raised by one and confirmed by the other, then raised
-by one and disputed. Last, the translator's model writes the final wording of each correction
+by one and disputed. The translator's model then writes the final wording of each correction
 from every candidate on the table, so what is queued is one replacement, not a choice.
+
+Last, a third model adjudicates. Whether a problem exists and whether the proposed fix is good
+are separate questions: of twelve disputed findings on that letter, four were a real problem
+with the wrong fix, which a yes or no cannot say. And two models agreeing that correct wording
+"could read better" is how literary prose gets flattened, since their tastes are correlated.
+So the adjudicator rules on every disputed finding and every style finding: keep the text,
+apply the proposal, apply a fix of its own, or leave it to a person.
 
 Findings land in the fidelity findings queue the admin already has, with the same apply and
 dismiss actions. The kind and the reviewers are kept in each finding's evidence.
@@ -54,6 +61,9 @@ PURPOSE = "translation_review"
 WINDOW_BYTES = 160_000
 # Ranked by agreement, not by one reviewer's severity: what both raised comes first.
 CONFIDENCE = {"both": 0.9, "confirmed": 0.75, "disputed": 0.35}
+# A ruling replaces the rank agreement gave: what the adjudicator would apply sits just under
+# what both editors raised, what it would keep sits last.
+RULING_CONFIDENCE = {"apply_proposed": 0.8, "new_fix": 0.8, "human_review": 0.5, "keep": 0.1}
 
 SECOND_OPINION_PROMPT = (
     "You are a literary translation editor giving a second opinion. Another editor raised each "
@@ -62,6 +72,21 @@ SECOND_OPINION_PROMPT = (
     "one sentence of reason. Judge the finding, not who made the translation. If you agree and "
     "know a better correction than the one proposed, give it as better_correction, replacing "
     "exactly the quoted span; otherwise leave better_correction empty."
+)
+ADJUDICATOR_PROMPT = (
+    "You are the senior editor of a {target_language_name} translation of a "
+    "{source_language_name} literary text, ruling on findings your editors could not settle or "
+    "that concern style. You are given the source block, the translated block, the span in "
+    "question, what was claimed, any objection, and the proposed replacement. Whether a problem "
+    "exists and whether the proposed replacement is good are separate questions; answer both.\n"
+    "keep: the translation as it stands is correct and natural; changing it is taste, or would "
+    "flatten good literary prose.\n"
+    "apply_proposed: there is a real problem and the proposed replacement fixes it well.\n"
+    "new_fix: there is a real problem but the proposed replacement is not good; give a better "
+    "replacement for exactly the quoted span in new_fix.\n"
+    "human_review: there is a real problem that cannot be fixed by replacing that span alone, "
+    "or the point turns on an interpretation a person should decide.\n"
+    "Leave new_fix empty unless the verdict is new_fix. Give one sentence of reason."
 )
 FINAL_WORDING_PROMPT = (
     "You are the translator, settling the final wording of corrections to your "
@@ -128,6 +153,21 @@ class SecondOpinion(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     verdicts: list[Verdict]
+
+
+class Ruling(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    verdict: Literal["keep", "apply_proposed", "new_fix", "human_review"]
+    reason: str
+    new_fix: str
+
+
+class Adjudication(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rulings: list[Ruling]
 
 
 class Wording(BaseModel):
@@ -554,6 +594,75 @@ def final_wording(run, edition, pairs: dict, findings: list[dict], translator, n
             finding["evidence"]["final_wording_by"] = translator["name"]
 
 
+def needs_ruling(finding: dict) -> bool:
+    """Disputed findings, and style findings whatever the agreement behind them."""
+
+    return finding["evidence"]["agreement"] == "disputed" or finding["evidence"]["kind"] == "style"
+
+
+def adjudicate(run, edition, pairs: dict, findings: list[dict], adjudicator, names, provider):
+    """A third model rules on what the two editors could not settle, and on style.
+
+    keep strips the replacement, so a bulk apply cannot push through what the adjudicator
+    judged to be taste; the finding stays in the queue, lowest, with the reason. new_fix puts
+    the adjudicator's wording in its place. human_review is the only ruling that needs a person.
+    """
+
+    items = [f for f in findings if needs_ruling(f)]
+    if not items:
+        return
+    payload = {
+        "findings": [
+            {
+                "id": index,
+                "source": pairs[f["block_id"]]["source"],
+                "translated": pairs[f["block_id"]]["adapted"],
+                "quoted_span": f["adapted_quote"],
+                "kind": f["evidence"]["kind"],
+                "claim": f["explanation"],
+                "objection": (f["evidence"].get("second_opinion") or {}).get("reason", "")
+                if f["evidence"]["agreement"] == "disputed"
+                else "",
+                "proposed_replacement": f["suggested_correction"],
+            }
+            for index, f in enumerate(items)
+        ]
+    }
+    answer = _ask(
+        run,
+        edition,
+        adjudicator,
+        "adjudication",
+        ADJUDICATOR_PROMPT.format(**names),
+        payload,
+        Adjudication,
+        provider,
+    )
+    rulings = {r.id: r for r in answer.rulings}
+    for index, finding in enumerate(items):
+        ruling = rulings.get(index)
+        verdict = ruling.verdict if ruling else "human_review"
+        if verdict == "new_fix" and not ruling.new_fix.strip():
+            verdict = "human_review"
+        evidence = finding["evidence"]
+        evidence["adjudication"] = {
+            "by": adjudicator["model"],
+            "verdict": verdict,
+            "reason": ruling.reason if ruling else "no ruling returned",
+        }
+        if verdict == "keep":
+            evidence["proposed_before_ruling"] = finding["suggested_correction"]
+            finding["suggested_correction"] = ""
+            finding["severity"] = "uncertain"
+        elif verdict == "new_fix":
+            evidence["proposed_before_ruling"] = finding["suggested_correction"]
+            finding["suggested_correction"] = ruling.new_fix.strip()
+        elif verdict == "human_review":
+            finding["severity"] = "uncertain"
+        finding["confidence"] = RULING_CONFIDENCE[verdict]
+    findings.sort(key=lambda f: -f["confidence"])
+
+
 def review_translation(
     edition_id, *, chapters: list[int] | None = None, providers: dict | None = None
 ) -> PipelineRun:
@@ -571,6 +680,11 @@ def review_translation(
     # The translator's own model settles the final wording; an unknown translator leaves it to
     # the first reviewer.
     translator = next((r for r in panel if r["name"] == author), panel[0])
+    adjudicator = {
+        "name": "adjudicator",
+        "provider": "openai",
+        "model": settings.OPENAI_TRANSLATION_ADJUDICATOR_MODEL,
+    }
     names = {
         "target_language_name": language_name(edition.language),
         "source_language_name": language_name(edition.source_edition.language),
@@ -583,7 +697,12 @@ def review_translation(
             "stage": PipelineRun.Stage.TRANSLATE,
             "processor_version": REVIEW_VERSION,
             "input_hash": plan["hash"],
-            "summary": {"kind": "edition", "reviewers": panel, "windows": len(plan["windows"])},
+            "summary": {
+                "kind": "edition",
+                "reviewers": panel,
+                "adjudicator": adjudicator["model"],
+                "windows": len(plan["windows"]),
+            },
         },
     )
     if run.status == PipelineRun.Status.SUCCEEDED:
@@ -612,6 +731,9 @@ def review_translation(
                 names,
                 (providers or {}).get(translator["name"]),
             )
+            adjudicate(
+                run, edition, pairs, found, adjudicator, names, (providers or {}).get("adjudicator")
+            )
             issues.extend(found)
             run.progress = int(95 * done / len(plan["windows"]))
             run.save(update_fields=["progress", "updated_at"])
@@ -620,6 +742,12 @@ def review_translation(
             "counts": {s: sum(i["severity"] == s for i in issues) for s in SEVERITIES},
             "agreement": {
                 a: sum(i["evidence"]["agreement"] == a for i in issues) for a in CONFIDENCE
+            },
+            "rulings": {
+                v: sum(
+                    (i["evidence"].get("adjudication") or {}).get("verdict") == v for i in issues
+                )
+                for v in RULING_CONFIDENCE
             },
             "author": author,
         }

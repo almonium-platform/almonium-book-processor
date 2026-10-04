@@ -174,6 +174,10 @@ OPENAI_TRANSLATION_QUALITY_MODEL = os.getenv("OPENAI_TRANSLATION_QUALITY_MODEL",
 OPENAI_TRANSLATION_DRAFT_MODEL = os.getenv("OPENAI_TRANSLATION_DRAFT_MODEL", "gpt-5.6-luna")
 # The outside reviewer of a machine translation: a different vendor's model than the translator.
 OPENAI_TRANSLATION_REVIEW_MODEL = os.getenv("OPENAI_TRANSLATION_REVIEW_MODEL", "gpt-6.1-sol")
+# The adjudicator rules on disputed and style findings; a third model, neither reviewer.
+OPENAI_TRANSLATION_ADJUDICATOR_MODEL = os.getenv(
+    "OPENAI_TRANSLATION_ADJUDICATOR_MODEL", "gpt-6-astra"
+)
 # Private-import metadata is one small call per book; the cheaper tier is plenty.
 OPENAI_METADATA_MODEL = os.getenv("OPENAI_METADATA_MODEL", "gpt-5.6-luna")
 # The fidelity audit reads adapted text beside its source; "quality" is the
