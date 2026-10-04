@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from decimal import Decimal
 from typing import Literal
 
 from django.conf import settings
@@ -37,6 +36,7 @@ from pydantic import BaseModel, ConfigDict
 from almonium_book_processor.ai.claude_code_provider import ClaudeCodeProvider
 from almonium_book_processor.ai.codex_provider import CodexProvider
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai.pricing import call_cost, has_price
 from almonium_book_processor.catalog.ai_translation import language_name
 from almonium_book_processor.catalog.fidelity_audit import (
     SEVERITIES,
@@ -200,6 +200,9 @@ def _seat(setting: str, name: str | None = None) -> dict:
     provider, _, model = setting.strip().partition(":")
     if provider not in ("codex", "claude-code", "openai") or not model:
         raise ValueError(f"A review seat is <codex|claude-code|openai>:<model>, not {setting!r}")
+    if not has_price(model):
+        # refused before any call is made, not after one was paid for
+        raise ValueError(f"No price is known for {model}; add it to ai/pricing.py")
     return {"name": name or provider, "provider": provider, "model": model}
 
 
@@ -305,6 +308,22 @@ def _provider(reviewer: dict):
     return OpenAIBatchProvider()
 
 
+def _usage(reviewer: dict, response: dict) -> dict:
+    """A call's tokens and what they cost: the list price, or the share of the plan used."""
+
+    usage = response.get("usage") or {}
+    tokens = {
+        "input_tokens": usage.get("input_tokens", 0),
+        "cached_input_tokens": (usage.get("input_tokens_details") or {}).get("cached_tokens", 0),
+        "output_tokens": usage.get("output_tokens", 0),
+    }
+    return {
+        **tokens,
+        "reasoning_tokens": (usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
+        "estimated_cost_usd": call_cost(reviewer["provider"], reviewer["model"], **tokens),
+    }
+
+
 def _review_window(run, edition, window: dict, reviewer: dict, system: str, provider) -> list[dict]:
     """One reviewer's reading of one window; a validated answer is reused verbatim."""
 
@@ -359,15 +378,7 @@ def _review_window(run, edition, window: dict, reviewer: dict, system: str, prov
             )
             data["reviewer"] = reviewer["name"]
             issues.append(data)
-        usage = response.get("usage") or {}
-        ai.add_attempt_usage(
-            input_tokens=usage.get("input_tokens", 0),
-            cached_input_tokens=(usage.get("input_tokens_details") or {}).get("cached_tokens", 0),
-            output_tokens=usage.get("output_tokens", 0),
-            reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
-            # Free on the subscription; the outside reviewer's model has no price table here yet.
-            estimated_cost_usd=Decimal("0"),
-        )
+        ai.add_attempt_usage(**_usage(reviewer, response))
         ai.response_payload = {"review": {"issues": issues, "assessment": review.assessment}}
         ai.status = AIRun.Status.SUCCEEDED
         ai.finished_at = timezone.now()
@@ -498,14 +509,7 @@ def _ask(run, edition, reviewer: dict, step: str, system: str, payload: dict, mo
     try:
         response = (provider or _provider(reviewer)).respond(body)
         answer = model.model_validate_json(response_output_text(response))
-        usage = response.get("usage") or {}
-        ai.add_attempt_usage(
-            input_tokens=usage.get("input_tokens", 0),
-            cached_input_tokens=(usage.get("input_tokens_details") or {}).get("cached_tokens", 0),
-            output_tokens=usage.get("output_tokens", 0),
-            reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
-            estimated_cost_usd=Decimal("0"),
-        )
+        ai.add_attempt_usage(**_usage(reviewer, response))
         ai.response_payload = {"answer": answer.model_dump()}
         ai.status = AIRun.Status.SUCCEEDED
         ai.finished_at = timezone.now()

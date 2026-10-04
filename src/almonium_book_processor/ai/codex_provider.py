@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import tempfile
 import uuid
@@ -9,6 +10,52 @@ from pathlib import Path
 from typing import Any
 
 from django.conf import settings
+
+
+def codex_meter(
+    *, binary: str | None = None, runner: Callable[..., Any] = subprocess.run
+) -> dict[str, Any] | None:
+    """The plan's weekly meter as the CLI last saw it, or None when it cannot be read.
+
+    The CLI writes the rate limits it was told into the session log of every call that is
+    not ephemeral, so this makes one tiny call and reads the newest log. ``used_percent``
+    moves in whole points; ``resets_at`` is when the week starts over.
+    """
+
+    workdir = Path(tempfile.gettempdir()) / "almonium-codex-empty"
+    workdir.mkdir(parents=True, exist_ok=True)
+    try:
+        runner(
+            [
+                binary or settings.CODEX_BINARY,
+                "exec",
+                "-m",
+                "gpt-6-sol",
+                "--skip-git-repo-check",
+                "--json",
+                "--sandbox",
+                "read-only",
+                "-c",
+                "mcp_servers={}",
+                "-c",
+                "model_reasoning_effort=low",
+                "Reply with the single word: ok",
+            ],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=workdir,
+        )
+        logs = sorted(
+            (Path.home() / ".codex" / "sessions").glob("*/*/*/rollout-*.jsonl"),
+            key=lambda path: path.stat().st_mtime,
+        )
+        found = re.findall(r'"primary":\s*(\{[^}]*\})', logs[-1].read_text())
+        plan = re.findall(r'"plan_type":\s*"([^"]*)"', logs[-1].read_text())
+        return {**json.loads(found[-1]), "plan_type": plan[-1] if plan else ""}
+    except Exception:  # a meter that cannot be read must never fail the run it surrounds
+        return None
 
 
 class CodexProvider:

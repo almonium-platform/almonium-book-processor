@@ -500,7 +500,8 @@ def test_interrupted_direct_run_can_restart(monkeypatch) -> None:
     assert len(prepared[1]) == 1
 
 
-def test_subscription_tier_translates_through_the_given_provider_at_no_cost() -> None:
+def test_subscription_tier_translates_through_the_given_provider_for_a_share_of_the_plan() -> None:
+    from almonium_book_processor.ai.pricing import PLAN_SHARE_OF_LIST, list_cost
     from almonium_book_processor.catalog.ai_translation import (
         SUBSCRIPTION_TIER,
         run_translation_inline,
@@ -538,10 +539,19 @@ def test_subscription_tier_translates_through_the_given_provider_at_no_cost() ->
 
     ai_run.refresh_from_db()
     assert ai_run.status == AIRun.Status.SUCCEEDED
-    # the ledger names what really wrote the text, and no money was spent on it
+    # the ledger names what really wrote the text, and charges the part of the plan it used
     assert ai_run.model_configuration.provider == "claude-code"
     assert ai_run.model_configuration.name == "claude-code-translation-v1"
-    assert ai_run.estimated_cost_usd == 0
+    at_list = list_cost(
+        ai_run.model_configuration.model,
+        input_tokens=900,
+        cached_input_tokens=0,
+        output_tokens=1100,
+    )
+    assert 0 < ai_run.estimated_cost_usd < at_list
+    assert float(ai_run.estimated_cost_usd) == pytest.approx(
+        float(at_list * PLAN_SHARE_OF_LIST["claude-code"]), abs=1e-6
+    )
     assert ai_run.output_tokens == 1100
     assert bodies[0]["model"] == ai_run.model_configuration.model
     assert edition.blocks.get(block_id="c1.h1").text == "Розділ I"
@@ -580,7 +590,7 @@ def test_apostrophes_inside_words_are_stored_straight() -> None:
     assert edition.blocks.get(block_id="c1.p2").text.endswith("сплетіння м'язів.")
 
 
-def test_codex_tier_translates_with_the_codex_model_at_no_cost(settings) -> None:
+def test_codex_tier_translates_with_the_codex_model_for_a_share_of_the_plan(settings) -> None:
     from almonium_book_processor.catalog.ai_translation import CODEX_TIER, run_translation_inline
 
     settings.CODEX_TRANSLATION_MODEL = "gpt-6-sol"
@@ -615,7 +625,8 @@ def test_codex_tier_translates_with_the_codex_model_at_no_cost(settings) -> None
     assert ai_run.status == AIRun.Status.SUCCEEDED
     assert ai_run.model_configuration.provider == "codex"
     assert ai_run.model_configuration.name == "codex-translation-v1"
-    assert ai_run.estimated_cost_usd == 0
+    # 900 input and 1100 output tokens of gpt-6-sol are USD 0.0128 at list price
+    assert 0 < float(ai_run.estimated_cost_usd) < 0.0128
     assert bodies[0]["model"] == "gpt-6-sol"
 
 

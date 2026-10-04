@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 
+from almonium_book_processor.ai.codex_provider import codex_meter
 from almonium_book_processor.catalog.ai_translation import (
     CODEX_TIER,
     SUBSCRIPTION_TIER,
@@ -51,9 +52,23 @@ class Command(BaseCommand):
                 tier=tier,
             )
         self.stdout.write(f"Translating into {edition.slug} through {options['through']} ...")
+        before = codex_meter() if tier == CODEX_TIER else None
         run = run_translation_inline(str(edition.id), tier=tier)
+        after = codex_meter() if tier == CODEX_TIER else None
         # the run is completed under a lock on a fresh row; this instance is stale
         run.refresh_from_db()
+        if before and after:
+            # kept with the run: meter points beside the run's tokens are what the plan's
+            # share of the list price is measured from
+            run.response_payload = {
+                **(run.response_payload or {}),
+                "codex_meter": {"before": before, "after": after},
+            }
+            run.save(update_fields=["response_payload", "updated_at"])
+            self.stdout.write(
+                f"Codex meter: {before['used_percent']:.0f}% to {after['used_percent']:.0f}% "
+                "of the week"
+            )
         summary = (run.response_payload or {}).get("summary") or {}
         self.stdout.write(
             f"{run.status}: {summary.get('chapters', 0)} chapters, "

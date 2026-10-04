@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from almonium_book_processor.ai.codex_provider import CodexProvider
+from almonium_book_processor.ai.codex_provider import CodexProvider, codex_meter
 
 BODY = {
     "model": "gpt-6.1-sol",
@@ -100,3 +100,39 @@ def test_a_request_without_a_schema_is_refused():
 
     with pytest.raises(ValueError, match="JSON schema"):
         provider.respond({**BODY, "text": {}})
+
+
+def test_the_meter_is_read_from_the_newest_session_log(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    day = tmp_path / ".codex" / "sessions" / "2026" / "10" / "04"
+    day.mkdir(parents=True)
+    limits = {
+        "rate_limits": {
+            "primary": {"used_percent": 14.0, "window_minutes": 10080, "resets_at": 1791734040},
+            "secondary": None,
+            "plan_type": "prolite",
+        }
+    }
+    commands = []
+
+    def runner(command, **kwargs):
+        commands.append(command)
+        (day / "rollout-2026-10-04T21-00-00-x.jsonl").write_text(json.dumps(limits) + "\n")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    meter = codex_meter(binary="codex", runner=runner)
+
+    assert meter == {
+        "used_percent": 14.0,
+        "window_minutes": 10080,
+        "resets_at": 1791734040,
+        "plan_type": "prolite",
+    }
+    # the call must leave a session log, so it is the one call that is not ephemeral
+    assert "--ephemeral" not in commands[0]
+
+
+def test_an_unreadable_meter_is_none_and_never_an_error(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    assert codex_meter(binary="codex", runner=lambda *a, **k: None) is None

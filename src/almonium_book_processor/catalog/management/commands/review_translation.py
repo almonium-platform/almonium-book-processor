@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 
+from almonium_book_processor.ai.codex_provider import codex_meter
 from almonium_book_processor.catalog.models import Edition
 from almonium_book_processor.catalog.translation_review import review_translation
 
@@ -21,9 +22,20 @@ class Command(BaseCommand):
             edition = Edition.objects.get(slug=options["edition_slug"])
         except Edition.DoesNotExist as error:
             raise CommandError(f"No edition with slug {options['edition_slug']}") from error
+        before = codex_meter()
         run = review_translation(
             str(edition.id), chapters=options["chapters"], workers=options["workers"]
         )
+        after = codex_meter()
+        if before and after:
+            # kept with the run: meter points beside the run's tokens are what the plan's
+            # share of the list price is measured from
+            run.summary = {**run.summary, "codex_meter": {"before": before, "after": after}}
+            run.save(update_fields=["summary", "updated_at"])
+            self.stdout.write(
+                f"Codex meter: {before['used_percent']:.0f}% to {after['used_percent']:.0f}% "
+                "of the week"
+            )
         review = run.summary.get("review") or {}
         agreement = review.get("agreement") or {}
         self.stdout.write(

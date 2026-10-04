@@ -25,6 +25,7 @@ from almonium_book_processor.ai.claude_code_provider import ClaudeCodeProvider
 from almonium_book_processor.ai.codex_provider import CodexProvider
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
 from almonium_book_processor.ai.output_language import validate_output_language
+from almonium_book_processor.ai.pricing import call_cost
 from almonium_book_processor.ai.translation import (
     TRANSLATION_OUTPUT_SCHEMA,
     TRANSLATION_SYSTEM_PROMPT,
@@ -66,8 +67,8 @@ TRANSLATION_MODEL_PRICING = {
 # Not members of TRANSLATION_MODEL_PRICING on purpose: the admin's tier choices
 # and price estimates come from that table, and these tiers cannot be started
 # from a deployed worker. They run through a CLI signed in to one of the owner's
-# plans, from the translate_on_plan command, at no metered cost: "subscription"
-# through Claude Code, "codex" through Codex.
+# plans, from the translate_on_plan command: "subscription" through Claude Code,
+# "codex" through Codex. Their cost is the share of the plan they use up.
 SUBSCRIPTION_TIER = "subscription"
 CODEX_TIER = "codex"
 PLAN_TIERS = {
@@ -96,11 +97,7 @@ def _configuration(tier: str) -> tuple[ModelConfiguration, PromptTemplate]:
                 "provider": plan["provider"],
                 "model": model,
                 "purpose": "literary_translation",
-                "parameters": {
-                    "reasoning_effort": "medium",
-                    "batch_discount": 0,
-                    "pricing_per_million": {"input": "0", "cached_input": "0", "output": "0"},
-                },
+                "parameters": {"reasoning_effort": "medium", "batch_discount": 0},
             },
         )
     elif tier in TRANSLATION_MODEL_PRICING:
@@ -436,7 +433,14 @@ def _estimated_cost(
     discounted: bool,
 ) -> Decimal:
     if tier in PLAN_TIERS:
-        return Decimal(0)
+        plan = PLAN_TIERS[tier]
+        return call_cost(
+            plan["provider"],
+            getattr(settings, plan["model_setting"]),
+            input_tokens=input_tokens,
+            cached_input_tokens=cached_input_tokens,
+            output_tokens=output_tokens,
+        )
     pricing = TRANSLATION_MODEL_PRICING[tier]
     uncached = max(0, input_tokens - cached_input_tokens)
     standard = (
