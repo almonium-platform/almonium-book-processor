@@ -41,6 +41,7 @@ from almonium_book_processor.ai.output_language import (
     OutputLanguageError,
     validate_analysis_language,
 )
+from almonium_book_processor.ai.pricing import plan_priced
 from almonium_book_processor.catalog.ai_translation import TRANSLATION_MODEL_PRICING
 from almonium_book_processor.catalog.models import (
     AIRun,
@@ -429,6 +430,7 @@ def _record_response(ai_run: AIRun, response: dict, spec: dict) -> bool:
         + Decimal(cached) * Decimal(prices["cached_input"])
         + Decimal(outputs) * Decimal(prices["output"])
     ) / Decimal(1_000_000)
+    cost = plan_priced(response, cost)
     with transaction.atomic():
         current = AIRun.objects.select_for_update().get(id=ai_run.id)
         current.input_tokens = inputs

@@ -16,7 +16,7 @@ from almonium_book_processor.ai.adaptation import (
 )
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
-from almonium_book_processor.ai.pricing import call_cost
+from almonium_book_processor.ai.pricing import call_cost, plan_priced
 from almonium_book_processor.ai.seats import Seat, parse_seat, provider_for
 from almonium_book_processor.catalog.ai_translation import (
     TRANSLATION_MODEL_PRICING,
@@ -431,12 +431,15 @@ def record_response(ai_id, response):
             reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
             # a plan call costs the share of the plan it used; an API call its list price
             estimated_cost_usd=(
-                call_cost(
-                    configuration.provider,
-                    configuration.model,
-                    input_tokens=inputs,
-                    cached_input_tokens=cached,
-                    output_tokens=outputs,
+                plan_priced(
+                    response,
+                    call_cost(
+                        configuration.provider,
+                        configuration.model,
+                        input_tokens=inputs,
+                        cached_input_tokens=cached,
+                        output_tokens=outputs,
+                    ),
                 )
                 if configuration.provider in ("codex", "claude-code")
                 else _estimated_cost("quality", inputs, cached, outputs, discounted=False)

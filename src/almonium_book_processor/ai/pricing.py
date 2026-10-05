@@ -42,8 +42,10 @@ PLAN_WEEK_USD = {
 #   review that was mostly gpt-6.1-sol to 0.077, so the meter follows the list price and one
 #   figure serves every model.
 # claude-code, Max $200: one meter point (USD 0.46) per about forty Opus dictionary entries,
-#   which the CLI itself prices at USD 0.061 each. Measured once, on Opus only; the CLI
-#   exposes no meter, so this one cannot be re-read in code, and Fable may be metered apart.
+#   which the CLI itself prices at USD 0.061 each. Measured once, on Opus only, and against
+#   the CLI's own price of a call, which is what ``plan_priced`` multiplies. The CLI's /usage
+#   screen can be read in code (``claude_code_provider.claude_meter``), on a meter shared by
+#   every Claude Code session of the account, and Fable has a weekly meter of its own.
 PLAN_SHARE_OF_LIST = {
     "codex": Decimal("0.08"),
     "claude-code": Decimal("0.19"),
@@ -90,3 +92,19 @@ def call_cost(
         output_tokens=output_tokens,
     )
     return (cost * PLAN_SHARE_OF_LIST.get(provider, Decimal(1))).quantize(Decimal("0.000001"))
+
+
+def plan_priced(response: dict, computed: Decimal) -> Decimal:
+    """A call's cost from the CLI's own price of it, where the CLI gives one.
+
+    The Claude Code CLI prices every call at list. The price table above cannot reproduce
+    that figure: what the CLI writes to its prompt cache is charged above the input price, and
+    on 102 audit calls the table came to USD 8.76 where the CLI said USD 12.40. A call that
+    carries the CLI's figure costs that figure times the plan's share; any other keeps the
+    cost computed from its tokens.
+    """
+
+    listed = (response.get("claude_code") or {}).get("api_equivalent_cost_usd")
+    if listed is None:
+        return computed
+    return (Decimal(str(listed)) * PLAN_SHARE_OF_LIST["claude-code"]).quantize(Decimal("0.000001"))

@@ -34,7 +34,7 @@ from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
 from almonium_book_processor.ai.openai_provider import response_output_text
-from almonium_book_processor.ai.pricing import call_cost, has_price
+from almonium_book_processor.ai.pricing import call_cost, has_price, plan_priced
 from almonium_book_processor.ai.seats import parse_seat, provider_for
 from almonium_book_processor.catalog.ai_translation import language_name
 from almonium_book_processor.catalog.fidelity_audit import (
@@ -326,7 +326,9 @@ def _usage(reviewer: dict, response: dict) -> dict:
     return {
         **tokens,
         "reasoning_tokens": (usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
-        "estimated_cost_usd": call_cost(reviewer["provider"], reviewer["model"], **tokens),
+        "estimated_cost_usd": plan_priced(
+            response, call_cost(reviewer["provider"], reviewer["model"], **tokens)
+        ),
     }
 
 

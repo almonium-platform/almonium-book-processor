@@ -25,7 +25,7 @@ from pydantic import BaseModel, ConfigDict
 
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
-from almonium_book_processor.ai.pricing import call_cost, has_price
+from almonium_book_processor.ai.pricing import call_cost, has_price, plan_priced
 from almonium_book_processor.ai.seats import provider_for
 from almonium_book_processor.catalog.chapter_analysis import _hash, _json, chapter_blocks
 from almonium_book_processor.catalog.chapter_projections import LEVELS
@@ -476,7 +476,7 @@ def _ask_spot_fix(edition, chapter, target, paragraphs, provider) -> list[Revise
             **tokens,
             reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
             estimated_cost_usd=(
-                call_cost(seat.provider, seat.model, **tokens)
+                plan_priced(response, call_cost(seat.provider, seat.model, **tokens))
                 if has_price(seat.model)
                 else Decimal("0")
             ),

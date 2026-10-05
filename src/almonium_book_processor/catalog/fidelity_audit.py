@@ -36,7 +36,7 @@ from almonium_book_processor.ai.fidelity import (
 )
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
-from almonium_book_processor.ai.pricing import has_price, seat_prices
+from almonium_book_processor.ai.pricing import has_price, plan_priced, seat_prices
 from almonium_book_processor.ai.seats import parse_seat, provider_for
 from almonium_book_processor.catalog.adaptation import (
     PILOT_VERSIONS,
@@ -232,6 +232,7 @@ def _record_usage(ai_id, response: dict, spec: dict) -> None:
         + Decimal(cached) * Decimal(prices["cached_input"])
         + Decimal(outputs) * Decimal(prices["output"])
     ) / Decimal(1_000_000)
+    cost = plan_priced(response, cost)
     with transaction.atomic():
         ai = AIRun.objects.select_for_update().get(pk=ai_id)
         ai.add_attempt_usage(

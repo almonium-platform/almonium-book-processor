@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import subprocess
 import tempfile
 import time
@@ -12,6 +14,58 @@ from typing import Any
 from django.conf import settings
 
 from almonium_book_processor.ai.cli_calls import fits_schema, tried_twice
+
+# The CLI writes every prompt to a one-hour cache and charges that write above the input
+# price. A request here is one chapter under one prompt: almost nothing is ever read back
+# (a tenth of the input on 102 audit calls), so the cache only costs. With it off the same
+# Opus call came to USD 0.045 instead of USD 0.070.
+UNCACHED = {**os.environ, "DISABLE_PROMPT_CACHING": "1"}
+
+_METERS = {
+    "session_percent": r"Current session: (\d+)% used",
+    "week_percent": r"Current week \(all models\): (\d+)% used",
+    "fable_week_percent": r"Current week \(Fable\): (\d+)% used",
+}
+
+
+def claude_meter(
+    *, binary: str | None = None, runner: Callable[..., Any] = subprocess.run
+) -> dict[str, int] | None:
+    """The plan's meters as the CLI's /usage screen shows them, or None when it cannot be read.
+
+    Whole percent of the five-hour session, of the week for all models, and of the week for
+    Fable, which is metered apart. Asking costs no tokens. The meters are the account's:
+    every Claude Code session of the owner moves them, so a reading before and after a job
+    measures that job only if nothing else ran.
+    """
+
+    workdir = Path(tempfile.gettempdir()) / "almonium-claude-code-empty"
+    workdir.mkdir(parents=True, exist_ok=True)
+    try:
+        completed = runner(
+            [
+                binary or settings.CLAUDE_CODE_BINARY,
+                "-p",
+                "--output-format",
+                "json",
+                "--no-session-persistence",
+                "--strict-mcp-config",
+                "--mcp-config",
+                '{"mcpServers": {}}',
+            ],
+            input="/usage",
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=workdir,
+        )
+        screen = json.loads(completed.stdout)["result"]
+    except Exception:  # a meter that cannot be read must never fail the run it surrounds
+        return None
+    found = {name: re.search(pattern, screen) for name, pattern in _METERS.items()}
+    if not found["week_percent"]:
+        return None
+    return {name: int(match.group(1)) for name, match in found.items() if match}
 
 
 class ClaudeCodeProvider:
@@ -99,6 +153,7 @@ class ClaudeCodeProvider:
             text=True,
             timeout=self.timeout_seconds,
             cwd=self.workdir,
+            env=UNCACHED,
         )
         if completed.returncode != 0:
             detail = (completed.stderr or completed.stdout or "").strip()[-500:]

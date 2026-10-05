@@ -158,3 +158,35 @@ def test_a_call_that_fails_in_passing_is_tried_once_more():
 
     assert provider.respond(BODY)["status"] == "completed"
     assert results == [] and len(pauses) == 1
+
+
+def test_the_prompt_cache_is_off_because_a_chapter_is_never_read_back():
+    provider, calls = provider_with(stdout=json.dumps(cli_result()))
+
+    provider.respond(BODY)
+
+    assert calls[0][1]["env"]["DISABLE_PROMPT_CACHING"] == "1"
+
+
+def test_the_plan_meters_are_read_from_the_usage_screen():
+    from almonium_book_processor.ai.claude_code_provider import claude_meter
+
+    screen = (
+        "Current session: 15% used · resets Oct 6\n"
+        "Current week (all models): 41% used · resets Oct 8\n"
+        "Current week (Fable): 67% used · resets Oct 8\n"
+    )
+    asked = []
+
+    def runner(command, **kwargs):
+        asked.append(kwargs["input"])
+        return SimpleNamespace(stdout=json.dumps({"result": screen}))
+
+    assert claude_meter(binary="claude", runner=runner) == {
+        "session_percent": 15,
+        "week_percent": 41,
+        "fable_week_percent": 67,
+    }
+    assert asked == ["/usage"]
+    # a screen that cannot be read is no meter, never an error
+    assert claude_meter(binary="claude", runner=lambda *a, **k: SimpleNamespace(stdout="")) is None
