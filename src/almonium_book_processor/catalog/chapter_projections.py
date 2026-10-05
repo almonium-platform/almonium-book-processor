@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+import uuid
 from collections import Counter
 
 from django.db import transaction
@@ -52,8 +53,14 @@ def _tokens(data: dict) -> int:
     return sum(len(re.findall(r"\S+", block["text"])) for block in data["blocks"])
 
 
-def build_payloads(plan: dict, roles: dict, results: dict) -> tuple[list, dict]:
-    """Complete chapters alone enter the book percentile; partial chapter estimates are labelled."""
+def build_payloads(
+    plan: dict, roles: dict, results: dict, judges: dict | None = None
+) -> tuple[list, dict]:
+    """Complete chapters alone enter the book percentile; partial chapter estimates are labelled.
+
+    ``judges`` names, by chapter, each judge that read it and what it read, where the
+    analysis is the judges' and not the single model's.
+    """
     chapters = []
     for chapter in plan["chapters"]:
         windows = [w for w in plan["windows"] if w["data"]["chapter_id"] == chapter["id"]]
@@ -131,6 +138,7 @@ def build_payloads(plan: dict, roles: dict, results: dict) -> tuple[list, dict]:
             else None,
             "method": "whitespace-token-weighted-window-p75",
             "windows": details,
+            **({"judges": judges[chapter["id"]]} if judges and chapter["id"] in judges else {}),
         }
         summary = {**common, "method": "ordered-window-sections", "sections": summaries}
         chapters.append(
@@ -173,7 +181,7 @@ def refresh_projections(run_id: str, *, token: str | None = None) -> None:
     from almonium_book_processor.catalog.chapter_analysis import (
         StaleAnalysis,
         _hash,
-        analysis_spec,
+        edition_spec,
         snapshot,
     )
 
@@ -202,15 +210,27 @@ def refresh_projections(run_id: str, *, token: str | None = None) -> None:
             raise StaleAnalysis("Text changed before chapter results could be projected.")
         hashes = [w["hash"] for w in plan["windows"]]
         results = {}
-        for result in AIRun.objects.filter(
-            edition=edition,
-            status=AIRun.Status.SUCCEEDED,
-            input_hash__in=hashes,
-        ).order_by("created_at", "id"):
-            # Keep the first validated result, matching reuse rather than mixing attempts.
-            results.setdefault(result.input_hash, result)
+        if "panel" in spec:
+            # the judges' readings are saved by chapter; the run says which stands for a window
+            standing = run.summary.get("window_results") or {}
+            read = AIRun.objects.in_bulk(
+                [standing[window] for window in hashes if window in standing]
+            )
+            results = {
+                window: read[uuid.UUID(standing[window])]
+                for window in hashes
+                if window in standing and uuid.UUID(standing[window]) in read
+            }
+        else:
+            for result in AIRun.objects.filter(
+                edition=edition,
+                status=AIRun.Status.SUCCEEDED,
+                input_hash__in=hashes,
+            ).order_by("created_at", "id"):
+                # Keep the first validated result, matching reuse rather than mixing attempts.
+                results.setdefault(result.input_hash, result)
         roles = dict(_roles(edition))
-        chapters, book = build_payloads(plan, roles, results)
+        chapters, book = build_payloads(plan, roles, results, run.summary.get("judges"))
         retained = []
 
         def persist(kind, payload, chapter_id=None):
@@ -246,7 +266,7 @@ def refresh_projections(run_id: str, *, token: str | None = None) -> None:
         persist(KINDS[0], book)
         # A late old-model completion may add history, but must not displace
         # projections from the currently configured analysis model.
-        if spec == analysis_spec(edition.language):
+        if spec == edition_spec(edition):
             edition.artifacts.filter(kind__in=KINDS, is_current=True).exclude(
                 id__in=retained
             ).update(is_current=False)
@@ -293,7 +313,7 @@ def apply_analysis_level(edition: Edition, book: dict | None) -> bool:
 
 
 def projection_context(edition: Edition, analysis: dict) -> dict:
-    from almonium_book_processor.catalog.chapter_analysis import _hash, analysis_spec
+    from almonium_book_processor.catalog.chapter_analysis import _hash, edition_spec
 
     state = "pending"
     run = analysis.get("chapter_analysis_run")
@@ -315,8 +335,7 @@ def projection_context(edition: Edition, analysis: dict) -> dict:
                     a
                     for a in candidates
                     if a.payload.get("analysis_input_hash") == run.input_hash
-                    and a.payload.get("analysis_spec_hash")
-                    == _hash(analysis_spec(edition.language))
+                    and a.payload.get("analysis_spec_hash") == _hash(edition_spec(edition))
                     and a.payload.get("roles") == dict(_roles(edition))
                 ),
                 None,
@@ -404,10 +423,10 @@ def enqueue_projection(run_id: str) -> None:
 
 
 def queue_projection_refresh(edition_id: str) -> None:
-    from almonium_book_processor.catalog.chapter_analysis import analysis_spec, snapshot
+    from almonium_book_processor.catalog.chapter_analysis import edition_spec, snapshot
 
     edition = Edition.objects.select_related("work").get(id=edition_id)
-    plan = snapshot(edition, analysis_spec(edition.language))
+    plan = snapshot(edition, edition_spec(edition))
     run = edition.pipeline_runs.filter(
         stage=PipelineRun.Stage.CHAPTER_ANALYSIS,
         input_hash=plan["hash"],

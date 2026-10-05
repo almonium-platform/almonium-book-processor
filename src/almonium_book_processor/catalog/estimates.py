@@ -142,14 +142,16 @@ def gloss_book(chapters: list[tuple[Chapter, dict]]) -> Estimate:
 
 
 def chapter_analysis(edition: Edition) -> Estimate:
-    from almonium_book_processor.catalog.chapter_analysis import analysis_spec, snapshot
+    from almonium_book_processor.catalog.chapter_analysis import edition_spec, snapshot
 
-    spec = analysis_spec(edition.language)
+    spec = edition_spec(edition)
     try:
         plan = snapshot(edition, spec)
     except ValueError as error:
         return unavailable(str(error))
     windows = plan["windows"]
+    if "panel" in spec:
+        return _judges_estimate(edition, spec, windows)
     done = _answered(edition, [w["hash"] for w in windows])
     todo = [w for w in windows if w["hash"] not in done]
     prompt = tokens(len(spec["system_prompt"]))
@@ -169,6 +171,36 @@ def chapter_analysis(edition: Edition) -> Estimate:
     else:
         note = f"{len(todo)} of {len(windows)} windows to analyze; the rest are reused."
     return Estimate(usd, note, f"Analyze {len(todo)} windows")
+
+
+def _judges_estimate(edition: Edition, spec: dict, windows: list[dict]) -> Estimate:
+    """What the judges would cost: every judge reads each unread chapter ``readings`` times."""
+    from almonium_book_processor.catalog.adaptation_wording import wording_judges
+
+    read = wording_judges(edition)
+    todo = [w for w in windows if w["data"]["chapter_id"] not in read]
+    usd = sum(
+        (
+            spec["readings"]
+            * call_cost(
+                judge["pricing_per_million"],
+                _json_tokens(w["data"]) + tokens(len(judge["system_prompt"])),
+                ANALYSIS_OUTPUT_TOKENS,
+            )
+            for judge in spec["panel"]
+            for w in todo
+        ),
+        Decimal(0),
+    )
+    chapters = len({w["data"]["chapter_id"] for w in todo})
+    if not todo:
+        note = "The judges have read every chapter as it stands; their readings are reused."
+    else:
+        note = (
+            f"{chapters} chapter{'s' * (chapters != 1)} for {spec['model']} to read, "
+            f"{spec['readings']} time{'s' * (spec['readings'] != 1)} each; the rest are reused."
+        )
+    return Estimate(usd, note, f"Analyze {chapters} chapter{'s' * (chapters != 1)}")
 
 
 def _analysis_of_chars(chars: int) -> Decimal:

@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import BinaryIO
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
 from django.core.files import File
 from django.db import transaction
@@ -927,8 +928,9 @@ def _requeue_analysis_after_commit(edition: Edition) -> None:
             queue_analysis,
         )
 
-        # An adaptation's level judges keep their reading of a chapter over a phrase too.
-        if edition.edition_type == Edition.EditionType.ADAPTATION:
+        # The judges keep their reading of a chapter over a phrase too; where they are the
+        # analysis, the run queued below then reads only the chapters that changed by more.
+        if settings.DIFFICULTY_JUDGES or edition.edition_type == Edition.EditionType.ADAPTATION:
             from almonium_book_processor.catalog.adaptation_wording import carry_wording_forward
 
             carry_wording_forward(edition)

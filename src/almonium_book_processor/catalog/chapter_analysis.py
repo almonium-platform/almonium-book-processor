@@ -9,12 +9,15 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from almonium_book_processor.ai.chapter_analysis import (
@@ -90,6 +93,43 @@ def analysis_spec(language: str = "en") -> dict:
         "request_bytes": MAX_REQUEST_BYTES,
         "max_windows": MAX_WINDOWS,
     }
+
+
+PANEL_PROCESSOR_VERSION = "chapter-analysis-panel-v1"
+
+
+def edition_spec(edition: Edition) -> dict:
+    """What analyses this edition: the configured judges together, or the single API model.
+
+    Where judges are configured (``DIFFICULTY_JUDGES``) they are the chapter analysis: each
+    reads every chapter, the strictest decides its level, and that judge's reading supplies
+    the chapter's description and recap. One judge of levels, not the single model's
+    estimate beside the judges' own. An adaptation is read for its wording alone and three
+    times, an original by the whole rubric and once (``pilot_difficulty.judge_readings``).
+    With no judges configured the single model reads, as a deployed environment does.
+    """
+
+    if not settings.DIFFICULTY_JUDGES:
+        return analysis_spec(edition.language)
+    from almonium_book_processor.catalog.adaptation_wording import reads_wording
+    from almonium_book_processor.catalog.pilot_difficulty import judge_readings, judge_specs
+
+    wording = reads_wording(edition)
+    judges = judge_specs(edition.language, wording=wording)
+    return {
+        "panel": judges,
+        "readings": judge_readings(wording=wording),
+        "provider": "panel",
+        "model": " + ".join(judge["model"] for judge in judges),
+        "processor_version": PANEL_PROCESSOR_VERSION,
+        **{key: judges[0][key] for key in ("window_bytes", "request_bytes", "max_windows")},
+    }
+
+
+def needs_api_key(spec: dict) -> bool:
+    """Whether any reader of this spec is the paid API."""
+
+    return any(reader["provider"] == "openai" for reader in spec.get("panel", [spec]))
 
 
 def chapter_blocks(chapter: Chapter) -> list[dict]:
@@ -191,10 +231,10 @@ def queue_analysis(edition_id: str) -> PipelineRun:
     from almonium_book_processor.catalog.chapter_projections import enqueue_projection
     from almonium_book_processor.catalog.tasks import analyze_edition_chapters
 
-    if not settings.OPENAI_API_KEY:
-        raise ValueError("No OpenAI key is configured.")
     edition = Edition.objects.select_related("work").get(id=edition_id)
-    spec = analysis_spec(edition.language)
+    spec = edition_spec(edition)
+    if needs_api_key(spec) and not settings.OPENAI_API_KEY:
+        raise ValueError("No OpenAI key is configured.")
     plan = snapshot(edition, spec)
     with transaction.atomic():
         run, _ = PipelineRun.objects.get_or_create(
@@ -519,6 +559,16 @@ def analyze_chapters(run_id: str, *, provider=None) -> None:
     spec = run.summary["spec"]
     try:
         plan = _current_plan(run, spec)
+        if "panel" in spec:
+            _read_with_judges(run, token, spec, plan, provider)
+            _current_plan(run, spec)
+            _update_run(run, token, status=PipelineRun.Status.SUCCEEDED, finished_at=timezone.now())
+            from almonium_book_processor.catalog.metadata_translation import (
+                queue_for_translations_of,
+            )
+
+            queue_for_translations_of(run.edition)
+            return
         configuration, prompt = _configuration(spec)
         refresh_projections(run_id, token=token)
         results = []
@@ -560,6 +610,100 @@ def analyze_chapters(run_id: str, *, provider=None) -> None:
     queue_for_translations_of(run.edition)
 
 
+@contextmanager
+def _lease_kept(run: PipelineRun, token: str):
+    """Keep a run's lease while a slow reader works.
+
+    The single model answers a window in seconds and the run is touched after each. A judge
+    on a plan can take minutes over one chapter, and a run nobody has touched for the length
+    of the lease is taken for abandoned and started again by whoever asks next.
+    """
+
+    done = threading.Event()
+
+    def beat():
+        try:
+            while not done.wait(60):
+                PipelineRun.objects.filter(id=run.id, summary__lease=token).update(
+                    updated_at=timezone.now()
+                )
+        finally:
+            connection.close()
+
+    thread = threading.Thread(target=beat, daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        done.set()
+        thread.join()
+
+
+def _read_with_judges(run: PipelineRun, token: str, spec: dict, plan: dict, provider) -> None:
+    """The judges read every chapter; the strictest judge's reading is the chapter's analysis.
+
+    Each judge's reading is saved by ``judge_text`` under the chapter and its text, so a
+    chapter already read, or carried over a small edit, costs nothing here. The run records
+    which reading stands for each window of its plan, and the projections are built from
+    those as they are from the single model's results.
+    """
+
+    from almonium_book_processor.catalog.adaptation_wording import judge_verdicts
+    from almonium_book_processor.catalog.chapter_projections import refresh_projections
+    from almonium_book_processor.catalog.pilot_difficulty import decisive_runs
+
+    edition = Edition.objects.select_related("work").get(id=run.edition_id)
+    chapters = {str(c.id): c for c in edition.chapters.prefetch_related("blocks")}
+    windows: dict[str, list[dict]] = {}
+    for window in plan["windows"]:
+        windows.setdefault(window["data"]["chapter_id"], []).append(window)
+    workers = max(1, settings.DIFFICULTY_JUDGE_WORKERS)
+
+    def read(chapter_id: str) -> tuple[str, list[dict]]:
+        try:
+            return chapter_id, judge_verdicts(edition, chapters[chapter_id], provider=provider)
+        finally:
+            if workers > 1:
+                # each thread opened its own database connection
+                connection.close()
+
+    standing: dict[str, str] = {}
+    judges: dict[str, list[dict]] = {}
+    refresh_projections(str(run.id), token=token)
+    with _lease_kept(run, token), ThreadPoolExecutor(max_workers=workers) as pool:
+        answers = pool.map(read, windows) if workers > 1 else map(read, windows)
+        for chapter_id, verdicts in answers:
+            _current_plan(run, spec)
+            kept = decisive_runs(verdicts)
+            if len(kept) != len(windows[chapter_id]):
+                raise AnalysisRejected("The judges read a chapter in other windows than its plan.")
+            for window, ai_run_id in zip(windows[chapter_id], kept, strict=True):
+                standing[window["hash"]] = ai_run_id
+            judges[chapter_id] = [
+                {
+                    "model": verdict["model"],
+                    "level": verdict["max_level"],
+                    "readings": verdict.get("readings", [verdict["max_level"]]),
+                }
+                for verdict in verdicts
+            ]
+            run.summary = {
+                **run.summary,
+                "completed_windows": len(standing),
+                "results": list(standing.values()),
+                "window_results": standing,
+                "judges": judges,
+            }
+            _update_run(
+                run,
+                token,
+                status=PipelineRun.Status.RUNNING,
+                summary=run.summary,
+                progress=int(100 * len(standing) / len(plan["windows"])),
+            )
+            refresh_projections(str(run.id), token=token)
+
+
 def carry_analysis_forward(edition: Edition, *, max_change: float = 0.02) -> dict | None:
     """Keep the difficulty verdict for text that changed by a phrase, not by a chapter.
 
@@ -576,7 +720,11 @@ def carry_analysis_forward(edition: Edition, *, max_change: float = 0.02) -> dic
 
     from almonium_book_processor.catalog.chapter_projections import refresh_projections
 
-    spec = analysis_spec(edition.language)
+    spec = edition_spec(edition)
+    if "panel" in spec:
+        # The judges' readings are carried chapter by chapter (carry_wording_forward); the
+        # analysis is then run again, and reads only the chapters they have not read.
+        return None
     run = (
         edition.pipeline_runs.filter(
             stage=PipelineRun.Stage.CHAPTER_ANALYSIS,
@@ -651,13 +799,13 @@ def analysis_context(edition: Edition) -> dict:
     run = edition.pipeline_runs.filter(stage=PipelineRun.Stage.CHAPTER_ANALYSIS).first()
     context = {
         "chapter_analysis_run": run,
-        "chapter_analysis_enabled": bool(settings.OPENAI_API_KEY),
+        "chapter_analysis_enabled": bool(settings.OPENAI_API_KEY or settings.DIFFICULTY_JUDGES),
         "projection_state": "pending",
     }
     if not run:
         return context
     try:
-        plan = snapshot(edition, analysis_spec(edition.language))
+        plan = snapshot(edition, edition_spec(edition))
         current = edition.pipeline_runs.filter(
             stage=PipelineRun.Stage.CHAPTER_ANALYSIS,
             input_hash=plan["hash"],

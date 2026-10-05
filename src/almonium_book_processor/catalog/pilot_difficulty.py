@@ -1,8 +1,10 @@
 """Worker-side, bounded blind assessment of a saved adaptation pilot."""
 
+from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 
 from almonium_book_processor.ai.chapter_analysis import (
@@ -25,22 +27,27 @@ from almonium_book_processor.catalog.chapter_analysis import (
 from almonium_book_processor.catalog.chapter_projections import LEVELS, percentile
 from almonium_book_processor.catalog.models import AIRun, PipelineRun
 
+# A judge's reading of one chapter is a handful of calls; none takes this long.
+ABANDONED = timedelta(minutes=45)
 
-def judge_specs(language: str) -> list[dict]:
-    """The blind judges of a pilot, each as the analysis spec it reads with.
 
-    They read with the chapter-analysis rubric, told to rate the wording alone. With no seats
-    configured the judge is the chapter-analysis model.
+def judge_specs(language: str, *, wording: bool = True) -> list[dict]:
+    """The blind judges of a text, each as the analysis spec it reads with.
+
+    They read with the chapter-analysis rubric. The judges of an adaptation, and of a pilot
+    of one, are told to rate the wording alone (``wording``); the judges of an original read
+    by the whole rubric. With no seats configured the judge is the chapter-analysis model.
     """
 
     base = analysis_spec(language)
-    base = {
-        **base,
-        "prompt_version": (
-            WORDING_PROMPT_VERSION if language == "en" else LOCALIZED_WORDING_PROMPT_VERSION
-        ),
-        "system_prompt": base["system_prompt"] + WORDING_NOTE,
-    }
+    if wording:
+        base = {
+            **base,
+            "prompt_version": (
+                WORDING_PROMPT_VERSION if language == "en" else LOCALIZED_WORDING_PROMPT_VERSION
+            ),
+            "system_prompt": base["system_prompt"] + WORDING_NOTE,
+        }
     if not settings.DIFFICULTY_JUDGES:
         return [base]
     specs = []
@@ -60,10 +67,29 @@ def judge_specs(language: str) -> list[dict]:
     return specs
 
 
-def judge_readings() -> int:
-    """How often each judge reads: a judge's single reading wavers at a level's boundary."""
+def judge_readings(*, wording: bool = True) -> int:
+    """How often each judge reads a text.
 
-    return max(1, settings.DIFFICULTY_READINGS) if settings.DIFFICULTY_JUDGES else 1
+    A judge's single reading wavers at a level's boundary, and every chapter of an adaptation
+    has to hold its level, so its judges read ``DIFFICULTY_READINGS`` times. An original's
+    level is a label drawn from all its chapters, where a wavering reading is one vote among
+    thirty: its judges read once.
+    """
+
+    return max(1, settings.DIFFICULTY_READINGS) if settings.DIFFICULTY_JUDGES and wording else 1
+
+
+def decisive_runs(verdicts: list[dict]) -> list[str]:
+    """The readings that stand for a chapter: the strictest judge's, one AI run per window.
+
+    A judge's verdict lists every run it made, reading by reading; the reading that stands is
+    the first whose highest window is the judge's level, as ``judge_text`` kept it.
+    """
+
+    decisive = max(verdicts, key=lambda verdict: LEVELS.index(verdict["max_level"]))
+    windows = len(decisive["windows"])
+    reading = decisive.get("readings", [decisive["max_level"]]).index(decisive["max_level"])
+    return decisive["ai_run_ids"][reading * windows : (reading + 1) * windows]
 
 
 def judge_label(language: str) -> str:
@@ -78,7 +104,7 @@ def _middle(levels: list[str]) -> str:
     return sorted(levels, key=LEVELS.index)[len(levels) // 2]
 
 
-def _read(run, window, spec, configuration, prompt, provider) -> AIRun:
+def _read(run, window, spec, configuration, prompt, provider, reader_facing=False) -> AIRun:
     """One reading of one window. A rejected answer is asked for once more.
 
     A judge is rejected when it cites words that are not in the text. A panel makes many
@@ -86,9 +112,13 @@ def _read(run, window, spec, configuration, prompt, provider) -> AIRun:
     """
 
     try:
-        return _attempt(run, window, spec, configuration, prompt, provider, reader_facing=False)
+        return _attempt(
+            run, window, spec, configuration, prompt, provider, reader_facing=reader_facing
+        )
     except AnalysisRejected:
-        return _attempt(run, window, spec, configuration, prompt, provider, reader_facing=False)
+        return _attempt(
+            run, window, spec, configuration, prompt, provider, reader_facing=reader_facing
+        )
 
 
 def windows_of(blocks: list[dict], window_bytes: int) -> list[list[dict]]:
@@ -119,11 +149,14 @@ def judge_text(
     readings: int,
     provider,
     processor_version: str = "pilot-difficulty-v1",
+    reader_facing: bool = False,
 ) -> dict:
     """One judge's assessment of a text: every window read ``readings`` times.
 
     ``key`` and ``seed`` name what is judged, a pilot or a chapter of an edition; the run is
     kept under the edition, and a text already judged by this judge is not read again.
+    ``reader_facing`` holds the judge's prose to the edition's language: a chapter's
+    description and recap are shown to readers, a pilot's are not.
     """
 
     parts = windows_of(blocks, spec["window_bytes"])
@@ -146,11 +179,16 @@ def judge_text(
         return run.summary["assessment"]
     # A run that failed or was cancelled starts again against the edition as it stands now:
     # other chapters may have changed since, and its text is the same or it would not be found.
+    # So does one left running by a worker that died: nothing has touched it for longer than
+    # a reading takes.
+    abandoned = Q(status=PipelineRun.Status.RUNNING, updated_at__lt=timezone.now() - ABANDONED)
     if not PipelineRun.objects.filter(
-        pk=run.id, status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.FAILED]
+        Q(status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.FAILED]) | abandoned,
+        pk=run.id,
     ).update(
         status=PipelineRun.Status.RUNNING,
         started_at=timezone.now(),
+        updated_at=timezone.now(),
         error="",
         input_hash=plan["hash"],
     ):
@@ -175,7 +213,9 @@ def judge_text(
                 # a later reading is a new call, not the first one's cached answer
                 key = [identity, data] if reading == 1 else [identity, data, reading]
                 window = {"hash": _hash(key), "data": data}
-                results.append(_read(run, window, spec, configuration, prompt, provider))
+                results.append(
+                    _read(run, window, spec, configuration, prompt, provider, reader_facing)
+                )
             levels = [r.response_payload["analysis"]["cefr_estimate"] for r in results]
             taken.append({"results": results, "max_level": max(levels, key=LEVELS.index)})
         level = _middle([reading["max_level"] for reading in taken])

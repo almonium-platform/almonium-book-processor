@@ -203,12 +203,16 @@ FIDELITY_AUDITORS = os.getenv("FIDELITY_AUDITORS", "")
 # one window after another, as before.
 FIDELITY_AUDIT_WORKERS = int(os.getenv("FIDELITY_AUDIT_WORKERS", "1"))
 DIFFICULTY_READINGS = int(os.getenv("DIFFICULTY_READINGS", "3"))
+# Chapters the judges read at a time when they analyse an edition. One in tests and on
+# SQLite; a plan's CLI takes several calls at once.
+DIFFICULTY_JUDGE_WORKERS = int(os.getenv("DIFFICULTY_JUDGE_WORKERS", "1"))
 
 # A task that calls a plan seat can only run where the plan's CLI is signed in. It is sent to
 # a queue of its own, which the container worker never takes and the owner's host worker does
 # (./plan-worker). The adaptation tasks generate, judge and audit, so a plan seat in any of
-# those three settings sends them, and the edition's fidelity audit, there. With no plan
-# seat configured nothing is routed.
+# those three settings sends them, and the edition's fidelity audit, there. An edition's
+# chapter analysis goes with them: where judges are configured they are the analysis. With
+# no plan seat configured nothing is routed.
 PLAN_QUEUE = "plans"
 
 
@@ -223,6 +227,7 @@ def plan_task_routes(*seat_settings: str) -> dict[str, dict[str, str]]:
             "adapt_book",
             "run_floor_probe",
             "audit_edition_fidelity",
+            "analyze_edition_chapters",
         )
     }
 

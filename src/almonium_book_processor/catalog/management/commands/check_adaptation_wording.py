@@ -14,7 +14,7 @@ from almonium_book_processor.catalog.adaptation_wording import (
     revise_chapter,
     spot_fix_chapter,
 )
-from almonium_book_processor.catalog.chapter_analysis import analysis_context
+from almonium_book_processor.catalog.chapter_analysis import analysis_context, queue_analysis
 from almonium_book_processor.catalog.chapter_projections import LEVELS
 from almonium_book_processor.catalog.models import Edition, PipelineRun
 
@@ -81,6 +81,12 @@ class Command(BaseCommand):
             return
         with transaction.atomic():
             sync_difficulty_warning(Edition.objects.select_for_update().get(pk=edition.id), run)
+        # The judges' readings are the edition's chapter analysis: have it rebuilt from them,
+        # which reads nothing they have read.
+        try:
+            queue_analysis(str(edition.id))
+        except ValueError as error:
+            self.stderr.write(f"The chapter analysis was not refreshed: {error}")
 
     def _mend(self, edition, chapter, verdict, target, timeout: int) -> str:
         """The cited paragraphs first; the whole chapter once if that was not enough."""

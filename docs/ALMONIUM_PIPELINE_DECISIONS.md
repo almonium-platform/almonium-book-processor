@@ -449,11 +449,10 @@ Under these rules the B1 probe of Frankenstein passed on 2026-10-05 (Letter
 I, Chapter X after one revision, Chapter XXIII). `adapts_to` still changes
 only when a full edition passes both of its gates.
 
-What this does not settle: the library's own chapter levels, for originals
-and translations, still come from the single chapter-analysis model and the
-holistic rubric. Whether the reader should be told which chapters of an
-adaptation carry demanding ideas at plain wording is a product question,
-open.
+The library's own chapter levels were settled the same day (section 15): the
+judges read originals too. Whether the reader should be told which chapters
+of an adaptation carry demanding ideas at plain wording is a product
+question, open.
 
 ## 15. A book is finished without a person, and one judge reads levels
 
@@ -474,9 +473,20 @@ ones it had.
   levels: it read B1 attempts as B2 and disagreed with both stronger models,
   and its estimate beside theirs was the "25 chapters at B2, one chapter
   blocking" mismatch on the B1 Frankenstein.
-- **Luna keeps the easy work**: bibliographic metadata, and the chapter
-  notes readers see (description, recap, themes), which the owner likes and
-  which a privately uploaded book should get too.
+- **Luna keeps the easy work**: bibliographic metadata, and chapter notes
+  (description, recap, themes) where no judges read, which the owner likes
+  and which a privately uploaded book should get too.
+- **How it is built**: the judges did not become a second pass beside the
+  chapter analysis; they became it (`chapter_analysis.edition_spec`). A
+  judge answers the same contract the single model did, so the strictest
+  judge's reading of a chapter carries its level, its evidence and its
+  description and recap, and everything downstream (the book's level, the
+  ladder, the adaptation gate, the published projections) reads one source.
+  An original is read once per judge, by the whole rubric: its level is a
+  label drawn from all its chapters. An adaptation is read three times, for
+  its wording: each chapter has to hold the level. Known waste, left for the
+  next change of the judges' prompt: every reading writes a recap, and only
+  the strictest judge's is used.
 - **All three ways to translate stay**: Codex on a plan, Claude Code on a
   plan, and the paid API with gpt-5.6-terra. The plan CLIs are a workaround
   that works on one machine; prices and tools keep changing; the processor

@@ -69,6 +69,17 @@ Level adaptation can run on one of the owner's plans instead of the API: set
 - `./plan-manage <command>` runs `manage.py` on the host with the same
   settings, for the commands that call a plan's CLI: `plan_meter`,
   `translate_on_plan`, `review_translation`, `check_adaptation_wording`.
+- **Where judges are configured they are the chapter analysis.** With
+  `DIFFICULTY_JUDGES` set, "Analyze" on an edition's page (and the analysis
+  queued after an import, a generation or an edit) has every judge read every
+  chapter, on the host worker, `DIFFICULTY_JUDGE_WORKERS` chapters at a time.
+  The strictest judge decides a chapter's level and its reading supplies the
+  chapter's description and recap; the single API model is not asked. An
+  original is read by the whole rubric and once per judge, an adaptation for
+  its wording alone and `DIFFICULTY_READINGS` times. A chapter the judges have
+  read as it stands is never read again, so asking twice costs nothing. With
+  no judges configured, as on a deployed environment, the single model reads
+  as before.
 - **A whole adapted edition** is held to the level its probe passed at by
   `./plan-manage check_adaptation_wording <slug>`: the pilot's judges read
   every chapter for its wording, and where they have read a chapter's current
@@ -169,7 +180,7 @@ alignment of every companion pair that had one. What does not:
 | Job | Where | Tier | Recorded cost so far |
 |---|---|---|---|
 | Metadata detection | edition page, on upload and on demand | Luna | a fraction of a cent per book |
-| Chapter analysis | edition page | Luna | about $0.10 per 48 Ukrainian windows; resumable |
+| Chapter analysis | edition page | the configured judges on the owner's machine; Luna where none are configured | Luna: about $0.10 per 48 Ukrainian windows; resumable either way |
 | Metadata translation | after a translation, and on demand | Luna | small, one call per chapter |
 | Translation | product API order, or the edition page | Terra (Luna draft tier) | $2.06 for Frankenstein, direct mode |
 | Chapter adaptation pilot | edition page | Terra | about $0.06 per chapter |

@@ -52,15 +52,22 @@ def text_hash(blocks: list[dict]) -> str:
     return _hash([[block["block_id"], block["text"]] for block in blocks])
 
 
-def check_chapter(edition: Edition, chapter: Chapter, *, provider=None) -> dict | None:
-    """The panel's reading of one chapter's current text; a text already read is not read again."""
+def reads_wording(edition: Edition) -> bool:
+    """Whether the judges rate this edition's wording alone, as they do an adaptation's."""
+
+    return edition.edition_type == Edition.EditionType.ADAPTATION
+
+
+def judge_verdicts(edition: Edition, chapter: Chapter, *, provider=None) -> list[dict] | None:
+    """Each judge's reading of one chapter's current text; a text already read is not read again."""
 
     blocks = chapter_blocks(chapter)
     if not blocks:
         return None
     digest = text_hash(blocks)
-    readings = judge_readings()
-    specs = judge_specs(edition.language)
+    wording = reads_wording(edition)
+    readings = judge_readings(wording=wording)
+    specs = judge_specs(edition.language, wording=wording)
     # readings carried over a small edit stand for this text; nobody reads it again
     carried = _readings(edition).get((str(chapter.id), digest), [])
     standing = [
@@ -70,8 +77,8 @@ def check_chapter(edition: Edition, chapter: Chapter, *, provider=None) -> dict 
         for spec in specs
     ]
     if all(standing):
-        return panel_verdict(standing, edition.language, readings)
-    verdicts = [
+        return standing
+    return [
         judge_text(
             edition=edition,
             key=f"{chapter.id}:wording",
@@ -83,10 +90,20 @@ def check_chapter(edition: Edition, chapter: Chapter, *, provider=None) -> dict 
             readings=readings,
             provider=provider,
             processor_version=WORDING_VERSION,
+            # the strictest judge's description and recap of a chapter are what readers see
+            reader_facing=True,
         )
         for spec in specs
     ]
-    return panel_verdict(verdicts, edition.language, readings)
+
+
+def check_chapter(edition: Edition, chapter: Chapter, *, provider=None) -> dict | None:
+    """The panel's reading of one chapter's current text; a text already read is not read again."""
+
+    verdicts = judge_verdicts(edition, chapter, provider=provider)
+    if verdicts is None:
+        return None
+    return panel_verdict(verdicts, edition.language, judge_readings(wording=reads_wording(edition)))
 
 
 def _readings(edition: Edition) -> dict[tuple[str, str], list[tuple[dict, int, dict]]]:
@@ -126,8 +143,9 @@ def check_edition(edition: Edition, *, provider=None, workers: int = 1) -> dict[
 def wording_judges(edition: Edition) -> dict[str, list[tuple[str, str]]]:
     """Each judge's model and level, for every chapter whose current text all of them have read."""
 
-    specs = judge_specs(edition.language)
-    readings = judge_readings()
+    wording = reads_wording(edition)
+    specs = judge_specs(edition.language, wording=wording)
+    readings = judge_readings(wording=wording)
     read = _readings(edition)
     if not read:
         return {}
