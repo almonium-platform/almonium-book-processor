@@ -473,6 +473,15 @@ ones it had.
   levels: it read B1 attempts as B2 and disagreed with both stronger models,
   and its estimate beside theirs was the "25 chapters at B2, one chapter
   blocking" mismatch on the B1 Frankenstein.
+- **The level of an adaptation is not a ceiling on every chapter.** One
+  substantive chapter in ten may sit one level above the target when the
+  judges disagree about it (`SPLIT_CHAPTER_SHARE`). The strict ceiling took
+  the stricter of two judges on every chapter, so among thirty chapters one
+  wavering reading held a sound book: the B1 Frankenstein stood at 27
+  chapters B1 and one, its last, read B1 by Opus and B2 by gpt-6.1-sol after
+  three rewrites. A chapter both judges read above the target, or one two
+  levels above, still holds the book, and so do more disputed chapters than
+  the allowance.
 - **Luna keeps the easy work**: bibliographic metadata, and chapter notes
   (description, recap, themes) where no judges read, which the owner likes
   and which a privately uploaded book should get too.

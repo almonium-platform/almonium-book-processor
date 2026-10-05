@@ -80,6 +80,11 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   read as it stands is never read again, so asking twice costs nothing. With
   no judges configured, as on a deployed environment, the single model reads
   as before.
+- **A disputed chapter does not hold an adaptation.** One substantive
+  chapter in ten may read one level above the target when one judge reads it
+  there and another at the target; the edition page lists such chapters. Both
+  judges above the target, two levels above, or more such chapters than the
+  allowance, and the gate holds as before.
 - **A whole adapted edition** is held to the level its probe passed at by
   `./plan-manage check_adaptation_wording <slug>`: the pilot's judges read
   every chapter for its wording, and where they have read a chapter's current

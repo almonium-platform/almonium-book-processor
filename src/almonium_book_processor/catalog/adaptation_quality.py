@@ -5,6 +5,15 @@ from almonium_book_processor.catalog.models import Edition, PipelineRun
 
 DIFFICULTY_WARNING = "adaptation_difficulty_gate"
 
+# The share of an adaptation's substantive chapters that may sit one level above its target
+# when the judges disagree about them. A ceiling every chapter must pass, taken from the
+# stricter of two judges, holds a sound book on one wavering reading: among thirty chapters
+# one judge calling one of them a level higher is the expected case, not a finding. A book's
+# level is what nearly all of it reads at, as an original's is the level three quarters of its
+# chapters reach. A chapter both judges read above the target, or one read two levels above,
+# still holds the book.
+SPLIT_CHAPTER_SHARE = 0.10
+
 
 def adaptation_target(edition) -> str | None:
     """The single CEFR level an adaptation was generated for, if it has one."""
@@ -56,6 +65,7 @@ def adaptation_quality(edition, analysis=None):
         return result
     above = []
     below = []
+    split = []
     if not analysis.get("chapter_projections"):
         result["adaptation_blocker"] = "Every adaptation chapter needs a current estimate."
         return result
@@ -79,11 +89,25 @@ def adaptation_quality(edition, analysis=None):
         # Front and back matter is adapted as far as it goes and may sit above the target:
         # an author's introduction is an essay, and must not close a level for the story.
         if row["above_adaptation_target"] and row["chapter"].analysis_role == "body":
-            above.append(row["chapter"].sequence)
+            levels = [LEVELS.index(read) for _, read in row["wording_judges"]]
+            disputed = (
+                len(levels) > 1
+                and min(levels) <= LEVELS.index(target)
+                and max(levels) == LEVELS.index(target) + 1
+            )
+            (split if disputed else above).append(row["chapter"].sequence)
         if LEVELS.index(row["difficulty"]["cefr_estimate"]) < LEVELS.index(target):
             below.append(row["chapter"].sequence)
+    body = sum(
+        row["chapter"].analysis_role == "body" for row in analysis.get("chapter_projections", [])
+    )
+    if len(split) > int(body * SPLIT_CHAPTER_SHARE):
+        # more disputed chapters than a book may carry: all of them hold it
+        above, split = sorted(above + split), []
     result["adaptation_above_chapters"] = above
     result["adaptation_below_chapters"] = below
+    # read a level above the target by one judge and at it by another; within the allowance
+    result["adaptation_split_chapters"] = split
     if above:
         result["adaptation_blocker"] = (
             f"Target {target} not achieved: {len(above)} chapter(s) contain above-target "

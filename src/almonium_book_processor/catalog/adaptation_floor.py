@@ -370,6 +370,8 @@ def edition_gates(edition: Edition) -> dict:
         "level": target,
         "difficulty_ok": difficulty_ok,
         "difficulty_note": quality.get("adaptation_blocker") or "",
+        # chapters the judges disagree about, a level above the target, within the allowance
+        "difficulty_split": quality.get("adaptation_split_chapters") or [],
         "difficulty_run": analysis.get("chapter_analysis_run"),
         "fidelity_ok": fidelity_ok,
         "fidelity_state": audit_state["fidelity_audit_state"],

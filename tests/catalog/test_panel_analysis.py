@@ -206,3 +206,76 @@ def test_the_estimate_counts_every_judge_and_every_reading_of_what_is_unread(edi
 
     after = chapter_analysis(edition)
     assert after.usd == 0 and "reused" in after.note
+
+
+def _adaptation_of(edition, chapters: int):
+    edition.edition_type = Edition.EditionType.ADAPTATION
+    edition.save()
+    for sequence in range(3, chapters + 1):
+        chapter = Chapter.objects.create(edition=edition, sequence=sequence, title=f"{sequence}")
+        ContentBlock.objects.create(
+            edition=edition,
+            chapter=chapter,
+            sequence=1,
+            block_id=f"c{sequence}.p1",
+            block_type="paragraph",
+            text="Ere dawn, the traveler considered the journey.",
+        )
+    edition.blocks.update(attributes={"adaptation": {"target_level": "B1"}})
+
+
+class ByChapter(Judges):
+    """A judge reads the chapters named for it one level higher."""
+
+    def __init__(self, harder: dict[str, set[int]]):
+        super().__init__({})
+        self.harder = harder
+
+    def respond(self, body):
+        sequence = json.loads(body["input"])["chapter_sequence"]
+        self.levels = {body["model"]: "B2" if sequence in self.harder[body["model"]] else "B1"}
+        return super().respond(body)
+
+
+def test_one_chapter_in_ten_may_read_a_level_higher_when_the_judges_disagree(edition, settings):
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
+
+    settings.DIFFICULTY_READINGS = 1
+    _adaptation_of(edition, 10)
+    # one judge reads chapter 10 a level above the target, the other reads it at the target
+    judges = ByChapter({"claude-opus-5-5": set(), "gpt-6.1-sol": {10}})
+    analyze_chapters(str(queue_analysis(str(edition.id)).id), provider=judges)
+
+    quality = adaptation_quality(edition)
+
+    assert quality["adaptation_blocker"] == ""
+    assert quality["adaptation_split_chapters"] == [10]
+    assert quality["adaptation_above_chapters"] == []
+
+
+def test_a_chapter_both_judges_read_above_the_target_still_holds_the_book(edition, settings):
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
+
+    settings.DIFFICULTY_READINGS = 1
+    _adaptation_of(edition, 10)
+    judges = ByChapter({"claude-opus-5-5": {10}, "gpt-6.1-sol": {10}})
+    analyze_chapters(str(queue_analysis(str(edition.id)).id), provider=judges)
+
+    quality = adaptation_quality(edition)
+
+    assert quality["adaptation_above_chapters"] == [10]
+    assert "Target B1 not achieved" in quality["adaptation_blocker"]
+
+
+def test_more_disputed_chapters_than_the_allowance_all_hold_the_book(edition, settings):
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
+
+    settings.DIFFICULTY_READINGS = 1
+    _adaptation_of(edition, 10)
+    judges = ByChapter({"claude-opus-5-5": set(), "gpt-6.1-sol": {9, 10}})
+    analyze_chapters(str(queue_analysis(str(edition.id)).id), provider=judges)
+
+    quality = adaptation_quality(edition)
+
+    assert quality["adaptation_above_chapters"] == [9, 10]
+    assert quality["adaptation_split_chapters"] == []
