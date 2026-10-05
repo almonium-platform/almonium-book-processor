@@ -1281,11 +1281,15 @@ def test_parallel_reader_shows_word_changes_for_a_same_language_companion(client
     reader_staff(client, "parallel-reader-diff")
     url = reverse("catalog:edition-reader", args=[adaptation.id])
 
-    # Changes start off on a level adaptation, which rewrites most passages.
-    plain = client.get(url, {"chapter": 1, "parallel": str(canonical.id)}).content.decode()
+    # Changes start on; the switch turns them off.
+    plain = client.get(
+        url, {"chapter": 1, "parallel": str(canonical.id), "diff": "0"}
+    ).content.decode()
     assert 'aria-checked="false"' in plain
     assert f'&parallel={canonical.id}&diff=1">Changes' in plain
     assert "<ins>" not in plain and "<del>" not in plain
+    default = client.get(url, {"chapter": 1, "parallel": str(canonical.id)}).content.decode()
+    assert 'aria-checked="true"' in default and "<ins>piece</ins>" in default
 
     shown = client.get(
         url, {"chapter": 1, "parallel": str(canonical.id), "diff": "1"}
@@ -2449,7 +2453,7 @@ def test_failed_publication_hand_off_is_shown_in_the_processing_history(
     assert "Almonium API returned 503 Service Unavailable" in page.content.decode()
 
 
-def test_parallel_reader_marks_a_mostly_rewritten_row_instead_of_highlighting_it(client) -> None:
+def test_parallel_reader_marks_a_mostly_rewritten_row_and_still_highlights_it(client) -> None:
     canonical, _, source_blocks, _ = parallel_records()
     adaptation = Edition.objects.create(
         slug="parallel-work-b1",
@@ -2481,7 +2485,7 @@ def test_parallel_reader_marks_a_mostly_rewritten_row_instead_of_highlighting_it
     ).content.decode()
 
     assert ">Rewritten</span>" in shown
-    assert "<ins>" not in shown and "<del>" not in shown
+    assert "<ins>" in shown and "<del>" in shown
     # The decision is a verdict and a reason, never the raw attribute dict.
     assert "<strong>Adapted</strong>" in shown and "· Shorter words." in shown
     assert "'decision'" not in shown

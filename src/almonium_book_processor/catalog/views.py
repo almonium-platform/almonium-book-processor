@@ -949,10 +949,9 @@ def _mark_word_changes(rows: list[dict], edition: Edition, parallel_edition: Edi
         else:
             counterpart_segments, block_segments = word_diff(counterpart.text, row["block"].text)
         row["changed"] = any(seg["op"] != "equal" for seg in block_segments + counterpart_segments)
-        # Past half the words, highlights mark nearly everything and say nothing.
-        if _changed_word_share(block_segments + counterpart_segments) > REWRITTEN_SHARE:
-            row["rewritten"] = True
-            continue
+        row["rewritten"] = (
+            _changed_word_share(block_segments + counterpart_segments) > REWRITTEN_SHARE
+        )
         row["block_segments"] = block_segments
         row["counterpart_segments"] = counterpart_segments
 
@@ -1064,13 +1063,7 @@ def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
     )
     rows, gap_count = _parallel_rows(blocks, parallel_edition, None if query else chapter)
     diff_available = parallel_edition is not None and parallel_edition.language == edition.language
-    # A level adaptation rewrites most passages, so word marks start off there.
-    requested_diff = request.GET.get("diff")
-    show_diff = diff_available and (
-        requested_diff == "1"
-        if requested_diff in ("0", "1")
-        else edition.edition_type != Edition.EditionType.ADAPTATION
-    )
+    show_diff = diff_available and request.GET.get("diff") != "0"
     if show_diff:
         _mark_word_changes(rows, edition, parallel_edition)
     from almonium_book_processor.catalog.passage_provenance import passage_provenance

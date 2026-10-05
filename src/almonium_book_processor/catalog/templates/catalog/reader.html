@@ -73,7 +73,7 @@
           {% if row.block %}<code>{{ row.block.block_id }}</code>{% else %}<code>—</code>{% endif %}<code>{{ edition.language|upper }}</code>{% if level_label %}<span class="side-level{% if 'target' in level_label %} side-level-target{% endif %}"{% if 'target' in level_label %} title="Target level of this adaptation; not yet an assessed level"{% endif %}>{{ level_label }}</span>{% endif %}<span>{{ edition.get_edition_type_display }}</span>
           {% if row.block and row.block.block_type != "paragraph" %}<span>{{ row.block.get_block_type_display }}</span>{% endif %}
           {% if query and row.block %}<span>Chapter {{ row.block.chapter.sequence }}</span>{% endif %}
-          {% if row.rewritten %}<span class="state-chip state-rewritten" title="More than half the words differ, so no word is highlighted">Rewritten</span>{% endif %}
+          {% if row.rewritten %}<span class="state-chip state-rewritten" title="More than half the words differ">Rewritten</span>{% endif %}
           {% if row.label %}<span class="state-chip state-gap">{{ row.label }}</span>{% endif %}
         </p>
         {% if row.block %}
