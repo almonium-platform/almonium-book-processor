@@ -1267,6 +1267,25 @@ def test_a_corrected_phrase_keeps_the_judges_reading_and_a_rewritten_chapter_doe
     assert judge.calls == calls + 1
 
 
+def test_a_reading_that_failed_starts_again_after_another_chapter_changed(adaptation):
+    from almonium_book_processor.catalog.adaptation_wording import check_chapter
+
+    first = adaptation.chapters.get(sequence=1)
+
+    class Broken:
+        def respond(self, body):
+            return {"status": "incomplete", "usage": {}, "output": []}
+
+    with pytest.raises(ValueError):
+        check_chapter(adaptation, first, provider=Broken())
+    # the book moves on: another chapter is edited before the reading is tried again
+    other = adaptation.blocks.get(block_id="c2.b2")
+    other.text = "He was very afraid."
+    other.save()
+
+    assert check_chapter(adaptation, first, provider=Judge("B2"))["max_level"] == "B2"
+
+
 def test_only_the_windows_read_above_the_target_are_mended(adaptation):
     from almonium_book_processor.catalog.adaptation_wording import (
         WORDING_VERSION,

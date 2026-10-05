@@ -144,10 +144,18 @@ def judge_text(
     )
     if run.status == PipelineRun.Status.SUCCEEDED:
         return run.summary["assessment"]
+    # A run that failed or was cancelled starts again against the edition as it stands now:
+    # other chapters may have changed since, and its text is the same or it would not be found.
     if not PipelineRun.objects.filter(
         pk=run.id, status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.FAILED]
-    ).update(status=PipelineRun.Status.RUNNING, started_at=timezone.now(), error=""):
+    ).update(
+        status=PipelineRun.Status.RUNNING,
+        started_at=timezone.now(),
+        error="",
+        input_hash=plan["hash"],
+    ):
         raise ValueError("Assessment already running; inspect its ledger before retrying.")
+    run.refresh_from_db()
     try:
         configuration, prompt = _configuration(spec)
         if provider is None and spec["provider"] != "openai":
