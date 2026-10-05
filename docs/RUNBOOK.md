@@ -56,10 +56,20 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   `./plan-manage check_adaptation_wording <slug>`: the pilot's judges read
   every chapter for its wording, and where they have read a chapter's current
   text their level is the one the edition's gate uses. `--revise` sends a
-  substantive chapter read above the target back to the adapter once and
-  applies the revision if the judges read it at the target. Run it again after
-  editing chapters: an edited chapter falls back to the library's chapter
-  analysis until the judges reread it, and they read only what changed.
+  substantive chapter read above the target is mended: the adapter rewrites the
+  paragraphs the judges cited, and the whole chapter once if that was not
+  enough. A corrected phrase keeps the judges' reading: a chapter that changed
+  by two percent of its words or less carries it automatically, measured
+  against the text they really read. Run the command again after larger edits,
+  or after editing a chapter read above the target; the judges read only
+  those.
+- **Applying audit corrections.** A correction is offered for one click only
+  when writing it over the quoted words cannot repeat the sentence beside it;
+  otherwise the editor sees it and edits by hand. Before this guard, applying
+  119 corrections in bulk left sixteen paragraphs with a repeated sentence.
+  Small findings do not run out: each audit pass raises new ones, and the two
+  auditors sometimes want opposite things. Settle the material ones; treat the
+  rest as optional reading, not as a queue to empty.
 - With `FIDELITY_AUDITORS` naming two auditors, the edition's fidelity audit
   (the page's button) is read by both, `FIDELITY_AUDIT_WORKERS` chapters at a
   time, and runs on the host worker.
