@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from django import template
 from django.urls import reverse
 from django.utils.html import format_html
@@ -176,3 +178,27 @@ def usd(value):
     from almonium_book_processor.catalog.spend import format_usd
 
     return format_usd(value)
+
+
+_ROMAN = re.compile(r"^[IVXLCDM]+$")
+
+
+@register.filter
+def display_title(value):
+    """A source title shouted in capitals, title-cased for display; Roman numerals stay."""
+
+    text = (value or "").strip().rstrip(".")
+    letters = [ch for ch in text if ch.isalpha()]
+    if not letters or not all(ch.isupper() for ch in letters):
+        return text
+    return " ".join(
+        word if _ROMAN.match(word.rstrip(",;:")) else word.capitalize() for word in text.split()
+    )
+
+
+@register.filter
+def short_hash(value):
+    """A long hash or UUID as its first and last eight characters."""
+
+    text = str(value or "").replace("-", "")
+    return f"{text[:8]}…{text[-8:]}" if len(text) > 20 else str(value or "")

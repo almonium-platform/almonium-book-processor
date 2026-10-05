@@ -1,0 +1,12 @@
+{% load catalog_extras %}<details class="reader-drawer">
+  <summary>Provenance</summary>
+  <dl class="provenance-list">
+    <dt>Generation</dt><dd>{{ provenance.generation }}{% if provenance.generation != "Imported source" %} · {{ provenance.model }} · {{ provenance.prompt }}{% endif %}</dd>
+    {% if provenance.generation != "Imported source" %}<dt>Pipeline</dt><dd>{{ provenance.generation_pipeline }} · {{ provenance.generation_record_scope|lower }}</dd>{% endif %}
+    <dt>Source</dt><dd><code>{{ provenance.source }}</code></dd>
+    {% if provenance.source_revision_at_generation != "Not recorded" %}<dt>Source revision</dt><dd><code title="{{ provenance.source_revision_at_generation }}">{{ provenance.source_revision_at_generation|short_hash }}</code><button class="copy-link" type="button" data-copy="{{ provenance.source_revision_at_generation }}">Copy</button></dd>{% endif %}
+    <dt>Text hash</dt><dd><code title="{{ provenance.text_sha256 }}">{{ provenance.text_sha256|short_hash }}</code><button class="copy-link" type="button" data-copy="{{ provenance.text_sha256 }}">Copy</button></dd>
+    {% if provenance.generation_run|length == 36 %}<dt>Run</dt><dd><code title="{{ provenance.generation_run }}">{{ provenance.generation_run|short_hash }}</code><a class="copy-link" href="{% url 'admin:catalog_airun_change' provenance.generation_run %}">Open run</a></dd>{% endif %}
+    <dt>Last edit</dt><dd>{% if provenance.revision_date %}{{ provenance.revision_date|slice:":10" }}{% if provenance.revision_note %} · {{ provenance.revision_note }}{% endif %}{% else %}No recorded edits{% endif %}</dd>
+  </dl>
+</details>

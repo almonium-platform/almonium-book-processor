@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 from collections import defaultdict
 from urllib.parse import quote
@@ -836,8 +837,8 @@ def _reader_redirect(
         url += f"&q={quote(query)}"
     if parallel:
         url += f"&parallel={quote(parallel)}"
-    if diff:
-        url += "&diff=1"
+    if diff in ("0", "1"):
+        url += f"&diff={diff}"
     if block_id:
         url += f"#block-{block_id}"
     return redirect(url)
@@ -947,18 +948,68 @@ def _mark_word_changes(rows: list[dict], edition: Edition, parallel_edition: Edi
             counterpart_segments, block_segments = word_diff(row["block"].text, counterpart.text)
         else:
             counterpart_segments, block_segments = word_diff(counterpart.text, row["block"].text)
+        row["changed"] = any(seg["op"] != "equal" for seg in block_segments + counterpart_segments)
+        # Past half the words, highlights mark nearly everything and say nothing.
+        if _changed_word_share(block_segments + counterpart_segments) > REWRITTEN_SHARE:
+            row["rewritten"] = True
+            continue
         row["block_segments"] = block_segments
         row["counterpart_segments"] = counterpart_segments
-        row["changed"] = any(seg["op"] != "equal" for seg in block_segments + counterpart_segments)
 
 
-def _level_target(edition):
-    """The level an unassessed adaptation was generated for, labelled apart from cefr_level."""
+REWRITTEN_SHARE = 0.5
+
+
+def _changed_word_share(segments: list[dict]) -> float:
+    words = changed = 0
+    for segment in segments:
+        count = len(re.findall(r"\w+", segment["text"]))
+        words += count
+        if segment["op"] != "equal":
+            changed += count
+    return changed / words if words else 0.0
+
+
+def _level_label(edition: Edition | None) -> str:
+    """The assessed level, else an adaptation's target marked as one; blank while pending."""
     from almonium_book_processor.catalog.adaptation_quality import adaptation_target
 
-    if edition is None or edition.cefr_level:
+    if edition is None:
+        return ""
+    if edition.cefr_level:
+        return edition.cefr_level
+    target = adaptation_target(edition)
+    return f"{target} target" if target else ""
+
+
+def _compare_choices(options: list[Edition]) -> list[dict]:
+    """Compare-select entries: language · level · type, with the title when two collide."""
+    choices = []
+    for option in options:
+        level = option.cefr_level or ""
+        label = " · ".join(part for part in (level, option.get_edition_type_display()) if part)
+        choices.append({"edition": option, "language": option.language.upper(), "label": label})
+    seen: dict[tuple, int] = {}
+    for choice in choices:
+        key = (choice["language"], choice["label"])
+        seen[key] = seen.get(key, 0) + 1
+    for choice in choices:
+        if seen[(choice["language"], choice["label"])] > 1:
+            choice["label"] += f" · {choice['edition'].title}"
+    return choices
+
+
+ADAPTATION_VERDICTS = {"adapted": "Adapted", "kept": "Kept as written"}
+
+
+def _adaptation_verdict(block: ContentBlock) -> dict | None:
+    adaptation = block.attributes.get("adaptation") or {}
+    verdict = ADAPTATION_VERDICTS.get(adaptation.get("decision"))
+    reason = adaptation.get("reason", "")
+    # A heading or line kept with no reason says nothing worth a line of its own.
+    if not verdict or (adaptation.get("decision") == "kept" and not reason):
         return None
-    return adaptation_target(edition)
+    return {"verdict": verdict, "reason": reason}
 
 
 @staff_member_required
@@ -1013,7 +1064,13 @@ def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
     )
     rows, gap_count = _parallel_rows(blocks, parallel_edition, None if query else chapter)
     diff_available = parallel_edition is not None and parallel_edition.language == edition.language
-    show_diff = diff_available and request.GET.get("diff") == "1"
+    # A level adaptation rewrites most passages, so word marks start off there.
+    requested_diff = request.GET.get("diff")
+    show_diff = diff_available and (
+        requested_diff == "1"
+        if requested_diff in ("0", "1")
+        else edition.edition_type != Edition.EditionType.ADAPTATION
+    )
     if show_diff:
         _mark_word_changes(rows, edition, parallel_edition)
     from almonium_book_processor.catalog.passage_provenance import passage_provenance
@@ -1025,6 +1082,8 @@ def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
     for block in visible_blocks:
         block.passage_provenance = provenance[(block.edition_id, block.block_id)]
     changed_count = sum(1 for row in rows if row.get("changed"))
+    for row in rows:
+        row["verdict"] = _adaptation_verdict(row["block"]) if row["block"] else None
 
     positions = {item.sequence: index for index, item in enumerate(chapters)}
     current_index = positions.get(chapter)
@@ -1046,15 +1105,18 @@ def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
             ),
             "blocks": blocks,
             "rows": rows,
+            "chapter_position": current_index + 1 if current_index is not None else None,
             "parallel_options": parallel_options,
+            "compare_choices": _compare_choices(parallel_options),
             "parallel_edition": parallel_edition,
             "parallel_param": (
-                f"&parallel={parallel_edition.id}{'&diff=1' if show_diff else ''}"
+                f"&parallel={parallel_edition.id}"
+                f"{('&diff=1' if show_diff else '&diff=0') if diff_available else ''}"
                 if parallel_edition
                 else ""
             ),
-            "level_target": _level_target(edition),
-            "parallel_level_target": _level_target(parallel_edition),
+            "level_label": _level_label(edition),
+            "parallel_level_label": _level_label(parallel_edition),
             "diff_available": diff_available,
             "show_diff": show_diff,
             "changed_count": changed_count,

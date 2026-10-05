@@ -1230,9 +1230,10 @@ def test_parallel_reader_pairs_blocks_through_the_inherited_group(client) -> Non
     content = page.content.decode()
     assert "First block." in content and "Перший блок." in content
     assert "Missing in EN" in content and "Extra in EN" in content and "No group" in content
-    assert "Level pending · Original" in content
-    assert "This checks structure, not fidelity" in content
-    assert "column-level" not in content
+    # A compare option with no assessed level names only language and type.
+    assert ">EN Original</option>" in content
+    assert "4 unpaired rows" in content
+    assert "side-level" not in content
 
 
 def test_parallel_reader_labels_each_column_with_its_cefr_level(client) -> None:
@@ -1246,8 +1247,8 @@ def test_parallel_reader_labels_each_column_with_its_cefr_level(client) -> None:
         {"chapter": 1, "parallel": str(canonical.id)},
     ).content.decode()
 
-    assert '<p class="column-lang">UK <span class="column-level">B1</span></p>' in content
-    assert '<p class="column-lang">EN</p>' in content
+    assert '<code>UK</code><span class="side-level">B1</span>' in content
+    assert "<code>EN</code><span>Original</span>" in content
 
 
 def test_parallel_reader_shows_word_changes_for_a_same_language_companion(client) -> None:
@@ -1280,29 +1281,30 @@ def test_parallel_reader_shows_word_changes_for_a_same_language_companion(client
     reader_staff(client, "parallel-reader-diff")
     url = reverse("catalog:edition-reader", args=[adaptation.id])
 
+    # Changes start off on a level adaptation, which rewrites most passages.
     plain = client.get(url, {"chapter": 1, "parallel": str(canonical.id)}).content.decode()
-    assert f'&parallel={canonical.id}&diff=1">Show changes</a>' in plain
+    assert 'aria-checked="false"' in plain
+    assert f'&parallel={canonical.id}&diff=1">Changes' in plain
     assert "<ins>" not in plain and "<del>" not in plain
 
     shown = client.get(
         url, {"chapter": 1, "parallel": str(canonical.id), "diff": "1"}
     ).content.decode()
-    assert "Hide changes</a>" in shown
+    assert 'aria-checked="true"' in shown
     assert "1 of 3 rows differs" in shown
-    assert '<span class="column-level">B2</span>' in shown
+    assert '<span class="side-level">B2</span>' in shown
     assert "First <ins>piece</ins>." in shown
     assert "First <del>block</del>." in shown
-    # One marked word per column plus the legend's two samples; unchanged rows stay plain.
-    assert shown.count("<ins>") == 2 and shown.count("<del>") == 2
-    # Navigation and the edit form keep the toggle on.
-    assert f'href="?chapter=1&amp;parallel={canonical.id}&amp;diff=1"' in shown
+    # One marked word per column; unchanged rows stay plain.
+    assert shown.count("<ins>") == 1 and shown.count("<del>") == 1
+    # The chapter picker, search and edit forms keep the toggle on.
     assert '<input type="hidden" name="diff" value="1">' in shown
 
     # A different-language companion never offers word changes.
     other = client.get(
         url, {"chapter": 1, "parallel": str(parallel.id), "diff": "1"}
     ).content.decode()
-    assert "Show changes" not in other and "<ins>" not in other
+    assert "toolbar-toggle" not in other and "<ins>" not in other
 
 
 def test_parallel_reader_diffs_from_the_source_side_too(client) -> None:
@@ -1339,7 +1341,7 @@ def test_parallel_reader_diffs_from_the_source_side_too(client) -> None:
     assert "First <del>block</del>." in shown
     assert "First <ins>piece</ins>." in shown
     # The adaptation has no assessed level yet, so its column names the target as a target.
-    assert '<span class="column-level column-level-target"' in shown
+    assert '<span class="side-level side-level-target"' in shown
     assert ">B1 target</span>" in shown
 
 
@@ -2445,3 +2447,43 @@ def test_failed_publication_hand_off_is_shown_in_the_processing_history(
     assert edition.status == Edition.Status.READY
     page = client.get(reverse("catalog:edition-detail", args=[edition.id]))
     assert "Almonium API returned 503 Service Unavailable" in page.content.decode()
+
+
+def test_parallel_reader_marks_a_mostly_rewritten_row_instead_of_highlighting_it(client) -> None:
+    canonical, _, source_blocks, _ = parallel_records()
+    adaptation = Edition.objects.create(
+        slug="parallel-work-b1",
+        work=canonical.work,
+        source_edition=canonical,
+        title="Parallel Work",
+        language="en",
+        edition_type=Edition.EditionType.ADAPTATION,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        source_sha256="7" * 64,
+        status=Edition.Status.REVIEW,
+    )
+    chapter = Chapter.objects.create(edition=adaptation, sequence=1, title="ONE")
+    ContentBlock.objects.create(
+        edition=adaptation,
+        chapter=chapter,
+        block_id="c1.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="An entirely new opening line.",
+        align_group=source_blocks[0].align_group,
+        attributes={"adaptation": {"decision": "adapted", "reason": "Shorter words."}},
+    )
+    reader_staff(client, "parallel-reader-rewritten")
+
+    shown = client.get(
+        reverse("catalog:edition-reader", args=[adaptation.id]),
+        {"chapter": 1, "parallel": str(canonical.id), "diff": "1"},
+    ).content.decode()
+
+    assert ">Rewritten</span>" in shown
+    assert "<ins>" not in shown and "<del>" not in shown
+    # The decision is a verdict and a reason, never the raw attribute dict.
+    assert "<strong>Adapted</strong>" in shown and "· Shorter words." in shown
+    assert "'decision'" not in shown
+    # A source heading in capitals is title-cased for display.
+    assert "<h2>One " in shown

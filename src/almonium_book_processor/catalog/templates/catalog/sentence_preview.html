@@ -5,6 +5,7 @@
 <h1>Sentence alignment preview</h1>
 <p>{{ primary.title }} ({{ primary.language|upper }} · {{ primary.cefr_level|default:"Level pending" }} · {{ primary.get_edition_type_display }}) ↔ {{ secondary.title }} ({{ secondary.language|upper }} · {{ secondary.cefr_level|default:"Level pending" }} · {{ secondary.get_edition_type_display }})</p>
 <p><a href="{% url 'catalog:edition-detail' primary.id %}">Back to edition review</a> · <a href="{% url 'catalog:edition-reader' primary.id %}?chapter={{ chapter }}&parallel={{ secondary.id }}">Open editable paragraph comparison</a></p>
+<p>Blocks pair through inherited canonical groups. This checks structure, not fidelity: paired passages still need editorial review.</p>
 <p>Automatic correspondence, not editorial certification. The full-book job uses the local multilingual embedding model, not a paid AI API. Semicolon clauses are refined inside accepted sentence groups. Click or focus a highlighted passage to see its counterpart. Uncertain or unsupported passages remain paragraph-aligned. Nothing is published by this preview.</p>
 <div class="panel preview-toolbar">
   <form class="preview-chapter-form" method="get">
