@@ -1232,6 +1232,26 @@ def test_a_corrected_phrase_keeps_the_judges_reading_and_a_rewritten_chapter_doe
     ).first()
     assert kept.summary["carried"][0]["change"] < 0.02
 
+    # a reading above the target is not carried: the edit was meant to bring the chapter down
+    third = adaptation.chapters.get(sequence=3)
+    above = adaptation.pipeline_runs.get(
+        processor_version="adaptation-wording-v1", summary__chapter_id=str(third.id)
+    )
+    above.summary = {
+        **above.summary,
+        "assessment": {**above.summary["assessment"], "max_level": "C1"},
+    }
+    above.save()
+    with django_capture_on_commit_callbacks(execute=True):
+        revise_block_text(
+            edition=adaptation,
+            block_id=adaptation.blocks.get(block_id="c3.b2").id,
+            revised_text="He was very afraid.",
+            editor=reviewer,
+        )
+    assert str(third.id) not in wording_levels(adaptation)
+    calls += 1  # the judges read that chapter again when asked
+
     # a paragraph rewritten is more than a phrase: that chapter is theirs no longer
     with django_capture_on_commit_callbacks(execute=True):
         revise_block_text(

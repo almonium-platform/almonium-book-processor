@@ -158,10 +158,17 @@ def carry_wording_forward(edition: Edition, *, max_change: float = 0.02) -> list
     that changed more is left for the judges to read again. Reading a whole chapter six times
     to confirm a corrected phrase costs money and invites judge noise into a level the text
     did not move.
+
+    Only a reading at the target is carried. A chapter read above it was edited to bring it
+    down, and whether that worked is for the judges to say.
     """
 
     import difflib
     import re
+
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_target
+
+    target = adaptation_target(edition)
 
     runs: dict[str, dict[str, list[PipelineRun]]] = {}
     for run in edition.pipeline_runs.filter(
@@ -181,6 +188,11 @@ def carry_wording_forward(edition: Edition, *, max_change: float = 0.02) -> list
             continue
         # the readings of the text most recently read
         previous = list(read.values())[-1]
+        if target in LEVELS and any(
+            LEVELS.index(run.summary["assessment"]["max_level"]) > LEVELS.index(target)
+            for run in previous
+        ):
+            continue
         assessment = previous[0].summary["assessment"]
         first_reading = assessment["ai_run_ids"][: len(assessment["windows"])]
         judged = {
