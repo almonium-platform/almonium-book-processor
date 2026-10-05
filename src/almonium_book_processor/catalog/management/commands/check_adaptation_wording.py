@@ -1,8 +1,12 @@
 import time
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 
-from almonium_book_processor.catalog.adaptation_quality import adaptation_target
+from almonium_book_processor.catalog.adaptation_quality import (
+    adaptation_target,
+    sync_difficulty_warning,
+)
 from almonium_book_processor.catalog.adaptation_wording import (
     carry_wording_forward,
     check_chapter,
@@ -10,6 +14,7 @@ from almonium_book_processor.catalog.adaptation_wording import (
     revise_chapter,
     spot_fix_chapter,
 )
+from almonium_book_processor.catalog.chapter_analysis import analysis_context
 from almonium_book_processor.catalog.chapter_projections import LEVELS
 from almonium_book_processor.catalog.models import Edition, PipelineRun
 
@@ -66,6 +71,16 @@ class Command(BaseCommand):
             elif above:
                 line += "  (above the target)"
             self.stdout.write(line)
+        self._sync_review_item(edition)
+
+    def _sync_review_item(self, edition) -> None:
+        """The edition's difficulty review item follows what the judges just read."""
+
+        run = analysis_context(edition).get("chapter_analysis_run")
+        if run is None:
+            return
+        with transaction.atomic():
+            sync_difficulty_warning(Edition.objects.select_for_update().get(pk=edition.id), run)
 
     def _mend(self, edition, chapter, verdict, target, timeout: int) -> str:
         """The cited paragraphs first; the whole chapter once if that was not enough."""

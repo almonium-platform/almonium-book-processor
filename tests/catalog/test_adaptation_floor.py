@@ -1186,6 +1186,27 @@ class SpotFixer:
         )
 
 
+def test_the_difficulty_review_item_clears_when_the_judges_read_every_chapter_at_the_target(
+    adaptation,
+):
+    from django.core.management import call_command
+
+    from almonium_book_processor.catalog.adaptation_quality import DIFFICULTY_WARNING
+    from almonium_book_processor.catalog.adaptation_wording import check_edition
+
+    # the library's chapter analysis reads the book above its target and opens the item
+    _analysed(adaptation, "C1")
+    item = adaptation.warnings.get(code=DIFFICULTY_WARNING)
+    assert item.resolved_at is None
+    # the pilot's judges read every chapter at the target
+    check_edition(adaptation, provider=Judge("B2"))
+
+    call_command("check_adaptation_wording", adaptation.slug, workers=1)
+
+    item.refresh_from_db()
+    assert item.resolved_at is not None
+
+
 def test_only_the_paragraphs_the_judges_cited_are_rewritten(adaptation):
     from almonium_book_processor.catalog.adaptation_wording import check_chapter, spot_fix_chapter
 
