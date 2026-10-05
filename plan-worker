@@ -3,7 +3,8 @@
 # settings), because the Claude Code and Codex CLIs are signed in on this machine and not in
 # the worker container. Everything else stays with the container worker.
 #
-# Usage: ./plan-worker            (stop with Ctrl-C; start it again after changing src/)
+# Usage: ./plan-service install    as a service that starts with the machine (the usual way)
+#        ./plan-worker             in a terminal, for a one-off; stop with Ctrl-C
 set -euo pipefail
 source "$(dirname "$0")/plan-env"
 

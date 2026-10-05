@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# ./plan-worker as a systemd user service, so the host worker starts with the machine, comes
+# back after a crash and does not die with the terminal that started it.
+#
+# Usage: ./plan-service install     write the unit, enable it and start it
+#        ./plan-service restart     after changing src/
+#        ./plan-service status | logs | uninstall
+#
+# The unit is written for this checkout and with this shell's PATH, which is where the worker
+# finds the claude and codex CLIs: install it from a shell in which both run.
+set -euo pipefail
+
+unit=almonium-plan-worker.service
+repo="$(cd "$(dirname "$0")" && pwd)"
+file="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$unit"
+
+case "${1:-}" in
+  install)
+    mkdir -p "$(dirname "$file")"
+    cat > "$file" <<UNIT
+[Unit]
+Description=Almonium book processor: worker for the jobs that run on the owner's plans
+
+[Service]
+WorkingDirectory=$repo
+Environment=PATH=$PATH
+ExecStart=$repo/plan-worker
+# the stack's broker may not be up yet at boot; a crashed worker leaves jobs waiting
+Restart=always
+RestartSec=15
+# a restart does not wait for a long job: one cut off here goes back to the queue, and its run
+# may need retrying from the edition page. Restart when no plan job is running.
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target
+UNIT
+    systemctl --user daemon-reload
+    systemctl --user enable --now "$unit"
+    # without lingering, a user's services start at login and stop at logout
+    loginctl show-user "$USER" -p Linger | grep -q "=yes" ||
+      echo "Starts at login. To start it at boot: sudo loginctl enable-linger $USER"
+    systemctl --user --no-pager status "$unit" | head -5
+    ;;
+  uninstall)
+    systemctl --user disable --now "$unit" || true
+    rm -f "$file"
+    systemctl --user daemon-reload
+    ;;
+  restart) systemctl --user restart "$unit" ;;
+  status) systemctl --user --no-pager status "$unit" ;;
+  logs) journalctl --user -u "$unit" -n "${2:-100}" --no-pager ;;
+  *)
+    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+    exit 2
+    ;;
+esac

@@ -25,7 +25,17 @@ unless it says so.
 
 Level adaptation can run on one of the owner's plans instead of the API: set
 `ADAPTATION_GENERATOR` in `.env` to a seat such as `codex:gpt-6-astra`, then
-`docker compose up -d web worker` and start `./plan-worker` in a terminal.
+`docker compose up -d web worker` and install the host worker once with
+`./plan-service install`.
+
+- `./plan-service install` writes a systemd user service for `./plan-worker`
+  (this checkout, this shell's `PATH`, so install it from a shell where
+  `claude` and `codex` run). It starts with the machine, comes back after a
+  crash, and is restarted with `./plan-service restart` after a change to
+  `src/`; `status` and `logs` show what it is doing. Restart it when no plan
+  job is running: one cut off mid-way goes back to the queue and its run may
+  need retrying from the edition page. `./plan-worker` in a terminal still
+  works for a one-off; do not run both.
 
 - Chapter pilots, floor probes and whole-book adaptations are then sent to the
   `plans` queue. The container worker never takes that queue, because the
@@ -35,7 +45,8 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   running, those jobs wait in the queue**; nothing fails, nothing is paid.
 - It reads the stack's `.env` and reaches the database and broker on their
   published ports (5433, 5673). It runs the code in the working tree, not the
-  image: restart it after changing `src/`, as you rebuild the containers.
+  image: restart it (`./plan-service restart`) after changing `src/`, as you
+  rebuild the containers.
 - A job on a plan uses up part of the plan's weekly allowance and is recorded
   at that share of the plan's price (`ai/pricing.py`). `manage.py plan_meter`
   reads the Codex meter.
