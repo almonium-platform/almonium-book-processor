@@ -1,5 +1,8 @@
 # Sourced by ./plan-worker and ./plan-manage: the environment of a process that runs on the
 # owner's host, beside the stack, where the Claude Code and Codex CLIs are signed in.
+#
+# Never run docker compose from a shell that sourced this: Compose would hand the containers
+# the host's database and broker addresses below, and they would not start.
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
