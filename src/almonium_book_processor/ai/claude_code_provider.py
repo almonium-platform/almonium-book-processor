@@ -11,7 +11,7 @@ from typing import Any
 
 from django.conf import settings
 
-from almonium_book_processor.ai.cli_calls import tried_twice
+from almonium_book_processor.ai.cli_calls import fits_schema, tried_twice
 
 
 class ClaudeCodeProvider:
@@ -112,6 +112,7 @@ class ClaudeCodeProvider:
         structured = result.get("structured_output")
         if structured is None:
             raise RuntimeError("Claude Code returned no structured output")
+        fits_schema(structured, schema)
 
         usage = result.get("usage") or {}
         cache_read = usage.get("cache_read_input_tokens") or 0

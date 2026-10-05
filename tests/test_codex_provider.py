@@ -179,3 +179,29 @@ def test_a_plan_whose_allowance_is_used_up_is_not_asked_again():
     with pytest.raises(RuntimeError, match="usage limit"):
         provider.respond(BODY)
     assert len(calls) == 1
+
+
+def test_an_answer_that_breaks_the_schema_is_asked_for_again_and_never_quoted():
+    schema = {
+        "type": "object",
+        "properties": {"quote": {"type": "string", "maxLength": 5}},
+        "required": ["quote"],
+    }
+    body = {**BODY, "text": {"format": {"type": "json_schema", "name": "x", "schema": schema}}}
+    outputs = [answer(text='{"quote": "a secret sentence"}'), answer(text='{"quote": "short"}')]
+    provider = CodexProvider(
+        binary="codex",
+        timeout_seconds=5,
+        runner=lambda command, **kwargs: SimpleNamespace(
+            returncode=0, stdout=outputs.pop(0), stderr=""
+        ),
+        pause=lambda _: None,
+    )
+
+    assert provider.respond(body)["status"] == "completed"
+    assert outputs == []
+
+    always_long, _ = provider_with(stdout=answer(text='{"quote": "a secret sentence"}'))
+    with pytest.raises(RuntimeError, match=r"quote \(maxLength\)") as failure:
+        always_long.respond(body)
+    assert "secret" not in str(failure.value)

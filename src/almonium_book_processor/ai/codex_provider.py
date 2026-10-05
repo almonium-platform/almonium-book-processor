@@ -12,7 +12,7 @@ from typing import Any
 
 from django.conf import settings
 
-from almonium_book_processor.ai.cli_calls import tried_twice
+from almonium_book_processor.ai.cli_calls import fits_schema, tried_twice
 
 
 def codex_meter(
@@ -161,9 +161,10 @@ class CodexProvider:
             detail = error or (completed.stderr or "").strip()[-500:] or "no answer"
             raise RuntimeError(f"Codex returned no answer: {detail}")
         try:
-            json.loads(text)
+            answer = json.loads(text)
         except json.JSONDecodeError as failure:
             raise RuntimeError("Codex returned an answer that is not JSON") from failure
+        fits_schema(answer, schema)
         return {
             "id": f"codex-{uuid.uuid4()}",
             "model": body["model"],
