@@ -214,8 +214,8 @@ def test_adaptation_gate_exposes_evidence_and_below_target(edition):
     client = Client()
     client.force_login(get_user_model().objects.create_user("quality-ui", is_staff=True))
     response = client.get(reverse("catalog:edition-detail", args=[edition.id]))
-    assert b"Adaptation target: B2" in response.content
-    assert b"judge evidence" in response.content
+    assert b"estimated \xc2\xb7 target B2" in response.content
+    assert b"Judge evidence" in response.content
     assert b"An obsolete conjunction" in response.content
 
 
@@ -1130,3 +1130,47 @@ def test_wrong_language_is_rejected_after_recording_cost(edition):
     assert ai.estimated_cost_usd > 0
     assert "analysis" not in ai.response_payload
     assert "rejected_analysis" in ai.response_payload
+
+
+def test_difficulty_panel_counts_the_level_the_gate_reads():
+    from types import SimpleNamespace
+
+    from almonium_book_processor.catalog.difficulty_panel import difficulty_panel
+
+    def row(sequence, role, estimate, wording, above):
+        return {
+            "chapter": SimpleNamespace(sequence=sequence, analysis_role=role),
+            "difficulty": {
+                "cefr_estimate": estimate,
+                "max_level": estimate,
+                "complete": True,
+                "windows": [],
+            },
+            "wording_level": wording,
+            "above_adaptation_target": above,
+        }
+
+    panel = difficulty_panel(
+        {
+            "adaptation_target": "B1",
+            "adaptation_blocker": "Target B1 not achieved.",
+            "adaptation_above_chapters": [3],
+            "book_difficulty": {"cefr_estimate": "B2", "distribution": {"B2": 2}},
+            "chapter_projections": [
+                row(1, "front", "B2", "B2", True),
+                row(2, "body", "B2", "B1", False),
+                row(3, "body", "B2", "B2", True),
+            ],
+        }
+    )
+
+    # The judges' B1 for chapter 2 counts, not the analysis's B2; front matter is left out.
+    assert {s["level"]: s["count"] for s in panel["segments"] if s["count"]} == {"B1": 1, "B2": 1}
+    assert panel["above_title"] == "1 chapter read above B1"
+    assert panel["analysis_estimate"] == "B2"
+    assert [(r["level"], r["within_target"], r["above"]) for r in panel["rows"]] == [
+        ("B2", False, True),
+        ("B1", True, False),
+        ("B2", False, True),
+    ]
+    assert panel["above_rows"] == 2

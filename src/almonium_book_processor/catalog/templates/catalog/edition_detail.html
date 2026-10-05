@@ -402,35 +402,90 @@
   <p class="muted">A parallel translation is read beside its source, so the reading demand that matters is the source's, and the rubric is never applied to machine-translated text. Readers of this edition see the source's chapter levels with descriptions translated into {{ edition.get_language_display }} by the metadata translation under Enrichment.</p>
 </details>
 {% else %}
-<details class="panel collapsible-panel assessment-panel" id="reading-difficulty"{% if adaptation_blocker %} open{% endif %}>
-  <summary><span class="summary-title">Reading difficulty</span><span class="summary-meta">{% if book_difficulty.cefr_estimate %}Computed estimate {{ book_difficulty.cefr_estimate }} · {{ projection_state|default:"pending" }}{% elif projection_state == "stale" %}Stale · analyse again{% else %}Not analysed yet{% endif %}{% if adaptation_blocker %} · <span class="status status-failed">Gate failing</span>{% elif adaptation_target %} · <span class="status status-succeeded">Gate passed</span>{% endif %}</span></summary>
-  {% if adaptation_target %}<p><strong>Adaptation target: {{ adaptation_target }}</strong>. Estimates below target are shown for editorial review; any above-target window blocks completion, including in excluded chapters.</p>{% endif %}
-  {% if adaptation_blocker %}<p class="message warning" role="alert">{{ adaptation_blocker }} The difficulty review item clears automatically after a current, passing reassessment; it cannot be dismissed while the gate fails.</p>{% elif adaptation_target %}<p>Current difficulty check passed. This does not replace fidelity review.</p>{% endif %}
-  {% if adaptation_below_chapters %}<p>Below-target chapters: {{ adaptation_below_chapters|join:", " }}. Check for unnecessary simplification.</p>{% endif %}
-  <p>Level shown to readers: {{ edition.cefr_level|default:"not set" }}{% if edition.cefr_level_source %} ({{ edition.get_cefr_level_source_display|lower }}){% endif %}. {% if adaptation_target %}An adaptation is labelled with its target{% if not edition.cefr_level %}: completing review sets it to {{ adaptation_target }} once the gate passes{% endif %}.{% elif edition.cefr_level_source == "editor" %}The editor's choice stands; set the level back to “Estimate later” under Metadata to follow the analysis again.{% else %}A complete analysis sets it and keeps it current after re-analysis; pick another level under Metadata to override that.{% endif %}</p>
-  <p class="muted">Chapter roles: <strong>Substantive chapter</strong> means the main story or content and counts toward the book estimate. <strong>Front matter</strong> means introductory extras, such as a preface or introduction. <strong>Back matter</strong> means end extras, such as appendices or notes. Extras remain readable and keep their own estimates, but do not count toward the overall book level. Storytelling letters and prologues still count as substantive content. Exclusion does not bypass an adaptation's target-level checks.</p>
-  {% if chapter_analysis_run %}<div class="button-row"><form method="post" action="{% url 'catalog:refresh-chapter-projections' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Refresh saved assessments (no AI calls)</button></form></div>{% endif %}
-  {% if projection_state == "stale" %}<p>Previous assessments are stale. Analyze the current text, or refresh saved assessments after changing chapter roles.</p>{% endif %}
-  {% if book_difficulty %}
-  <p>{{ book_difficulty.chapters_completed }} / {{ book_difficulty.chapters_total }} substantive chapters complete · {{ book_difficulty.chapters_excluded }} front/back-matter chapters excluded. {% if not book_difficulty.chapters_total %}<strong>No substantive chapters selected.</strong>{% elif not book_difficulty.complete %}<strong>Partial coverage: this is a provisional estimate.</strong>{% endif %}</p>
-  <p>{{ book_difficulty.whitespace_tokens_analyzed }} / {{ book_difficulty.whitespace_tokens_total }} whitespace tokens assessed. These counts are not NLP vocabulary measurements.</p>
-  {% if book_difficulty.cefr_estimate %}
-  <p>Range: {{ book_difficulty.min_level }}–{{ book_difficulty.max_level }} · whitespace-token-weighted comparison: {{ book_difficulty.weighted_comparison }}.</p>
-  <p>Chapter distribution: {% for level, count in book_difficulty.distribution.items %}{{ level }}: {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>
-  <p class="muted">Nearest-rank 75th percentile of complete substantive chapters. Model confidence range {{ book_difficulty.confidence_min }}–{{ book_difficulty.confidence_max }} is not calibrated book accuracy.</p>
+<details class="panel collapsible-panel assessment-panel difficulty-panel" id="reading-difficulty"{% if adaptation_blocker %} open{% endif %}>
+  {% with panel=difficulty_panel %}
+  <summary><span class="summary-title">Reading difficulty</span><span class="summary-meta">{% if book_difficulty %}{{ book_difficulty.chapters_completed }} of {{ book_difficulty.chapters_total }} chapter{{ book_difficulty.chapters_total|pluralize }} assessed{% elif projection_state == "stale" %}Stale · analyse again{% else %}Not analysed yet{% endif %}</span></summary>
+  <div class="difficulty-body">
+    {% if panel.estimate or panel.target %}
+    <div class="difficulty-verdict">
+      {% if panel.estimate %}<span class="difficulty-level">{{ panel.estimate }}</span>{% endif %}
+      <span class="muted">{% if panel.estimate %}estimated{% else %}No estimate yet{% endif %}{% if panel.target %} · target {{ panel.target }}{% endif %}</span>
+      {% if panel.blocker %}<span class="status status-review">Gate failing</span>{% elif panel.passing %}<span class="status status-succeeded">Gate passed</span>{% endif %}
+    </div>
+    {% endif %}
+    {% if panel.segments %}
+    <div class="difficulty-bar" role="img" aria-label="Chapters by level{% for segment in panel.segments %}, {{ segment.level }} {{ segment.count }}{% endfor %}">
+      <div class="difficulty-bar-track">{% for segment in panel.segments %}<span class="{% if segment.is_target %}is-target{% endif %}" style="--fill: {{ segment.fill }}%"></span>{% endfor %}</div>
+      <div class="difficulty-bar-labels">{% for segment in panel.segments %}<span{% if segment.count or segment.is_target %} class="is-strong"{% endif %}>{{ segment.level }} · {{ segment.count }}{% if segment.is_target %} · target{% endif %}</span>{% endfor %}</div>
+    </div>
+    {% endif %}
+    {% if panel.target and panel.analysis_estimate and panel.analysis_estimate != panel.estimate %}<p class="muted difficulty-aside">Chapter analysis alone estimates {{ panel.analysis_estimate }}; the level judges' reading of the adapted wording is what the gate counts.</p>{% endif %}
+    {% if projection_state == "stale" %}<p class="muted difficulty-aside">Previous assessments are stale. Analyse the current text, or refresh saved assessments after changing chapter roles.</p>{% endif %}
+    {% if panel.blocker %}
+    <div class="difficulty-callout" role="alert">
+      <div>
+        <strong>{% if panel.above_title %}{{ panel.above_title }}{% else %}{{ panel.blocker }}{% endif %}</strong>
+        {% if panel.above_title %}<span>Revise the cited passages, then reassess. Relabelling does not clear the gate.</span>{% endif %}
+      </div>
+      {% if chapter_analysis_run %}<form method="post" action="{% url 'catalog:refresh-chapter-projections' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Refresh assessments</button></form>{% endif %}
+    </div>
+    {% endif %}
+    {% if adaptation_below_chapters %}<p class="muted difficulty-aside">Below target: chapter{{ adaptation_below_chapters|length|pluralize }} {{ adaptation_below_chapters|join:", " }}. Check for unnecessary simplification.</p>{% endif %}
+    <p class="muted difficulty-aside">
+      {% if panel.target %}{% if edition.cefr_level %}Readers see {{ edition.cefr_level }}{% if edition.cefr_level_source %} ({{ edition.get_cefr_level_source_display|lower }}){% endif %}.{% elif panel.passing %}Completing review sets the reader level to {{ panel.target }}.{% else %}Readers see no level until the gate passes; then {{ panel.target }}.{% endif %}
+      {% elif edition.cefr_level %}Readers see {{ edition.cefr_level }}{% if edition.cefr_level_source %} ({{ edition.get_cefr_level_source_display|lower }}){% endif %}.{% else %}Readers see no level yet.{% endif %}
+    </p>
+    <details class="difficulty-method">
+      <summary>How this is computed</summary>
+      {% if panel.target %}<p>For an adaptation, a chapter's level is the level judges' reading of its current wording where every configured judge has read it, otherwise the chapter analysis's highest window. Any above-target chapter blocks completion; front and back matter shows its level but does not hold the gate. The difficulty review item clears automatically after a current, passing reassessment and cannot be dismissed while the gate fails. Passing does not replace fidelity review.</p>{% endif %}
+      <p><strong>Chapter roles.</strong> Substantive means the main story or content and counts toward the book estimate. Front matter means introductory extras, such as a preface or introduction; back matter means end extras, such as appendices or notes. Extras keep their own estimates but do not count toward the book level. Storytelling letters and prologues still count as substantive.</p>
+      {% if book_difficulty %}
+      <p>{{ book_difficulty.chapters_completed }} / {{ book_difficulty.chapters_total }} substantive chapters complete · {{ book_difficulty.chapters_excluded }} front/back-matter chapter{{ book_difficulty.chapters_excluded|pluralize }} excluded. {% if not book_difficulty.chapters_total %}No substantive chapters selected.{% elif not book_difficulty.complete %}Partial coverage: this is a provisional estimate.{% endif %}</p>
+      <p>{{ book_difficulty.whitespace_tokens_analyzed|thousands }} / {{ book_difficulty.whitespace_tokens_total|thousands }} whitespace tokens assessed. These counts are not NLP vocabulary measurements.</p>
+      {% if book_difficulty.cefr_estimate %}<p>The book level is the nearest-rank 75th percentile of complete substantive chapters (range {{ book_difficulty.min_level }}–{{ book_difficulty.max_level }}; weighted by whitespace tokens it would be {{ book_difficulty.weighted_comparison }}). Model confidence range {{ book_difficulty.confidence_min }}–{{ book_difficulty.confidence_max }} is not calibrated book accuracy.</p>{% endif %}
+      {% endif %}
+      <p>Multi-window summaries remain ordered sections; no additional AI call merges them.</p>
+      {% if edition.cefr_level_source == "editor" %}<p>The editor's level stands; set it back to “Estimate later” under Metadata to follow the analysis again.</p>{% elif not panel.target %}<p>A complete analysis sets the reader level and keeps it current; pick another level under Metadata to override it.</p>{% endif %}
+    </details>
+  </div>
+
+  {% if panel.rows %}
+  <div class="difficulty-table" data-difficulty-table>
+    <div class="difficulty-row difficulty-head" aria-hidden="true"><span>Chapter</span><span>Level</span><span></span><span>Role</span></div>
+    {% for row in panel.rows %}
+    <details class="difficulty-chapter{% if row.above %} is-above{% endif %}" data-above="{{ row.above|yesno:'1,0' }}">
+      <summary class="difficulty-row">
+        <span class="difficulty-title"><span class="muted">{{ row.chapter.sequence }}</span> {{ row.chapter.title|display_title|default:"Untitled chapter" }}{% if row.windows|length > 1 %} <span class="muted">· {{ row.windows|length }} windows</span>{% endif %}{% if not row.complete %} <span class="muted">· partial</span>{% endif %}</span>
+        <span>{% if row.level %}<span class="status{% if row.within_target %} status-succeeded{% endif %}">{{ row.level }}</span>{% else %}<span class="muted">—</span>{% endif %}</span>
+        <span>{% if row.above %}<span class="status status-review">Above target</span>{% endif %}</span>
+        <form class="difficulty-role" method="post" action="{% url 'catalog:update-chapter-role' edition.id row.chapter.id %}">{% csrf_token %}<select name="analysis_role" aria-label="Role of {{ row.chapter.title|display_title }}" data-autosubmit{% if row.chapter.analysis_role == "body" %} class="is-default"{% endif %}>{% for value, label in panel.role_choices %}<option value="{{ value }}"{% if row.chapter.analysis_role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select><noscript><button class="button button-secondary" type="submit">Save</button></noscript></form>
+      </summary>
+      <div class="difficulty-detail">
+        {% for window in row.windows %}
+        <div class="difficulty-window">
+          {% if row.windows|length > 1 %}<span class="difficulty-window-label">Window {{ window.number }} · {{ window.level }}</span>{% endif %}
+          {% if window.archaism is not None %}<span class="muted">Archaism {{ window.archaism|floatformat:1 }} / 1</span>{% endif %}
+          {% if window.description %}<p>{{ window.description }}</p>{% endif %}
+          <div class="difficulty-disclosures">
+            {% if window.recap %}<details class="spoiler"><summary>Chapter recap (spoilers)</summary><p>{{ window.recap }}</p></details>{% endif %}
+            {% if window.evidence %}<details class="spoiler"><summary>Judge evidence</summary>{% for item in window.evidence %}<p><code>{{ item.block_id }}</code> · {{ item.dimension }}: “{{ item.quote }}” — {{ item.explanation }}</p>{% endfor %}</details>{% endif %}
+          </div>
+        </div>
+        {% empty %}
+        <p class="muted">No window of this chapter has been assessed yet.</p>
+        {% endfor %}
+      </div>
+    </details>
+    {% endfor %}
+    {% if panel.rows|length > 5 %}
+    <div class="difficulty-more" hidden>
+      <button class="copy-link" type="button" data-difficulty-more>Show {{ panel.rows|length|add:"-5" }} more</button>
+      {% if panel.above_rows %}<label class="difficulty-filter"><input type="checkbox" data-difficulty-filter> Only above target</label>{% endif %}
+    </div>
+    {% endif %}
+  </div>
   {% endif %}
-  {% for row in chapter_projections %}
-  <details class="chapter-row">
-    <summary>Chapter {{ row.chapter.sequence }} — {{ row.chapter.title }} · {{ row.difficulty.cefr_estimate|default:"Pending" }}{% if row.above_adaptation_target %} · ABOVE TARGET{% endif %}{% if not row.difficulty.complete %} (partial){% endif %} · {{ row.difficulty.windows_completed }}/{{ row.difficulty.windows_total }} windows</summary>
-    <form class="chapter-role-form" method="post" action="{% url 'catalog:update-chapter-role' edition.id row.chapter.id %}">{% csrf_token %}<div class="chapter-role-field"><label for="analysis-role-{{ row.chapter.id }}">Contribution to book estimate</label><select id="analysis-role-{{ row.chapter.id }}" name="analysis_role">{% for value, label in chapter_role_choices %}<option value="{{ value }}"{% if row.chapter.analysis_role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div><button class="button button-secondary" type="submit">Save chapter role</button></form>
-    {% if row.difficulty.cefr_estimate %}<p>Window range: {{ row.difficulty.min_level }}–{{ row.difficulty.max_level }} · archaism rating: {{ row.difficulty.archaism_score }} / 1.</p>{% endif %}
-    {% for window in row.difficulty.windows %}<details><summary>Window {{ window.window }} · {{ window.cefr_estimate }} · judge evidence</summary>{% for item in window.evidence %}<p><code>{{ item.block_id }}</code> · {{ item.dimension }}: “{{ item.quote }}” — {{ item.explanation }}</p>{% endfor %}</details>{% endfor %}
-    {% for section in row.summary.sections %}<p><strong>Window {{ section.window }}</strong> {{ section.spoiler_free_description }}</p>{% endfor %}
-    <details class="spoiler"><summary>Show chapter recap (spoilers)</summary>{% for section in row.summary.sections %}<p><strong>Window {{ section.window }}</strong> {{ section.recap }}</p>{% endfor %}</details>
-    <p class="muted">Multi-window summaries remain ordered sections; no additional AI call merges them.</p>
-  </details>
-  {% endfor %}
-  {% endif %}
+  {% endwith %}
 </details>
 {% endif %}
 {% endif %}

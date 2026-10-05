@@ -637,6 +637,9 @@ def _render_edition_detail(
             if edition.edition_type == Edition.EditionType.MACHINE_TRANSLATION:
                 # A reviewed translation shows its findings in the same panel.
                 assessment.update(audit_context(edition))
+    from almonium_book_processor.catalog.difficulty_panel import difficulty_panel
+
+    assessment["difficulty_panel"] = difficulty_panel(assessment)
     if assessment.get("chapter_analysis_run"):
         # Only calls this run made: windows it reused were billed to earlier runs.
         assessment["chapter_analysis_spend"] = assessment["chapter_analysis_run"].ai_runs.aggregate(
