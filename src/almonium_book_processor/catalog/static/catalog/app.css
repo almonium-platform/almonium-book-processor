@@ -586,7 +586,7 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .tabular { font-variant-numeric: tabular-nums; }
 
 /* Reading difficulty: verdict, gate callout, then one row per chapter */
-.difficulty-panel { padding-bottom: 0; overflow: hidden; }
+.difficulty-panel[open] { padding-bottom: 0; overflow: hidden; }
 .difficulty-body { display: grid; gap: .9rem; padding-bottom: 1.1rem; }
 .difficulty-body p { margin: 0; }
 .difficulty-verdict { display: grid; gap: .25rem; }
