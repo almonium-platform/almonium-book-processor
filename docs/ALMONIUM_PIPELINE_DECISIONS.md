@@ -454,3 +454,41 @@ and translations, still come from the single chapter-analysis model and the
 holistic rubric. Whether the reader should be told which chapters of an
 adaptation carry demanding ideas at plain wording is a product question,
 open.
+
+## 15. A book is finished without a person, and one judge reads levels
+
+Decided by the owner on 2026-10-05, after a week in which the pipeline grew a
+second judge, a second checker and three ways to mend a chapter beside the
+ones it had.
+
+- **The pipeline must be able to finish a book with nobody reading it.** The
+  owner will prepare books in bulk, in languages they cannot read, and sign
+  them off on the judges' and auditors' word, with corrections applied
+  automatically and promotion as an explicit switch. Review by a person
+  stays possible and is never required: in the automatic flow a review item
+  is a note, not a gate.
+- **One judge reads levels: the pair.** The level of every chapter, of an
+  original as of an adaptation, comes from the configured judges
+  (`DIFFICULTY_JUDGES`, on the owner's machine Opus and gpt-6.1-sol
+  together, not either alone). gpt-5.6-luna is retired as a judge of
+  levels: it read B1 attempts as B2 and disagreed with both stronger models,
+  and its estimate beside theirs was the "25 chapters at B2, one chapter
+  blocking" mismatch on the B1 Frankenstein.
+- **Luna keeps the easy work**: bibliographic metadata, and the chapter
+  notes readers see (description, recap, themes), which the owner likes and
+  which a privately uploaded book should get too.
+- **All three ways to translate stay**: Codex on a plan, Claude Code on a
+  plan, and the paid API with gpt-5.6-terra. The plan CLIs are a workaround
+  that works on one machine; prices and tools keep changing; the processor
+  must be able to run on the paid API alone, at least in principle. Which
+  plan translates is a matter of quality for the price at the time.
+- **A Claude model is named with its version** in settings and records
+  (`claude-opus-5-5`), so a judge cannot change under its own readings.
+- **Every answer is held to its schema and a failed call is tried again**
+  in the plan CLIs' wrappers, so that one bad answer cannot fail a book.
+- **Privately uploaded books** are a second path through the same
+  processor: no translation is offered for them (copyright), chapter notes
+  are.
+- **Open:** whether word glosses, which readers see and gpt-5.6-terra
+  writes, should be written and checked by the stronger models. To be
+  measured on a sample first: a book has thousands of glosses.
