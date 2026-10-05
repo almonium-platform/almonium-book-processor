@@ -843,10 +843,56 @@ def run_translation_inline(edition_id: str, *, tier: str = "quality", provider=N
         SUBSCRIPTION_TIER: settings.CLAUDE_CODE_WORKERS,
         CODEX_TIER: settings.CODEX_WORKERS,
     }.get(tier, DIRECT_TRANSLATION_WORKERS)
+    manifest = ai_run.request_payload["manifest"]
+    edition = Edition.objects.select_related("source_edition").get(id=ai_run.edition_id)
     # Threads only make provider calls; every database write happens on this thread.
     with ThreadPoolExecutor(max_workers=workers) as pool:
         output_lines = list(
             pool.map(lambda request: _direct_output_line(provider, request), requests)
         )
+        # One unusable chapter fails the whole translation, and every chapter would be paid
+        # for again. A chapter that came back unusable is asked for once more by itself.
+        again = [
+            index for index, line in enumerate(output_lines) if not _usable(line, manifest, edition)
+        ]
+        retried = pool.map(lambda index: _direct_output_line(provider, requests[index]), again)
+        for index, line in zip(again, retried, strict=True):
+            output_lines[index] = _with_usage_of(line, output_lines[index])
     complete_translation_batch(ai_run, output_lines, discounted=False)
     return ai_run
+
+
+def _usable(line: dict[str, Any], manifest: dict[str, Any], edition: Edition) -> bool:
+    """Whether a chapter's answer would pass when the translation is completed."""
+
+    response = line.get("response") or {}
+    if response.get("status_code") != 200:
+        return False
+    try:
+        translation = ChapterTranslation.model_validate_json(_output_text(response["body"]))
+        _validate_chapter(
+            translation,
+            manifest[line["custom_id"]],
+            source_edition=edition.source_edition,
+            target_language=edition.language,
+        )
+    except ValueError:
+        return False
+    return True
+
+
+def _with_usage_of(line: dict[str, Any], first: dict[str, Any]) -> dict[str, Any]:
+    """The second answer, carrying the tokens of the first as well: both were paid for."""
+
+    spent = ((first.get("response") or {}).get("body") or {}).get("usage") or {}
+    body = (line.get("response") or {}).get("body") or {}
+    usage = body.setdefault("usage", {})
+    for key in ("input_tokens", "output_tokens"):
+        usage[key] = usage.get(key, 0) + spent.get(key, 0)
+    for group, key in (
+        ("input_tokens_details", "cached_tokens"),
+        ("output_tokens_details", "reasoning_tokens"),
+    ):
+        usage.setdefault(group, {})
+        usage[group][key] = (usage[group].get(key) or 0) + ((spent.get(group) or {}).get(key) or 0)
+    return line

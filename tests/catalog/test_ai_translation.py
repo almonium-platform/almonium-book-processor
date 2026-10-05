@@ -590,6 +590,36 @@ def test_apostrophes_inside_words_are_stored_straight() -> None:
     assert edition.blocks.get(block_id="c1.p2").text.endswith("сплетіння м'язів.")
 
 
+def test_a_chapter_that_comes_back_unusable_is_asked_for_once_more_by_itself() -> None:
+    from almonium_book_processor.catalog.ai_translation import CODEX_TIER, run_translation_inline
+
+    edition = create_parallel_translation(
+        source_edition=canonical_edition(),
+        target_language="uk",
+        register="period-faithful",
+        tier=CODEX_TIER,
+    )
+
+    class Stumbles:
+        name = "codex"
+        calls = 0
+
+        def respond(self, body):
+            self.calls += 1
+            # the first answer leaves a block out; the second is whole
+            blocks = [translated("c1.h1", "Розділ I")]
+            if self.calls > 1:
+                blocks.append(translated("c1.p2", "Його шкіра ледве прикривала м'язи."))
+            return output_line("chapter-1", blocks)["response"]["body"]
+
+    provider = Stumbles()
+    run = run_translation_inline(str(edition.id), tier=CODEX_TIER, provider=provider)
+
+    run.refresh_from_db()
+    assert provider.calls == 2 and run.status == "succeeded"
+    assert edition.blocks.get(block_id="c1.p2").text == "Його шкіра ледве прикривала м'язи."
+
+
 def test_codex_tier_translates_with_the_codex_model_for_a_share_of_the_plan(settings) -> None:
     from almonium_book_processor.catalog.ai_translation import CODEX_TIER, run_translation_inline
 
