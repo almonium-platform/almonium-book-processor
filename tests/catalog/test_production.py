@@ -25,6 +25,7 @@ class World:
     def __init__(self, source):
         self.source = source
         self.analysis = {}  # edition id -> projection state
+        self.analysis_runs = {}  # edition id -> the analysis run, where one is under way
         self.ladder = {"B2": "untried", "B1": "untried"}
         self.above = []  # chapters the judges read above the target, per reading of the gate
         self.audit = "none"
@@ -62,7 +63,10 @@ def world(monkeypatch):
     patch("tasks.produce_edition.delay", lambda run_id: world.calls.append("tick"))
     patch(
         "chapter_analysis.analysis_context",
-        lambda edition: {"projection_state": world.analysis.get(str(edition.id), "pending")},
+        lambda edition: {
+            "projection_state": world.analysis.get(str(edition.id), "pending"),
+            "chapter_analysis_run": world.analysis_runs.get(str(edition.id)),
+        },
     )
 
     def queue_analysis(edition_id):
@@ -466,3 +470,18 @@ def test_a_level_the_book_already_reads_at_is_not_needed_and_the_rung_below_is_m
     outcomes = {target: o["outcome"] for target, o in run.summary["outcomes"].items()}
     assert outcomes == {"B2": "not needed", "B1": "ready"}
     assert run.status == "succeeded" and "book B1" in world.calls
+
+
+def test_a_source_the_judges_are_part_way_through_is_waited_for_not_started_again(world):
+    source = str(world.source.id)
+    # the reading shows "partial" while the judges work; the run is what says they are working
+    world.analysis[source] = "partial"
+    world.analysis_runs[source] = SimpleNamespace(status="running", updated_at=timezone.now())
+    run = queue_production(world.source.id, ["B2"])
+
+    for _ in range(5):
+        assert not advance(run.id)
+
+    assert "analysis" not in world.calls
+    world.analysis[source] = "complete"
+    assert run_to_the_end(run).status == "succeeded"

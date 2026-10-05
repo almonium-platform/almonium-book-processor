@@ -333,7 +333,10 @@ def _source(run: PipelineRun, state: dict, level: str) -> tuple:
     reading = context.get("projection_state")
     if reading == "complete":
         return ("goto", _first_step(state, level), "The source's chapters have their levels.")
-    if reading in ACTIVE and not _stalled(context.get("chapter_analysis_run")):
+    # the reading shows as partly done while the judges work; what says they are working is
+    # the run itself
+    analysis = context.get("chapter_analysis_run")
+    if analysis is not None and analysis.status in ACTIVE and not _stalled(analysis):
         return ("wait", "The source's chapters are being read.")
     _started(state, "source analysis")
     queue_analysis(str(source.id))
