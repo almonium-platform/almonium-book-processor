@@ -17,17 +17,16 @@ PROVIDERS = ("openai", "codex", "claude-code")
 PLAN_PROVIDERS = ("codex", "claude-code")
 EFFORTS = ("low", "medium", "high")
 
-# The Claude Code CLI is asked for a family and runs that family's current model. Records keep
-# the name the CLI was given; pages print the model it stood for, read from the CLI's own
-# ``modelUsage`` on 2026-10-05. Move a family here when the CLI moves it.
-CLAUDE_CODE_MODELS = {"opus": "opus-5.5", "fable": "fable-5.1", "sonnet": "sonnet-5.5"}
-_FAMILY = re.compile(rf"\b({'|'.join(CLAUDE_CODE_MODELS)})\b(?![-.]?\d)")
+# Settings and records name a Claude model in full, with its version, so that a judge cannot
+# change under a reading: ``claude-opus-5-5``, never the CLI's ``opus``, which follows the
+# newest. Pages print it the short way the GPT names read: ``opus-5.5`` beside ``gpt-6.1-sol``.
+_CLAUDE = re.compile(r"\bclaude-([a-z]+)-(\d+)-(\d+)\b")
 
 
 def versioned(names: str) -> str:
-    """Model names as pages print them, each with its version, as the GPT names carry theirs."""
+    """Model names as pages print them: ``claude-opus-5-5`` as ``opus-5.5``."""
 
-    return _FAMILY.sub(lambda match: CLAUDE_CODE_MODELS[match.group(1)], names)
+    return _CLAUDE.sub(r"\1-\2.\3", names)
 
 
 @dataclass(frozen=True)

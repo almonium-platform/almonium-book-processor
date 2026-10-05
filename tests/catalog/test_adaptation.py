@@ -369,20 +369,20 @@ def test_a_panel_of_judges_reads_three_times_and_the_strictest_middle_reading_de
 
     run = queue_pilot(chapter.edition_id, chapter.id, dispatch=False, target_level="B1")
     run_pilot(run.id, provider=Provider())
-    settings.DIFFICULTY_JUDGES = "claude-code:opus,codex:gpt-6.1-sol"
+    settings.DIFFICULTY_JUDGES = "claude-code:claude-opus-5-5,codex:gpt-6.1-sol"
     settings.DIFFICULTY_READINGS = 3
     # the first judge wavers once and lands on B1; the second lands on B2
     judge = PanelJudge(["B1", "B2", "B1", "B2", "B2", "B1"])
 
     result = assess_pilot(run.id, provider=judge)
 
-    assert judge.models == ["opus"] * 3 + ["gpt-6.1-sol"] * 3
+    assert judge.models == ["claude-opus-5-5"] * 3 + ["gpt-6.1-sol"] * 3
     assert result["judges"] == [
-        {"model": "opus", "level": "B1", "readings": ["B1", "B2", "B1"]},
+        {"model": "claude-opus-5-5", "level": "B1", "readings": ["B1", "B2", "B1"]},
         {"model": "gpt-6.1-sol", "level": "B2", "readings": ["B2", "B2", "B1"]},
     ]
     assert result["max_level"] == "B2"
-    assert result["model"] == "opus + gpt-6.1-sol"
+    assert result["model"] == "claude-opus-5-5 + gpt-6.1-sol"
     # a plan judge's reading costs the share of the plan it used, not nothing, and the sum
     # is exact: a float's long tail would be printed on the pilot's page
     assert float(result["cost_usd"]) > 0
@@ -392,7 +392,7 @@ def test_a_panel_of_judges_reads_three_times_and_the_strictest_middle_reading_de
     assert len(judge.models) == 6
     # a probe judged by this panel says so, and so is a different probe
     spec = probe_spec("B1", "en")
-    assert (spec["judge_model"], spec["judge_readings"]) == ("opus + gpt-6.1-sol", 3)
+    assert (spec["judge_model"], spec["judge_readings"]) == ("claude-opus-5-5 + gpt-6.1-sol", 3)
 
 
 def test_a_judge_is_not_failed_for_prose_no_reader_sees_and_is_asked_again_when_rejected(
@@ -455,7 +455,7 @@ def test_a_pilot_is_applied_only_when_every_judge_put_it_at_the_target(applicati
 
     run, target, chapter = application
     # the fixture's assessment is the chapter-analysis model's; this panel never judged the pilot
-    settings.DIFFICULTY_JUDGES = "claude-code:opus,codex:gpt-6.1-sol"
+    settings.DIFFICULTY_JUDGES = "claude-code:claude-opus-5-5,codex:gpt-6.1-sol"
 
     with pytest.raises(ValueError, match="current, complete assessment"):
         apply_pilot(

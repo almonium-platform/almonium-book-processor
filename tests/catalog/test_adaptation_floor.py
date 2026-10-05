@@ -258,28 +258,32 @@ class TwoAuditors:
 
 @pytest.fixture
 def two_auditors(settings):
-    settings.FIDELITY_AUDITORS = "claude-code:opus,codex:gpt-6.1-sol:medium"
+    settings.FIDELITY_AUDITORS = "claude-code:claude-opus-5-5,codex:gpt-6.1-sol:medium"
 
 
 def test_a_material_finding_one_auditor_raised_holds_only_if_the_other_confirms(
     source, two_auditors
 ):
     pilot = _pilot(source)
-    auditors = TwoAuditors({"opus": [], "gpt-6.1-sol": [MATERIAL]}, confirms=False)
+    auditors = TwoAuditors({"claude-opus-5-5": [], "gpt-6.1-sol": [MATERIAL]}, confirms=False)
 
     review = audit_pilot(pilot.id, provider=auditors)
 
     # both read the whole pilot at their own effort, then Opus is asked about sol's finding
     assert auditors.calls == [
-        ("fidelity_review", "opus", "high"),
+        ("fidelity_review", "claude-opus-5-5", "high"),
         ("fidelity_review", "gpt-6.1-sol", "medium"),
-        ("fidelity_second_opinion", "opus", "medium"),
+        ("fidelity_second_opinion", "claude-opus-5-5", "medium"),
     ]
-    assert review["model"] == "opus + gpt-6.1-sol"
+    assert review["model"] == "claude-opus-5-5 + gpt-6.1-sol"
     assert review["counts"] == {"material": 0, "minor": 0, "uncertain": 1}
     issue = review["issues"][0]
     assert issue["raised_by"] == ["gpt-6.1-sol"]
-    assert issue["second_opinion"] == {"by": "opus", "material": False, "reason": "second look"}
+    assert issue["second_opinion"] == {
+        "by": "claude-opus-5-5",
+        "material": False,
+        "reason": "second look",
+    }
     # every call is in the ledger at the share of the plan it used
     assert len(review["ai_run_ids"]) == 3 and float(review["cost_usd"]) > 0
     assert audit_pilot(pilot.id, provider=auditors) == review
@@ -287,12 +291,12 @@ def test_a_material_finding_one_auditor_raised_holds_only_if_the_other_confirms(
     # a probe audited this way says so
     from almonium_book_processor.catalog.adaptation_floor import probe_spec
 
-    assert probe_spec("B2", "en")["audit_model"] == "opus + gpt-6.1-sol"
+    assert probe_spec("B2", "en")["audit_model"] == "claude-opus-5-5 + gpt-6.1-sol"
 
 
 def test_a_confirmed_material_finding_holds_the_gate(source, two_auditors):
     pilot = _pilot(source)
-    auditors = TwoAuditors({"opus": [MATERIAL], "gpt-6.1-sol": []}, confirms=True)
+    auditors = TwoAuditors({"claude-opus-5-5": [MATERIAL], "gpt-6.1-sol": []}, confirms=True)
 
     review = audit_pilot(pilot.id, provider=auditors)
 
@@ -304,13 +308,14 @@ def test_a_confirmed_material_finding_holds_the_gate(source, two_auditors):
 def test_a_finding_both_auditors_raised_is_kept_once_at_the_stricter_severity(source, two_auditors):
     pilot = _pilot(source)
     auditors = TwoAuditors(
-        {"opus": [{**MATERIAL, "severity": "minor"}], "gpt-6.1-sol": [MATERIAL]}, confirms=False
+        {"claude-opus-5-5": [{**MATERIAL, "severity": "minor"}], "gpt-6.1-sol": [MATERIAL]},
+        confirms=False,
     )
 
     review = audit_pilot(pilot.id, provider=auditors)
 
     assert len(review["issues"]) == 1
-    assert review["issues"][0]["raised_by"] == ["opus", "gpt-6.1-sol"]
+    assert review["issues"][0]["raised_by"] == ["claude-opus-5-5", "gpt-6.1-sol"]
     assert review["counts"]["material"] == 1
     # agreement needs no second opinion
     assert [step for step, _, _ in auditors.calls] == ["fidelity_review", "fidelity_review"]
@@ -975,7 +980,7 @@ def test_an_edition_audited_by_two_auditors_queues_what_they_raised_and_said(
 ):
     minor = {**MATERIAL, "block_id": "c2.b1", "severity": "minor"}
     auditors = TwoAuditors(
-        {"opus": [minor], "gpt-6.1-sol": [MATERIAL, {**MATERIAL, "block_id": "c3.b1"}]},
+        {"claude-opus-5-5": [minor], "gpt-6.1-sol": [MATERIAL, {**MATERIAL, "block_id": "c3.b1"}]},
         confirms=False,
     )
 
@@ -983,7 +988,10 @@ def test_an_edition_audited_by_two_auditors_queues_what_they_raised_and_said(
     run_edition_audit(audit.id, provider=auditors)
 
     audit.refresh_from_db()
-    assert audit.status == "succeeded" and audit.summary["review"]["model"] == "opus + gpt-6.1-sol"
+    assert (
+        audit.status == "succeeded"
+        and audit.summary["review"]["model"] == "claude-opus-5-5 + gpt-6.1-sol"
+    )
     # every chapter was read by both; Opus was asked about each chapter's finding it did not raise
     steps = [step for step, _, _ in auditors.calls]
     assert steps.count("fidelity_review") == 8 and steps.count("fidelity_second_opinion") == 2
@@ -992,8 +1000,8 @@ def test_an_edition_audited_by_two_auditors_queues_what_they_raised_and_said(
     # what only one auditor called material and the other did not confirm is kept as uncertain
     assert findings["c1.b1"].evidence["severity"] == "uncertain"
     assert findings["c1.b1"].evidence["raised_by"] == ["gpt-6.1-sol"]
-    assert findings["c1.b1"].evidence["second_opinion"]["by"] == "opus"
-    assert findings["c2.b1"].evidence["raised_by"] == ["opus"]
+    assert findings["c1.b1"].evidence["second_opinion"]["by"] == "claude-opus-5-5"
+    assert findings["c2.b1"].evidence["raised_by"] == ["claude-opus-5-5"]
     # nothing material is open, so the fidelity gate is not held
     assert audit.summary["review"]["counts"]["material"] == 0
     from almonium_book_processor.catalog.fidelity_audit import fidelity_gate

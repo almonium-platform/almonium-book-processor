@@ -18,16 +18,16 @@ from decimal import Decimal
 MILLION = Decimal(1_000_000)
 
 # USD per million tokens at list price on 2026-10-04: input, cached input, output. Cached input
-# is a tenth of input at both vendors. The Claude models are named as the CLI names them.
+# is a tenth of input at both vendors.
 LIST_PRICES = {
     "gpt-5.6-terra": ("2", "0.2", "12"),
     "gpt-5.6-luna": ("0.2", "0.02", "1.2"),
     "gpt-6-astra": ("10", "1", "50"),
     "gpt-6.1-sol": ("2", "0.2", "10"),
     "gpt-6-sol": ("2", "0.2", "10"),
-    "fable": ("10", "1", "50"),
-    "opus": ("4", "0.4", "20"),
-    "sonnet": ("2", "0.2", "10"),
+    "claude-fable-5-1": ("10", "1", "50"),
+    "claude-opus-5-5": ("4", "0.4", "20"),
+    "claude-sonnet-5-5": ("2", "0.2", "10"),
 }
 
 # A plan's price for one week, in USD: twelve monthly payments over fifty-two weeks.

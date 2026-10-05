@@ -18,7 +18,7 @@ def test_an_api_call_costs_the_list_price():
 
 def test_a_plan_call_costs_the_share_of_the_plan_it_used_not_nothing():
     for provider in ("codex", "claude-code"):
-        model = "gpt-6-astra" if provider == "codex" else "opus"
+        model = "gpt-6-astra" if provider == "codex" else "claude-opus-5-5"
         cost = call_cost(provider, model, **TOKENS)
         assert cost == (list_cost(model, **TOKENS) * PLAN_SHARE_OF_LIST[provider]).quantize(
             Decimal("0.000001")
@@ -27,5 +27,5 @@ def test_a_plan_call_costs_the_share_of_the_plan_it_used_not_nothing():
 
 
 def test_a_model_without_a_price_is_known_before_any_call():
-    assert has_price("opus")
+    assert has_price("claude-opus-5-5")
     assert not has_price("gpt-9-nova")

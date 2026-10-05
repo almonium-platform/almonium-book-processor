@@ -170,14 +170,14 @@ def test_review_cross_checks_and_queues_every_finding():
     confirmed, disputed = findings["confirmed"], findings["disputed"]
     assert confirmed.evidence["agreement"] == "confirmed"
     # findings are labelled with the models that raised and judged them
-    assert confirmed.evidence["reviewers"] == ["opus"]
+    assert confirmed.evidence["reviewers"] == ["claude-opus-5-5"]
     assert confirmed.evidence["second_opinion"]["by"] == "gpt-6.1-sol"
     # a "no" from the other reviewer lowers the rank and keeps the reason; nothing is dropped
     assert disputed.status == TextQualityFinding.Status.OPEN
     assert disputed.original_text == "завершення своїх трудів"
     assert disputed.suggested_text == "здійснення своїх трудів"
     assert disputed.evidence["agreement"] == "disputed"
-    assert disputed.evidence["second_opinion"] == {"by": "opus", "reason": "second look"}
+    assert disputed.evidence["second_opinion"] == {"by": "claude-opus-5-5", "reason": "second look"}
     # the adjudicator ruled on the disputed finding and on the style one
     assert disputed.evidence["adjudication"]["verdict"] == "apply_proposed"
     assert confirmed.evidence["adjudication"]["verdict"] == "apply_proposed"
@@ -201,7 +201,7 @@ def test_the_translator_writes_the_final_wording_from_every_candidate():
     # the translator's wording is what is queued; what the editors proposed is kept beside it
     assert finding.suggested_text == "звершення своїх трудів"
     assert finding.evidence["candidates"] == ["здійснення своїх трудів", "досягнення своїх трудів"]
-    assert finding.evidence["final_wording_by"] == "opus"
+    assert finding.evidence["final_wording_by"] == "claude-opus-5-5"
     asked = json.loads(opus.bodies[-1]["input"])["findings"][0]
     assert asked["span_to_replace"] == "завершення своїх трудів"
 
@@ -318,15 +318,15 @@ def test_a_block_is_sent_once_however_many_findings_it_has():
 def test_the_adjudicator_is_never_the_model_that_translated(settings):
     from almonium_book_processor.catalog.translation_review import _adjudicator
 
-    settings.TRANSLATION_ADJUDICATORS = "codex:gpt-6-astra, claude-code:fable"
+    settings.TRANSLATION_ADJUDICATORS = "codex:gpt-6-astra, claude-code:claude-fable-5-1"
 
-    assert _adjudicator("opus") == {
+    assert _adjudicator("claude-opus-5-5") == {
         "name": "adjudicator",
         "provider": "codex",
         "model": "gpt-6-astra",
         "effort": "high",
     }
-    assert _adjudicator("gpt-6-astra")["model"] == "fable"
+    assert _adjudicator("gpt-6-astra")["model"] == "claude-fable-5-1"
 
 
 def test_a_gpt_translation_gets_its_final_wording_from_the_model_that_wrote_it(settings):

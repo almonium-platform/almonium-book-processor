@@ -51,8 +51,9 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   at that share of the plan's price (`ai/pricing.py`). `manage.py plan_meter`
   reads the Codex meter.
 - `DIFFICULTY_JUDGES` and `FIDELITY_AUDITORS` name the pilot's blind judges
-  and fidelity auditors the same way, e.g. `claude-code:opus,codex:gpt-6.1-sol`
-  and `claude-code:opus,codex:gpt-6.1-sol:medium`. Each judge reads
+  and fidelity auditors the same way, e.g.
+  `claude-code:claude-opus-5-5,codex:gpt-6.1-sol` and
+  `claude-code:claude-opus-5-5,codex:gpt-6.1-sol:medium`. Each judge reads
   `DIFFICULTY_READINGS` times (three) and its middle reading counts; the
   strictest judge decides. Two auditors each read the whole pilot, and a
   material finding only one raised holds the gate only if the other confirms
@@ -60,12 +61,11 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   the `plans` queue. Left empty, the pilot is judged and audited by the API's
   models as before. A probe records its generator, judges and auditors, so
   changing any of them makes the level probeable again.
-- The Claude Code CLI is asked for a family (`opus`, `fable`) and runs that
-  family's current model. Settings and records keep the family; pages print
-  the version it stood for (`opus-5.5`), from `CLAUDE_CODE_MODELS` in
-  `ai/seats.py`. When the CLI moves a family to a new model, update that table;
-  `claude -p --model opus --output-format json` names the model under
-  `modelUsage`.
+- A Claude model is named in full, with its version: `claude-code:claude-opus-5-5`,
+  never the CLI's `opus`, which follows the newest model and would change a
+  judge under its own readings. Moving to a new version is a settings change,
+  and makes the readings and audits of the old one out of date, as it should.
+  Pages print the name the short way, `opus-5.5`.
 - `./plan-manage <command>` runs `manage.py` on the host with the same
   settings, for the commands that call a plan's CLI: `plan_meter`,
   `translate_on_plan`, `review_translation`, `check_adaptation_wording`.

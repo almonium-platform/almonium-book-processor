@@ -10,7 +10,9 @@ from almonium_book_processor.ai.seats import Seat, parse_seat, provider_for
 
 def test_a_seat_names_provider_model_and_optionally_effort():
     assert parse_seat("codex:gpt-6-astra") == Seat("codex", "gpt-6-astra", "")
-    assert parse_seat(" claude-code:opus:high ") == Seat("claude-code", "opus", "high")
+    assert parse_seat(" claude-code:claude-opus-5-5:high ") == Seat(
+        "claude-code", "claude-opus-5-5", "high"
+    )
     assert parse_seat("codex:gpt-6.1-sol:medium").on_plan
     assert not parse_seat("openai:gpt-5.6-terra").on_plan
 
@@ -34,13 +36,13 @@ def test_each_provider_gets_its_own_caller(settings):
     settings.OPENAI_API_KEY = "test-key"
     assert isinstance(provider_for("codex", "gpt-6-astra"), CodexProvider)
     assert isinstance(provider_for("openai", "gpt-5.6-terra"), OpenAIBatchProvider)
-    claude = provider_for("claude-code", "fable")
-    assert isinstance(claude, ClaudeCodeProvider) and claude.model == "fable"
+    claude = provider_for("claude-code", "claude-fable-5-1")
+    assert isinstance(claude, ClaudeCodeProvider) and claude.model == "claude-fable-5-1"
 
 
-def test_pages_name_a_claude_model_with_its_version_as_the_gpt_names_carry_theirs():
+def test_pages_print_a_claude_model_the_short_way_the_gpt_names_read():
     from almonium_book_processor.ai.seats import versioned
 
-    assert versioned("opus + gpt-6.1-sol") == "opus-5.5 + gpt-6.1-sol"
-    assert versioned("fable and gpt-6-astra") == "fable-5.1 and gpt-6-astra"
-    assert versioned("opus-5.5") == "opus-5.5"
+    assert versioned("claude-opus-5-5 + gpt-6.1-sol") == "opus-5.5 + gpt-6.1-sol"
+    assert versioned("claude-fable-5-1 and gpt-6-astra") == "fable-5.1 and gpt-6-astra"
+    assert versioned("gpt-6.1-sol") == "gpt-6.1-sol"

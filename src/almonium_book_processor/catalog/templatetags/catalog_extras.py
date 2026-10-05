@@ -21,7 +21,7 @@ def thousands(value):
 
 @register.filter
 def model_name(value):
-    """A model, or several joined, named with the version: ``opus`` as ``opus-5.5``."""
+    """A model, or several joined, named the short way: ``claude-opus-5-5`` as ``opus-5.5``."""
 
     from almonium_book_processor.ai.seats import versioned
 

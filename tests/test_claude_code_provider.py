@@ -54,7 +54,11 @@ def provider_with(stdout="", returncode=0, stderr=""):
         return SimpleNamespace(returncode=returncode, stdout=stdout, stderr=stderr)
 
     provider = ClaudeCodeProvider(
-        model="opus", binary="claude", timeout_seconds=5, runner=runner, pause=lambda _: None
+        model="claude-opus-5-5",
+        binary="claude",
+        timeout_seconds=5,
+        runner=runner,
+        pause=lambda _: None,
     )
     return provider, calls
 
@@ -75,7 +79,7 @@ def test_respond_returns_a_responses_shaped_body():
         "input_tokens_details": {"cached_tokens": 4000},
         "output_tokens_details": {"reasoning_tokens": 300},
     }
-    assert body["model"] == "opus"
+    assert body["model"] == "claude-opus-5-5"
 
 
 def test_respond_runs_the_cli_without_tools_servers_or_project_context():
@@ -145,7 +149,7 @@ def test_a_call_that_fails_in_passing_is_tried_once_more():
     ]
     pauses = []
     provider = ClaudeCodeProvider(
-        model="opus",
+        model="claude-opus-5-5",
         binary="claude",
         timeout_seconds=5,
         runner=lambda command, **kwargs: results.pop(0),
