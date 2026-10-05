@@ -729,8 +729,8 @@ def test_staff_can_queue_and_view_but_nonstaff_cannot(client, chapter):
     run_pilot(run.id, provider=Provider())
     page = client.get(response.url)
     assert page.status_code == 200
-    assert b"<ins>Before</ins> dawn, he <ins>left.</ins>" in page.content
-    assert b"<del>Ere</del> dawn, he <del>departed.</del>" in page.content
+    assert b"<ins>Before</ins> dawn, he <ins>left</ins>." in page.content
+    assert b"<del>Ere</del> dawn, he <del>departed</del>." in page.content
     assert b'<div class="pilot-text">He was afraid.</div>' in page.content
     assert b"not an independently verified" in page.content
     other = Edition.objects.create(work=chapter.edition.work, slug="other")
@@ -746,8 +746,8 @@ def test_review_rows_carry_word_level_diff(chapter):
     assert [s["op"] for s in rows[0]["source_segments"]] == ["equal"]
     deleted = [s["text"] for s in rows[1]["source_segments"] if s["op"] == "delete"]
     inserted = [s["text"] for s in rows[1]["target_segments"] if s["op"] == "insert"]
-    assert deleted == ["Ere", "departed."]
-    assert inserted == ["Before", "left."]
+    assert deleted == ["Ere", "departed"]
+    assert inserted == ["Before", "left"]
     assert "".join(s["text"] for s in rows[1]["target_segments"]) == "Before dawn, he left."
 
 
@@ -755,6 +755,19 @@ def test_word_diff_round_trips_whitespace():
     source, target = word_diff("a  b\nc", "a  c\nd")
     assert "".join(s["text"] for s in source) == "a  b\nc"
     assert "".join(s["text"] for s in target) == "a  c\nd"
+
+
+def test_word_diff_marks_only_the_changed_punctuation():
+    source, target = word_diff("a mystery; don't stop", "a mystery don't stop.")
+    assert source == [
+        {"op": "equal", "text": "a mystery"},
+        {"op": "delete", "text": ";"},
+        {"op": "equal", "text": " don't stop"},
+    ]
+    assert target == [
+        {"op": "equal", "text": "a mystery don't stop"},
+        {"op": "insert", "text": "."},
+    ]
 
 
 def test_punctuation_only_edit_is_flagged(chapter):

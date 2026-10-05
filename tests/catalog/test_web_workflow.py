@@ -1289,8 +1289,8 @@ def test_parallel_reader_shows_word_changes_for_a_same_language_companion(client
     ).content.decode()
     assert "Hide changes</a>" in shown
     assert "1 of 3 rows differs" in shown
-    assert "First <ins>piece.</ins>" in shown
-    assert "First <del>block.</del>" in shown
+    assert "First <ins>piece</ins>." in shown
+    assert "First <del>block</del>." in shown
     # One marked word per column plus the legend's two samples; unchanged rows stay plain.
     assert shown.count("<ins>") == 2 and shown.count("<del>") == 2
     # Navigation and the edit form keep the toggle on.
@@ -1334,8 +1334,8 @@ def test_parallel_reader_diffs_from_the_source_side_too(client) -> None:
         {"chapter": 1, "parallel": str(adaptation.id), "diff": "1"},
     ).content.decode()
     # Reading the original: its own column shows what the adaptation removed.
-    assert "First <del>block.</del>" in shown
-    assert "First <ins>piece.</ins>" in shown
+    assert "First <del>block</del>." in shown
+    assert "First <ins>piece</ins>." in shown
 
 
 def test_publication_requires_source_release_before_queueing(client, monkeypatch) -> None:

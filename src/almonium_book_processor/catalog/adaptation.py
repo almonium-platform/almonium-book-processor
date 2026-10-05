@@ -460,15 +460,27 @@ def _letters(text):
 
 def word_diff(original, adapted):
     """Word-level diff as (source segments, target segments) of {op, text} for the review page."""
-    a = re.findall(r"\s+|\S+", original)
-    b = re.findall(r"\s+|\S+", adapted)
+    a = _DIFF_TOKEN.findall(original)
+    b = _DIFF_TOKEN.findall(adapted)
     source, target = [], []
     for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
         if i2 > i1:
-            source.append({"op": "equal" if op == "equal" else "delete", "text": "".join(a[i1:i2])})
+            _append_segment(source, "equal" if op == "equal" else "delete", "".join(a[i1:i2]))
         if j2 > j1:
-            target.append({"op": "equal" if op == "equal" else "insert", "text": "".join(b[j1:j2])})
+            _append_segment(target, "equal" if op == "equal" else "insert", "".join(b[j1:j2]))
     return source, target
+
+
+# Words keep inner apostrophes and hyphens; each punctuation mark is its own token,
+# so "mystery;" against "mystery" marks only the semicolon.
+_DIFF_TOKEN = re.compile(r"\s+|\w+(?:['’-]\w+)*|[^\w\s]")
+
+
+def _append_segment(segments, op, text):
+    if segments and segments[-1]["op"] == op:
+        segments[-1]["text"] += text
+    else:
+        segments.append({"op": op, "text": text})
 
 
 def pilot_context(run):
