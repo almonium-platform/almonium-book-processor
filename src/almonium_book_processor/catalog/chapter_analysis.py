@@ -314,7 +314,12 @@ def _configuration(spec: dict) -> tuple[ModelConfiguration, PromptTemplate]:
 def _claim(run_id: str) -> tuple[PipelineRun, str] | None:
     with transaction.atomic():
         run = PipelineRun.objects.select_for_update().filter(id=run_id).first()
-        if run is None or run.status == PipelineRun.Status.SUCCEEDED:
+        # A cancelled run stays cancelled when its message comes round again after a worker
+        # restart; asking for the analysis anew queues it first.
+        if run is None or run.status in (
+            PipelineRun.Status.SUCCEEDED,
+            PipelineRun.Status.CANCELLED,
+        ):
             return None
         if run.stage != PipelineRun.Stage.CHAPTER_ANALYSIS:
             raise ValueError("Not a chapter-analysis run.")

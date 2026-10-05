@@ -28,6 +28,7 @@ class World:
         self.ladder = {"B2": "untried", "B1": "untried"}
         self.above = []  # chapters the judges read above the target, per reading of the gate
         self.audit = "none"
+        self.audit_touched = timezone.now()
         self.findings = []
         self.reached = True
         self.calls = []
@@ -126,7 +127,13 @@ def world(monkeypatch):
         ),
     )
     patch("adaptation_wording.check_chapter", lambda edition, chapter: {"max_level": "C1"})
-    patch("fidelity_audit.audit_context", lambda edition: {"fidelity_audit_state": world.audit})
+    patch(
+        "fidelity_audit.audit_context",
+        lambda edition: {
+            "fidelity_audit_state": world.audit,
+            "fidelity_audit_run": SimpleNamespace(updated_at=world.audit_touched),
+        },
+    )
 
     def queue_audit(edition_id):
         world.calls.append("audit")
@@ -183,9 +190,11 @@ def test_a_level_is_carried_from_its_probe_to_a_signed_off_edition(world):
 
 
 def test_the_adaptations_own_review_items_are_closed_and_another_kind_holds_the_book(world):
+    world.audit = "running"
     run = queue_production(world.source.id, ["B2"])
-    for _ in range(4):
-        advance(run.id)  # the edition exists now
+    assert not advance(run.id)  # the probe is running
+    assert not advance(run.id)  # written, read by the judges, and now with the auditors
+    world.audit = "current"
     edition = Edition.objects.get(slug="book-b2")
     QAWarning.objects.create(
         edition=edition, code="adaptation_fidelity_review", severity="warning", message="Read it."
@@ -340,3 +349,12 @@ def test_the_source_page_shows_where_a_production_is_and_why_a_level_was_held(cl
 
     assert "Production of B2, B1" in page
     assert "B1 held: The B1 probe failed: too much is lost." in page
+
+
+def test_a_job_a_dead_worker_left_running_is_started_again_not_waited_for(world):
+    world.audit = "running"
+    world.audit_touched = timezone.now() - timedelta(hours=1)
+
+    run = run_to_the_end(queue_production(world.source.id, ["B2"]))
+
+    assert "audit" in world.calls and run.status == "succeeded"

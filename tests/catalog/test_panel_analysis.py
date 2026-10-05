@@ -279,3 +279,16 @@ def test_more_disputed_chapters_than_the_allowance_all_hold_the_book(edition, se
 
     assert quality["adaptation_above_chapters"] == [9, 10]
     assert quality["adaptation_split_chapters"] == []
+
+
+def test_a_cancelled_analysis_is_not_started_again_by_its_old_message(edition):
+    judges = Judges({"claude-opus-5-5": "B2", "gpt-6.1-sol": "B2"})
+    run = queue_analysis(str(edition.id))
+    PipelineRun.objects.filter(pk=run.pk).update(status=PipelineRun.Status.CANCELLED)
+
+    analyze_chapters(str(run.id), provider=judges)
+
+    assert judges.bodies == []
+    # asked for again, it is queued and read
+    analyze_chapters(str(queue_analysis(str(edition.id)).id), provider=judges)
+    assert len(judges.bodies) == 4

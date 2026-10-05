@@ -41,6 +41,9 @@ STEP_TIMEOUT = timedelta(hours=3)
 STARTS = 2
 # How often corrections are applied and the changed chapters audited again.
 SETTLE_ROUNDS = 2
+# A job nobody has touched for this long was left behind by a worker that died. It is not
+# waited for: the step starts it again where it can, and other steps stop counting it.
+STALL = timedelta(minutes=30)
 
 ACTIVE = (PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING)
 FINISHED = (
@@ -127,13 +130,23 @@ def queue_production(
 
 
 def advance(run_id) -> bool:
-    """Move a production one step if it can move; say whether it is finished."""
+    """Move a production as far as it can go without waiting; say whether it is finished."""
+
+    for _ in range(2 * len(STEPS)):
+        finished, moved = _advance_once(run_id)
+        if finished or not moved:
+            return finished
+    return False
+
+
+def _advance_once(run_id) -> tuple[bool, bool]:
+    """One step: whether the production is finished, and whether it moved to another step."""
 
     run = PipelineRun.objects.select_related("edition__work").get(pk=run_id)
     if run.processor_version != VERSION:
         raise ValueError("Not a production run.")
     if run.status in FINISHED:
-        return True
+        return True, False
     if run.status == PipelineRun.Status.QUEUED:
         run.status = PipelineRun.Status.RUNNING
         run.started_at = timezone.now()
@@ -157,7 +170,7 @@ def advance(run_id) -> bool:
     finished = _apply(run, state, level, step, move)
     run.summary = state
     run.save()
-    return finished
+    return finished, move[0] in ("goto", "ready")
 
 
 def _apply(run: PipelineRun, state: dict, level: str, step: str, move: tuple) -> bool:
@@ -221,11 +234,15 @@ def _busy(edition: Edition) -> str:
     """The edition's own jobs still queued or running, named, or an empty string."""
 
     names = (
-        edition.pipeline_runs.filter(status__in=ACTIVE)
+        edition.pipeline_runs.filter(status__in=ACTIVE, updated_at__gte=timezone.now() - STALL)
         .exclude(processor_version=VERSION)
         .values_list("stage", flat=True)
     )
     return ", ".join(sorted(set(names)))
+
+
+def _stalled(job: PipelineRun | None) -> bool:
+    return job is not None and job.updated_at < timezone.now() - STALL
 
 
 # Steps. Each returns ("wait", why), ("goto", step, what happened), ("ready", note) or
@@ -238,10 +255,11 @@ def _source(run: PipelineRun, state: dict, level: str) -> tuple:
     from almonium_book_processor.catalog.chapter_analysis import analysis_context, queue_analysis
 
     source = run.edition
-    reading = analysis_context(source).get("projection_state")
+    context = analysis_context(source)
+    reading = context.get("projection_state")
     if reading == "complete":
         return ("goto", "probe", "The source's chapters have their levels.")
-    if reading in ACTIVE:
+    if reading in ACTIVE and not _stalled(context.get("chapter_analysis_run")):
         return ("wait", "The source's chapters are being read.")
     _started(state, "source analysis")
     queue_analysis(str(source.id))
@@ -381,10 +399,11 @@ def _audit(run: PipelineRun, state: dict, level: str) -> tuple:
     edition = _edition(state, level)
     if busy := _busy(edition):
         return ("wait", f"The edition's own jobs are running: {busy}.")
-    audit = audit_context(edition)["fidelity_audit_state"]
+    context = audit_context(edition)
+    audit = context["fidelity_audit_state"]
     if audit == "current":
         return ("goto", "settle", "Both auditors have read the edition as it stands.")
-    if audit in ACTIVE:
+    if audit in ACTIVE and not _stalled(context.get("fidelity_audit_run")):
         return ("wait", "The auditors are reading the edition.")
     _started(state, f"audit {level} after {_changes(state, level)} changes")
     queue_edition_audit(edition.id)

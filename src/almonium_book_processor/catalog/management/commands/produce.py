@@ -57,6 +57,7 @@ class Command(BaseCommand):
                     f"{entry['at'][11:19]} {entry['level']} {entry['step']:8} {entry['note']}"
                 )
             shown = len(run.summary["log"])
+            self.stdout.flush()
             if run.status not in (PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING):
                 break
             time.sleep(15)
