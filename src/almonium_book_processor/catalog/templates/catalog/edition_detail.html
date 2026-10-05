@@ -282,6 +282,22 @@
 <details class="panel collapsible-panel adaptation-panel" id="adaptation">
   <summary><span class="summary-title">Level adaptation</span><span class="summary-meta">{% if adaptation_floor %}Adapts to {{ adaptation_floor }}{% elif adaptation_floor_found %}Floor found{% elif adaptation_next_probe %}Next: probe {{ adaptation_next_probe }}{% else %}Original {{ adaptation_original_level|default:"level unknown" }}{% endif %}{% if adaptation_pilots %} · {{ adaptation_pilots|length }} pilot{{ adaptation_pilots|length|pluralize }}{% endif %}</span></summary>
   <p class="muted">Paid, same-language rewrite that keeps every proposition, image and degree of certainty of the original. The level a book lands at is whatever that constraint allows: it is found one rung at a time and recorded from evidence, never promised. A probe generates three chapters, judges them blind and audits their fidelity; a passed probe is the green light to generate the full edition, a failed one closes the ladder.</p>
+  <div class="production" id="production">
+    {% if production %}
+    <p><strong>Production of {{ production.levels|join:", " }}</strong> · {% if production.active %}<span class="status">at "{{ production.step }}"</span>{% else %}<span class="status status-{{ production.run.status }}">{{ production.run.get_status_display }}</span>{% endif %}{% for level, outcome in production.outcomes.items %} · {{ level }}: {{ outcome.outcome }}{% endfor %}</p>
+    {% for level, outcome in production.outcomes.items %}{% if outcome.reasons %}<p class="message warning">{{ level }} {{ outcome.outcome }}: {{ outcome.reasons|join:" " }}</p>{% endif %}{% endfor %}
+    <details class="production-log"><summary>What it did ({{ production.log|length }} latest steps)</summary>{% for entry in production.log %}<p class="muted"><code>{{ entry.at|slice:"11:16" }}</code> {{ entry.level }} · {{ entry.step }} · {{ entry.note }}</p>{% endfor %}</details>
+    {% endif %}
+    {% if not production.active and chapter_analysis_enabled and edition.supports_parallel_reading %}
+    <form method="post" action="{% url 'catalog:queue-production' edition.id %}" class="production-form">{% csrf_token %}
+      <span>Make every step run by itself:</span>
+      {% for rung in adaptation_ladder %}{% if rung.state != "reached" %}<label><input type="checkbox" name="levels" value="{{ rung.level }}" checked> {{ rung.level }}</label>{% endif %}{% endfor %}
+      <label><input type="checkbox" name="confirm" required> sign off without a person</label>
+      <button class="button" type="submit">Produce</button>
+    </form>
+    <p class="muted">A production probes, writes, has the judges read, mends, audits and applies the corrections both auditors stand behind, level by level, and ends with each level ready or held with the reasons. Nothing is promoted from here.</p>
+    {% endif %}
+  </div>
   <div class="adaptation-ladder" id="adaptation-ladder">
     <div class="ladder-rung ladder-rung-original"><span class="ladder-level">{{ adaptation_original_level|default:"?" }}</span><div class="ladder-body"><strong>Original</strong> · {% if edition.cefr_level_source == "editor" %}editorial level{% elif edition.cefr_level_source %}{{ edition.get_cefr_level_source_display|lower }}{% elif edition.cefr_level %}level set at upload{% elif adaptation_original_level %}judged estimate{% else %}no level yet; run chapter analysis{% endif %}</div></div>
     {% for rung in adaptation_ladder %}

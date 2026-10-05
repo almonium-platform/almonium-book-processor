@@ -958,18 +958,27 @@ def _fidelity_findings(edition: Edition, severities: list[str]):
 
 @transaction.atomic
 def apply_fidelity_findings(
-    *, edition: Edition, reviewer: AbstractBaseUser, severities: list[str]
+    *,
+    edition: Edition,
+    reviewer: AbstractBaseUser | None,
+    severities: list[str],
+    only: set[uuid.UUID] | None = None,
+    carry: bool = True,
 ) -> int:
     """Apply every open fidelity suggestion that can be placed in its block, one revision per block.
 
     Findings in one block are applied from the end of the block backwards so
     earlier offsets stay true; two that overlap are left open for a hand edit.
+    ``only`` narrows them to the findings named. With ``carry`` the audit is
+    kept current over its own words, as an editor's bulk apply does; without
+    it the changed chapters are left for the auditors to read again, which is
+    what a book nobody reads needs.
     """
 
     findings = [
         finding
         for finding in _fidelity_findings(edition, severities)
-        if finding.can_apply and finding.suggested_text
+        if finding.can_apply and finding.suggested_text and (only is None or finding.id in only)
     ]
     if not findings:
         raise ValueError("There is no fidelity suggestion that can be applied as it stands.")
@@ -1021,9 +1030,10 @@ def apply_fidelity_findings(
     )
 
     relocate_fidelity_findings(edition, list(by_block))
-    carry_audit_forward(
-        edition, [f for group in by_block.values() for f in group if f.status == "applied"]
-    )
+    if carry:
+        carry_audit_forward(
+            edition, [f for group in by_block.values() for f in group if f.status == "applied"]
+        )
     refresh_adaptation_floor(edition.work)
     return applied
 

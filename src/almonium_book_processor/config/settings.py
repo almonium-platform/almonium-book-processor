@@ -211,8 +211,9 @@ DIFFICULTY_JUDGE_WORKERS = int(os.getenv("DIFFICULTY_JUDGE_WORKERS", "1"))
 # a queue of its own, which the container worker never takes and the owner's host worker does
 # (./plan-worker). The adaptation tasks generate, judge and audit, so a plan seat in any of
 # those three settings sends them, and the edition's fidelity audit, there. An edition's
-# chapter analysis goes with them: where judges are configured they are the analysis. With
-# no plan seat configured nothing is routed.
+# chapter analysis goes with them: where judges are configured they are the analysis. So
+# does a production, which mends chapters itself. With no plan seat configured nothing is
+# routed.
 PLAN_QUEUE = "plans"
 
 
@@ -228,6 +229,7 @@ def plan_task_routes(*seat_settings: str) -> dict[str, dict[str, str]]:
             "run_floor_probe",
             "audit_edition_fidelity",
             "analyze_edition_chapters",
+            "produce_edition",
         )
     }
 

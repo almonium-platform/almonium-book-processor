@@ -122,6 +122,20 @@ def translate_edition_metadata(run_id: str) -> None:
 
 
 @shared_task(acks_late=True)
+def produce_edition(run_id: str) -> None:
+    """Move a production one step and ask to be called again until it is finished.
+
+    Each call is short unless it mends a chapter: the long jobs a production starts run as
+    their own tasks, and this one only looks at where they are.
+    """
+
+    from almonium_book_processor.catalog.production import TICK_SECONDS, advance
+
+    if not advance(run_id):
+        produce_edition.apply_async((run_id,), countdown=TICK_SECONDS)
+
+
+@shared_task(acks_late=True)
 def adapt_book(run_id: str) -> None:
     from almonium_book_processor.catalog.book_adaptation import run_book
 

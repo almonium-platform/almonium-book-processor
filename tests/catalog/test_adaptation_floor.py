@@ -562,6 +562,40 @@ def test_edition_audit_turns_every_finding_into_an_applicable_item(adaptation):
     assert replacement.pipeline_run_id == again.id and not replacement.can_apply
 
 
+def test_chosen_corrections_can_be_written_in_and_left_for_the_auditors_to_read_again(
+    adaptation, django_capture_on_commit_callbacks
+):
+    from almonium_book_processor.catalog.services import apply_fidelity_findings
+
+    run = queue_edition_audit(adaptation.id)
+    second = {
+        **MATERIAL,
+        "block_id": "c1.b2",
+        "source_quote": "afraid",
+        "adapted_quote": "afraid",
+        "severity": "minor",
+        "suggested_correction": "terrified",
+    }
+    run_edition_audit(run.id, provider=Auditor([MATERIAL, second]))
+    material = adaptation.text_quality_findings.get(code="fidelity_material")
+
+    with django_capture_on_commit_callbacks(execute=True):
+        applied = apply_fidelity_findings(
+            edition=adaptation,
+            reviewer=None,
+            severities=["material", "minor", "uncertain"],
+            only={material.id},
+            carry=False,
+        )
+
+    assert applied == 1
+    # only the finding named was written in, by nobody
+    assert adaptation.blocks.get(block_id="c1.b2").text == "He was afraid."
+    assert adaptation.block_revisions.get().editor is None
+    # and the audit is not kept current over its own words: the chapter is read again
+    assert audit_context(adaptation)["fidelity_audit_state"] == "stale"
+
+
 def test_fidelity_suggestions_are_applied_in_bulk_as_audited_revisions(
     adaptation, django_capture_on_commit_callbacks
 ):

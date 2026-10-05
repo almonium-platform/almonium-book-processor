@@ -69,6 +69,21 @@ Level adaptation can run on one of the owner's plans instead of the API: set
 - `./plan-manage <command>` runs `manage.py` on the host with the same
   settings, for the commands that call a plan's CLI: `plan_meter`,
   `translate_on_plan`, `review_translation`, `check_adaptation_wording`.
+- **One button for a book's adaptations: a production.** On the source
+  edition's page, "Produce" under Level adaptation, or
+  `./plan-manage produce <source slug> --levels B2,B1 --follow`. Level by
+  level, highest first, it has the source's chapters read, runs the probe,
+  writes the book, has the judges read it, mends a chapter read above the
+  target (its cited paragraphs once, the whole chapter once), has both
+  auditors read it, writes in the corrections more than one model stands
+  behind, sends the chapters those touched back to the judges and auditors
+  (twice at most), and ends with the level ready or held with the reasons. A
+  ready level is signed off with no person recorded (`--no-sign-off` stops at
+  the verdict); it is promoted only with `--promote-to <target>`. A held
+  level stops the levels below it. A failed step is started once more; a step
+  nobody finishes in three hours holds the book. The page shows where it is
+  and what it did. It is a run on the source edition that a short task moves
+  forward every half minute, so it survives a restart of the worker.
 - **Where judges are configured they are the chapter analysis.** With
   `DIFFICULTY_JUDGES` set, "Analyze" on an edition's page (and the analysis
   queued after an import, a generation or an edit) has every judge read every

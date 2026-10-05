@@ -482,6 +482,14 @@ ones it had.
   three rewrites. A chapter both judges read above the target, or one two
   levels above, still holds the book, and so do more disputed chapters than
   the allowance.
+- **The production** (`catalog/production.py`) is that pipeline for
+  adaptations. It starts the same jobs a person started and asks the same
+  gates; it adds no judgement of its own, only an order, limits on how often
+  anything is tried, and the rule for corrections: one is written in when
+  more than one model stands behind it (both auditors raised it, or the
+  other confirmed it), and the chapters it touched are audited again rather
+  than taken as read. Translations are not in it yet: they are still made
+  and reviewed by commands.
 - **Luna keeps the easy work**: bibliographic metadata, and chapter notes
   (description, recap, themes) where no judges read, which the owner likes
   and which a privately uploaded book should get too.

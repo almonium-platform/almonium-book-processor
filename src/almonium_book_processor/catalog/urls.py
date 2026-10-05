@@ -72,6 +72,11 @@ urlpatterns = [
         name="queue-floor-probe",
     ),
     path(
+        "editions/<uuid:edition_id>/adaptation-floor/produce/",
+        views.queue_production_view,
+        name="queue-production",
+    ),
+    path(
         "editions/<uuid:edition_id>/fidelity-audit/queue/",
         views.queue_fidelity_audit,
         name="queue-fidelity-audit",

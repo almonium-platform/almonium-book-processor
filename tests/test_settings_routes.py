@@ -18,6 +18,8 @@ def test_a_plan_seat_sends_the_generating_tasks_to_the_host_worker():
         "almonium_book_processor.catalog.tasks.audit_edition_fidelity",
         # where judges are configured they are the chapter analysis
         "almonium_book_processor.catalog.tasks.analyze_edition_chapters",
+        # a production mends chapters itself, through the adapter and the judges
+        "almonium_book_processor.catalog.tasks.produce_edition",
     }
     assert all(route == {"queue": PLAN_QUEUE} for route in routes.values())
 

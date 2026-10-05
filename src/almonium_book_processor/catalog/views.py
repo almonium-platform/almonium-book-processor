@@ -282,6 +282,31 @@ def queue_floor_probe(request: HttpRequest, edition_id: str) -> HttpResponse:
 
 @staff_member_required
 @require_POST
+def queue_production_view(request: HttpRequest, edition_id: str) -> HttpResponse:
+    from almonium_book_processor.catalog.production import queue_production
+
+    edition = get_object_or_404(Edition, pk=edition_id, work__visibility=Work.Visibility.PUBLIC)
+    if not request.POST.get("confirm"):
+        messages.error(
+            request, "Tick the confirmation: a production signs editions off without a person."
+        )
+        return redirect("catalog:edition-detail", edition_id=edition.id)
+    try:
+        run = queue_production(edition.id, request.POST.getlist("levels"))
+    except ValueError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request,
+            f"Production of {', '.join(run.summary['levels'])} started. Each level is probed, "
+            "written, read by the judges, mended, audited and corrected in turn; this panel "
+            "shows where it is and, at the end, whether each level is ready or held and why.",
+        )
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
 def queue_fidelity_audit(request: HttpRequest, edition_id: str) -> HttpResponse:
     from almonium_book_processor.catalog.fidelity_audit import queue_edition_audit
 
@@ -635,6 +660,9 @@ def _render_edition_detail(
             assessment.update(audit_context(edition))
         else:
             assessment.update(ladder_context(edition, assessment))
+            from almonium_book_processor.catalog.production import production_context
+
+            assessment.update(production_context(edition))
             if edition.edition_type == Edition.EditionType.MACHINE_TRANSLATION:
                 # A reviewed translation shows its findings in the same panel.
                 assessment.update(audit_context(edition))
