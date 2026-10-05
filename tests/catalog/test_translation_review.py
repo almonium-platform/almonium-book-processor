@@ -282,3 +282,20 @@ def test_a_reviewed_translation_shows_its_findings_in_the_audit_panel():
 def test_review_refuses_an_edition_that_is_not_a_machine_translation():
     with pytest.raises(ValueError, match="machine translation"):
         review_translation(str(canonical_edition().id))
+
+
+def test_a_review_started_again_does_not_pay_twice_for_a_second_opinion():
+    edition = translated_edition()
+    opus = FakeReviewer([])
+    outside = FakeReviewer([issue("завершення своїх трудів", "здійснення своїх трудів")])
+    run = review_translation(str(edition.id), providers={"claude-code": opus, "codex": outside})
+    assert len(opus.bodies) == 2  # its reading, and its second opinion on the other's finding
+
+    # the review failed after the readings were paid for, and is started again
+    PipelineRun.objects.filter(pk=run.pk).update(status=PipelineRun.Status.FAILED)
+    edition.text_quality_findings.all().delete()
+    again = review_translation(str(edition.id), providers={"claude-code": opus, "codex": outside})
+
+    assert again.status == PipelineRun.Status.SUCCEEDED
+    assert len(opus.bodies) == 2 and len(outside.bodies) == 1
+    assert edition.text_quality_findings.count() == 1

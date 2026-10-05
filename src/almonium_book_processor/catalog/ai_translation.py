@@ -820,11 +820,22 @@ def run_translation_inline(edition_id: str, *, tier: str = "quality", provider=N
     if isinstance(prepared, AIRun):
         return prepared
     ai_run, requests = prepared
+    manifest = ai_run.request_payload["manifest"]
+    edition = Edition.objects.select_related("source_edition").get(id=ai_run.edition_id)
+    # Chapters an earlier attempt at this same translation got back usable are kept: a
+    # translation that failed on one chapter, or whose worker died, is not paid for twice.
+    # An attempt that reached its end counted its tokens then; one that did not, never did.
+    counted = ai_run.status == AIRun.Status.FAILED
+    kept = {
+        custom_id: line if not counted else _without_usage(line)
+        for custom_id, line in ((ai_run.response_payload or {}).get("direct_lines") or {}).items()
+        if custom_id in manifest and _usable(line, manifest, edition)
+    }
 
     ai_run.status = AIRun.Status.SUBMITTED
     ai_run.provider_request_id = f"direct:{ai_run.id}"
     ai_run.request_payload = {**ai_run.request_payload, "execution": "direct"}
-    ai_run.response_payload = {"batch_status": "direct"}
+    ai_run.response_payload = {"batch_status": "direct", "direct_lines": kept}
     ai_run.save(
         update_fields=[
             "status",
@@ -843,23 +854,43 @@ def run_translation_inline(edition_id: str, *, tier: str = "quality", provider=N
         SUBSCRIPTION_TIER: settings.CLAUDE_CODE_WORKERS,
         CODEX_TIER: settings.CODEX_WORKERS,
     }.get(tier, DIRECT_TRANSLATION_WORKERS)
-    manifest = ai_run.request_payload["manifest"]
-    edition = Edition.objects.select_related("source_edition").get(id=ai_run.edition_id)
-    # Threads only make provider calls; every database write happens on this thread.
+    todo = [request for request in requests if request["custom_id"] not in kept]
+    lines = dict(kept)
+
+    def keep(line: dict[str, Any]) -> None:
+        lines[line["custom_id"]] = line
+        ai_run.response_payload = {**ai_run.response_payload, "direct_lines": lines}
+        ai_run.save(update_fields=["response_payload", "updated_at"])
+
+    # Threads only make provider calls; every database write happens on this thread, and
+    # each chapter is saved as it arrives.
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        output_lines = list(
-            pool.map(lambda request: _direct_output_line(provider, request), requests)
-        )
-        # One unusable chapter fails the whole translation, and every chapter would be paid
-        # for again. A chapter that came back unusable is asked for once more by itself.
-        again = [
-            index for index, line in enumerate(output_lines) if not _usable(line, manifest, edition)
-        ]
-        retried = pool.map(lambda index: _direct_output_line(provider, requests[index]), again)
-        for index, line in zip(again, retried, strict=True):
-            output_lines[index] = _with_usage_of(line, output_lines[index])
-    complete_translation_batch(ai_run, output_lines, discounted=False)
+        for line in pool.map(lambda request: _direct_output_line(provider, request), todo):
+            keep(line)
+        # One unusable chapter fails the whole translation. A chapter that came back unusable
+        # is asked for once more by itself.
+        again = [r for r in todo if not _usable(lines[r["custom_id"]], manifest, edition)]
+        for line in pool.map(lambda request: _direct_output_line(provider, request), again):
+            keep(_with_usage_of(line, lines[line["custom_id"]]))
+    complete_translation_batch(
+        ai_run, [lines[request["custom_id"]] for request in requests], discounted=False
+    )
+    # the chapters are the edition's blocks now; their copies here have done their work
+    done = AIRun.objects.get(id=ai_run.id)
+    if done.status == AIRun.Status.SUCCEEDED and "direct_lines" in (done.response_payload or {}):
+        done.response_payload = {
+            key: value for key, value in done.response_payload.items() if key != "direct_lines"
+        }
+        done.save(update_fields=["response_payload", "updated_at"])
     return ai_run
+
+
+def _without_usage(line: dict[str, Any]) -> dict[str, Any]:
+    """A kept answer whose tokens an earlier attempt already counted."""
+
+    response = line.get("response") or {}
+    body = {**(response.get("body") or {}), "usage": {}}
+    return {**line, "response": {**response, "body": body}}
 
 
 def _usable(line: dict[str, Any], manifest: dict[str, Any], edition: Edition) -> bool:

@@ -439,6 +439,17 @@ def _ask(run, edition, reviewer: dict, step: str, system: str, payload: dict, mo
             }
         },
     }
+    # A review that fails part-way is started again: an answer already paid for is reused,
+    # as a window's first reading is.
+    answered = AIRun.objects.filter(
+        edition=edition,
+        input_hash=_hash([step, payload]),
+        status=AIRun.Status.SUCCEEDED,
+        prompt_template=prompt,
+        model_configuration=configuration,
+    ).first()
+    if answered:
+        return model.model_validate(answered.response_payload["answer"])
     ai = AIRun.objects.create(
         edition=edition,
         pipeline_run=run,

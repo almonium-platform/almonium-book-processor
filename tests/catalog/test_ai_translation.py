@@ -620,6 +620,59 @@ def test_a_chapter_that_comes_back_unusable_is_asked_for_once_more_by_itself() -
     assert edition.blocks.get(block_id="c1.p2").text == "Його шкіра ледве прикривала м'язи."
 
 
+def test_a_translation_started_again_asks_only_for_the_chapters_it_does_not_have() -> None:
+    from almonium_book_processor.catalog.ai_translation import CODEX_TIER, run_translation_inline
+
+    source = canonical_edition()
+    second = Chapter.objects.create(edition=source, sequence=2, title="Chapter II")
+    ContentBlock.objects.create(
+        edition=source,
+        chapter=second,
+        block_id="c2.p1",
+        sequence=1,
+        block_type=ContentBlock.BlockType.PARAGRAPH,
+        text="The rain pattered dismally against the panes.",
+        align_group=uuid.uuid4(),
+    )
+    edition = create_parallel_translation(
+        source_edition=source, target_language="uk", register="period-faithful", tier=CODEX_TIER
+    )
+
+    class SecondChapterFails:
+        name = "codex"
+
+        def __init__(self, broken: bool):
+            self.broken, self.asked = broken, []
+
+        def respond(self, body):
+            chapter = 2 if "c2.p1" in body["input"] else 1
+            self.asked.append(chapter)
+            if chapter == 1:
+                blocks = [
+                    translated("c1.h1", "Розділ I"),
+                    translated("c1.p2", "Похмурої листопадової ночі я побачив завершення трудів."),
+                ]
+            else:
+                blocks = [] if self.broken else [translated("c2.p1", "Дощ сумно стукав у шибки.")]
+            return output_line(f"chapter-{chapter}", blocks)["response"]["body"]
+
+    failing = SecondChapterFails(broken=True)
+    with pytest.raises(ValueError, match="1 chapter translation"):
+        run_translation_inline(str(edition.id), tier=CODEX_TIER, provider=failing)
+    # the bad chapter was asked for twice, the good one once
+    assert sorted(failing.asked) == [1, 2, 2]
+
+    working = SecondChapterFails(broken=False)
+    run = run_translation_inline(str(edition.id), tier=CODEX_TIER, provider=working)
+
+    # started again, the chapter it already had is not paid for a second time
+    assert working.asked == [2]
+    run.refresh_from_db()
+    assert run.status == "succeeded" and "direct_lines" not in run.response_payload
+    assert edition.blocks.get(block_id="c1.h1").text == "Розділ I"
+    assert edition.blocks.get(block_id="c2.p1").text == "Дощ сумно стукав у шибки."
+
+
 def test_codex_tier_translates_with_the_codex_model_for_a_share_of_the_plan(settings) -> None:
     from almonium_book_processor.catalog.ai_translation import CODEX_TIER, run_translation_inline
 
