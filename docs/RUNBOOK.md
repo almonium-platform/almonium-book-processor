@@ -144,8 +144,16 @@ retrying"; a fidelity audit says "already running; inspect its ledger before
 retrying".
 
 Cause: the worker was lost mid-request (rebuild, restart, out of memory, the
-two-hour limit). Nothing recovers this automatically, on purpose: a paid
-request must never be blindly repaid.
+two-hour limit). Nothing repeats a paid request automatically, on purpose.
+
+What is automatic is the closing: a worker that starts marks failed every job
+of a kind one process works from start to end (metadata translation, chapter
+analysis, adaptation, glosses, sentences, lexical, source QA) that nothing has
+touched for two hours, saying it was left behind (`catalog/janitor.py`;
+`manage.py close_abandoned_runs` does it on demand, `--dry-run` lists them).
+A closed job is started again the usual way, and every paid result it had
+saved is reused. Jobs that wait on a Batch at the provider or on a promotion
+target are not closed: silence is what waiting looks like there.
 
 1. Open the run's AI calls on the edition page. If an `AIRun` has a completed
    response recorded, the provider answered and nothing was lost; if it is
