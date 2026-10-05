@@ -44,8 +44,11 @@ TICK_SECONDS = 30
 STEP_TIMEOUT = timedelta(hours=3)
 # How often one thing is started before the book is held: the first time and once more.
 STARTS = 2
-# How often corrections are applied and the changed chapters audited again.
-SETTLE_ROUNDS = 2
+# How often corrections are applied and the changed chapters audited again. Each round
+# costs a re-read of the chapters the corrections touched, and the auditors usually find
+# something new there: The Sign of Four's B1 was held with two agreed, placeable corrections
+# left after two rounds. A round that applies nothing ends it earlier.
+SETTLE_ROUNDS = 5
 # A job nobody has touched for this long was left behind by a worker that died. It is not
 # waited for: the step starts it again where it can, and other steps stop counting it.
 STALL = timedelta(minutes=30)
