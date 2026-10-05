@@ -1012,6 +1012,9 @@ def _mark_word_changes(rows: list[dict], edition: Edition, parallel_edition: Edi
         row["rewritten"] = (
             _changed_word_share(block_segments + counterpart_segments) > REWRITTEN_SHARE
         )
+        if row["rewritten"]:
+            # Highlighting most of a paragraph says less than the chip does.
+            continue
         row["block_segments"] = block_segments
         row["counterpart_segments"] = counterpart_segments
 
@@ -1124,8 +1127,14 @@ def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
         (option for option in parallel_options if str(option.id) == requested_parallel), None
     )
     rows, gap_count = _parallel_rows(blocks, parallel_edition, None if query else chapter)
+    # Words are compared only within one language; a level adaptation rewrites so much that
+    # the highlights start off.
     diff_available = parallel_edition is not None and parallel_edition.language == edition.language
-    show_diff = diff_available and request.GET.get("diff") != "0"
+    adapted = Edition.EditionType.ADAPTATION in (
+        edition.edition_type,
+        getattr(parallel_edition, "edition_type", None),
+    )
+    show_diff = diff_available and request.GET.get("diff", "0" if adapted else "1") != "0"
     if show_diff:
         _mark_word_changes(rows, edition, parallel_edition)
     from almonium_book_processor.catalog.passage_provenance import passage_provenance

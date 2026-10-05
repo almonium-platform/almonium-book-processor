@@ -1,21 +1,21 @@
-<details class="reader-drawer">
-  <summary>Edit this block</summary>
+<div class="reader-editor" data-editor hidden>
   <form class="reader-edit" method="post" action="{% url 'catalog:edit-block-text' edition.id row.block.id %}">
     {% csrf_token %}<input type="hidden" name="chapter" value="{{ row.block.chapter.sequence }}"><input type="hidden" name="q" value="{{ query }}">
     {% if parallel_edition %}<input type="hidden" name="parallel" value="{{ parallel_edition.id }}">{% if diff_available %}<input type="hidden" name="diff" value="{% if show_diff %}1{% else %}0{% endif %}">{% endif %}{% endif %}{% if notes %}<input type="hidden" name="layer" value="difficulty">{% endif %}
-    <textarea name="text" rows="6" required>{{ row.block.text }}</textarea>
+    <textarea class="{% if row.block.block_type == 'heading' %}is-heading{% endif %}" name="text" rows="1" required aria-label="Text of {{ row.block.block_id }}" data-editor-text>{{ row.block.text }}</textarea>
     <div class="reader-edit-row">
-      <input name="notes" placeholder="Reason for correction" required>
-      <button class="button" type="submit">Save correction</button>
+      <input name="notes" placeholder="Reason for correction" required aria-label="Reason for correction" data-editor-reason>
+      <button class="button" type="submit" disabled data-editor-save>Save correction</button>
+      <button class="reader-edit-cancel" type="button" data-editor-cancel>Cancel</button>
     </div>
   </form>
   <details class="reader-remove">
     <summary>Remove from book…</summary>
     <form class="reader-edit-row" method="post" action="{% url 'catalog:remove-block' edition.id row.block.id %}">
       {% csrf_token %}<input type="hidden" name="chapter" value="{{ row.block.chapter.sequence }}"><input type="hidden" name="q" value="{{ query }}">
-      {% if parallel_edition %}<input type="hidden" name="parallel" value="{{ parallel_edition.id }}">{% if diff_available %}<input type="hidden" name="diff" value="{% if show_diff %}1{% else %}0{% endif %}">{% endif %}{% endif %}
+      {% if parallel_edition %}<input type="hidden" name="parallel" value="{{ parallel_edition.id }}">{% if diff_available %}<input type="hidden" name="diff" value="{% if show_diff %}1{% else %}0{% endif %}">{% endif %}{% endif %}{% if notes %}<input type="hidden" name="layer" value="difficulty">{% endif %}
       <input name="notes" placeholder="Why this block is not part of the book" required>
       <button class="button button-danger" type="submit">Remove block</button>
     </form>
   </details>
-</details>
+</div>

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-
 from django import template
 from django.urls import reverse
 from django.utils.html import format_html
@@ -189,20 +187,24 @@ def usd(value):
     return format_usd(value)
 
 
-_ROMAN = re.compile(r"^[IVXLCDM]+$")
+@register.filter
+def display_title(value, edition=None):
+    """A source title shouted in capitals, cased for display: title case in English, sentence
+    case elsewhere with the book's proper names kept; Roman numerals stay."""
+
+    from almonium_book_processor.catalog.titles import display_title as cased
+
+    return cased(value, edition)
 
 
 @register.filter
-def display_title(value):
-    """A source title shouted in capitals, title-cased for display; Roman numerals stay."""
+def short_title(value, edition=None):
+    """A displayed title up to its first full stop, as a chapter select shows it."""
 
-    text = (value or "").strip().rstrip(".")
-    letters = [ch for ch in text if ch.isalpha()]
-    if not letters or not all(ch.isupper() for ch in letters):
-        return text
-    return " ".join(
-        word if _ROMAN.match(word.rstrip(",;:")) else word.capitalize() for word in text.split()
-    )
+    from almonium_book_processor.catalog.titles import display_title as cased
+    from almonium_book_processor.catalog.titles import short_title as short
+
+    return short(cased(value, edition))
 
 
 @register.filter

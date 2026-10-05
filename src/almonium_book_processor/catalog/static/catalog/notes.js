@@ -80,13 +80,8 @@
 
   document.addEventListener("click", function (event) {
     if (event.target.closest("[data-note-next]")) { step(1); return; }
-    var edit = event.target.closest("[data-note-edit]");
-    if (edit) {
-      var drawer = edit.closest(".notes-block").querySelector(".reader-drawer");
-      drawer.open = true;
-      drawer.querySelector("textarea").focus();
-      return;
-    }
+    // Edit block is reader.js's in-place editor.
+    if (event.target.closest("[data-edit]")) return;
     var tick = event.target.closest("[data-tick]");
     if (tick) { focus(card(tick.dataset.tick), true); return; }
     var target = event.target.closest(".note-card, .note-quote");

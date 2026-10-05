@@ -1281,7 +1281,7 @@ def test_parallel_reader_shows_word_changes_for_a_same_language_companion(client
     reader_staff(client, "parallel-reader-diff")
     url = reverse("catalog:edition-reader", args=[adaptation.id])
 
-    # Changes start on; the switch turns them off.
+    # Beside a level adaptation, changes start off; the switch turns them on.
     plain = client.get(
         url, {"chapter": 1, "parallel": str(canonical.id), "diff": "0"}
     ).content.decode()
@@ -1289,7 +1289,7 @@ def test_parallel_reader_shows_word_changes_for_a_same_language_companion(client
     assert f'&parallel={canonical.id}&diff=1">Changes' in plain
     assert "<ins>" not in plain and "<del>" not in plain
     default = client.get(url, {"chapter": 1, "parallel": str(canonical.id)}).content.decode()
-    assert 'aria-checked="true"' in default and "<ins>piece</ins>" in default
+    assert 'aria-checked="false"' in default and "<ins>" not in default
 
     shown = client.get(
         url, {"chapter": 1, "parallel": str(canonical.id), "diff": "1"}
@@ -1309,6 +1309,14 @@ def test_parallel_reader_shows_word_changes_for_a_same_language_companion(client
         url, {"chapter": 1, "parallel": str(parallel.id), "diff": "1"}
     ).content.decode()
     assert "toolbar-toggle" not in other and "<ins>" not in other
+    # Rows carry id, language and level; the edition type sits once in the column header.
+    assert 'class="reader-columns-head"' in other
+    assert other.count(f"{parallel.get_edition_type_display()}</span>") == 1
+    assert "Every block pairs one to one" not in other or 'class="muted">Every block' in other
+    # Edit is in place and cannot save an untouched text; provenance shows only what is known.
+    assert "data-editor-save>Save correction" in other and "disabled data-editor-save" in other
+    assert "No recorded edits" not in other and "Not recorded" not in other
+    assert "data-provenance-toggle>Provenance" in other
 
 
 def test_parallel_reader_diffs_from_the_source_side_too(client) -> None:
@@ -2453,7 +2461,7 @@ def test_failed_publication_hand_off_is_shown_in_the_processing_history(
     assert "Almonium API returned 503 Service Unavailable" in page.content.decode()
 
 
-def test_parallel_reader_marks_a_mostly_rewritten_row_and_still_highlights_it(client) -> None:
+def test_parallel_reader_marks_a_mostly_rewritten_row_without_highlights(client) -> None:
     canonical, _, source_blocks, _ = parallel_records()
     adaptation = Edition.objects.create(
         slug="parallel-work-b1",
@@ -2485,9 +2493,36 @@ def test_parallel_reader_marks_a_mostly_rewritten_row_and_still_highlights_it(cl
     ).content.decode()
 
     assert ">Rewritten</span>" in shown
-    assert "<ins>" in shown and "<del>" in shown
+    # Highlighting most of a paragraph says less than the chip does.
+    assert "<ins>" not in shown and "<del>" not in shown
     # The decision is a verdict and a reason, never the raw attribute dict.
     assert "<strong>Adapted</strong>" in shown and "· Shorter words." in shown
     assert "'decision'" not in shown
     # A source heading in capitals is title-cased for display.
     assert "<h2>One " in shown
+
+
+def test_titles_are_sentence_cased_outside_english_and_keep_the_books_names() -> None:
+    from types import SimpleNamespace
+
+    from almonium_book_processor.catalog.titles import display_title, proper_names, short_title
+
+    text = [
+        "Ми прийшли до Пондічеррі-Лодж. Там стояв Шерлок Голмс, і Голмс мовчав.",
+        "Трагедія була страшна. Вночі в будинку сталася трагедія.",
+    ]
+    edition = SimpleNamespace(language="uk", _proper_names=proper_names(text))
+    title = display_title("РОЗДІЛ V. ТРАГЕДІЯ В ПОНДІЧЕРРІ-ЛОДЖ.", edition)
+    assert title == "Розділ V. Трагедія в Пондічеррі-Лодж"
+    assert display_title("РОЗДІЛ VI. ШЕРЛОК ГОЛМС ДАЄ УРОК.", edition) == (
+        "Розділ VI. Шерлок Голмс дає урок"
+    )
+    assert short_title(title) == "Розділ V"
+    english = SimpleNamespace(language="en")
+    assert display_title("CHAPTER V. THE TRAGEDY OF PONDICHERRY LODGE.", english) == (
+        "Chapter V. The Tragedy of Pondicherry Lodge"
+    )
+    assert display_title("CHAPTER VI. SHERLOCK HOLMES GIVES A DEMONSTRATION", english) == (
+        "Chapter VI. Sherlock Holmes Gives a Demonstration"
+    )
+    assert display_title("Lettre II", edition) == "Lettre II"
