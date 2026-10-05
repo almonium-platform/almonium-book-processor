@@ -927,6 +927,11 @@ def _requeue_analysis_after_commit(edition: Edition) -> None:
             queue_analysis,
         )
 
+        # An adaptation's level judges keep their reading of a chapter over a phrase too.
+        if edition.edition_type == Edition.EditionType.ADAPTATION:
+            from almonium_book_processor.catalog.adaptation_wording import carry_wording_forward
+
+            carry_wording_forward(edition)
         try:
             if carry_analysis_forward(edition) is None:
                 queue_analysis(str(edition.id))

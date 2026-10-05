@@ -1185,6 +1185,68 @@ def test_a_chapter_the_judges_read_at_the_target_has_nothing_to_mend(adaptation)
     assert fixer.asked == []
 
 
+def test_a_corrected_phrase_keeps_the_judges_reading_and_a_rewritten_chapter_does_not(
+    adaptation, django_capture_on_commit_callbacks
+):
+    from almonium_book_processor.catalog.adaptation_wording import (
+        carry_wording_forward,
+        check_edition,
+        wording_levels,
+    )
+    from almonium_book_processor.catalog.services import revise_block_text
+
+    reviewer = get_user_model().objects.create_user("phrase-editor", is_staff=True)
+    # a real chapter is pages long; one corrected phrase is a sliver of it
+    filler = " ".join(f"Sentence number {i} keeps the chapter long." for i in range(40))
+    for chapter in adaptation.chapters.filter(sequence__in=[1, 2]):
+        ContentBlock.objects.create(
+            edition=adaptation,
+            chapter=chapter,
+            sequence=9,
+            block_id=f"c{chapter.sequence}.b9",
+            block_type="paragraph",
+            text=filler,
+            align_group=uuid.uuid4(),
+        )
+    _analysed(adaptation, "B2")
+    judge = Judge("B2")
+    check_edition(adaptation, provider=judge)
+    assert len(wording_levels(adaptation)) == 4
+    calls = judge.calls
+
+    with django_capture_on_commit_callbacks(execute=True):
+        revise_block_text(
+            edition=adaptation,
+            block_id=adaptation.blocks.get(block_id="c1.b9").id,
+            revised_text=filler.replace("number 3 keeps", "number three keeps"),
+            editor=reviewer,
+        )
+
+    # the edit itself carried the reading: the chapter is still the judges', and nobody was asked
+    first = adaptation.chapters.get(sequence=1)
+    assert wording_levels(adaptation)[str(first.id)] == "B2"
+    check_edition(adaptation, provider=judge)
+    assert judge.calls == calls
+    kept = adaptation.pipeline_runs.filter(
+        processor_version="adaptation-wording-v1", summary__chapter_id=str(first.id)
+    ).first()
+    assert kept.summary["carried"][0]["change"] < 0.02
+
+    # a paragraph rewritten is more than a phrase: that chapter is theirs no longer
+    with django_capture_on_commit_callbacks(execute=True):
+        revise_block_text(
+            edition=adaptation,
+            block_id=adaptation.blocks.get(block_id="c2.b9").id,
+            revised_text="Before dawn " + " ".join(["word"] * 200),
+            editor=reviewer,
+        )
+    second = adaptation.chapters.get(sequence=2)
+    assert str(second.id) not in wording_levels(adaptation)
+    assert carry_wording_forward(adaptation) == []
+    check_edition(adaptation, provider=judge)
+    assert judge.calls == calls + 1
+
+
 def test_only_the_windows_read_above_the_target_are_mended(adaptation):
     from almonium_book_processor.catalog.adaptation_wording import (
         WORDING_VERSION,

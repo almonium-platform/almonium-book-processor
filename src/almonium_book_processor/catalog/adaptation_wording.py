@@ -60,6 +60,17 @@ def check_chapter(edition: Edition, chapter: Chapter, *, provider=None) -> dict 
         return None
     digest = text_hash(blocks)
     readings = judge_readings()
+    specs = judge_specs(edition.language)
+    # readings carried over a small edit stand for this text; nobody reads it again
+    carried = _readings(edition).get((str(chapter.id), digest), [])
+    standing = [
+        next(
+            (a for spec_read, count, a in carried if spec_read == spec and count == readings), None
+        )
+        for spec in specs
+    ]
+    if all(standing):
+        return panel_verdict(standing, edition.language, readings)
     verdicts = [
         judge_text(
             edition=edition,
@@ -73,9 +84,23 @@ def check_chapter(edition: Edition, chapter: Chapter, *, provider=None) -> dict 
             provider=provider,
             processor_version=WORDING_VERSION,
         )
-        for spec in judge_specs(edition.language)
+        for spec in specs
     ]
     return panel_verdict(verdicts, edition.language, readings)
+
+
+def _readings(edition: Edition) -> dict[tuple[str, str], list[tuple[dict, int, dict]]]:
+    """Every judge's finished reading, by chapter and text: its spec, readings and assessment."""
+
+    read: dict[tuple[str, str], list[tuple[dict, int, dict]]] = {}
+    for run in edition.pipeline_runs.filter(
+        processor_version=WORDING_VERSION, status=PipelineRun.Status.SUCCEEDED
+    ).order_by("created_at"):
+        summary = run.summary
+        read.setdefault((summary["chapter_id"], summary["text_hash"]), []).append(
+            (summary["spec"], summary.get("readings"), summary["assessment"])
+        )
+    return read
 
 
 def check_edition(edition: Edition, *, provider=None, workers: int = 1) -> dict[str, dict]:
@@ -103,16 +128,7 @@ def wording_levels(edition: Edition) -> dict[str, str]:
 
     specs = judge_specs(edition.language)
     readings = judge_readings()
-    read: dict[tuple[str, str], list[tuple[dict, str]]] = {}
-    for run in edition.pipeline_runs.filter(
-        processor_version=WORDING_VERSION, status=PipelineRun.Status.SUCCEEDED
-    ):
-        summary = run.summary
-        if summary.get("readings") != readings:
-            continue
-        read.setdefault((summary["chapter_id"], summary["text_hash"]), []).append(
-            (summary["spec"], summary["assessment"]["max_level"])
-        )
+    read = _readings(edition)
     if not read:
         return {}
     levels = {}
@@ -121,10 +137,84 @@ def wording_levels(edition: Edition) -> dict[str, str]:
         if not blocks:
             continue
         seen = read.get((str(chapter.id), text_hash(blocks)), [])
-        found = [level for spec in specs for seen_spec, level in seen if seen_spec == spec]
-        if len(found) == len(specs):
+        found = [
+            assessment["max_level"]
+            for spec in specs
+            for seen_spec, count, assessment in seen
+            if seen_spec == spec and count == readings
+        ]
+        if len(found) >= len(specs):
             levels[str(chapter.id)] = max(found, key=LEVELS.index)
     return levels
+
+
+def carry_wording_forward(edition: Edition, *, max_change: float = 0.02) -> list[dict]:
+    """Keep the judges' reading of a chapter that changed by a phrase, not by a page.
+
+    The same rule the chapter analysis carries its verdict by. A chapter whose current text
+    no judge has read, but whose words differ by no more than ``max_change`` from the text
+    they did read, keeps their readings under the new text. The change is always measured
+    against the text that was really read, so small edits cannot add up unnoticed. A chapter
+    that changed more is left for the judges to read again. Reading a whole chapter six times
+    to confirm a corrected phrase costs money and invites judge noise into a level the text
+    did not move.
+    """
+
+    import difflib
+    import re
+
+    runs: dict[str, dict[str, list[PipelineRun]]] = {}
+    for run in edition.pipeline_runs.filter(
+        processor_version=WORDING_VERSION, status=PipelineRun.Status.SUCCEEDED
+    ).order_by("created_at"):
+        runs.setdefault(run.summary["chapter_id"], {}).setdefault(
+            run.summary["text_hash"], []
+        ).append(run)
+    carried = []
+    for chapter in edition.chapters.prefetch_related("blocks"):
+        blocks = chapter_blocks(chapter)
+        read = runs.get(str(chapter.id))
+        if not blocks or not read:
+            continue
+        digest = text_hash(blocks)
+        if digest in read:
+            continue
+        # the readings of the text most recently read
+        previous = list(read.values())[-1]
+        assessment = previous[0].summary["assessment"]
+        first_reading = assessment["ai_run_ids"][: len(assessment["windows"])]
+        judged = {
+            str(result.id): result
+            for result in AIRun.objects.filter(id__in=first_reading, status=AIRun.Status.SUCCEEDED)
+        }
+        if len(judged) != len(first_reading):
+            continue
+        before = re.findall(
+            r"\S+",
+            " ".join(
+                block["text"]
+                for run_id in first_reading
+                for block in judged[run_id].request_payload["window"]["blocks"]
+            ),
+        )
+        after = re.findall(r"\S+", " ".join(block["text"] for block in blocks))
+        change = 1 - difflib.SequenceMatcher(None, before, after, autojunk=False).ratio()
+        if change > max_change:
+            continue
+        note = {
+            "from": previous[0].summary["text_hash"],
+            "change": round(change, 4),
+            "at": timezone.now().isoformat(),
+        }
+        for run in previous:
+            run.summary = {
+                **run.summary,
+                "text_hash": digest,
+                "carried": [*run.summary.get("carried", []), note],
+            }
+            run.save(update_fields=["summary", "updated_at"])
+        carried.append({"chapter_id": str(chapter.id), "sequence": chapter.sequence, **note})
+    return carried
 
 
 AUTOMATIC_NOTE = (

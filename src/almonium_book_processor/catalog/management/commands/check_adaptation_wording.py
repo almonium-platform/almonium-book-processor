@@ -4,6 +4,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from almonium_book_processor.catalog.adaptation_quality import adaptation_target
 from almonium_book_processor.catalog.adaptation_wording import (
+    carry_wording_forward,
     check_chapter,
     check_edition,
     revise_chapter,
@@ -44,6 +45,11 @@ class Command(BaseCommand):
         target = adaptation_target(edition)
         if target not in LEVELS:
             raise CommandError("The edition has no single adaptation target.")
+        for kept in carry_wording_forward(edition):
+            self.stdout.write(
+                f"{kept['sequence']:>3} changed by {100 * kept['change']:.2f}% of its words: "
+                "the judges' reading is kept"
+            )
         verdicts = check_edition(edition, workers=options["workers"])
         for chapter in edition.chapters.order_by("sequence"):
             verdict = verdicts.get(str(chapter.id))
