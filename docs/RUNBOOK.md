@@ -49,6 +49,12 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   the `plans` queue. Left empty, the pilot is judged and audited by the API's
   models as before. A probe records its generator, judges and auditors, so
   changing any of them makes the level probeable again.
+- The Claude Code CLI is asked for a family (`opus`, `fable`) and runs that
+  family's current model. Settings and records keep the family; pages print
+  the version it stood for (`opus-5.5`), from `CLAUDE_CODE_MODELS` in
+  `ai/seats.py`. When the CLI moves a family to a new model, update that table;
+  `claude -p --model opus --output-format json` names the model under
+  `modelUsage`.
 - `./plan-manage <command>` runs `manage.py` on the host with the same
   settings, for the commands that call a plan's CLI: `plan_meter`,
   `translate_on_plan`, `review_translation`, `check_adaptation_wording`.
