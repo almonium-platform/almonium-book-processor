@@ -7,6 +7,7 @@ from almonium_book_processor.catalog.adaptation_wording import (
     check_chapter,
     check_edition,
     revise_chapter,
+    spot_fix_chapter,
 )
 from almonium_book_processor.catalog.chapter_projections import LEVELS
 from almonium_book_processor.catalog.models import Edition, PipelineRun
@@ -16,9 +17,10 @@ class Command(BaseCommand):
     help = (
         "Have the pilot's level judges read every chapter of an adapted edition for its "
         "wording, so the edition's level gate uses their reading. With --revise, a "
-        "substantive chapter read above the target goes back to the adapter once with what "
-        "the judges cited, and the revision is applied if they read it at the target. Run on "
-        "the machine where the judges' CLIs are signed in."
+        "substantive chapter read above the target is mended: the adapter rewrites the "
+        "paragraphs the judges cited, and if they still read the chapter above the target it "
+        "goes back to the adapter whole, once, where its length allows. Run on the machine "
+        "where the judges' CLIs are signed in."
     )
 
     def add_arguments(self, parser):
@@ -54,18 +56,35 @@ class Command(BaseCommand):
                 for judge in verdict.get("judges", [])
             )
             if above and options["revise"] and chapter.analysis_role == "body":
-                self._wait_idle(edition, options["idle_timeout"])
-                chapter.refresh_from_db()
-                outcome = revise_chapter(edition, chapter, verdict)
-                if outcome["applied"]:
-                    self._wait_idle(edition, options["idle_timeout"])
-                    reread = check_chapter(edition, edition.chapters.get(pk=chapter.id))
-                    line += f"  -> revised and applied, now read {reread['max_level']}"
-                else:
-                    line += f"  -> not revised: {outcome['reason']}"
+                line += self._mend(edition, chapter, verdict, target, options["idle_timeout"])
             elif above:
                 line += "  (above the target)"
             self.stdout.write(line)
+
+    def _mend(self, edition, chapter, verdict, target, timeout: int) -> str:
+        """The cited paragraphs first; the whole chapter once if that was not enough."""
+
+        def too_hard(reading) -> bool:
+            return LEVELS.index(reading["max_level"]) > LEVELS.index(target)
+
+        self._wait_idle(edition, timeout)
+        spot = spot_fix_chapter(edition, edition.chapters.get(pk=chapter.id))
+        note = f"  -> {spot['changed']} cited paragraph(s) rewritten"
+        if spot["skipped"]:
+            note += f" ({len(spot['skipped'])} left: {'; '.join(spot['skipped'])})"
+        if spot["changed"]:
+            self._wait_idle(edition, timeout)
+            verdict = check_chapter(edition, edition.chapters.get(pk=chapter.id))
+            note += f", now read {verdict['max_level']}"
+            if not too_hard(verdict):
+                return note
+        self._wait_idle(edition, timeout)
+        outcome = revise_chapter(edition, edition.chapters.get(pk=chapter.id), verdict)
+        if not outcome["applied"]:
+            return note + f"; whole chapter not revised: {outcome['reason']}"
+        self._wait_idle(edition, timeout)
+        reread = check_chapter(edition, edition.chapters.get(pk=chapter.id))
+        return note + f"; whole chapter revised and applied, now read {reread['max_level']}"
 
     def _wait_idle(self, edition, timeout: int) -> None:
         """A revision replaces a chapter, which the edition refuses while its jobs run."""

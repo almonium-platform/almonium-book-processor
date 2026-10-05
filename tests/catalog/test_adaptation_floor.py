@@ -1087,6 +1087,104 @@ def test_a_chapter_read_above_the_target_is_revised_and_applied_only_at_the_targ
     assert "Applied automatically" in revision.notes and "No person has reviewed" in revision.notes
 
 
+class CitingJudge(Judge):
+    """Reads at C1 and cites a hard word, a passage, and what the passage is about."""
+
+    def respond(self, body):
+        response = super().respond(body)
+        content = response["output"][0]["content"][0]
+        result = json.loads(content["text"])
+        block_id = result["evidence"][0]["block_id"]
+        result["hard_words"] = [
+            {"block_id": block_id, "surface": "dawn", "explanation": "The first light of day."}
+        ]
+        result["evidence"].append(
+            {
+                "block_id": block_id,
+                "quote": "he left",
+                "dimension": "content",
+                "explanation": "A departure.",
+            }
+        )
+        result["content_flags"] = ["Departure"]
+        content["text"] = json.dumps(result)
+        return response
+
+
+class SpotFixer:
+    def __init__(self, text):
+        self.text = text
+        self.asked = []
+
+    def respond(self, body):
+        payload = json.loads(body["input"])
+        self.asked.append({"instructions": body["instructions"], **payload})
+        return _response(
+            {
+                "blocks": [
+                    {"block_id": p["block_id"], "text": self.text, "reason": "A plainer verb."}
+                    for p in payload["paragraphs"]
+                ]
+            }
+        )
+
+
+def test_only_the_paragraphs_the_judges_cited_are_rewritten(adaptation):
+    from almonium_book_processor.catalog.adaptation_wording import check_chapter, spot_fix_chapter
+
+    chapter = adaptation.chapters.get(sequence=1)
+    check_chapter(adaptation, chapter, provider=CitingJudge("C1"))
+    fixer = SpotFixer("Before dawn, he went away.")
+
+    outcome = spot_fix_chapter(adaptation, chapter, provider=fixer)
+
+    assert outcome == {"changed": 1, "skipped": [], "block_ids": ["c1.b1"]}
+    # the adapter saw the one cited paragraph, with its original and what was cited in it
+    asked = fixer.asked[0]
+    assert "CEFR B2 reader" in asked["instructions"]
+    assert asked["paragraphs"] == [
+        {
+            "block_id": "c1.b1",
+            "original": "Ere dawn, he departed.",
+            "adaptation": "Before dawn, he left.",
+            # the word and the passage, not what the passage is about: that is the author's
+            "notes": ["word: dawn", "passage: \u201cBefore dawn\u201d: Direct narration."],
+        }
+    ]
+    assert adaptation.blocks.get(block_id="c1.b1").text == "Before dawn, he went away."
+    # the rest of the chapter, and the other chapters, stand as they were
+    assert adaptation.blocks.get(block_id="c1.b2").text == "He was afraid."
+    assert adaptation.blocks.get(block_id="c2.b1").text == "Before dawn, he left."
+    revision = adaptation.blocks.get(block_id="c1.b1").revisions.latest("created_at")
+    assert "Rewritten automatically" in revision.notes and "A plainer verb." in revision.notes
+    # the new text has not been read by the judges, so nothing is cited in it yet
+    again = spot_fix_chapter(adaptation, chapter, provider=fixer)
+    assert again["changed"] == 0 and len(fixer.asked) == 1
+
+
+def test_a_rewrite_that_lost_most_of_the_paragraph_is_not_written_in(adaptation):
+    from almonium_book_processor.catalog.adaptation_wording import check_chapter, spot_fix_chapter
+
+    chapter = adaptation.chapters.get(sequence=1)
+    check_chapter(adaptation, chapter, provider=CitingJudge("C1"))
+
+    outcome = spot_fix_chapter(adaptation, chapter, provider=SpotFixer("He left."))
+
+    assert outcome["changed"] == 0 and "c1.b1: length 0.36" in outcome["skipped"][0]
+    assert adaptation.blocks.get(block_id="c1.b1").text == "Before dawn, he left."
+
+
+def test_a_chapter_the_judges_read_at_the_target_has_nothing_to_mend(adaptation):
+    from almonium_book_processor.catalog.adaptation_wording import check_chapter, spot_fix_chapter
+
+    chapter = adaptation.chapters.get(sequence=1)
+    check_chapter(adaptation, chapter, provider=CitingJudge("B2"))
+    fixer = SpotFixer("Before dawn, he went away.")
+
+    assert spot_fix_chapter(adaptation, chapter, provider=fixer)["changed"] == 0
+    assert fixer.asked == []
+
+
 def test_a_phrase_level_fix_carries_the_difficulty_verdict_forward(
     adaptation, django_capture_on_commit_callbacks
 ):
