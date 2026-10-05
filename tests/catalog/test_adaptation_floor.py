@@ -1008,6 +1008,63 @@ def test_an_edition_audited_by_two_auditors_queues_what_they_raised_and_said(
     assert audit_context(adaptation)["fidelity_audit_state"] == "current"
 
 
+def test_a_correction_that_would_repeat_the_sentence_beside_it_is_not_ready_to_apply():
+    from almonium_book_processor.catalog.fidelity_audit import repeats_text
+
+    # the auditor quoted the second sentence and wrote a correction that takes in the first
+    text = (
+        "I gathered around me the tools I needed to give life. "
+        "I hoped to put a spark of life into the lifeless thing at my feet. It was one."
+    )
+    quote = "I hoped to put a spark of life into the lifeless thing at my feet"
+    start = text.index(quote)
+    merged = (
+        "I gathered around me the tools I needed so that I could put a spark of life into the "
+        "lifeless thing at my feet"
+    )
+    assert repeats_text(text, start, start + len(quote), merged)
+    # a correction that ends the sentence, pasted over its first words, leaves the old tail
+    text = "I hoped his words would explain these unusual sights."
+    quote = "I hoped his words would explain"
+    assert repeats_text(
+        text, 0, len(quote), "I waited to learn from his words what these sights meant."
+    )
+    # an ordinary correction of the quoted words is ready
+    text = "It stood a little more than one old unit of distance from the city. We lived there."
+    quote = "a little more than one old unit of distance from the city"
+    start = text.index(quote)
+    assert not repeats_text(
+        text, start, start + len(quote), "a little more than three miles from the city"
+    )
+
+
+def test_such_a_correction_is_queued_for_a_hand_edit_not_for_one_click(adaptation):
+    block = adaptation.blocks.get(block_id="c1.b2")
+    # the correction takes in the sentence before, but not word for word, so the span cannot
+    # simply be widened to cover it
+    block.text = (
+        "He packed his bags that night to be ready. He hoped to leave before the others woke."
+    )
+    block.save()
+    issue = {
+        **MATERIAL,
+        "block_id": "c1.b2",
+        "source_quote": "He was afraid.",
+        "adapted_quote": "He hoped to leave before the others woke",
+        "suggested_correction": (
+            "He packed his bags that night so that he could leave before the others woke"
+        ),
+    }
+
+    audit = queue_edition_audit(adaptation.id)
+    run_edition_audit(audit.id, provider=Auditor([issue]))
+
+    finding = adaptation.text_quality_findings.get(stable_block_id="c1.b2")
+    # the editor still sees what the auditor proposed, but nothing is offered to paste in
+    assert finding.suggested_text == ""
+    assert finding.evidence["suggested_correction"].startswith("He packed his bags that night so")
+
+
 def _analysed(adaptation, level):
     from almonium_book_processor.catalog.chapter_analysis import analyze_chapters, queue_analysis
 

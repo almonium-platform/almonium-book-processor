@@ -891,6 +891,33 @@ def usable_suggestion(suggestion: str) -> str:
     return suggestion
 
 
+def repeats_text(text: str, start: int, end: int, suggestion: str) -> bool:
+    """Whether writing the suggestion over the span would leave old wording beside the new.
+
+    The auditor quotes a few words and often writes its correction for the whole sentence, or
+    for two sentences joined into one. ``replacement_span`` grows the span where the words on
+    either side match; where it cannot, pasting the correction in repeats a sentence or leaves
+    a tail: "I gathered around me the tools I needed to give life. I gathered around me the
+    tools I needed so that I could put a spark of life…". Sixteen paragraphs of one book came
+    out that way when its corrections were applied in bulk. Such a correction is right, but it
+    is not safe to write in unseen, so it is shown and not offered for one-click applying.
+    """
+
+    def twice(value: str) -> set:
+        words = re.findall(r"\w+", value.lower())
+        seen, repeated = set(), set()
+        for index in range(len(words) - 4):
+            run = tuple(words[index : index + 5])
+            (repeated if run in seen else seen).add(run)
+        return repeated
+
+    result = text[:start] + suggestion + text[end:]
+    if twice(result) - twice(text):
+        return True
+    # a correction that ends its sentence, pasted before the rest of the old one
+    return suggestion.rstrip()[-1:] in ".!?" and text[end:].lstrip()[:1].islower()
+
+
 def replacement_span(text: str, start: int, end: int, suggestion: str) -> tuple[int, int, str]:
     """The stretch of ``text`` the suggestion really rewrites, and the words to write in.
 
@@ -976,6 +1003,7 @@ def _record_findings(run: PipelineRun, edition: Edition, review: dict) -> None:
         if located and suggested:
             *located, suggested = replacement_span(block.text, located[0], located[1], suggested)
         start, end = located if located else (None, None)
+        ready = bool(located and suggested) and not repeats_text(block.text, start, end, suggested)
         fingerprint = _hash(
             [issue["block_id"], issue["source_quote"], issue["adapted_quote"], issue["explanation"]]
         )
@@ -1017,7 +1045,7 @@ def _record_findings(run: PipelineRun, edition: Edition, review: dict) -> None:
                 "original_text": block.text[start:end]
                 if located
                 else _bare(issue["adapted_quote"]),
-                "suggested_text": suggested if located and suggested else "",
+                "suggested_text": suggested if ready else "",
                 # A translation review ranks by how many reviewers raised the issue.
                 "confidence": issue.get("confidence", CONFIDENCE[issue["severity"]]),
                 "message": issue["explanation"],
@@ -1303,7 +1331,9 @@ def relocate_fidelity_findings(edition: Edition, block_ids) -> None:
         if located:
             finding.start_offset, finding.end_offset = located
             finding.original_text = text[located[0] : located[1]]
-            finding.suggested_text = suggested
+            finding.suggested_text = (
+                "" if suggested and repeats_text(text, *located, suggested) else suggested
+            )
         else:
             finding.start_offset = finding.end_offset = None
             finding.suggested_text = ""
