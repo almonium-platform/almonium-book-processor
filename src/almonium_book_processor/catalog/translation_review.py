@@ -50,6 +50,7 @@ from almonium_book_processor.catalog.models import (
     PipelineRun,
     PromptTemplate,
 )
+from almonium_book_processor.catalog.spend import record_failed_call
 
 REVIEW_VERSION = TRANSLATION_REVIEW_VERSION
 PROMPT_NAME = "literary-translation-reviewer"
@@ -308,6 +309,9 @@ def _review_window(run, edition, window: dict, reviewer: dict, system: str, prov
     )
     try:
         response = (provider or _provider(reviewer)).respond(body)
+        # the answer is paid for whether or not it validates below
+        ai.add_attempt_usage(**_usage(reviewer, response))
+        ai.save(update_fields=[*AIRun.USAGE_FIELDS, "updated_at"])
         review = Review.model_validate_json(response_output_text(response))
         by_id = {pair["block_id"]: pair for pair in window["data"]["blocks"]}
         issues = []
@@ -321,13 +325,13 @@ def _review_window(run, edition, window: dict, reviewer: dict, system: str, prov
             )
             data["reviewer"] = reviewer["name"]
             issues.append(data)
-        ai.add_attempt_usage(**_usage(reviewer, response))
         ai.response_payload = {"review": {"issues": issues, "assessment": review.assessment}}
         ai.status = AIRun.Status.SUCCEEDED
         ai.finished_at = timezone.now()
         ai.save()
         return issues
     except Exception as error:
+        record_failed_call(ai.id, error, provider=reviewer["provider"], model=reviewer["model"])
         AIRun.objects.filter(pk=ai.id).update(
             status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
         )
@@ -463,14 +467,16 @@ def _ask(run, edition, reviewer: dict, step: str, system: str, payload: dict, mo
     )
     try:
         response = (provider or _provider(reviewer)).respond(body)
-        answer = model.model_validate_json(response_output_text(response))
         ai.add_attempt_usage(**_usage(reviewer, response))
+        ai.save(update_fields=[*AIRun.USAGE_FIELDS, "updated_at"])
+        answer = model.model_validate_json(response_output_text(response))
         ai.response_payload = {"answer": answer.model_dump()}
         ai.status = AIRun.Status.SUCCEEDED
         ai.finished_at = timezone.now()
         ai.save()
         return answer
     except Exception as error:
+        record_failed_call(ai.id, error, provider=reviewer["provider"], model=reviewer["model"])
         AIRun.objects.filter(pk=ai.id).update(
             status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
         )

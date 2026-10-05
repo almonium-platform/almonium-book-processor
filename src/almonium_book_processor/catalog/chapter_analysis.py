@@ -528,6 +528,15 @@ def _attempt(
             current.save(update_fields=["status", "response_payload", "finished_at", "updated_at"])
         return current
     except Exception as error:
+        from almonium_book_processor.catalog.spend import record_failed_call
+
+        record_failed_call(
+            ai_run.id,
+            error,
+            provider=spec["provider"],
+            model=spec["model"],
+            prices=spec["pricing_per_million"],
+        )
         # Schema and provider exceptions can contain book text, so only our own
         # messages are stored verbatim; source-bearing payloads are handled by purge.
         if isinstance(error, OutputLanguageError) and result is not None:

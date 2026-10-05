@@ -399,6 +399,14 @@ def run_pilot(run_id, *, provider=None):
             }
             run.save()
     except Exception as error:
+        from almonium_book_processor.catalog.spend import record_failed_call
+
+        record_failed_call(
+            ai.id,
+            error,
+            provider=ai.model_configuration.provider,
+            model=ai.model_configuration.model,
+        )
         # Never save stale in-memory payloads here: removal must stay scrubbed.
         AIRun.objects.filter(pk=ai.id).update(
             status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()

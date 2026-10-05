@@ -27,19 +27,72 @@ RETRY_PAUSE_SECONDS = 15.0
 _ALLOWANCE_USED_UP = re.compile(r"usage limit|limit reached", re.IGNORECASE)
 
 
+class CallFailed(RuntimeError):
+    """A CLI call that failed after it had used tokens. ``spent`` says what it used.
+
+    ``spent`` has the shape of a response's cost-bearing parts, its usage and for Claude Code
+    the CLI's own price, so that whatever records a response's cost can record a failure's.
+    """
+
+    def __init__(self, message: str, spent: dict[str, Any] | None = None) -> None:
+        super().__init__(message)
+        self.spent = spent
+
+
+def spent_by(error: BaseException) -> dict[str, Any] | None:
+    """What a failed call had already used, where the CLI said."""
+
+    return getattr(error, "spent", None)
+
+
+def _together(first: dict[str, Any] | None, second: dict[str, Any]) -> dict[str, Any]:
+    """``second`` carrying the tokens and the price of ``first`` as well: both were paid for."""
+
+    if not first:
+        return second
+    used, usage = first.get("usage") or {}, second.setdefault("usage", {})
+    for key in ("input_tokens", "output_tokens"):
+        usage[key] = (usage.get(key) or 0) + (used.get(key) or 0)
+    for group, key in (
+        ("input_tokens_details", "cached_tokens"),
+        ("output_tokens_details", "reasoning_tokens"),
+    ):
+        details = usage.setdefault(group, {})
+        details[key] = (details.get(key) or 0) + ((used.get(group) or {}).get(key) or 0)
+    price = (first.get("claude_code") or {}).get("api_equivalent_cost_usd")
+    if price is not None:
+        priced = second.setdefault("claude_code", {})
+        priced["api_equivalent_cost_usd"] = (priced.get("api_equivalent_cost_usd") or 0) + price
+    return second
+
+
 def tried_twice(
     call: Callable[[], dict[str, Any]], *, pause: Callable[[float], None] = time.sleep
 ) -> dict[str, Any]:
-    """``call()``, and once more after a short pause if the CLI failed in passing."""
+    """``call()``, and once more after a short pause if the CLI failed in passing.
+
+    A call that failed after using tokens is not free. Its tokens are added to the second
+    call's when that one answers, and travel with the error when it fails too, so the ledger
+    shows what both cost.
+    """
 
     try:
         return call()
     except (RuntimeError, subprocess.TimeoutExpired) as error:
         if _ALLOWANCE_USED_UP.search(str(error)):
             raise
+        first = spent_by(error)
         logger.warning("A plan CLI call failed and is tried once more: %s", str(error)[:300])
     pause(RETRY_PAUSE_SECONDS)
-    return call()
+    try:
+        return _together(first, call())
+    except CallFailed as error:
+        error.spent = _together(first, error.spent or {})
+        raise
+    except (RuntimeError, subprocess.TimeoutExpired) as error:
+        if first:
+            raise CallFailed(str(error) or type(error).__name__, first) from error
+        raise
 
 
 def fits_schema(answer: Any, schema: dict[str, Any]) -> None:

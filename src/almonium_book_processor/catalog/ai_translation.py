@@ -22,6 +22,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from almonium_book_processor.ai.claude_code_provider import ClaudeCodeProvider
+from almonium_book_processor.ai.cli_calls import spent_by
 from almonium_book_processor.ai.codex_provider import CodexProvider
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
 from almonium_book_processor.ai.output_language import validate_output_language
@@ -801,9 +802,14 @@ def _direct_output_line(provider: OpenAIBatchProvider, request: dict[str, Any]) 
     try:
         body = provider.respond(request["body"])
     except Exception as error:  # recorded per chapter; the run fails as a whole
+        # a CLI call that failed after the model answered was paid for all the same
+        spent = (spent_by(error) or {}).get("usage") or {}
         return {
             "custom_id": request["custom_id"],
-            "response": {"status_code": 502, "body": {"error": str(error)[:500]}},
+            "response": {
+                "status_code": 502,
+                "body": {"error": str(error)[:500], "usage": spent},
+            },
         }
     return {"custom_id": request["custom_id"], "response": {"status_code": 200, "body": body}}
 

@@ -12,7 +12,7 @@ from typing import Any
 
 from django.conf import settings
 
-from almonium_book_processor.ai.cli_calls import fits_schema, tried_twice
+from almonium_book_processor.ai.cli_calls import CallFailed, fits_schema, tried_twice
 
 
 def codex_meter(
@@ -157,19 +157,7 @@ class CodexProvider:
                 usage = event.get("usage") or {}
             elif kind in ("error", "turn.failed"):
                 error = str(event.get("message") or event.get("error"))[:500]
-        if not text:
-            detail = error or (completed.stderr or "").strip()[-500:] or "no answer"
-            raise RuntimeError(f"Codex returned no answer: {detail}")
-        try:
-            answer = json.loads(text)
-        except json.JSONDecodeError as failure:
-            raise RuntimeError("Codex returned an answer that is not JSON") from failure
-        fits_schema(answer, schema)
-        return {
-            "id": f"codex-{uuid.uuid4()}",
-            "model": body["model"],
-            "status": "completed",
-            "output": [{"type": "message", "content": [{"type": "output_text", "text": text}]}],
+        spent = {
             "usage": {
                 "input_tokens": usage.get("input_tokens") or 0,
                 "output_tokens": usage.get("output_tokens") or 0,
@@ -177,7 +165,26 @@ class CodexProvider:
                 "output_tokens_details": {
                     "reasoning_tokens": usage.get("reasoning_output_tokens") or 0
                 },
-            },
+            }
+        }
+        try:
+            if not text:
+                detail = error or (completed.stderr or "").strip()[-500:] or "no answer"
+                raise RuntimeError(f"Codex returned no answer: {detail}")
+            try:
+                answer = json.loads(text)
+            except json.JSONDecodeError as failure:
+                raise RuntimeError("Codex returned an answer that is not JSON") from failure
+            fits_schema(answer, schema)
+        except RuntimeError as failure:
+            # the turn was paid for whether or not its answer can be used
+            raise CallFailed(str(failure), spent if usage else None) from failure
+        return {
+            "id": f"codex-{uuid.uuid4()}",
+            "model": body["model"],
+            "status": "completed",
+            "output": [{"type": "message", "content": [{"type": "output_text", "text": text}]}],
+            **spent,
         }
 
     def submit(self, requests, *, metadata):  # noqa: ARG002

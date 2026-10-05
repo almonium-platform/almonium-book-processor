@@ -254,6 +254,18 @@ def _record_usage(ai_id, response: dict, spec: dict) -> None:
         )
 
 
+def _record_failed(ai_id, error: BaseException, spec: dict) -> None:
+    from almonium_book_processor.catalog.spend import record_failed_call
+
+    record_failed_call(
+        ai_id,
+        error,
+        provider=spec["provider"],
+        model=spec["model"],
+        prices=spec["pricing_per_million"],
+    )
+
+
 def _audit_window(run, window: dict, spec: dict, configuration, prompt, provider) -> AIRun:
     """One paid comparison of a block-pair window; a validated answer is reused verbatim."""
 
@@ -323,6 +335,7 @@ def _audit_window(run, window: dict, spec: dict, configuration, prompt, provider
             current.save(update_fields=["response_payload", "status", "finished_at", "updated_at"])
         return current
     except Exception as error:
+        _record_failed(ai.id, error, spec)
         AIRun.objects.filter(pk=ai.id).update(
             status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
         )
@@ -452,6 +465,7 @@ def _second_opinion(run, spec: dict, items: list[dict], pairs: list[dict], langu
             ai.finished_at = timezone.now()
             ai.save(update_fields=["response_payload", "status", "finished_at", "updated_at"])
         except Exception as error:
+            _record_failed(ai.id, error, spec)
             AIRun.objects.filter(pk=ai.id).update(
                 status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
             )

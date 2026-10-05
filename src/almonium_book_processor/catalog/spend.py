@@ -189,3 +189,45 @@ def spend_by_work(works) -> dict[Any, str]:
         work_id = slugs[row["tombstone__work_slug"]]
         totals[work_id] = totals.get(work_id, Decimal("0")) + (row["usd"] or Decimal("0"))
     return {work_id: format_usd(usd) for work_id, usd in totals.items()}
+
+
+def record_failed_call(
+    ai_id, error: BaseException, *, provider: str, model: str, prices: dict | None = None
+) -> None:
+    """Add what a failed plan call had already used to its ledger row.
+
+    A CLI call that fails after the model answered was paid for: an answer that is not the
+    JSON asked for, or breaks its schema, costs what a good one does. The wrappers hand that
+    usage over with the error (``ai.cli_calls.CallFailed``); an error that carries none, a
+    timeout or a refusal by the API, leaves the row as it is. ``prices`` is the stage's own
+    price table per million tokens, where it has one.
+    """
+
+    from almonium_book_processor.ai.cli_calls import spent_by
+    from almonium_book_processor.ai.pricing import call_cost, has_price, plan_priced
+
+    spent = spent_by(error)
+    if not spent or not AIRun.objects.filter(pk=ai_id).exists():
+        return
+    usage = spent.get("usage") or {}
+    tokens = {
+        "input_tokens": usage.get("input_tokens") or 0,
+        "cached_input_tokens": (usage.get("input_tokens_details") or {}).get("cached_tokens") or 0,
+        "output_tokens": usage.get("output_tokens") or 0,
+    }
+    if prices:
+        computed = (
+            Decimal(max(0, tokens["input_tokens"] - tokens["cached_input_tokens"]))
+            * Decimal(prices["input"])
+            + Decimal(tokens["cached_input_tokens"]) * Decimal(prices["cached_input"])
+            + Decimal(tokens["output_tokens"]) * Decimal(prices["output"])
+        ) / Decimal(1_000_000)
+    else:
+        computed = call_cost(provider, model, **tokens) if has_price(model) else Decimal("0")
+    ai = AIRun.objects.get(pk=ai_id)
+    ai.add_attempt_usage(
+        **tokens,
+        reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens") or 0,
+        estimated_cost_usd=plan_priced(spent, computed),
+    )
+    ai.save(update_fields=[*AIRun.USAGE_FIELDS, "updated_at"])

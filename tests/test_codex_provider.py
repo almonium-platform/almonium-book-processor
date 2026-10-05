@@ -205,3 +205,33 @@ def test_an_answer_that_breaks_the_schema_is_asked_for_again_and_never_quoted():
     with pytest.raises(RuntimeError, match=r"quote \(maxLength\)") as failure:
         always_long.respond(body)
     assert "secret" not in str(failure.value)
+
+
+def test_a_failed_call_that_used_tokens_is_counted_with_the_one_that_answered():
+    outputs = [answer(text="not json"), answer()]
+    provider = CodexProvider(
+        binary="codex",
+        timeout_seconds=5,
+        runner=lambda command, **kwargs: SimpleNamespace(
+            returncode=0, stdout=outputs.pop(0), stderr=""
+        ),
+        pause=lambda _: None,
+    )
+
+    usage = provider.respond(BODY)["usage"]
+
+    # two turns were paid for: the one whose answer could not be used, and the good one
+    assert usage["input_tokens"] == 30000 and usage["output_tokens"] == 1800
+    assert usage["input_tokens_details"]["cached_tokens"] == 24000
+
+
+def test_a_call_that_fails_twice_says_what_both_attempts_used():
+    from almonium_book_processor.ai.cli_calls import spent_by
+
+    provider, calls = provider_with(stdout=answer(text="not json"))
+
+    with pytest.raises(RuntimeError, match="not JSON") as failure:
+        provider.respond(BODY)
+
+    assert len(calls) == 2
+    assert spent_by(failure.value)["usage"]["output_tokens"] == 1800

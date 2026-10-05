@@ -299,3 +299,26 @@ def test_a_review_started_again_does_not_pay_twice_for_a_second_opinion():
     assert again.status == PipelineRun.Status.SUCCEEDED
     assert len(opus.bodies) == 2 and len(outside.bodies) == 1
     assert edition.text_quality_findings.count() == 1
+
+
+def test_a_call_that_failed_after_the_model_answered_is_in_the_ledger():
+    from almonium_book_processor.ai.cli_calls import CallFailed
+    from almonium_book_processor.catalog.models import AIRun
+
+    edition = translated_edition()
+
+    class Garbled:
+        def respond(self, body):
+            raise CallFailed(
+                "The answer does not fit the schema asked for",
+                {"usage": {"input_tokens": 9000, "output_tokens": 700}},
+            )
+
+    with pytest.raises(CallFailed):
+        review_translation(
+            str(edition.id), providers={"claude-code": Garbled(), "codex": FakeReviewer([])}
+        )
+
+    failed = AIRun.objects.get(status=AIRun.Status.FAILED)
+    assert (failed.input_tokens, failed.output_tokens) == (9000, 700)
+    assert failed.estimated_cost_usd > 0

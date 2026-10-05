@@ -496,6 +496,8 @@ def _ask_spot_fix(edition, chapter, target, paragraphs, provider) -> list[Revise
                 else Decimal("0")
             ),
         )
+        # the answer is paid for whether or not it validates below
+        ai.save(update_fields=[*AIRun.USAGE_FIELDS, "updated_at"])
         revision = SpotFix.model_validate_json(response_output_text(response))
         ai.response_payload = {"revision": revision.model_dump()}
         ai.status = AIRun.Status.SUCCEEDED
@@ -508,6 +510,9 @@ def _ask_spot_fix(edition, chapter, target, paragraphs, provider) -> list[Revise
         run.save(update_fields=["summary", "status", "progress", "finished_at", "updated_at"])
         return revision.blocks
     except Exception as error:
+        from almonium_book_processor.catalog.spend import record_failed_call
+
+        record_failed_call(ai.id, error, provider=seat.provider, model=seat.model)
         AIRun.objects.filter(pk=ai.id).update(
             status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
         )

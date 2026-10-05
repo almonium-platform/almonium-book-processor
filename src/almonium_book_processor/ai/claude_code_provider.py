@@ -13,7 +13,7 @@ from typing import Any
 
 from django.conf import settings
 
-from almonium_book_processor.ai.cli_calls import fits_schema, tried_twice
+from almonium_book_processor.ai.cli_calls import CallFailed, fits_schema, tried_twice
 
 # The CLI writes every prompt to a one-hour cache and charges that write above the input
 # price. A request here is one chapter under one prompt: almost nothing is ever read back
@@ -162,17 +162,38 @@ class ClaudeCodeProvider:
             result = json.loads(completed.stdout)
         except json.JSONDecodeError as error:
             raise RuntimeError("Claude Code returned output that is not JSON") from error
-        if result.get("is_error"):
-            raise RuntimeError(f"Claude Code reported an error: {str(result.get('result'))[:500]}")
-        structured = result.get("structured_output")
-        if structured is None:
-            raise RuntimeError("Claude Code returned no structured output")
-        fits_schema(structured, schema)
-
         usage = result.get("usage") or {}
         cache_read = usage.get("cache_read_input_tokens") or 0
         cache_write = usage.get("cache_creation_input_tokens") or 0
         thinking = (usage.get("output_tokens_details") or {}).get("thinking_tokens") or 0
+        spent = {
+            # Responses usage counts cached tokens inside input_tokens; the CLI
+            # reports them apart, so they are added back here.
+            "usage": {
+                "input_tokens": (usage.get("input_tokens") or 0) + cache_read + cache_write,
+                "output_tokens": usage.get("output_tokens") or 0,
+                "input_tokens_details": {"cached_tokens": cache_read},
+                "output_tokens_details": {"reasoning_tokens": thinking},
+            },
+            "claude_code": {
+                "duration_ms": result.get("duration_ms"),
+                "api_equivalent_cost_usd": result.get("total_cost_usd"),
+            },
+        }
+        try:
+            if result.get("is_error"):
+                raise RuntimeError(
+                    f"Claude Code reported an error: {str(result.get('result'))[:500]}"
+                )
+            structured = result.get("structured_output")
+            if structured is None:
+                raise RuntimeError("Claude Code returned no structured output")
+            fits_schema(structured, schema)
+        except RuntimeError as failure:
+            # the call was paid for whether or not its answer can be used
+            raise CallFailed(
+                str(failure), spent if result.get("total_cost_usd") else None
+            ) from failure
         return {
             "id": result.get("session_id") or f"claude-code-{uuid.uuid4()}",
             "model": self.model,
@@ -189,18 +210,7 @@ class ClaudeCodeProvider:
                     ],
                 }
             ],
-            # Responses usage counts cached tokens inside input_tokens; the CLI
-            # reports them apart, so they are added back here.
-            "usage": {
-                "input_tokens": (usage.get("input_tokens") or 0) + cache_read + cache_write,
-                "output_tokens": usage.get("output_tokens") or 0,
-                "input_tokens_details": {"cached_tokens": cache_read},
-                "output_tokens_details": {"reasoning_tokens": thinking},
-            },
-            "claude_code": {
-                "duration_ms": result.get("duration_ms"),
-                "api_equivalent_cost_usd": result.get("total_cost_usd"),
-            },
+            **spent,
         }
 
     def submit(self, requests, *, metadata):  # noqa: ARG002
