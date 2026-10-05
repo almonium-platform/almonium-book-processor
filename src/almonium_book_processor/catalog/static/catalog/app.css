@@ -173,7 +173,8 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .reader-columns { display: grid; gap: 1.5rem; }
 .reader-parallel .reader-columns { grid-template-columns: 1fr 1fr; }
 .reader-block .column-lang { margin-bottom: .35rem; color: var(--muted); font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.reader-block .column-level { margin-left: .3rem; border: 1px solid var(--line); border-radius: 999px; padding: 0 .4rem; color: var(--accent); font-variant: small-caps; text-transform: none; letter-spacing: .04em; }
+.reader-block .column-level { margin-left: .3rem; border: 1px solid var(--line); border-radius: 999px; padding: 0 .4rem; color: var(--accent); text-transform: none; letter-spacing: .04em; }
+.reader-block .column-level-target { border-style: dashed; color: var(--muted); }
 .reader-block .counterpart-meta { margin-top: .4rem; color: var(--muted); font-size: .72rem; }
 .reader-block .gap-note { color: var(--red); font-size: .85rem; line-height: 1.45; }
 .reader-gap { background: #fdf3f2; }

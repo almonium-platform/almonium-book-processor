@@ -952,6 +952,15 @@ def _mark_word_changes(rows: list[dict], edition: Edition, parallel_edition: Edi
         row["changed"] = any(seg["op"] != "equal" for seg in block_segments + counterpart_segments)
 
 
+def _level_target(edition):
+    """The level an unassessed adaptation was generated for, labelled apart from cefr_level."""
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_target
+
+    if edition is None or edition.cefr_level:
+        return None
+    return adaptation_target(edition)
+
+
 @staff_member_required
 def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
     """Read the whole normalized text of any edition and correct blocks in place.
@@ -1044,6 +1053,8 @@ def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
                 if parallel_edition
                 else ""
             ),
+            "level_target": _level_target(edition),
+            "parallel_level_target": _level_target(parallel_edition),
             "diff_available": diff_available,
             "show_diff": show_diff,
             "changed_count": changed_count,

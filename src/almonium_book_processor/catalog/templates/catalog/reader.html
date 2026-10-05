@@ -83,7 +83,7 @@
     </aside>
     <div class="reader-columns">
       <div class="reader-column">
-        {% if parallel_edition %}<p class="column-lang">{{ edition.language|upper }}{% if edition.cefr_level %} <span class="column-level">{{ edition.cefr_level|lower }}</span>{% endif %}</p>{% endif %}
+        {% if parallel_edition %}<p class="column-lang">{{ edition.language|upper }}{% if edition.cefr_level %} <span class="column-level">{{ edition.cefr_level }}</span>{% elif level_target %} <span class="column-level column-level-target" title="Target level of this adaptation; not yet an assessed level">{{ level_target }} target</span>{% endif %}</p>{% endif %}
         {% if row.block %}
         {% if row.block_segments %}<p class="word-diff">{% for segment in row.block_segments %}{% if segment.op == "equal" %}{{ segment.text }}{% elif segment.op == "insert" %}<ins>{{ segment.text }}</ins>{% else %}<del>{{ segment.text }}</del>{% endif %}{% endfor %}</p>{% else %}<p>{{ row.block.text|linebreaksbr|default:"—" }}</p>{% endif %}
         {% include "catalog/passage_provenance.html" with provenance=row.block.passage_provenance %}
@@ -106,7 +106,7 @@
       </div>
       {% if parallel_edition %}
       <div class="reader-column">
-        <p class="column-lang">{{ parallel_edition.language|upper }}{% if parallel_edition.cefr_level %} <span class="column-level">{{ parallel_edition.cefr_level|lower }}</span>{% endif %}</p>
+        <p class="column-lang">{{ parallel_edition.language|upper }}{% if parallel_edition.cefr_level %} <span class="column-level">{{ parallel_edition.cefr_level }}</span>{% elif parallel_level_target %} <span class="column-level column-level-target" title="Target level of this adaptation; not yet an assessed level">{{ parallel_level_target }} target</span>{% endif %}</p>
         {% for counterpart in row.counterparts %}
         {% if row.counterpart_segments %}<p class="word-diff">{% for segment in row.counterpart_segments %}{% if segment.op == "equal" %}{{ segment.text }}{% elif segment.op == "insert" %}<ins>{{ segment.text }}</ins>{% else %}<del>{{ segment.text }}</del>{% endif %}{% endfor %}</p>{% else %}<p>{{ counterpart.text|linebreaksbr|default:"—" }}</p>{% endif %}
         {% include "catalog/passage_provenance.html" with provenance=counterpart.passage_provenance %}

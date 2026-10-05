@@ -1246,7 +1246,7 @@ def test_parallel_reader_labels_each_column_with_its_cefr_level(client) -> None:
         {"chapter": 1, "parallel": str(canonical.id)},
     ).content.decode()
 
-    assert '<p class="column-lang">UK <span class="column-level">b1</span></p>' in content
+    assert '<p class="column-lang">UK <span class="column-level">B1</span></p>' in content
     assert '<p class="column-lang">EN</p>' in content
 
 
@@ -1289,6 +1289,7 @@ def test_parallel_reader_shows_word_changes_for_a_same_language_companion(client
     ).content.decode()
     assert "Hide changes</a>" in shown
     assert "1 of 3 rows differs" in shown
+    assert '<span class="column-level">B2</span>' in shown
     assert "First <ins>piece</ins>." in shown
     assert "First <del>block</del>." in shown
     # One marked word per column plus the legend's two samples; unchanged rows stay plain.
@@ -1326,6 +1327,7 @@ def test_parallel_reader_diffs_from_the_source_side_too(client) -> None:
         block_type=ContentBlock.BlockType.PARAGRAPH,
         text="First piece.",
         align_group=source_blocks[0].align_group,
+        attributes={"adaptation": {"target_level": "B1"}},
     )
     reader_staff(client, "parallel-reader-diff-source")
 
@@ -1336,6 +1338,9 @@ def test_parallel_reader_diffs_from_the_source_side_too(client) -> None:
     # Reading the original: its own column shows what the adaptation removed.
     assert "First <del>block</del>." in shown
     assert "First <ins>piece</ins>." in shown
+    # The adaptation has no assessed level yet, so its column names the target as a target.
+    assert '<span class="column-level column-level-target"' in shown
+    assert ">B1 target</span>" in shown
 
 
 def test_publication_requires_source_release_before_queueing(client, monkeypatch) -> None:
