@@ -4,12 +4,15 @@ import json
 import re
 import subprocess
 import tempfile
+import time
 import uuid
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from django.conf import settings
+
+from almonium_book_processor.ai.cli_calls import tried_twice
 
 
 def codex_meter(
@@ -79,14 +82,21 @@ class CodexProvider:
         binary: str | None = None,
         timeout_seconds: float | None = None,
         runner: Callable[..., Any] = subprocess.run,
+        pause: Callable[[float], None] = time.sleep,
     ) -> None:
         self.binary = binary or settings.CODEX_BINARY
         self.timeout_seconds = timeout_seconds or settings.CODEX_TIMEOUT_SECONDS
         self.runner = runner
+        self.pause = pause
         self.workdir = Path(tempfile.gettempdir()) / "almonium-codex-empty"
         self.workdir.mkdir(parents=True, exist_ok=True)
 
     def respond(self, body: dict[str, Any]) -> dict[str, Any]:
+        """One request, tried once more if the CLI fails in passing."""
+
+        return tried_twice(lambda: self._ask(body), pause=self.pause)
+
+    def _ask(self, body: dict[str, Any]) -> dict[str, Any]:
         schema = ((body.get("text") or {}).get("format") or {}).get("schema")
         if not schema:
             raise ValueError("Codex requests need a JSON schema for the output")

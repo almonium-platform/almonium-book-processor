@@ -45,7 +45,8 @@ def provider_with(stdout="", stderr=""):
         calls.append((command, kwargs, json.loads(schema_path.read_text())))
         return SimpleNamespace(returncode=0, stdout=stdout, stderr=stderr)
 
-    return CodexProvider(binary="codex", timeout_seconds=5, runner=runner), calls
+    provider = CodexProvider(binary="codex", timeout_seconds=5, runner=runner, pause=lambda _: None)
+    return provider, calls
 
 
 def test_respond_returns_a_responses_shaped_body():
@@ -136,3 +137,45 @@ def test_an_unreadable_meter_is_none_and_never_an_error(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
     assert codex_meter(binary="codex", runner=lambda *a, **k: None) is None
+
+
+def test_a_call_that_fails_in_passing_is_tried_once_more():
+    outputs = ["", answer()]
+    pauses = []
+    provider = CodexProvider(
+        binary="codex",
+        timeout_seconds=5,
+        runner=lambda command, **kwargs: SimpleNamespace(
+            returncode=0, stdout=outputs.pop(0), stderr=""
+        ),
+        pause=pauses.append,
+    )
+
+    assert provider.respond(BODY)["status"] == "completed"
+    assert outputs == [] and len(pauses) == 1
+
+
+def test_a_timeout_is_tried_once_more_and_then_raised():
+    import subprocess
+
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append(command)
+        raise subprocess.TimeoutExpired(command, 5)
+
+    provider = CodexProvider(binary="codex", timeout_seconds=5, runner=runner, pause=lambda _: None)
+
+    with pytest.raises(subprocess.TimeoutExpired):
+        provider.respond(BODY)
+    assert len(calls) == 2
+
+
+def test_a_plan_whose_allowance_is_used_up_is_not_asked_again():
+    provider, calls = provider_with(
+        stdout=events({"type": "error", "message": "You have hit your usage limit."})
+    )
+
+    with pytest.raises(RuntimeError, match="usage limit"):
+        provider.respond(BODY)
+    assert len(calls) == 1

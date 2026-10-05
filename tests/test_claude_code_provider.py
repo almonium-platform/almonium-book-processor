@@ -53,7 +53,9 @@ def provider_with(stdout="", returncode=0, stderr=""):
         calls.append((command, kwargs))
         return SimpleNamespace(returncode=returncode, stdout=stdout, stderr=stderr)
 
-    provider = ClaudeCodeProvider(model="opus", binary="claude", timeout_seconds=5, runner=runner)
+    provider = ClaudeCodeProvider(
+        model="opus", binary="claude", timeout_seconds=5, runner=runner, pause=lambda _: None
+    )
     return provider, calls
 
 
@@ -134,3 +136,21 @@ def test_there_is_no_batch_service():
 
     with pytest.raises(NotImplementedError):
         provider.submit([], metadata={})
+
+
+def test_a_call_that_fails_in_passing_is_tried_once_more():
+    results = [
+        SimpleNamespace(returncode=1, stdout="", stderr="connection reset"),
+        SimpleNamespace(returncode=0, stdout=json.dumps(cli_result()), stderr=""),
+    ]
+    pauses = []
+    provider = ClaudeCodeProvider(
+        model="opus",
+        binary="claude",
+        timeout_seconds=5,
+        runner=lambda command, **kwargs: results.pop(0),
+        pause=pauses.append,
+    )
+
+    assert provider.respond(BODY)["status"] == "completed"
+    assert results == [] and len(pauses) == 1

@@ -3,12 +3,15 @@ from __future__ import annotations
 import json
 import subprocess
 import tempfile
+import time
 import uuid
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from django.conf import settings
+
+from almonium_book_processor.ai.cli_calls import tried_twice
 
 
 class ClaudeCodeProvider:
@@ -34,11 +37,13 @@ class ClaudeCodeProvider:
         binary: str | None = None,
         timeout_seconds: float | None = None,
         runner: Callable[..., Any] = subprocess.run,
+        pause: Callable[[float], None] = time.sleep,
     ) -> None:
         self.model = model or settings.CLAUDE_CODE_MODEL
         self.binary = binary or settings.CLAUDE_CODE_BINARY
         self.timeout_seconds = timeout_seconds or settings.CLAUDE_CODE_TIMEOUT_SECONDS
         self.runner = runner
+        self.pause = pause
         # An empty directory: the CLI loads CLAUDE.md, memory and project
         # settings from where it runs, and none of that belongs in a request.
         self.workdir = Path(tempfile.gettempdir()) / "almonium-claude-code-empty"
@@ -55,6 +60,11 @@ class ClaudeCodeProvider:
         return json.dumps(converted, ensure_ascii=False).replace("#/$defs/", "#/definitions/")
 
     def respond(self, body: dict[str, Any]) -> dict[str, Any]:
+        """One request, tried once more if the CLI fails in passing."""
+
+        return tried_twice(lambda: self._ask(body), pause=self.pause)
+
+    def _ask(self, body: dict[str, Any]) -> dict[str, Any]:
         text_format = (body.get("text") or {}).get("format") or {}
         schema = text_format.get("schema")
         if not schema:
