@@ -61,11 +61,16 @@ def adaptation_quality(edition, analysis=None):
         return result
     # Where the pilot's judges have read a chapter's current text for its wording, their
     # level is the adaptation's; the library's chapter analysis decides the rest.
-    from almonium_book_processor.catalog.adaptation_wording import wording_levels
+    from almonium_book_processor.catalog.adaptation_wording import wording_judges
 
-    wording = wording_levels(edition)
+    wording = wording_judges(edition)
     for row in analysis.get("chapter_projections", []):
-        row["wording_level"] = wording.get(str(row["chapter"].id))
+        row["wording_judges"] = wording.get(str(row["chapter"].id), [])
+        row["wording_level"] = (
+            max((level for _, level in row["wording_judges"]), key=LEVELS.index)
+            if row["wording_judges"]
+            else None
+        )
         level = row["wording_level"] or row["difficulty"].get("max_level")
         if level not in LEVELS or not row["difficulty"].get("complete"):
             result["adaptation_blocker"] = "Every adaptation chapter needs a current estimate."

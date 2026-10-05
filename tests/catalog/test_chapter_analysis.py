@@ -215,7 +215,7 @@ def test_adaptation_gate_exposes_evidence_and_below_target(edition):
     client.force_login(get_user_model().objects.create_user("quality-ui", is_staff=True))
     response = client.get(reverse("catalog:edition-detail", args=[edition.id]))
     assert b"estimated \xc2\xb7 target B2" in response.content
-    assert b"Judge evidence" in response.content
+    assert b"Analysis evidence \xc2\xb7 " in response.content
     assert b"An obsolete conjunction" in response.content
 
 
@@ -1137,16 +1137,26 @@ def test_difficulty_panel_counts_the_level_the_gate_reads():
 
     from almonium_book_processor.catalog.difficulty_panel import difficulty_panel
 
-    def row(sequence, role, estimate, wording, above):
+    def row(sequence, role, estimate, judges, above):
         return {
             "chapter": SimpleNamespace(sequence=sequence, analysis_role=role),
             "difficulty": {
                 "cefr_estimate": estimate,
                 "max_level": estimate,
                 "complete": True,
-                "windows": [],
+                "windows": [
+                    {
+                        "window": 1,
+                        "cefr_estimate": estimate,
+                        "evidence": [
+                            {"block_id": f"c{sequence}.p{n}", "dimension": "syntax", "quote": "q"}
+                            for n in range(3)
+                        ],
+                    }
+                ],
             },
-            "wording_level": wording,
+            "wording_judges": judges,
+            "wording_level": max((level for _, level in judges), default=None),
             "above_adaptation_target": above,
         }
 
@@ -1157,20 +1167,33 @@ def test_difficulty_panel_counts_the_level_the_gate_reads():
             "adaptation_above_chapters": [3],
             "book_difficulty": {"cefr_estimate": "B2", "distribution": {"B2": 2}},
             "chapter_projections": [
-                row(1, "front", "B2", "B2", True),
-                row(2, "body", "B2", "B1", False),
-                row(3, "body", "B2", "B2", True),
+                row(1, "front", "B2", [("opus", "B2"), ("gpt", "B1")], True),
+                row(2, "body", "B2", [("opus", "B1"), ("gpt", "B1")], False),
+                row(3, "body", "B2", [("opus", "B2"), ("gpt", "B2")], True),
             ],
-        }
+        },
+        {"c3.p0": "uuid-of-c3.p0"},
     )
 
     # The judges' B1 for chapter 2 counts, not the analysis's B2; front matter is left out.
-    assert {s["level"]: s["count"] for s in panel["segments"] if s["count"]} == {"B1": 1, "B2": 1}
-    assert panel["above_title"] == "1 chapter read above B1"
-    assert panel["analysis_estimate"] == "B2"
-    assert [(r["level"], r["within_target"], r["above"]) for r in panel["rows"]] == [
-        ("B2", False, True),
-        ("B1", True, False),
-        ("B2", False, True),
+    assert panel["distribution"] == [("B1", 1), ("B2", 1)]
+    assert panel["estimate"] == "B2"
+    assert panel["analysis_estimate"] is None
+    assert [
+        (r["level"], r["within_target"], r["above"], r["above_ungated"]) for r in panel["rows"]
+    ] == [
+        ("B2", False, False, True),
+        ("B1", True, False, False),
+        ("B2", False, True, False),
     ]
-    assert panel["above_rows"] == 2
+    # Only the body chapter holds the gate; the filter shows both chapters read above it.
+    assert [r["chapter"].sequence for r in panel["above_chapters"]] == [3]
+    assert panel["flagged_count"] == 2
+    assert (panel["body_count"], panel["front_count"]) == (2, 1)
+    # The analysis level is shown beside the judges' only where they disagree.
+    assert [r["analysis_level"] for r in panel["rows"]] == [None, "B2", None]
+    window = panel["rows"][2]["windows"][0]
+    assert [e["block_id"] for e in window["evidence"]] == ["c3.p0", "c3.p1"]
+    assert window["evidence"][0]["uuid"] == "uuid-of-c3.p0"
+    assert window["evidence"][0]["dimension"] == "Syntax"
+    assert window["evidence_count"] == 3

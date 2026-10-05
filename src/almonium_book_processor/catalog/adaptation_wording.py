@@ -123,29 +123,38 @@ def check_edition(edition: Edition, *, provider=None, workers: int = 1) -> dict[
     return {str(c.id): v for c, v in zip(chapters, verdicts, strict=True) if v is not None}
 
 
-def wording_levels(edition: Edition) -> dict[str, str]:
-    """The panel's level of each chapter whose current text every judge configured has read."""
+def wording_judges(edition: Edition) -> dict[str, list[tuple[str, str]]]:
+    """Each judge's model and level, for every chapter whose current text all of them have read."""
 
     specs = judge_specs(edition.language)
     readings = judge_readings()
     read = _readings(edition)
     if not read:
         return {}
-    levels = {}
+    judges = {}
     for chapter in edition.chapters.prefetch_related("blocks"):
         blocks = chapter_blocks(chapter)
         if not blocks:
             continue
         seen = read.get((str(chapter.id), text_hash(blocks)), [])
         found = [
-            assessment["max_level"]
+            (spec["model"], assessment["max_level"])
             for spec in specs
             for seen_spec, count, assessment in seen
             if seen_spec == spec and count == readings
         ]
         if len(found) >= len(specs):
-            levels[str(chapter.id)] = max(found, key=LEVELS.index)
-    return levels
+            judges[str(chapter.id)] = found
+    return judges
+
+
+def wording_levels(edition: Edition) -> dict[str, str]:
+    """The panel's level of each chapter whose current text every judge configured has read."""
+
+    return {
+        chapter: max((level for _, level in found), key=LEVELS.index)
+        for chapter, found in wording_judges(edition).items()
+    }
 
 
 def carry_wording_forward(edition: Edition, *, max_change: float = 0.02) -> list[dict]:

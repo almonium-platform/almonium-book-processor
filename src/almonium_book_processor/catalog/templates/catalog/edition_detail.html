@@ -404,72 +404,84 @@
 {% else %}
 <details class="panel collapsible-panel assessment-panel difficulty-panel" id="reading-difficulty"{% if adaptation_blocker %} open{% endif %}>
   {% with panel=difficulty_panel %}
-  <summary><span class="summary-title">Reading difficulty</span><span class="summary-meta">{% if book_difficulty %}{{ book_difficulty.chapters_completed }} of {{ book_difficulty.chapters_total }} chapter{{ book_difficulty.chapters_total|pluralize }} assessed{% elif projection_state == "stale" %}Stale · analyse again{% else %}Not analysed yet{% endif %}</span></summary>
+  <summary><span class="summary-title">Reading difficulty</span><span class="summary-meta">{% if book_difficulty and book_difficulty.complete %}{{ panel.body_count }} body chapter{{ panel.body_count|pluralize }}{% if panel.front_count %} · {{ panel.front_count }} front matter{% endif %}{% if panel.back_count %} · {{ panel.back_count }} back matter{% endif %}{% elif book_difficulty %}{{ book_difficulty.chapters_completed }} of {{ book_difficulty.chapters_total }} chapter{{ book_difficulty.chapters_total|pluralize }} assessed{% elif projection_state == "stale" %}Stale · analyse again{% else %}Not analysed yet{% endif %}</span></summary>
   <div class="difficulty-body">
     {% if panel.estimate or panel.target %}
     <div class="difficulty-verdict">
-      {% if panel.estimate %}<span class="difficulty-level">{{ panel.estimate }}</span>{% endif %}
-      <span class="muted">{% if panel.estimate %}estimated{% else %}No estimate yet{% endif %}{% if panel.target %} · target {{ panel.target }}{% endif %}</span>
-      {% if panel.blocker %}<span class="status status-review">Gate failing</span>{% elif panel.passing %}<span class="status status-succeeded">Gate passed</span>{% endif %}
+      <div class="difficulty-verdict-line">
+        {% if panel.estimate %}<span class="difficulty-level">{{ panel.estimate }}</span>{% endif %}
+        <span class="muted">{% if panel.estimate %}estimated{% else %}No estimate yet{% endif %}{% if panel.target %} · target {{ panel.target }}{% endif %}</span>
+        {% if panel.blocker %}<span class="status status-review">Gate failing</span>{% elif panel.passing %}<span class="status status-succeeded">Gate passed</span>{% endif %}
+        {% if panel.above_count %}<span class="difficulty-above-count">{{ panel.above_count }} chapter{{ panel.above_count|pluralize }} above</span>{% endif %}
+      </div>
+      {% if panel.analysis_estimate %}<span class="muted difficulty-aside">Chapter analysis alone estimates {{ panel.analysis_estimate }}.</span>{% endif %}
     </div>
     {% endif %}
-    {% if panel.segments %}
-    <div class="difficulty-bar" role="img" aria-label="Chapters by level{% for segment in panel.segments %}, {{ segment.level }} {{ segment.count }}{% endfor %}">
-      <div class="difficulty-bar-track">{% for segment in panel.segments %}<span class="{% if segment.is_target %}is-target{% endif %}" style="--fill: {{ segment.fill }}%"></span>{% endfor %}</div>
-      <div class="difficulty-bar-labels">{% for segment in panel.segments %}<span{% if segment.count or segment.is_target %} class="is-strong"{% endif %}>{{ segment.level }} · {{ segment.count }}{% if segment.is_target %} · target{% endif %}</span>{% endfor %}</div>
-    </div>
-    {% endif %}
-    {% if panel.target and panel.analysis_estimate and panel.analysis_estimate != panel.estimate %}<p class="muted difficulty-aside">Chapter analysis alone estimates {{ panel.analysis_estimate }}; the level judges' reading of the adapted wording is what the gate counts.</p>{% endif %}
-    {% if projection_state == "stale" %}<p class="muted difficulty-aside">Previous assessments are stale. Analyse the current text, or refresh saved assessments after changing chapter roles.</p>{% endif %}
+    {% if projection_state == "stale" %}<p class="muted difficulty-aside">Previous assessments are stale. Analyse the current text, or refresh assessments after changing chapter roles.</p>{% endif %}
     {% if panel.blocker %}
     <div class="difficulty-callout" role="alert">
       <div>
-        <strong>{% if panel.above_title %}{{ panel.above_title }}{% else %}{{ panel.blocker }}{% endif %}</strong>
-        {% if panel.above_title %}<span>Revise the cited passages, then reassess. Relabelling does not clear the gate.</span>{% endif %}
+        <strong>{% if panel.above_count == 1 %}{% with row=panel.above_chapters.0 %}<a href="#chapter-difficulty-{{ row.chapter.sequence }}" data-difficulty-jump>Chapter {{ row.chapter.sequence }} · {{ row.chapter.title|display_title|default:"Untitled chapter" }}</a> reads above {{ panel.target }}{% endwith %}{% elif panel.above_count %}{{ panel.above_count }} chapters read above {{ panel.target }}: {% for row in panel.above_chapters %}<a href="#chapter-difficulty-{{ row.chapter.sequence }}" data-difficulty-jump>Chapter {{ row.chapter.sequence }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}{{ panel.blocker }}{% endif %}</strong>
+        {% if panel.above_count %}<span>Revise the cited blocks, then refresh. Relabelling does not clear the gate.</span>{% endif %}
       </div>
       {% if chapter_analysis_run %}<form method="post" action="{% url 'catalog:refresh-chapter-projections' edition.id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Refresh assessments</button></form>{% endif %}
     </div>
     {% endif %}
-    {% if adaptation_below_chapters %}<p class="muted difficulty-aside">Below target: chapter{{ adaptation_below_chapters|length|pluralize }} {{ adaptation_below_chapters|join:", " }}. Check for unnecessary simplification.</p>{% endif %}
-    <p class="muted difficulty-aside">
-      {% if panel.target %}{% if edition.cefr_level %}Readers see {{ edition.cefr_level }}{% if edition.cefr_level_source %} ({{ edition.get_cefr_level_source_display|lower }}){% endif %}.{% elif panel.passing %}Completing review sets the reader level to {{ panel.target }}.{% else %}Readers see no level until the gate passes; then {{ panel.target }}.{% endif %}
-      {% elif edition.cefr_level %}Readers see {{ edition.cefr_level }}{% if edition.cefr_level_source %} ({{ edition.get_cefr_level_source_display|lower }}){% endif %}.{% else %}Readers see no level yet.{% endif %}
-    </p>
     <details class="difficulty-method">
-      <summary>How this is computed</summary>
-      {% if panel.target %}<p>For an adaptation, a chapter's level is the level judges' reading of its current wording where every configured judge has read it, otherwise the chapter analysis's highest window. Any above-target chapter blocks completion; front and back matter shows its level but does not hold the gate. The difficulty review item clears automatically after a current, passing reassessment and cannot be dismissed while the gate fails. Passing does not replace fidelity review.</p>{% endif %}
-      <p><strong>Chapter roles.</strong> Substantive means the main story or content and counts toward the book estimate. Front matter means introductory extras, such as a preface or introduction; back matter means end extras, such as appendices or notes. Extras keep their own estimates but do not count toward the book level. Storytelling letters and prologues still count as substantive.</p>
+      <summary><span class="muted">{% if panel.target %}{% if edition.cefr_level %}Readers see {{ edition.cefr_level }}{% if edition.cefr_level_source %} ({{ edition.get_cefr_level_source_display|lower }}){% endif %}.{% elif panel.passing %}Completing review sets the reader level to {{ panel.target }}.{% else %}Readers see no level until the gate passes; then {{ panel.target }}.{% endif %}{% elif edition.cefr_level %}Readers see {{ edition.cefr_level }}{% if edition.cefr_level_source %} ({{ edition.get_cefr_level_source_display|lower }}){% endif %}.{% else %}Readers see no level yet.{% endif %}</span> <span class="difficulty-method-toggle">How this is computed</span></summary>
+      {% if panel.target %}<p>For an adaptation, a chapter's level is the level judges' reading of its current wording where every configured judge has read it, otherwise the chapter analysis's highest window. Any body chapter above the target blocks completion; front and back matter shows its level but does not hold the gate. The difficulty review item clears automatically after a current, passing reassessment and cannot be dismissed while the gate fails. Passing does not replace fidelity review. Window levels and evidence come from the chapter analysis, not the judges.</p>{% endif %}
+      <p><strong>Chapter roles.</strong> Body means the main story or content and counts toward the book estimate. Front matter means introductory extras, such as a preface or introduction; back matter means end extras, such as appendices or notes. Extras keep their own estimates but do not count toward the book level. Storytelling letters and prologues are still body.</p>
+      {% if panel.distribution %}<p>Chapters by level: {% for level, count in panel.distribution %}{{ level }} {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>{% endif %}
       {% if book_difficulty %}
-      <p>{{ book_difficulty.chapters_completed }} / {{ book_difficulty.chapters_total }} substantive chapters complete · {{ book_difficulty.chapters_excluded }} front/back-matter chapter{{ book_difficulty.chapters_excluded|pluralize }} excluded. {% if not book_difficulty.chapters_total %}No substantive chapters selected.{% elif not book_difficulty.complete %}Partial coverage: this is a provisional estimate.{% endif %}</p>
+      <p>{{ book_difficulty.chapters_completed }} / {{ book_difficulty.chapters_total }} body chapters complete · {{ book_difficulty.chapters_excluded }} front/back-matter chapter{{ book_difficulty.chapters_excluded|pluralize }} excluded. {% if not book_difficulty.chapters_total %}No body chapters selected.{% elif not book_difficulty.complete %}Partial coverage: this is a provisional estimate.{% endif %}</p>
       <p>{{ book_difficulty.whitespace_tokens_analyzed|thousands }} / {{ book_difficulty.whitespace_tokens_total|thousands }} whitespace tokens assessed. These counts are not NLP vocabulary measurements.</p>
-      {% if book_difficulty.cefr_estimate %}<p>The book level is the nearest-rank 75th percentile of complete substantive chapters (range {{ book_difficulty.min_level }}–{{ book_difficulty.max_level }}; weighted by whitespace tokens it would be {{ book_difficulty.weighted_comparison }}). Model confidence range {{ book_difficulty.confidence_min }}–{{ book_difficulty.confidence_max }} is not calibrated book accuracy.</p>{% endif %}
+      {% if book_difficulty.cefr_estimate %}<p>The book level is the nearest-rank 75th percentile of complete body chapters (range {{ book_difficulty.min_level }}–{{ book_difficulty.max_level }}; weighted by whitespace tokens it would be {{ book_difficulty.weighted_comparison }}). Model confidence range {{ book_difficulty.confidence_min }}–{{ book_difficulty.confidence_max }} is not calibrated book accuracy.</p>{% endif %}
       {% endif %}
-      <p>Multi-window summaries remain ordered sections; no additional AI call merges them.</p>
       {% if edition.cefr_level_source == "editor" %}<p>The editor's level stands; set it back to “Estimate later” under Metadata to follow the analysis again.</p>{% elif not panel.target %}<p>A complete analysis sets the reader level and keeps it current; pick another level under Metadata to override it.</p>{% endif %}
     </details>
   </div>
 
   {% if panel.rows %}
   <div class="difficulty-table" data-difficulty-table>
+    {% if panel.target or panel.flagged_count %}
+    <div class="difficulty-filters">
+      <div class="difficulty-chips">
+        {% if panel.flagged_count or panel.below_chapters %}
+        <button class="difficulty-chip is-active" type="button" data-difficulty-filter="all">All {{ panel.rows|length }}</button>
+        {% if panel.flagged_count %}<button class="difficulty-chip" type="button" data-difficulty-filter="above">Only above target · {{ panel.flagged_count }}</button>{% endif %}
+        {% if panel.below_chapters %}<button class="difficulty-chip" type="button" data-difficulty-filter="below">Below target · {{ panel.below_chapters|length }}</button>{% endif %}
+        {% endif %}
+      </div>
+      {% if panel.target %}<span class="difficulty-below">{% if panel.below_chapters %}Below target may mean over-simplification{% else %}No chapters below target{% endif %}</span>{% endif %}
+    </div>
+    {% endif %}
     <div class="difficulty-row difficulty-head" aria-hidden="true"><span>Chapter</span><span>Level</span><span></span><span>Role</span></div>
     {% for row in panel.rows %}
-    <details class="difficulty-chapter{% if row.above %} is-above{% endif %}" data-above="{{ row.above|yesno:'1,0' }}">
+    <details class="difficulty-chapter{% if row.above %} is-above{% endif %}" id="chapter-difficulty-{{ row.chapter.sequence }}" data-above="{% if row.above or row.above_ungated %}1{% else %}0{% endif %}" data-below="{% if row.chapter.sequence in panel.below_chapters %}1{% else %}0{% endif %}">
       <summary class="difficulty-row">
-        <span class="difficulty-title"><span class="muted">{{ row.chapter.sequence }}</span> {{ row.chapter.title|display_title|default:"Untitled chapter" }}{% if row.windows|length > 1 %} <span class="muted">· {{ row.windows|length }} windows</span>{% endif %}{% if not row.complete %} <span class="muted">· partial</span>{% endif %}</span>
+        <span class="difficulty-title"><span class="muted">{{ row.chapter.sequence }}</span><span>{{ row.chapter.title|display_title|default:"Untitled chapter" }}{% if row.windows|length > 1 %} <span class="muted nowrap">· {{ row.windows|length }} windows</span>{% endif %}{% if not row.complete %} <span class="muted nowrap">· partial</span>{% endif %}</span></span>
         <span>{% if row.level %}<span class="status{% if row.within_target %} status-succeeded{% endif %}">{{ row.level }}</span>{% else %}<span class="muted">—</span>{% endif %}</span>
-        <span>{% if row.above %}<span class="status status-review">Above target</span>{% endif %}</span>
-        <form class="difficulty-role" method="post" action="{% url 'catalog:update-chapter-role' edition.id row.chapter.id %}">{% csrf_token %}<select name="analysis_role" aria-label="Role of {{ row.chapter.title|display_title }}" data-autosubmit{% if row.chapter.analysis_role == "body" %} class="is-default"{% endif %}>{% for value, label in panel.role_choices %}<option value="{{ value }}"{% if row.chapter.analysis_role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select><noscript><button class="button button-secondary" type="submit">Save</button></noscript></form>
+        <span>{% if row.above %}<span class="status status-review">Above target</span>{% elif row.above_ungated %}<span class="status status-missing" title="Front and back matter does not hold the gate">Above · not gated</span>{% endif %}</span>
+        <form class="difficulty-role" method="post" action="{% url 'catalog:update-chapter-role' edition.id row.chapter.id %}">{% csrf_token %}<select name="analysis_role" aria-label="Role of {{ row.chapter.title|display_title }}" data-autosubmit{% if row.chapter.analysis_role == "body" %} class="is-default"{% endif %}>{% for value, label in chapter_role_choices %}<option value="{{ value }}"{% if row.chapter.analysis_role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select><noscript><button class="button button-secondary" type="submit">Save</button></noscript></form>
       </summary>
       <div class="difficulty-detail">
+        {% if row.judges %}<span class="muted difficulty-judges">Level judges: {% for model, level in row.judges %}{{ model|model_name }} {{ level }} · {% endfor %}read current text{% if row.analysis_level %} · analysis {{ row.analysis_level }}{% endif %}</span>
+        {% elif panel.target %}<span class="muted difficulty-judges">Level judges have not read the current text; the gate reads the analysis level.</span>{% endif %}
         {% for window in row.windows %}
         <div class="difficulty-window">
-          {% if row.windows|length > 1 %}<span class="difficulty-window-label">Window {{ window.number }} · {{ window.level }}</span>{% endif %}
-          {% if window.archaism is not None %}<span class="muted">Archaism {{ window.archaism|floatformat:1 }} / 1</span>{% endif %}
+          <span class="muted difficulty-window-label">{% if row.windows|length > 1 %}<strong>Window {{ window.number }} of {{ row.windows|length }}</strong> · analysis {{ window.level }}{% else %}Analysis {{ window.level }}{% endif %}{% if window.archaism is not None %} · archaism {{ window.archaism|floatformat:1 }}{% endif %}</span>
           {% if window.description %}<p>{{ window.description }}</p>{% endif %}
+          {% if window.recap or window.evidence %}
           <div class="difficulty-disclosures">
-            {% if window.recap %}<details class="spoiler"><summary>Chapter recap (spoilers)</summary><p>{{ window.recap }}</p></details>{% endif %}
-            {% if window.evidence %}<details class="spoiler"><summary>Judge evidence</summary>{% for item in window.evidence %}<p><code>{{ item.block_id }}</code> · {{ item.dimension }}: “{{ item.quote }}” — {{ item.explanation }}</p>{% endfor %}</details>{% endif %}
+            {% if window.recap %}<details class="spoiler"><summary>Recap (spoilers)</summary><p>{{ window.recap }}</p></details>{% endif %}
+            {% if window.evidence %}<details class="spoiler"><summary>Analysis evidence · {{ window.evidence_count }}</summary>
+              <div class="difficulty-evidence">
+                {% for item in window.evidence %}{% include "catalog/difficulty_evidence.html" %}{% endfor %}
+                {% if window.more_evidence %}<details class="difficulty-evidence-more"><summary>{{ window.more_evidence|length }} more</summary><div class="difficulty-evidence">{% for item in window.more_evidence %}{% include "catalog/difficulty_evidence.html" %}{% endfor %}</div></details>{% endif %}
+              </div>
+            </details>{% endif %}
           </div>
+          {% endif %}
         </div>
         {% empty %}
         <p class="muted">No window of this chapter has been assessed yet.</p>
@@ -480,7 +492,6 @@
     {% if panel.rows|length > 5 %}
     <div class="difficulty-more" hidden>
       <button class="copy-link" type="button" data-difficulty-more>Show {{ panel.rows|length|add:"-5" }} more</button>
-      {% if panel.above_rows %}<label class="difficulty-filter"><input type="checkbox" data-difficulty-filter> Only above target</label>{% endif %}
     </div>
     {% endif %}
   </div>

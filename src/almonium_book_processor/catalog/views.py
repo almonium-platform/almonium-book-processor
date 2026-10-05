@@ -637,9 +637,13 @@ def _render_edition_detail(
             if edition.edition_type == Edition.EditionType.MACHINE_TRANSLATION:
                 # A reviewed translation shows its findings in the same panel.
                 assessment.update(audit_context(edition))
-    from almonium_book_processor.catalog.difficulty_panel import difficulty_panel
+    from almonium_book_processor.catalog.difficulty_panel import cited_block_ids, difficulty_panel
 
-    assessment["difficulty_panel"] = difficulty_panel(assessment)
+    cited = cited_block_ids(assessment)
+    blocks = dict(
+        edition.blocks.filter(block_id__in=cited).values_list("block_id", "id") if cited else []
+    )
+    assessment["difficulty_panel"] = difficulty_panel(assessment, blocks)
     if assessment.get("chapter_analysis_run"):
         # Only calls this run made: windows it reused were billed to earlier runs.
         assessment["chapter_analysis_spend"] = assessment["chapter_analysis_run"].ai_runs.aggregate(
@@ -753,7 +757,11 @@ def _render_edition_detail(
             stage=PipelineRun.Stage.ADAPT,
             processor_version__in=("b1-book-v1", "b2-book-v1", "modernisation-book-v1"),
         ).first(),
-        "chapter_role_choices": Chapter.AnalysisRole.choices,
+        # The table's column is "Role", so the default reads as one word.
+        "chapter_role_choices": [
+            (value, "Body" if value == Chapter.AnalysisRole.BODY else label)
+            for value, label in Chapter.AnalysisRole.choices
+        ],
         "metadata_form": metadata_form or EditionMetadataForm.for_edition(edition),
         "metadata_state": _metadata_state(edition),
         "metadata_provenance": form_provenance(edition),
