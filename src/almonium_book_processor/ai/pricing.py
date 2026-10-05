@@ -41,14 +41,20 @@ PLAN_WEEK_USD = {
 #   gpt-6-astra alone (entries, cross-checks, a whole book translated) came to 0.081 and a
 #   review that was mostly gpt-6.1-sol to 0.077, so the meter follows the list price and one
 #   figure serves every model.
-# claude-code, Max $200: one meter point (USD 0.46) per about forty Opus dictionary entries,
-#   which the CLI itself prices at USD 0.061 each. Measured once, on Opus only, and against
-#   the CLI's own price of a call, which is what ``plan_priced`` multiplies. The CLI's /usage
-#   screen can be read in code (``claude_code_provider.claude_meter``), on a meter shared by
-#   every Claude Code session of the account, and Fable has a weekly meter of its own.
+# claude-code, Max $200, measured again on 2026-10-05 with the meter read in code
+#   (``claude_code_provider.claude_meter``): 160 Opus dictionary entries, USD 8.67 at the
+#   CLI's own list price, written by eight processes in nine minutes, moved the week from 44%
+#   to 45% and the five-hour session from 30% to 34%; with the 121 entries before them, USD
+#   16.6 of list price moved the week by under three points while other sessions of the
+#   account were also at work. That puts the share between 0.03 and 0.08. The first figure,
+#   0.19 (a point per forty entries, read by eye from the /usage screen), had this session's
+#   own usage in it. The meter is whole points and shared by every Claude Code session of the
+#   account, so the figure is coarse; it is multiplied by the CLI's own price of each call
+#   (``plan_priced``), not by the table above. One point of the week is about 160 entries,
+#   and a five-hour session holds about 4,000.
 PLAN_SHARE_OF_LIST = {
     "codex": Decimal("0.08"),
-    "claude-code": Decimal("0.19"),
+    "claude-code": Decimal("0.05"),
 }
 
 

@@ -34,12 +34,12 @@ def test_a_model_without_a_price_is_known_before_any_call():
 def test_a_call_the_claude_cli_priced_costs_that_price_times_the_plans_share():
     from decimal import Decimal
 
-    from almonium_book_processor.ai.pricing import plan_priced
+    from almonium_book_processor.ai.pricing import PLAN_SHARE_OF_LIST, plan_priced
 
     computed = Decimal("0.010000")
     # the CLI's own list price of the call, cache writes and all, is what the meter saw
     priced = plan_priced({"claude_code": {"api_equivalent_cost_usd": 0.1}}, computed)
-    assert priced == Decimal("0.019000")
+    assert priced == Decimal("0.1") * PLAN_SHARE_OF_LIST["claude-code"]
     # a call without the CLI's figure keeps the cost computed from its tokens
     assert plan_priced({"usage": {}}, computed) == computed
     assert plan_priced({"claude_code": {"api_equivalent_cost_usd": None}}, computed) == computed
