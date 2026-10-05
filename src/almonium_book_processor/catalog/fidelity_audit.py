@@ -1231,6 +1231,24 @@ def change_preview(text: str, quote: str, suggestion: str) -> tuple[list[dict], 
     return _word_changes(current, revised), bool(span)
 
 
+def backed(evidence: dict) -> bool:
+    """Whether more than one model stands behind a finding.
+
+    An adaptation's audit: both auditors raised it, or the other confirmed it when asked.
+    A translation's review: both reviewers raised it or the second confirmed it; where an
+    earlier review had an adjudicator rule, the ruling was to change the text.
+    """
+
+    ruling = (evidence.get("adjudication") or {}).get("verdict")
+    if ruling:
+        return ruling in ("apply_proposed", "new_fix")
+    if evidence.get("agreement"):
+        return evidence["agreement"] in ("both", "confirmed")
+    return len(evidence.get("raised_by") or []) > 1 or bool(
+        (evidence.get("second_opinion") or {}).get("material")
+    )
+
+
 def open_findings(edition: Edition):
     return (
         edition.text_quality_findings.filter(
@@ -1372,6 +1390,8 @@ def audit_context(edition: Edition) -> dict:
         "fidelity_audit_enabled": bool(settings.OPENAI_API_KEY),
         "fidelity_open_findings": 0,
         "fidelity_findings": [],
+        "fidelity_optional": [],
+        "fidelity_open_total": 0,
         "fidelity_applicable": 0,
         "fidelity_counts": dict.fromkeys(SEVERITIES, 0),
         # The panel belongs to every adaptation, and to a translation once it was reviewed.
@@ -1469,7 +1489,16 @@ def _findings_context(edition: Edition, run: PipelineRun, context: dict) -> None
         # Both sides of the change, so the reviewer reads them here, not in the reader.
         finding.source_text = originals.get(finding.stable_block_id, "")
         finding.adapted_text = finding.block.text if finding.block else ""
-    context["fidelity_findings"] = findings
+    # What needs a decision comes first: every serious finding, and every finding more than
+    # one model stands behind. The rest, small points one model raised alone, never run out
+    # (each reading brings new ones) and are listed apart as optional reading.
+    context["fidelity_findings"] = [
+        f for f in findings if f.code == FINDING_CODES["material"] or backed(f.evidence)
+    ]
+    context["fidelity_optional"] = [
+        f for f in findings if f.code != FINDING_CODES["material"] and not backed(f.evidence)
+    ]
+    context["fidelity_open_total"] = len(findings)
     context["fidelity_dismissed"] = dismissed
     context["fidelity_manual"] = sum(not (f.can_apply and f.suggested_text) for f in findings)
     context["fidelity_counts"] = {

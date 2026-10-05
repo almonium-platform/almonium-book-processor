@@ -917,7 +917,9 @@ def test_a_dismissal_can_be_reopened_and_an_unplaceable_finding_closed_by_hand(a
     dismiss_text_quality_finding(edition=adaptation, finding_id=material.id, reviewer=reviewer)
     context = audit_context(adaptation)
     assert [f.id for f in context["fidelity_dismissed"]] == [material.id]
-    assert context["fidelity_findings"][0].source_text == "Ere dawn, he departed."
+    # a small point one model raised alone is listed apart from what needs a decision
+    assert context["fidelity_findings"] == []
+    assert context["fidelity_optional"][0].source_text == "Ere dawn, he departed."
     assert context["fidelity_manual"] == 1  # the minor finding's quote is not in the text
     reopen_text_quality_finding(edition=adaptation, finding_id=material.id, reviewer=reviewer)
     material.refresh_from_db()

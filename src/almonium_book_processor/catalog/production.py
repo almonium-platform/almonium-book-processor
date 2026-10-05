@@ -31,6 +31,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
+from almonium_book_processor.catalog.fidelity_audit import backed
 from almonium_book_processor.catalog.models import (
     Edition,
     PipelineRun,
@@ -63,24 +64,6 @@ class Held(Exception):
     def __init__(self, *reasons: str) -> None:
         super().__init__("; ".join(reasons))
         self.reasons = [reason for reason in reasons if reason]
-
-
-def backed(evidence: dict) -> bool:
-    """Whether more than one model stands behind a finding.
-
-    An adaptation's audit: both auditors raised it, or the other confirmed it when asked.
-    A translation's review: both reviewers raised it or the second confirmed it, and where
-    an adjudicator ruled, the ruling is to change the text.
-    """
-
-    ruling = (evidence.get("adjudication") or {}).get("verdict")
-    if ruling:
-        return ruling in ("apply_proposed", "new_fix")
-    if evidence.get("agreement"):
-        return evidence["agreement"] in ("both", "confirmed")
-    return len(evidence.get("raised_by") or []) > 1 or bool(
-        (evidence.get("second_opinion") or {}).get("material")
-    )
 
 
 def queue_production(
