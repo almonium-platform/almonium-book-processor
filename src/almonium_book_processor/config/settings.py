@@ -172,13 +172,20 @@ OPENAI_ALIGNMENT_CONFIDENCE = float(os.getenv("OPENAI_ALIGNMENT_CONFIDENCE", "0.
 # tier: the whole-book difference is under a dollar at Batch prices.
 OPENAI_TRANSLATION_QUALITY_MODEL = os.getenv("OPENAI_TRANSLATION_QUALITY_MODEL", "gpt-5.6-terra")
 OPENAI_TRANSLATION_DRAFT_MODEL = os.getenv("OPENAI_TRANSLATION_DRAFT_MODEL", "gpt-5.6-luna")
-# A translation review's seats beside the Claude Code reviewer, as "provider:model" with
-# provider codex or claude-code (the plans) or openai (the metered API). The second reviewer is
-# from another vendor than the first on purpose.
-# A third part sets the reasoning effort of the seat's review. GPT-6.1-sol reviews at medium:
-# on three chapters it found as much as at high effort, ten of high's eleven material
-# findings among them, on a quarter of the tokens and in a sixth of the time.
-TRANSLATION_OUTSIDE_REVIEWER = os.getenv("TRANSLATION_OUTSIDE_REVIEWER", "codex:gpt-6.1-sol:medium")
+# Who does a job is named the same way for every job that has a choice: a seat, written
+# "provider:model" or "provider:model:effort", with provider codex or claude-code (the owner's
+# plans) or openai (the metered API). See ai/seats.py. The seats: ADAPTATION_GENERATOR,
+# GLOSS_WRITER, DIFFICULTY_JUDGES, FIDELITY_AUDITORS, TRANSLATION_REVIEWERS. Translating
+# itself is still ordered by tier, because the product's API orders it that way
+# (catalog/ai_translation.py), and the OPENAI_*_MODEL settings name what each tier and each
+# API-only job runs.
+#
+# A translation's two editors, from different vendors on purpose. GPT-6.1-sol reviews at
+# medium effort: on three chapters it found as much as at high effort, ten of high's eleven
+# material findings among them, on a quarter of the tokens and in a sixth of the time.
+TRANSLATION_REVIEWERS = os.getenv(
+    "TRANSLATION_REVIEWERS", "claude-code:claude-opus-5-5,codex:gpt-6.1-sol:medium"
+)
 # Windows of a translation its two editors read at a time, when a production has it reviewed.
 TRANSLATION_REVIEW_WORKERS = int(os.getenv("TRANSLATION_REVIEW_WORKERS", "1"))
 # How a production translates: a tier of catalog/ai_translation.py. "codex" is gpt-6-astra on

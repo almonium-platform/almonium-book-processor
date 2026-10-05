@@ -128,12 +128,12 @@ class SecondOpinion(BaseModel):
 
 
 def reviewers() -> list[dict]:
-    """The two editors. The second is from another vendor than the first on purpose."""
+    """The two editors (``TRANSLATION_REVIEWERS``), from different vendors on purpose."""
 
-    return [
-        {"name": "claude-code", "provider": "claude-code", "model": settings.CLAUDE_CODE_MODEL},
-        _seat(settings.TRANSLATION_OUTSIDE_REVIEWER),
-    ]
+    seats = [_seat(setting) for setting in settings.TRANSLATION_REVIEWERS.split(",")]
+    if len(seats) != 2 or seats[0]["provider"] == seats[1]["provider"]:
+        raise ValueError("A translation is reviewed by two editors from different providers.")
+    return seats
 
 
 def _seat(setting: str, name: str | None = None) -> dict:

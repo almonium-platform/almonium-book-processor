@@ -50,6 +50,11 @@ Level adaptation can run on one of the owner's plans instead of the API: set
 - A job on a plan uses up part of the plan's weekly allowance and is recorded
   at that share of the plan's price (`ai/pricing.py`). `manage.py plan_meter`
   reads the Codex meter.
+- **Who does a job is named one way**: a seat, `provider:model[:effort]`, in
+  `ADAPTATION_GENERATOR`, `GLOSS_WRITER`, `DIFFICULTY_JUDGES`,
+  `FIDELITY_AUDITORS` and `TRANSLATION_REVIEWERS`. The exception is
+  translating itself, which the product's API orders by tier
+  (`PRODUCTION_TRANSLATION_TIER` picks the tier a production uses).
 - `DIFFICULTY_JUDGES` and `FIDELITY_AUDITORS` name the pilot's blind judges
   and fidelity auditors the same way, e.g.
   `claude-code:claude-opus-5-5,codex:gpt-6.1-sol` and

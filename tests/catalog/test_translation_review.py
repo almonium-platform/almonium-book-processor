@@ -221,7 +221,7 @@ def test_windows_read_in_parallel_record_the_same_findings():
 
 
 def test_the_outside_reviewer_reads_at_the_effort_its_seat_names(settings):
-    settings.TRANSLATION_OUTSIDE_REVIEWER = "codex:gpt-6.1-sol:medium"
+    settings.TRANSLATION_REVIEWERS = "claude-code:claude-opus-5-5,codex:gpt-6.1-sol:medium"
     edition = translated_edition()
     outside, opus = FakeReviewer([]), FakeReviewer([])
 
@@ -322,3 +322,16 @@ def test_a_call_that_failed_after_the_model_answered_is_in_the_ledger():
     failed = AIRun.objects.get(status=AIRun.Status.FAILED)
     assert (failed.input_tokens, failed.output_tokens) == (9000, 700)
     assert failed.estimated_cost_usd > 0
+
+
+def test_the_two_editors_are_named_as_seats_and_must_be_from_different_vendors(settings):
+    from almonium_book_processor.catalog.translation_review import reviewers
+
+    settings.TRANSLATION_REVIEWERS = "claude-code:claude-opus-5-5,codex:gpt-6-astra"
+    assert [(r["name"], r["model"]) for r in reviewers()] == [
+        ("claude-code", "claude-opus-5-5"),
+        ("codex", "gpt-6-astra"),
+    ]
+    settings.TRANSLATION_REVIEWERS = "codex:gpt-6.1-sol,codex:gpt-6-astra"
+    with pytest.raises(ValueError, match="different providers"):
+        reviewers()
