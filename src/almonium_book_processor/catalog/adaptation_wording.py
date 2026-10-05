@@ -39,9 +39,11 @@ from almonium_book_processor.catalog.models import (
     PromptTemplate,
 )
 from almonium_book_processor.catalog.pilot_difficulty import (
+    agreed,
     judge_readings,
     judge_specs,
     judge_text,
+    panel_readings,
     panel_verdict,
 )
 
@@ -70,31 +72,46 @@ def judge_verdicts(edition: Edition, chapter: Chapter, *, provider=None) -> list
     specs = judge_specs(edition.language, wording=wording)
     # readings carried over a small edit stand for this text; nobody reads it again
     carried = _readings(edition).get((str(chapter.id), digest), [])
-    standing = [
-        next(
-            (a for spec_read, count, a in carried if spec_read == spec and count == readings), None
-        )
-        for spec in specs
-    ]
-    if all(standing):
-        return standing
-    return [
-        judge_text(
+    return panel_readings(
+        lambda spec, count: judge_text(
             edition=edition,
             key=f"{chapter.id}:wording",
             seed=digest,
-            summary={"chapter_id": str(chapter.id), "text_hash": digest, "readings": readings},
+            summary={"chapter_id": str(chapter.id), "text_hash": digest, "readings": count},
             chapter_sequence=chapter.sequence,
             blocks=blocks,
             spec=spec,
-            readings=readings,
+            readings=count,
             provider=provider,
             processor_version=WORDING_VERSION,
             # the strictest judge's description and recap of a chapter are what readers see
             reader_facing=True,
-        )
+        ),
+        specs,
+        readings,
+        standing=lambda count: _standing(carried, specs, count),
+    )
+
+
+def _standing(seen: list, specs: list[dict], count: int) -> list[dict | None]:
+    """Each judge's finished verdict from ``count`` readings of a text, None where it has none."""
+
+    return [
+        next((a for spec_read, made, a in seen if spec_read == spec and made == count), None)
         for spec in specs
     ]
+
+
+def _verdicts_that_stand(seen: list, specs: list[dict], readings: int) -> list[dict] | None:
+    """The verdicts a text already has: every judge's full reading, or first readings that agree."""
+
+    full = _standing(seen, specs, readings)
+    if all(full):
+        return full
+    first = _standing(seen, specs, 1)
+    if readings > 1 and all(first) and agreed(first):
+        return first
+    return None
 
 
 def check_chapter(edition: Edition, chapter: Chapter, *, provider=None) -> dict | None:
@@ -155,14 +172,12 @@ def wording_judges(edition: Edition) -> dict[str, list[tuple[str, str]]]:
         if not blocks:
             continue
         seen = read.get((str(chapter.id), text_hash(blocks)), [])
-        found = [
-            (spec["model"], assessment["max_level"])
-            for spec in specs
-            for seen_spec, count, assessment in seen
-            if seen_spec == spec and count == readings
-        ]
-        if len(found) >= len(specs):
-            judges[str(chapter.id)] = found
+        standing = _verdicts_that_stand(seen, specs, readings)
+        if standing:
+            judges[str(chapter.id)] = [
+                (spec["model"], verdict["max_level"])
+                for spec, verdict in zip(specs, standing, strict=True)
+            ]
     return judges
 
 

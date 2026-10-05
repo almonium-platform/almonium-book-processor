@@ -90,8 +90,9 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   chapter, on the host worker, `DIFFICULTY_JUDGE_WORKERS` chapters at a time.
   The strictest judge decides a chapter's level and its reading supplies the
   chapter's description and recap; the single API model is not asked. An
-  original is read by the whole rubric and once per judge, an adaptation for
-  its wording alone and `DIFFICULTY_READINGS` times. A chapter the judges have
+  original is read by the whole rubric and once per judge. An adaptation is
+  read for its wording alone: once per judge, and `DIFFICULTY_READINGS` times
+  each only where their first readings give different levels. A chapter the judges have
   read as it stands is never read again, so asking twice costs nothing. With
   no judges configured, as on a deployed environment, the single model reads
   as before.

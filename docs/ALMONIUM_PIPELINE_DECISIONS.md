@@ -490,6 +490,23 @@ ones it had.
   other confirmed it), and the chapters it touched are audited again rather
   than taken as read. Translations are not in it yet: they are still made
   and reviewed by commands.
+- **Judges read once, and three times only where they disagree.** Of 48
+  texts both judges had read three times, their first readings gave the same
+  level on 37; Opus never gave two different levels for one text, and
+  gpt-6.1-sol did on 11. Stopping at an agreeing first reading would have
+  changed one verdict of the 48, from "one judge a level above" to "at the
+  target", which the allowance for disputed chapters grants anyway, and
+  makes 188 calls where there were 336. Where the first readings differ each
+  judge reads twice more and its middle reading counts, as before
+  (`pilot_difficulty.panel_readings`). A single configured judge still reads
+  `DIFFICULTY_READINGS` times: it has nobody to agree with.
+- **A Claude call is costed at the CLI's own price of it**
+  (`pricing.plan_priced`), and the CLI's prompt cache is off for these
+  requests. The price table undercounted Claude by about 40%: the CLI wrote
+  every prompt to a one-hour cache at a premium and a chapter is never read
+  back from it. The plan's meter can be read in code after all
+  (`claude_meter`, the /usage screen), on a meter every Claude Code session
+  of the account shares.
 - **Luna keeps the easy work**: bibliographic metadata, and chapter notes
   (description, recap, themes) where no judges read, which the owner likes
   and which a privately uploaded book should get too.

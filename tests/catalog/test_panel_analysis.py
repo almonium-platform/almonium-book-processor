@@ -132,7 +132,7 @@ def test_the_judges_read_an_original_once_each_by_the_whole_rubric_and_theirs_is
     assert len(judges.bodies) == 4
 
 
-def test_the_judges_read_an_adaptation_three_times_for_its_wording_and_are_not_asked_twice(
+def test_the_judges_read_an_adaptation_for_its_wording_and_are_not_asked_twice(
     edition,
 ):
     from almonium_book_processor.catalog.adaptation_wording import check_edition
@@ -142,9 +142,10 @@ def test_the_judges_read_an_adaptation_three_times_for_its_wording_and_are_not_a
     edition.blocks.update(attributes={"adaptation": {"target_level": "B1"}})
     judges = Judges({"claude-opus-5-5": "B1", "gpt-6.1-sol": "B1"})
 
-    # the level check reads first, as the command and the mending steps do
+    # the level check reads first, as the command and the mending steps do; the judges'
+    # first readings agree on both chapters, so neither reads a second time
     check_edition(edition, provider=judges)
-    assert len(judges.bodies) == 2 * 2 * 3
+    assert len(judges.bodies) == 2 * 2
     assert all("WORDING ONLY" in body["instructions"] for body in judges.bodies)
 
     run = queue_analysis(str(edition.id))
@@ -152,7 +153,7 @@ def test_the_judges_read_an_adaptation_three_times_for_its_wording_and_are_not_a
     analyze_chapters(str(run.id), provider=judges)
 
     # the analysis is those same readings: no chapter is read again
-    assert len(judges.bodies) == 12
+    assert len(judges.bodies) == 4
     context = analysis_context(edition)
     assert context["projection_state"] == "complete"
     assert [row["difficulty"]["max_level"] for row in context["chapter_projections"]] == [
@@ -292,3 +293,26 @@ def test_a_cancelled_analysis_is_not_started_again_by_its_old_message(edition):
     # asked for again, it is queued and read
     analyze_chapters(str(queue_analysis(str(edition.id)).id), provider=judges)
     assert len(judges.bodies) == 4
+
+
+def test_a_chapter_the_judges_disagree_about_is_read_three_times_by_each(edition, settings):
+    from almonium_book_processor.catalog.adaptation_wording import check_chapter, wording_judges
+
+    _adaptation_of(edition, 2)
+    judges = ByChapter({"claude-opus-5-5": set(), "gpt-6.1-sol": {2}})
+
+    for chapter in edition.chapters.order_by("sequence"):
+        check_chapter(edition, chapter, provider=judges)
+
+    # chapter 1: one reading each. Chapter 2: the first readings differ, so each judge reads
+    # twice more, and its first reading is not paid for again.
+    assert len(judges.bodies) == 2 + 2 + 4
+    read = wording_judges(edition)
+    assert sorted(read.values()) == [
+        [("claude-opus-5-5", "B1"), ("gpt-6.1-sol", "B1")],
+        [("claude-opus-5-5", "B1"), ("gpt-6.1-sol", "B2")],
+    ]
+    # asked again, nobody reads anything
+    for chapter in edition.chapters.order_by("sequence"):
+        check_chapter(edition, chapter, provider=judges)
+    assert len(judges.bodies) == 8

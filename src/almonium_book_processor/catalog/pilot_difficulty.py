@@ -79,6 +79,38 @@ def judge_readings(*, wording: bool = True) -> int:
     return max(1, settings.DIFFICULTY_READINGS) if settings.DIFFICULTY_JUDGES and wording else 1
 
 
+def agreed(verdicts: list[dict]) -> bool:
+    """Whether more than one judge read the text and all of them at the same level."""
+
+    return len(verdicts) > 1 and len({verdict["max_level"] for verdict in verdicts}) == 1
+
+
+def panel_readings(read, specs: list[dict], readings: int, standing=None) -> list[dict]:
+    """Each judge's verdict on a text, read no more often than the judges need to agree.
+
+    Every judge reads once. Where their first readings give the same level that is the
+    verdict; only where they differ does each read ``readings`` times and its middle reading
+    count. Of 48 texts both judges read three times, their first readings agreed on 37, one
+    judge never gave two different levels, and stopping at an agreeing first reading would
+    have changed one verdict, by a level the adaptation gate already allows a disputed
+    chapter. ``read(spec, count)`` reads; ``standing(count)`` gives the verdicts already
+    made with ``count`` readings, None where a judge has made none.
+    """
+
+    def verdicts(count: int) -> list[dict]:
+        have = standing(count) if standing else [None] * len(specs)
+        return [made or read(spec, count) for spec, made in zip(specs, have, strict=True)]
+
+    full = standing(readings) if standing else None
+    if full and all(full):
+        return full
+    if readings > 1 and len(specs) > 1:
+        first = verdicts(1)
+        if agreed(first):
+            return first
+    return verdicts(readings)
+
+
 def decisive_runs(verdicts: list[dict]) -> list[str]:
     """The readings that stand for a chapter: the strictest judge's, one AI run per window.
 
@@ -164,7 +196,8 @@ def judge_text(
         raise ValueError("No text to assess.")
     plan = snapshot(edition, spec)
     # A single reading keeps the identity past assessments were saved under.
-    identity = _hash([seed, spec, blocks] + ([readings] if readings > 1 else []))
+    first = _hash([seed, spec, blocks])
+    identity = first if readings == 1 else _hash([seed, spec, blocks, readings])
     run, _ = PipelineRun.objects.get_or_create(
         idempotency_key=f"{key}:{identity}",
         defaults={
@@ -210,8 +243,10 @@ def judge_text(
                     "partial": len(parts) > 1,
                     "blocks": part,
                 }
-                # a later reading is a new call, not the first one's cached answer
-                key = [identity, data] if reading == 1 else [identity, data, reading]
+                # A later reading is a new call, not the first one's cached answer. The first
+                # is the judge's single reading of this text where it has made one: a judge
+                # asked to read three times after disagreeing reads twice more.
+                key = [first, data] if reading == 1 else [identity, data, reading]
                 window = {"hash": _hash(key), "data": data}
                 results.append(
                     _read(run, window, spec, configuration, prompt, provider, reader_facing)
@@ -285,8 +320,8 @@ def assess_pilot(pilot_id, *, provider=None):
     if not blocks:
         raise ValueError("No pilot text to assess.")
     readings = judge_readings()
-    verdicts = [
-        judge_text(
+    verdicts = panel_readings(
+        lambda spec, count: judge_text(
             edition=pilot.edition,
             key=f"{pilot.id}:pilot-difficulty",
             seed=generation.input_hash,
@@ -294,11 +329,12 @@ def assess_pilot(pilot_id, *, provider=None):
             chapter_sequence=chapter.sequence,
             blocks=blocks,
             spec=spec,
-            readings=readings,
+            readings=count,
             provider=provider,
-        )
-        for spec in specs
-    ]
+        ),
+        specs,
+        readings,
+    )
     assessment = panel_verdict(verdicts, pilot.edition.language, readings)
     pilot.summary = {**pilot.summary, "difficulty_check": assessment}
     pilot.save(update_fields=["summary", "updated_at"])
