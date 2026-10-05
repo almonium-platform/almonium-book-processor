@@ -17,6 +17,7 @@ from almonium_book_processor.ai.output_language import (
     OutputLanguageError,
     validate_output_language,
 )
+from almonium_book_processor.ai.seats import Seat, parse_seat, provider_for
 from almonium_book_processor.catalog.adaptation import digest, record_response
 from almonium_book_processor.catalog.ai_translation import TRANSLATION_MODEL_PRICING
 from almonium_book_processor.catalog.models import (
@@ -208,9 +209,25 @@ def queue_book(edition: Edition, *, dispatch=True) -> dict[str, int]:
     return counts
 
 
+def gloss_writer() -> Seat:
+    """Who writes the notes here: the configured seat, or the API's quality model.
+
+    On six passages of Frankenstein judged blind by two other models, gpt-6-astra's notes
+    were ranked first (75 of 78 judgements good, none wrong) and the API model's last (56 of
+    62 good, none wrong, and fewer notes), at about the same cost per passage on the plan.
+    """
+
+    if settings.GLOSS_WRITER:
+        return parse_seat(settings.GLOSS_WRITER)
+    return Seat("openai", settings.OPENAI_TRANSLATION_QUALITY_MODEL)
+
+
 def generation_spec() -> dict:
+    seat = gloss_writer()
     return {
-        "model": settings.OPENAI_TRANSLATION_QUALITY_MODEL,
+        "model": seat.model,
+        # named only when it is not the API: a past run must still be found as it was saved
+        **({"provider": seat.provider} if seat.on_plan else {}),
         "prompt": SYSTEM_PROMPT,
         "prompt_version": PROMPT_VERSION,
         "schema": Output.model_json_schema(),
@@ -227,7 +244,7 @@ def queue_chapter(chapter_id, *, dispatch=True, regenerate=False) -> PipelineRun
     """Queue one chapter; a generated chapter is paid for again only when regenerating."""
     from almonium_book_processor.catalog.tasks import generate_chapter_glosses
 
-    if not settings.OPENAI_API_KEY:
+    if not gloss_writer().on_plan and not settings.OPENAI_API_KEY:
         raise ValueError("Configure an OpenAI key to generate glosses.")
     chapter = Chapter.objects.select_related("edition__work").get(pk=chapter_id)
     source = chapter_snapshot(chapter)
@@ -274,11 +291,15 @@ def queue_chapter(chapter_id, *, dispatch=True, regenerate=False) -> PipelineRun
     return run
 
 
-def _configuration(model: str):
+def _configuration(model: str, provider: str = "openai"):
     config, _ = ModelConfiguration.objects.get_or_create(
-        name=f"contextual-glosses-{digest(model)[:16]}-v1",
+        name=(
+            f"contextual-glosses-{digest(model)[:16]}-v1"
+            if provider == "openai"
+            else f"contextual-glosses-{provider}-{digest(model)[:16]}-v1"
+        ),
         defaults={
-            "provider": "openai",
+            "provider": provider,
             "model": model,
             "purpose": "contextual_glosses",
             "parameters": {
@@ -315,7 +336,9 @@ def run_chapter(run_id, *, provider=None) -> None:
         spec = run.summary["spec"]
         if digest([chapter_snapshot(chapter), spec, VERSION]) != run.input_hash:
             raise ValueError("Chapter text changed; request fresh glosses.")
-        config, prompt = _configuration(spec["model"])
+        config, prompt = _configuration(spec["model"], spec.get("provider", "openai"))
+        if provider is None and config.provider != "openai":
+            provider = provider_for(config.provider, config.model)
         blocks = {block.block_id: block for block in chapter.blocks.all()}
         earlier = explained_before(chapter)
         explained = {term(quote) for quote in earlier}

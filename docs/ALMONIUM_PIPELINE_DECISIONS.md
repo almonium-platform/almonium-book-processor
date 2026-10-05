@@ -545,6 +545,14 @@ ones it had.
 - **Privately uploaded books** are a second path through the same
   processor: no translation is offered for them (copyright), chapter notes
   are.
-- **Open:** whether word glosses, which readers see and gpt-5.6-terra
-  writes, should be written and checked by the stronger models. To be
-  measured on a sample first: a book has thousands of glosses.
+- **The marginal notes are written by gpt-6-astra where a plan is there**
+  (`GLOSS_WRITER`). On six passages of Frankenstein, three writers under the
+  same brief and two other models judging blind: astra was ranked first (75
+  of 78 judgements "good", none "wrong"), Opus second (79 of 82, two
+  "wrong"), gpt-5.6-terra last by both judges (56 of 62, none wrong, and the
+  fewest notes). On the plan astra costs about what terra costs on the API.
+  With no wrong note in 39, one writer is enough: no second model checks the
+  notes, and a person still approves them before readers see them.
+- **Passages the owner rates** (`calibration/level_passages.json`,
+  `manage.py judge_passages`): ten passages, the same paragraphs at three
+  levels among them, to hold the judges against one person's reading.

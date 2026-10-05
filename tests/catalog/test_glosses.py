@@ -337,3 +337,29 @@ def test_gloss_estimate_prices_each_window_at_the_quality_rate(passage):
     Chapter.objects.create(edition=edition, sequence=9, title="Empty")
     empty = Chapter.objects.get(sequence=9)
     assert estimates.gloss_chapter(empty).usd is None
+
+
+def test_a_plan_seat_writes_the_notes_and_is_costed_as_a_share_of_the_plan(passage, settings):
+    _, chapter, _ = passage
+    settings.OPENAI_API_KEY = ""
+    settings.GLOSS_WRITER = "codex:gpt-6-astra"
+
+    class Astra(Provider):
+        def respond(self, body):
+            assert body["model"] == "gpt-6-astra"
+            body = {**body, "model": "fake-gloss-model"}
+            return super().respond(body)
+
+    run = queue_chapter(chapter.id, dispatch=False)
+    assert run.summary["spec"]["provider"] == "codex"
+    run_chapter(run.id, provider=Astra())
+
+    run.refresh_from_db()
+    assert run.status == "succeeded"
+    ai = run.ai_runs.get()
+    assert (ai.model_configuration.provider, ai.model_configuration.model) == (
+        "codex",
+        "gpt-6-astra",
+    )
+    # 100 tokens in and 50 out at list price, times the Codex plan's share
+    assert 0 < ai.estimated_cost_usd < 1

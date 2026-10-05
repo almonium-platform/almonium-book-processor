@@ -189,6 +189,10 @@ PRODUCTION_TRANSLATION_TIER = os.getenv("PRODUCTION_TRANSLATION_TIER", "codex")
 # whole books. Empty means the API's quality model, which is what a deployed worker uses; the
 # owner's machine names a plan seat, e.g. codex:gpt-6-astra.
 ADAPTATION_GENERATOR = os.getenv("ADAPTATION_GENERATOR", "")
+# Who writes the marginal notes (contextual glosses), as a seat. Empty means the API's quality
+# model; the owner's machine names codex:gpt-6-astra, whose notes two other models ranked
+# first on a blind comparison.
+GLOSS_WRITER = os.getenv("GLOSS_WRITER", "")
 
 # The blind difficulty judges of a chapter pilot, and so of a floor probe, as seats separated
 # by commas. Each judge reads the text DIFFICULTY_READINGS times and its middle reading counts;
@@ -233,11 +237,14 @@ def plan_task_routes(*seat_settings: str) -> dict[str, dict[str, str]]:
             "produce_edition",
             "translate_edition_on_plan",
             "review_edition_translation",
+            "generate_chapter_glosses",
         )
     }
 
 
-CELERY_TASK_ROUTES = plan_task_routes(ADAPTATION_GENERATOR, DIFFICULTY_JUDGES, FIDELITY_AUDITORS)
+CELERY_TASK_ROUTES = plan_task_routes(
+    ADAPTATION_GENERATOR, DIFFICULTY_JUDGES, FIDELITY_AUDITORS, GLOSS_WRITER
+)
 # Private-import metadata is one small call per book; the cheaper tier is plenty.
 OPENAI_METADATA_MODEL = os.getenv("OPENAI_METADATA_MODEL", "gpt-5.6-luna")
 # The fidelity audit reads adapted text beside its source; "quality" is the

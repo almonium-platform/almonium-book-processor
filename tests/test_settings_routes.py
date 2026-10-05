@@ -23,6 +23,8 @@ def test_a_plan_seat_sends_the_generating_tasks_to_the_host_worker():
         # and has a translation written and reviewed on the plans
         "almonium_book_processor.catalog.tasks.translate_edition_on_plan",
         "almonium_book_processor.catalog.tasks.review_edition_translation",
+        # the marginal notes can be written on a plan too
+        "almonium_book_processor.catalog.tasks.generate_chapter_glosses",
     }
     assert all(route == {"queue": PLAN_QUEUE} for route in routes.values())
 
