@@ -471,6 +471,34 @@ def word_diff(original, adapted):
     return source, target
 
 
+def change_diff(before, after, *, context=120):
+    """One word-level diff of a correction, as {op, text} segments in reading order.
+
+    A correction usually touches a few words of a long paragraph, so a stretch of unchanged
+    text longer than twice ``context`` is cut to what surrounds the change.
+    """
+    a = _DIFF_TOKEN.findall(before)
+    b = _DIFF_TOKEN.findall(after)
+    segments = []
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if op == "equal":
+            _append_segment(segments, "equal", "".join(a[i1:i2]))
+            continue
+        if i2 > i1:
+            _append_segment(segments, "delete", "".join(a[i1:i2]))
+        if j2 > j1:
+            _append_segment(segments, "insert", "".join(b[j1:j2]))
+    last = len(segments) - 1
+    for index, segment in enumerate(segments):
+        text = segment["text"]
+        if segment["op"] != "equal" or len(text) <= 2 * context:
+            continue
+        head = "" if index == 0 else text[:context].rsplit(None, 1)[0] + " "
+        tail = "" if index == last else " " + text[-context:].split(None, 1)[-1]
+        segment["text"] = f"{head}…{tail}"
+    return segments
+
+
 # Words keep inner apostrophes and hyphens; each punctuation mark is its own token,
 # so "mystery;" against "mystery" marks only the semicolon.
 _DIFF_TOKEN = re.compile(r"\s+|\w+(?:['’-]\w+)*|[^\w\s]")

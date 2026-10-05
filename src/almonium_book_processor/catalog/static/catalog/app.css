@@ -243,6 +243,7 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .word-diff { white-space: pre-wrap; overflow-wrap: anywhere; }
 .word-diff del, .word-diff-legend del { background: rgba(220, 38, 38, .14); text-decoration: none; }
 .word-diff ins, .word-diff-legend ins { background: rgba(22, 163, 74, .16); text-decoration: none; }
+.change-diff del, .revision .word-diff-legend del { text-decoration: line-through; }
 @media (max-width: 700px) { .pilot-comparison { grid-template-columns: 1fr; } }
 
 /* Editorial catalogue: one panel per work, one row per edition */

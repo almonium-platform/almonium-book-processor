@@ -551,7 +551,7 @@
   {% endif %}
 </details>
 
-{% if recent_revisions %}<details class="panel collapsible-panel" id="text-corrections"><summary><span class="summary-title">Text corrections</span><span class="summary-meta">{{ recent_revisions|length }} shown · latest {{ recent_revisions.0.created_at|date:"Y-m-d H:i" }}</span></summary>{% for revision in recent_revisions %}<details class="revision"><summary>{{ revision.stable_block_id }} · {{ revision.editor|default:"staff" }} · {{ revision.created_at }}</summary><p><strong>Before:</strong> {{ revision.previous_text }}</p><p><strong>After:</strong> {{ revision.revised_text }}</p><p class="muted">{{ revision.notes }}</p></details>{% endfor %}</details>{% endif %}
+{% if recent_revisions %}<details class="panel collapsible-panel" id="text-corrections"><summary><span class="summary-title">Text corrections</span><span class="summary-meta">{{ recent_revisions|length }} shown · latest {{ recent_revisions.0.created_at|date:"Y-m-d H:i" }}</span></summary>{% for revision in recent_revisions %}{% include "catalog/revision.html" %}{% endfor %}</details>{% endif %}
 {% if import_notices %}<details class="panel collapsible-panel notices" id="import-notices"><summary><span class="summary-title">Import notices</span><span class="summary-meta">{{ import_notices|length }} kept for traceability · no decision needed</span></summary>{% for warning in import_notices %}<div class="warning warning-{{ warning.severity }}"><code>{{ warning.code }}</code><span>{{ warning.message }}{% if warning.source_ref %} <span class="muted">({{ warning.source_ref }})</span>{% endif %}</span></div>{% endfor %}</details>{% endif %}
 
 <details class="panel collapsible-panel danger-zone" id="remove">

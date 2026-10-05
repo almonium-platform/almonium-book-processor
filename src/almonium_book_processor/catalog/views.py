@@ -801,7 +801,7 @@ def _render_edition_detail(
             start_offset__isnull=False,
             end_offset__isnull=False,
         ).count(),
-        "recent_revisions": edition.block_revisions.all()[:10],
+        "recent_revisions": _recent_revisions(edition.block_revisions.all()),
         "translation_form": (
             ParallelTranslationForm(source_edition=edition)
             if edition.is_canonical and edition.blocks.exists()
@@ -928,6 +928,17 @@ def _parallel_rows(
             )
 
     return rows, sum(1 for row in rows if row["status"] != "paired")
+
+
+def _recent_revisions(revisions, limit: int = 10) -> list:
+    """The latest text corrections, each with the word-level diff its panel prints."""
+
+    from almonium_book_processor.catalog.adaptation import change_diff
+
+    rows = list(revisions.select_related("editor")[:limit])
+    for revision in rows:
+        revision.diff = change_diff(revision.previous_text, revision.revised_text)
+    return rows
 
 
 def _mark_word_changes(rows: list[dict], edition: Edition, parallel_edition: Edition) -> None:
@@ -1119,7 +1130,7 @@ def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
             "truncated": bool(query) and match_count > len(blocks),
             "search_limit": READER_SEARCH_LIMIT,
             "block_count": edition.blocks.count(),
-            "recent_revisions": edition.block_revisions.select_related("editor")[:10],
+            "recent_revisions": _recent_revisions(edition.block_revisions.all()),
         },
     )
 
@@ -1616,9 +1627,9 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
             "pending_group_count": pending_group_count,
             "unmatched_source_count": unmatched_source_blocks.count(),
             "unmatched_target_count": unmatched_target_blocks.count(),
-            "recent_revisions": edition.block_revisions.filter(
-                block__chapter__sequence=chapter
-            ).select_related("editor")[:10],
+            "recent_revisions": _recent_revisions(
+                edition.block_revisions.filter(block__chapter__sequence=chapter)
+            ),
             "ai_run_summaries": ai_run_summaries,
             "ai_enabled": bool(settings.OPENAI_API_KEY),
             "ai_estimate": alignment_estimate(edition),

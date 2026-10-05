@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from almonium_book_processor.catalog.adaptation import (
     PROMPT_NAME,
+    change_diff,
     pilot_context,
     queue_pilot,
     run_pilot,
@@ -143,6 +144,10 @@ def test_applied_pilot_review_item_points_at_the_replaced_chapter(application, c
     client.force_login(staff)
     content = client.get(reverse("catalog:edition-detail", args=[target.id])).content.decode()
     assert 'class="review-item review-item-warning"' in content
+    # each correction prints as one diff: what went in red, what came in green
+    panel = content[content.index('id="text-corrections"') :]
+    assert '<p class="word-diff change-diff">' in panel
+    assert "<del>" in panel and "<ins>" in panel
     assert "<code>adaptation_chapter_replaced</code>" in content
     link = f'<a href="{reader}?chapter=1&amp;{parallel.replace("&", "&amp;")}">'
     assert f"{link}Read Chapter I beside the source</a>" in content
@@ -749,6 +754,27 @@ def test_review_rows_carry_word_level_diff(chapter):
     assert deleted == ["Ere", "departed"]
     assert inserted == ["Before", "left"]
     assert "".join(s["text"] for s in rows[1]["target_segments"]) == "Before dawn, he left."
+
+
+def test_a_correction_reads_as_one_diff_with_the_untouched_text_cut_short():
+    long = "word " * 80
+    segments = change_diff(f"{long}He was glad. {long}", f"{long}He was happy. {long}")
+
+    assert [(s["op"], s["text"]) for s in segments if s["op"] != "equal"] == [
+        ("delete", "glad"),
+        ("insert", "happy"),
+    ]
+    before, after = segments[0]["text"], segments[-1]["text"]
+    assert before.startswith("… ") and before.endswith("He was ")
+    assert after.startswith(". word") and after.endswith(" …")
+    assert len(before) < 140 and len(after) < 140
+
+
+def test_a_short_correction_keeps_every_word():
+    segments = change_diff("He was glad.", "He was happy, and glad.")
+
+    assert "".join(s["text"] for s in segments if s["op"] != "insert") == "He was glad."
+    assert "".join(s["text"] for s in segments if s["op"] != "delete") == "He was happy, and glad."
 
 
 def test_word_diff_round_trips_whitespace():
