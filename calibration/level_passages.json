@@ -1,0 +1,115 @@
+{
+ "about": "Passages the owner rates once, by hand, to check the level judges against. A judge that drifts, or reads consistently higher or lower than the owner, shows here before it shows in a book. owner_level is the owner's own reading (A2, B1, B2, C1 or C2), null until given. judges is what manage.py judge_passages last recorded. The passages are shown to the owner without their source.",
+ "passages": [
+  {
+   "id": "P1",
+   "edition": "the-sign-of-four-en-original",
+   "block_id": "c2.p22",
+   "owner_level": null,
+   "judges": {
+    "claude-opus-5-5": "B2",
+    "gpt-6.1-sol": "B2"
+   },
+   "text": "'I have not yet described to you the most singular part. About six years ago—to be exact, upon the 4th of May, 1882—an advertisement appeared in the Times asking for the address of Miss Mary Morstan, and stating that it would be to her advantage to come forward. There was no name or address appended. I had at that time just entered the family of Mrs. Cecil Forrester in the capacity of governess. By her advice I published my address in the advertisement column. The same day there arrived through the post a small cardboard box addressed to me, which I found to contain a very large and lustrous pearl. No word of writing was enclosed. Since then every year upon the same date there has always appeared a similar box, containing a similar pearl, without any clue as to the sender. They have been pronounced by an expert to be of a rare variety and of considerable value. You can see for yourselves that they are very handsome.'"
+  },
+  {
+   "id": "P2",
+   "edition": "shelley-frankenstein-en-orig-b2",
+   "block_id": "c9.p17",
+   "owner_level": null,
+   "judges": {
+    "claude-opus-5-5": "B1",
+    "gpt-6.1-sol": "B2"
+   },
+   "text": "Partly from curiosity and partly from idleness, I went into the lecture room. M. Waldman entered shortly afterwards. This professor was very unlike his colleague. He seemed about fifty years old, but his face expressed the greatest kindness. A few grey hairs covered his temples, but those at the back of his head were almost black. He was short, but remarkably upright, and his voice was the sweetest I had ever heard. He began his lecture by reviewing the history of chemistry and the various improvements made by different learned men, speaking with enthusiasm the names of the most distinguished discoverers. He then gave a quick view of the present state of the science and explained many of its basic terms. After making a few preliminary experiments, he ended with praise of modern chemistry, in words I shall never forget:—"
+  },
+  {
+   "id": "P3",
+   "edition": "shelley-frankenstein-en-orig-b1",
+   "block_id": "c18.p13",
+   "owner_level": null,
+   "judges": {
+    "claude-opus-5-5": "B1",
+    "gpt-6.1-sol": "B1"
+   },
+   "text": "\"At first, his reading puzzled me greatly. Slowly, I discovered that he made many of the same sounds when reading as when talking. So I guessed that he found signs on the paper for speech he understood. I longed to understand these signs too. But how could I, when I did not even understand the sounds they stood for? Still, I made clear progress in learning their language. I gave all my attention to it, but I could not yet follow any conversation. I understood one thing clearly. Although I longed to show myself to the people in the cottage, I should wait. First, I needed to learn their language well. That knowledge might help me persuade them to look past my badly shaped body. I had become aware of this too, because I constantly saw how different I looked from them."
+  },
+  {
+   "id": "P4",
+   "edition": "shelley-frankenstein-en-orig-b2",
+   "block_id": "c18.p13",
+   "owner_level": null,
+   "judges": {
+    "claude-opus-5-5": "B2",
+    "gpt-6.1-sol": "B2"
+   },
+   "text": "\"This reading had puzzled me extremely at first; but, by degrees, I discovered that he spoke many of the same sounds when he read as when he talked. I guessed, therefore, that on the paper he found signs for speech which he understood, and I ardently longed to understand these also. But how was that possible, when I did not even understand the sounds for which they stood as signs? I made noticeable progress in this knowledge, but not enough to follow any kind of conversation, although I gave my whole mind to the effort. For I easily perceived that, although I eagerly longed to reveal myself to the cottagers, I ought not to make the attempt until I had first mastered their language. This knowledge might enable me to make them overlook the deformity of my figure; for I had also learned of this from the contrast constantly before my eyes."
+  },
+  {
+   "id": "P5",
+   "edition": "shelley-frankenstein-en-orig",
+   "block_id": "c18.p13",
+   "owner_level": null,
+   "judges": {
+    "claude-opus-5-5": "C1",
+    "gpt-6.1-sol": "C1"
+   },
+   "text": "\"This reading had puzzled me extremely at first; but, by degrees, I discovered that he uttered many of the same sounds when he read, as when he talked. I conjectured, therefore, that he found on the paper signs for speech which he understood, and I ardently longed to comprehend these also; but how was that possible, when I did not even understand the sounds for which they stood as signs? I improved, however, sensibly in this science, but not sufficiently to follow up any kind of conversation, although I applied my whole mind to the endeavour: for I easily perceived that, although I eagerly longed to discover myself to the cottagers, I ought not to make the attempt until I had first become master of their language; which knowledge might enable me to make them overlook the deformity of my figure; for with this also the contrast perpetually presented to my eyes had made me acquainted."
+  },
+  {
+   "id": "P6",
+   "edition": "shelley-frankenstein-en-orig-b1",
+   "block_id": "c9.p17",
+   "owner_level": null,
+   "judges": {
+    "claude-opus-5-5": "B1",
+    "gpt-6.1-sol": "B1"
+   },
+   "text": "I went into the lecture room partly because I was curious and partly because I had nothing to do. M. Waldman entered soon afterwards. This professor was very different from his colleague. He seemed about fifty, but his face showed the greatest kindness. A few grey hairs covered the sides of his head near his eyes. The hair at the back was almost black. He was short, but he stood unusually straight. His voice was the sweetest I had ever heard. He began by going over the history of chemistry. He described the improvements made by different learned men. He spoke the names of the greatest discoverers with eager feeling. Then he briefly described what was known about chemistry at present. He explained many of its basic terms. After doing a few experiments to prepare us, he ended with warm praise for modern chemistry. I shall never forget his words:—"
+  },
+  {
+   "id": "P7",
+   "edition": "the-sign-of-four-en-original",
+   "block_id": "c8.p72",
+   "owner_level": null,
+   "judges": {
+    "claude-opus-5-5": "B1",
+    "gpt-6.1-sol": "B2"
+   },
+   "text": "'Here you are,' said Holmes, producing some silver. 'In future they can report to you, Wiggins, and you to me. I cannot have the house invaded in this way. However, it is just as well that you should all hear the instructions. I want to find the whereabouts of a steam launch called the Aurora , owner Mordecai Smith, black with two red streaks, funnel black with a white band. She is down the river somewhere. I want one boy to be at Mordecai Smith's landing-stage opposite Millbank to say if the boat comes back. You must divide it out among yourselves, and do both banks thoroughly. Let me know the moment you have news. Is that all clear?'"
+  },
+  {
+   "id": "P8",
+   "edition": "shelley-frankenstein-en-orig",
+   "block_id": "c9.p17",
+   "owner_level": null,
+   "judges": {
+    "claude-opus-5-5": "B2",
+    "gpt-6.1-sol": "B2"
+   },
+   "text": "Partly from curiosity, and partly from idleness, I went into the lecturing room, which M. Waldman entered shortly after. This professor was very unlike his colleague. He appeared about fifty years of age, but with an aspect expressive of the greatest benevolence; a few grey hairs covered his temples, but those at the back of his head were nearly black. His person was short, but remarkably erect; and his voice the sweetest I had ever heard. He began his lecture by a recapitulation of the history of chemistry, and the various improvements made by different men of learning, pronouncing with fervour the names of the most distinguished discoverers. He then took a cursory view of the present state of the science, and explained many of its elementary terms. After having made a few preparatory experiments, he concluded with a panegyric upon modern chemistry, the terms of which I shall never forget:—"
+  },
+  {
+   "id": "P9",
+   "edition": "shelley-frankenstein-en-orig-b1",
+   "block_id": "c30.p72",
+   "owner_level": null,
+   "judges": {
+    "claude-opus-5-5": "B1",
+    "gpt-6.1-sol": "B2"
+   },
+   "text": "His voice sounded choked. At first, I had felt that I must obey my friend's dying request and destroy his enemy. Now a mixture of curiosity and pity held me back. I approached this huge, terrifying being. I dared not look up at his face again. There was something so frightening and unlike anything earthly in his ugliness. I tried to speak, but the words died on my lips. The monster continued to blame himself in wild, confused cries. At last there was a pause in the storm of his feelings. I gathered enough courage to speak. \"Your regret is useless now,\" I said. \"You should have listened to your sense of right and wrong. You should have listened to the sharp pains of guilt before taking your devilish revenge this far. If you had, Frankenstein would still be alive."
+  },
+  {
+   "id": "P10",
+   "edition": "shelley-frankenstein-en-orig-b2",
+   "block_id": "c27.p45",
+   "owner_level": null,
+   "judges": {
+    "claude-opus-5-5": "B2",
+    "gpt-6.1-sol": "B2"
+   },
+   "text": "The time of the criminal court sessions approached. I had already been in prison for three months, and although I was still weak and in continual danger of falling ill again, I had to travel nearly a hundred miles to the county town where the court met. Mr. Kirwin took on every care of gathering witnesses and arranging my defence. I was spared the disgrace of appearing publicly as a criminal, because the case was not brought before the court that decides matters of life and death. The grand jury rejected the charge when it was proved that I had been on the Orkney Islands at the hour when my friend's body was found. A fortnight after my removal, I was freed from prison."
+  }
+ ]
+}
