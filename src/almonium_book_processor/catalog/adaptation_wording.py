@@ -244,6 +244,10 @@ def citations(edition: Edition, chapter: Chapter, target: str) -> dict[str, list
         if LEVELS.index(assessment["max_level"]) <= LEVELS.index(target):
             continue
         for window in assessment["windows"]:
+            # a long chapter is read in several windows; only those read above the target
+            # hold it up, and the paragraphs of the others are left alone
+            if LEVELS.index(window["cefr_estimate"]) <= LEVELS.index(target):
+                continue
             for item in window.get("hard_words", []):
                 notes.setdefault(item["block_id"], []).append(f"word: {item['surface']}")
             for item in window.get("evidence", []):

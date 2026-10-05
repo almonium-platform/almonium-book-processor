@@ -1185,6 +1185,44 @@ def test_a_chapter_the_judges_read_at_the_target_has_nothing_to_mend(adaptation)
     assert fixer.asked == []
 
 
+def test_only_the_windows_read_above_the_target_are_mended(adaptation):
+    from almonium_book_processor.catalog.adaptation_wording import (
+        WORDING_VERSION,
+        citations,
+        text_hash,
+    )
+    from almonium_book_processor.catalog.chapter_analysis import chapter_blocks
+
+    chapter = adaptation.chapters.get(sequence=1)
+
+    def window(level, block_id, word):
+        return {
+            "cefr_estimate": level,
+            "hard_words": [{"block_id": block_id, "surface": word, "explanation": "A word."}],
+            "evidence": [],
+        }
+
+    PipelineRun.objects.create(
+        edition=adaptation,
+        stage="adapt",
+        processor_version=WORDING_VERSION,
+        input_hash="x",
+        idempotency_key="long-chapter-wording",
+        status="succeeded",
+        summary={
+            "chapter_id": str(chapter.id),
+            "text_hash": text_hash(chapter_blocks(chapter)),
+            "assessment": {
+                "max_level": "C1",
+                # a long chapter in two windows: the first reads at the target
+                "windows": [window("B2", "c1.b1", "dawn"), window("C1", "c1.b2", "afraid")],
+            },
+        },
+    )
+
+    assert citations(adaptation, chapter, "B2") == {"c1.b2": ["word: afraid"]}
+
+
 def test_a_phrase_level_fix_carries_the_difficulty_verdict_forward(
     adaptation, django_capture_on_commit_callbacks
 ):
