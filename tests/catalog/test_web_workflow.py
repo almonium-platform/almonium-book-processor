@@ -2461,6 +2461,59 @@ def test_failed_publication_hand_off_is_shown_in_the_processing_history(
     assert "Almonium API returned 503 Service Unavailable" in page.content.decode()
 
 
+def test_a_publication_almonium_refuses_shows_its_reason_as_written(client, monkeypatch) -> None:
+    from almonium_book_processor.catalog.publication import PublicationRefused
+
+    staff = get_user_model().objects.create_user(username="refused", is_staff=True)
+    work = Work.objects.create(
+        slug="protected-work",
+        title="Protected Work",
+        author="Living Author",
+        original_language="en",
+        publication_year=1990,
+    )
+    edition = Edition.objects.create(
+        slug="protected-work-en",
+        work=work,
+        title="Protected Work",
+        author="Living Author",
+        language="en",
+        cefr_level=Edition.CEFRLevel.B2,
+        source_sha256="4" * 64,
+        status=Edition.Status.READY,
+    )
+    PipelineRun.objects.create(
+        edition=edition,
+        stage=PipelineRun.Stage.SENTENCES,
+        status=PipelineRun.Status.SUCCEEDED,
+        processor_version="test",
+        input_hash=_text_hash(
+            edition.source_sha256,
+            edition.language,
+            settings.NLP_SPACY_MODELS.get(edition.language, "blank"),
+            _edition_content_hash(edition),
+        ),
+        idempotency_key="refused-sentences",
+    )
+    reason = "Under copyright in UA and DE until the end of 2046 (by the catalogue dates)."
+
+    def refuse(_edition):
+        raise PublicationRefused(reason)
+
+    monkeypatch.setattr("almonium_book_processor.catalog.tasks.publish_to_almonium", refuse)
+    client.force_login(staff)
+
+    with pytest.raises(PublicationRefused):
+        publish_edition.run(str(edition.id))
+
+    run = edition.pipeline_runs.get(stage=PipelineRun.Stage.PUBLISH)
+    assert run.status == PipelineRun.Status.FAILED
+    assert run.error == f"Refused by Almonium: {reason}"
+    assert run.summary == {"refused": reason}
+    page = client.get(reverse("catalog:edition-detail", args=[edition.id])).content.decode()
+    assert f"Almonium refused it: {reason}" in page
+
+
 def test_parallel_reader_marks_a_mostly_rewritten_row_without_highlights(client) -> None:
     canonical, _, source_blocks, _ = parallel_records()
     adaptation = Edition.objects.create(

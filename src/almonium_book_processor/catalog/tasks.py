@@ -44,6 +44,7 @@ from almonium_book_processor.catalog.promotion import (
 )
 from almonium_book_processor.catalog.promotion_client import PromotionClient
 from almonium_book_processor.catalog.publication import (
+    PublicationRefused,
     publish_to_almonium,
     withdraw_from_almonium,
 )
@@ -554,7 +555,10 @@ def publish_edition(edition_id: str) -> None:
         run.status = PipelineRun.Status.FAILED
         run.finished_at = timezone.now()
         run.error = str(error)[:10000]
-        run.save(update_fields=["status", "finished_at", "error", "updated_at"])
+        # a refusal is Almonium's verdict on the work, not a transport failure, and the
+        # editor reads its reason as Almonium wrote it
+        run.summary = {"refused": error.reason} if isinstance(error, PublicationRefused) else {}
+        run.save(update_fields=["status", "finished_at", "error", "summary", "updated_at"])
         raise
 
 

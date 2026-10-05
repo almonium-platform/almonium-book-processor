@@ -5,6 +5,7 @@ import hmac
 import json
 import os
 import time
+from dataclasses import dataclass, field
 from http.client import HTTPConnection, HTTPSConnection
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -24,6 +25,18 @@ READ_TIMEOUT_SECONDS = 30
 
 class PublicationError(RuntimeError):
     pass
+
+
+class PublicationRefused(PublicationError):
+    """Almonium understood the request and will not take it: HTTP 409 with its reason.
+
+    The product API answers so for a work under copyright where editions are made and
+    hosted; the reason is its own sentence, kept whole so the editor reads it as written.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Refused by Almonium: {reason}" if reason else "Refused by Almonium.")
+        self.reason = reason
 
 
 class _TimedConnection(HTTPConnection):
@@ -108,6 +121,8 @@ def _signed_post(path: str, payload: dict[str, Any], *, failure: str) -> Any:
             return json.loads(response.read())
     except HTTPError as error:
         reason = _response_reason(error)
+        if error.code == 409:
+            raise PublicationRefused(reason) from error
         detail = f" ({reason})" if reason else ""
         raise PublicationError(f"{failure} with HTTP {error.code}{detail}.") from error
     except (URLError, TimeoutError) as error:
@@ -172,3 +187,71 @@ def publish_to_almonium(edition: Edition) -> str:
         return str(response_payload["bookId"])
     except (KeyError, TypeError) as error:
         raise PublicationError("Almonium returned an invalid publication response.") from error
+
+
+RIGHTS_STATUSES = ("FREE", "PROTECTED", "UNKNOWN")
+# Not one of Almonium's answers: the question could not be asked or the answer not read.
+RIGHTS_UNCHECKED = "UNCHECKED"
+
+
+@dataclass(frozen=True)
+class RightsVerdict:
+    """Whether a work may be prepared where editions are made and hosted, as Almonium says."""
+
+    status: str
+    explanation: str
+    free_from: int | None = None
+    countries: list[str] = field(default_factory=list)
+    catalog_work_id: str | None = None
+    catalog_title: str | None = None
+    catalog_author: str | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "status": self.status,
+            "explanation": self.explanation,
+            "free_from": self.free_from,
+            "countries": list(self.countries),
+            "catalog_work_id": self.catalog_work_id,
+            "catalog_title": self.catalog_title,
+            "catalog_author": self.catalog_author,
+        }
+
+
+def check_rights(edition: Edition) -> RightsVerdict:
+    """Ask Almonium whether this edition's work is free where editions are made and hosted.
+
+    Asked before anything is spent on the book, with the facts a publication would send,
+    so the answer is the one the publication itself will meet. It never raises: an
+    unreachable or unconfigured API is an ``UNCHECKED`` verdict saying why, and the
+    publication is checked again when it is sent.
+    """
+
+    payload = {
+        "workSlug": edition.work.slug or None,
+        "title": edition.title,
+        "author": edition.author or None,
+        "publicationYear": edition.work.publication_year,
+    }
+    try:
+        answer = _signed_post(
+            "/internal/books/publications/rights-check",
+            payload,
+            failure="Almonium rights check failed",
+        )
+    except PublicationError as error:
+        return RightsVerdict(RIGHTS_UNCHECKED, str(error))
+    if not isinstance(answer, dict) or answer.get("status") not in RIGHTS_STATUSES:
+        return RightsVerdict(
+            RIGHTS_UNCHECKED, "Almonium rights check failed: an answer without a known status."
+        )
+    free_from = answer.get("freeFrom")
+    return RightsVerdict(
+        status=answer["status"],
+        explanation=str(answer.get("explanation") or "").strip(),
+        free_from=free_from if isinstance(free_from, int) else None,
+        countries=[str(code) for code in answer.get("countries") or []],
+        catalog_work_id=answer.get("catalogWorkId"),
+        catalog_title=answer.get("catalogTitle"),
+        catalog_author=answer.get("catalogAuthor"),
+    )
