@@ -42,6 +42,5 @@ class Command(BaseCommand):
             f"{run.status}: {len(review.get('issues', []))} findings "
             f"(raised by both {agreement.get('both', 0)}, "
             f"confirmed by the other {agreement.get('confirmed', 0)}, "
-            f"disputed {agreement.get('disputed', 0)}); "
-            f"adjudicator: {review.get('rulings') or {}}"
+            f"disputed {agreement.get('disputed', 0)})"
         )

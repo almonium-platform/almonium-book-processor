@@ -507,6 +507,16 @@ ones it had.
   back from it. The plan's meter can be read in code after all
   (`claude_meter`, the /usage screen), on a meter every Claude Code session
   of the account shares.
+- **A translation review reports serious findings only, and nobody rules.**
+  The first review asked two editors for everything they would change, had
+  the translator's model write a final wording for each correction and a
+  third model (Fable) rule on every disputed and stylistic finding: 1,286
+  findings and about USD 7.30 on Frankenstein, against USD 1.08 for the
+  translation. The owner: "rest is stylistic noise". The editors now report
+  only what misleads or stops a reader; a finding one raised alone goes to
+  the other, whose yes confirms it and whose no leaves it for a person
+  without a replacement. The final-wording pass and the adjudicator are
+  gone, as the adaptation audit never had them.
 - **Luna keeps the easy work**: bibliographic metadata, and chapter notes
   (description, recap, themes) where no judges read, which the owner likes
   and which a privately uploaded book should get too.

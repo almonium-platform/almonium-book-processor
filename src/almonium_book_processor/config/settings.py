@@ -174,16 +174,11 @@ OPENAI_TRANSLATION_QUALITY_MODEL = os.getenv("OPENAI_TRANSLATION_QUALITY_MODEL",
 OPENAI_TRANSLATION_DRAFT_MODEL = os.getenv("OPENAI_TRANSLATION_DRAFT_MODEL", "gpt-5.6-luna")
 # A translation review's seats beside the Claude Code reviewer, as "provider:model" with
 # provider codex or claude-code (the plans) or openai (the metered API). The second reviewer is
-# from another vendor than the first on purpose. The adjudicator is neither reviewer and must
-# not be the model that wrote the translation, which defends its own text: the first of these
-# candidates that did not translate the edition rules on it.
+# from another vendor than the first on purpose.
 # A third part sets the reasoning effort of the seat's review. GPT-6.1-sol reviews at medium:
 # on three chapters it found as much as at high effort, ten of high's eleven material
 # findings among them, on a quarter of the tokens and in a sixth of the time.
 TRANSLATION_OUTSIDE_REVIEWER = os.getenv("TRANSLATION_OUTSIDE_REVIEWER", "codex:gpt-6.1-sol:medium")
-TRANSLATION_ADJUDICATORS = os.getenv(
-    "TRANSLATION_ADJUDICATORS", "codex:gpt-6-astra,claude-code:claude-fable-5-1"
-)
 # Who writes a level adaptation, as a seat (see ai/seats.py): chapter pilots, floor probes and
 # whole books. Empty means the API's quality model, which is what a deployed worker uses; the
 # owner's machine names a plan seat, e.g. codex:gpt-6-astra.
