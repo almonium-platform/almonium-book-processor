@@ -60,3 +60,23 @@ def test_rewritten_prose_is_judged_together_once_there_is_enough_of_it():
         validate_rewritten_language([EN], "uk")
     with pytest.raises(OutputLanguageError, match="uk"):
         validate_rewritten_language(["Він вийшов.", EN], "uk")
+
+
+def test_a_short_field_in_a_latin_script_language_is_judged_with_the_rest_not_alone():
+    # the detector takes each of these plain English glosses for another language
+    glosses = [
+        "Financial protection against specified losses or damage.",
+        "An explicit cause-and-effect construction supports comprehension.",
+    ]
+
+    validate_output_language([EN, *glosses], "en")
+
+
+def test_a_long_field_in_the_wrong_language_is_still_rejected():
+    german = (
+        "Der Reisende schreibt seiner Schwester von seinen Hoffnungen und Vorbereitungen vor "
+        "einer ehrgeizigen Fahrt in den Norden und erklärt, warum er sie unternimmt."
+    )
+
+    with pytest.raises(OutputLanguageError):
+        validate_output_language([EN, EN, german], "en")

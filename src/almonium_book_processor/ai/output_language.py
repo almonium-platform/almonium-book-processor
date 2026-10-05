@@ -20,6 +20,15 @@ class OutputLanguageError(ValueError):
 # Below this, langid's verdict on a single field is noise ("Before dawn, he left."
 # scores English at 0.61), so shorter samples are only judged together.
 MIN_ASSESSABLE_LETTERS = 40
+# One field among several is judged on its own only when it is long enough to trust the
+# verdict on it alone. Telling Ukrainian from Russian rests on the alphabet and holds for a
+# phrase; telling one Latin-script language from another does not. At 48 and 57 letters the
+# detector called plain English glosses Spanish ("Financial protection against specified
+# losses or damage.", 0.69) and German ("An explicit cause-and-effect construction supports
+# comprehension.", 0.87), and each rejection failed a whole analysis whose prose, read
+# together, was English at 1.0. A field in the wrong language is rarely that short; a short
+# one still counts in the text judged together.
+MIN_FIELD_LETTERS = 100
 
 
 @lru_cache(maxsize=1)
@@ -67,7 +76,8 @@ def validate_output_language(texts: list[str], language: str) -> None:
         return
     candidates = ["\n".join(prose)]
     if len(prose) > 1:
-        candidates += [t for t in prose if sum(c.isalpha() for c in t) >= MIN_ASSESSABLE_LETTERS]
+        minimum = MIN_ASSESSABLE_LETTERS if expected in {"uk", "ru"} else MIN_FIELD_LETTERS
+        candidates += [t for t in prose if sum(c.isalpha() for c in t) >= minimum]
     for index, text in enumerate(candidates):
         detected, confidence = _classify(text, expected)
         # langid distinguishes Norwegian Bokmål and Nynorsk; the catalogue does not.
