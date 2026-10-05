@@ -488,8 +488,10 @@ ones it had.
   anything is tried, and the rule for corrections: one is written in when
   more than one model stands behind it (both auditors raised it, or the
   other confirmed it), and the chapters it touched are audited again rather
-  than taken as read. Translations are not in it yet: they are still made
-  and reviewed by commands.
+  than taken as read. Translations go through it too, after the levels and
+  independent of them: written, read by the two editors, corrected where
+  both stand behind a correction, held only by a serious agreed finding that
+  could not be placed.
 - **Judges read once, and three times only where they disagree.** Of 48
   texts both judges had read three times, their first readings gave the same
   level on 37; Opus never gave two different levels for one text, and

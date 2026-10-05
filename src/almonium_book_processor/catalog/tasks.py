@@ -136,6 +136,26 @@ def produce_edition(run_id: str) -> None:
 
 
 @shared_task(acks_late=True)
+def translate_edition_on_plan(edition_id: str, tier: str) -> None:
+    """Write a parallel translation with direct calls, then queue what follows it."""
+
+    from almonium_book_processor.catalog.ai_translation import run_translation_inline
+    from almonium_book_processor.catalog.translation_jobs import continue_after_translation
+
+    run_translation_inline(edition_id, tier=tier)
+    continue_after_translation(edition_id)
+
+
+@shared_task(acks_late=True)
+def review_edition_translation(edition_id: str) -> None:
+    from django.conf import settings
+
+    from almonium_book_processor.catalog.translation_review import review_translation
+
+    review_translation(edition_id, workers=settings.TRANSLATION_REVIEW_WORKERS)
+
+
+@shared_task(acks_late=True)
 def adapt_book(run_id: str) -> None:
     from almonium_book_processor.catalog.book_adaptation import run_book
 

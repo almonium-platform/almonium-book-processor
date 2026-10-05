@@ -20,6 +20,9 @@ def test_a_plan_seat_sends_the_generating_tasks_to_the_host_worker():
         "almonium_book_processor.catalog.tasks.analyze_edition_chapters",
         # a production mends chapters itself, through the adapter and the judges
         "almonium_book_processor.catalog.tasks.produce_edition",
+        # and has a translation written and reviewed on the plans
+        "almonium_book_processor.catalog.tasks.translate_edition_on_plan",
+        "almonium_book_processor.catalog.tasks.review_edition_translation",
     }
     assert all(route == {"queue": PLAN_QUEUE} for route in routes.values())
 

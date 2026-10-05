@@ -292,15 +292,21 @@ def queue_production_view(request: HttpRequest, edition_id: str) -> HttpResponse
         )
         return redirect("catalog:edition-detail", edition_id=edition.id)
     try:
-        run = queue_production(edition.id, request.POST.getlist("levels"))
+        run = queue_production(
+            edition.id,
+            request.POST.getlist("levels"),
+            languages=request.POST.get("languages", "").replace(" ", "").split(","),
+        )
     except ValueError as error:
         messages.error(request, str(error))
     else:
+        made = [*run.summary["levels"], *run.summary.get("languages", [])]
         messages.success(
             request,
-            f"Production of {', '.join(run.summary['levels'])} started. Each level is probed, "
-            "written, read by the judges, mended, audited and corrected in turn; this panel "
-            "shows where it is and, at the end, whether each level is ready or held and why.",
+            f"Production of {', '.join(made)} started. Each level is probed, written, read by "
+            "the judges, mended, audited and corrected in turn, and each language translated, "
+            "read by two editors and corrected; this panel shows where it is and, at the end, "
+            "whether each is ready or held and why.",
         )
     return redirect("catalog:edition-detail", edition_id=edition.id)
 

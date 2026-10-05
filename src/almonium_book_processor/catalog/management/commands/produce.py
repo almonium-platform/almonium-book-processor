@@ -16,7 +16,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("slug", help="The source edition, an original.")
-        parser.add_argument("--levels", default="B2,B1", help="Levels to produce, e.g. B2,B1.")
+        parser.add_argument("--levels", default="", help="Levels to adapt to, e.g. B2,B1.")
+        parser.add_argument(
+            "--languages", default="", help="Languages to translate into, e.g. uk,de."
+        )
+        parser.add_argument("--register", default="", help="The translations' literary register.")
         parser.add_argument(
             "--no-sign-off",
             action="store_true",
@@ -40,13 +44,16 @@ class Command(BaseCommand):
             run = queue_production(
                 edition.id,
                 [level.strip().upper() for level in options["levels"].split(",") if level.strip()],
+                languages=options["languages"].split(","),
+                register=options["register"],
                 sign_off=not options["no_sign_off"],
                 promote_to=options["promote_to"],
                 publish=options["publish"],
             )
         except ValueError as error:
             raise CommandError(str(error)) from error
-        self.stdout.write(f"Production {run.id} of {', '.join(run.summary['levels'])}.")
+        made = [*run.summary["levels"], *run.summary.get("languages", [])]
+        self.stdout.write(f"Production {run.id} of {', '.join(made)}.")
         if not options["follow"]:
             return
         shown = 0

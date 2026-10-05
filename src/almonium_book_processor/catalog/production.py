@@ -1,4 +1,4 @@
-"""A book's adaptations made from start to verdict with nobody reading them.
+"""A book's adaptations and translations made from start to verdict with nobody reading them.
 
 One production takes a source edition and the levels asked for, highest first, and carries
 each through the steps a person used to start by hand: the source's levels, the probe, the
@@ -6,6 +6,10 @@ book, the judges' reading, the mending of chapters read above the target, the fi
 the corrections both auditors stand behind, the audit again on what those changed, and a
 verdict. A level that passes both gates is signed off and, if asked, promoted; a level that
 does not is held with the reasons, and the levels below it are not attempted.
+
+The languages asked for come after the levels and do not depend on them: each is translated,
+read by the two editors, corrected where both stand behind a correction, and signed off
+unless a serious finding they agree on could not be corrected.
 
 Nothing here decides quality. Each step asks the same gate a person's click would have met,
 and the production only knows what to start next, how long to wait, and when to stop trying:
@@ -83,23 +87,39 @@ def queue_production(
     source_id,
     levels: list[str],
     *,
+    languages: list[str] | None = None,
+    register: str = "",
     sign_off: bool = True,
     promote_to: str = "",
     publish: bool = False,
 ) -> PipelineRun:
-    """Start a production of ``levels`` from a source edition, or return the one under way."""
+    """Start a production from a source edition, or return the one under way.
+
+    ``levels`` are the adaptations to make and ``languages`` the translations, in the
+    ``register`` named or the first one the catalogue knows.
+    """
 
     from almonium_book_processor.catalog.adaptation_floor import PROBE_LEVELS
     from almonium_book_processor.catalog.chapter_projections import LEVELS
     from almonium_book_processor.catalog.tasks import produce_edition
 
-    levels = sorted(dict.fromkeys(levels), key=LEVELS.index, reverse=True)
-    if not levels or any(level not in PROBE_LEVELS for level in levels):
+    if any(level not in PROBE_LEVELS for level in levels):
         raise ValueError(f"Choose the levels to produce from {', '.join(PROBE_LEVELS)}.")
+    levels = sorted(dict.fromkeys(levels), key=LEVELS.index, reverse=True)
+    languages = list(
+        dict.fromkeys(code.strip().lower() for code in languages or [] if code.strip())
+    )
+    if not levels and not languages:
+        raise ValueError("Name at least one level or one language to produce.")
+    register = register or Edition.LiteraryRegister.values[0]
+    if register not in Edition.LiteraryRegister.values:
+        raise ValueError(f"Unknown register: {register}")
     with transaction.atomic():
         source = Edition.objects.select_for_update().select_related("work").get(pk=source_id)
         if source.edition_type == Edition.EditionType.ADAPTATION:
             raise ValueError("Produce from the original edition, not from an adaptation.")
+        if source.language in languages:
+            raise ValueError("A translation is into another language than the source's.")
         active = source.pipeline_runs.filter(processor_version=VERSION, status__in=ACTIVE).first()
         if active is not None:
             return active
@@ -111,6 +131,8 @@ def queue_production(
             idempotency_key=f"{source.id}:production:{uuid.uuid4().hex}",
             summary={
                 "levels": levels,
+                "languages": languages,
+                "register": register,
                 "index": 0,
                 "step": "source",
                 "since": timezone.now().isoformat(),
@@ -151,7 +173,7 @@ def _advance_once(run_id) -> tuple[bool, bool]:
         run.status = PipelineRun.Status.RUNNING
         run.started_at = timezone.now()
     state = run.summary
-    level = state["levels"][state["index"]]
+    level = _targets(state)[state["index"]]
     step = state["step"]
     try:
         move = STEPS[step](run, state, level)
@@ -170,7 +192,7 @@ def _advance_once(run_id) -> tuple[bool, bool]:
     finished = _apply(run, state, level, step, move)
     run.summary = state
     run.save()
-    return finished, move[0] in ("goto", "ready")
+    return finished, move[0] != "wait"
 
 
 def _apply(run: PipelineRun, state: dict, level: str, step: str, move: tuple) -> bool:
@@ -186,27 +208,47 @@ def _apply(run: PipelineRun, state: dict, level: str, step: str, move: tuple) ->
     if kind == "ready":
         state["outcomes"][level] = {"outcome": "ready", "note": move[1]}
         _log(state, level, step, f"READY: {move[1]}")
-        if state["index"] + 1 < len(state["levels"]):
-            state["index"] += 1
-            state["step"] = "probe"
-            state["since"] = timezone.now().isoformat()
-            return False
-        run.status = PipelineRun.Status.SUCCEEDED
+        following = state["index"] + 1
     else:
         reasons = move[1]
         state["outcomes"][level] = {"outcome": "held", "reasons": reasons}
         _log(state, level, step, "HELD: " + "; ".join(reasons))
-        for skipped in state["levels"][state["index"] + 1 :]:
-            state["outcomes"][skipped] = {
-                "outcome": "not attempted",
-                "reasons": [f"{level}, the level above, was held."],
-            }
-        # a held book is a verdict, and it is shown where a failed job is: it needs a person
-        run.status = PipelineRun.Status.FAILED
-        run.error = f"Held at {level}: " + "; ".join(reasons)
+        following = state["index"] + 1
+        if level in state["levels"]:
+            # the ladder is descended a rung at a time; the translations do not hang on it
+            for skipped in state["levels"][state["index"] + 1 :]:
+                state["outcomes"][skipped] = {
+                    "outcome": "not attempted",
+                    "reasons": [f"{level}, the level above, was held."],
+                }
+            following = len(state["levels"])
+    targets = _targets(state)
+    if following < len(targets):
+        state["index"] = following
+        state["step"] = _first_step(state, targets[following])
+        state["since"] = timezone.now().isoformat()
+        return False
+    unfinished = [
+        f"{target} {outcome['outcome']}: {' '.join(outcome.get('reasons', []))}"
+        for target, outcome in state["outcomes"].items()
+        if outcome["outcome"] != "ready"
+    ]
+    # a held book is a verdict, and it is shown where a failed job is: it needs a person
+    run.status = PipelineRun.Status.FAILED if unfinished else PipelineRun.Status.SUCCEEDED
+    run.error = "; ".join(unfinished)
     run.progress = 100
     run.finished_at = timezone.now()
     return True
+
+
+def _first_step(state: dict, target: str) -> str:
+    return "probe" if target in state["levels"] else "translate"
+
+
+def _targets(state: dict) -> list[str]:
+    """What a production makes, in order: the levels down the ladder, then the languages."""
+
+    return [*state["levels"], *state.get("languages", [])]
 
 
 def _log(state: dict, level: str, step: str, note: str, *, repeat: bool = True) -> None:
@@ -258,7 +300,7 @@ def _source(run: PipelineRun, state: dict, level: str) -> tuple:
     context = analysis_context(source)
     reading = context.get("projection_state")
     if reading == "complete":
-        return ("goto", "probe", "The source's chapters have their levels.")
+        return ("goto", _first_step(state, level), "The source's chapters have their levels.")
     if reading in ACTIVE and not _stalled(context.get("chapter_analysis_run")):
         return ("wait", "The source's chapters are being read.")
     _started(state, "source analysis")
@@ -474,9 +516,13 @@ def _sign_off(edition: Edition, run: PipelineRun) -> None:
 
     edition = Edition.objects.select_for_update().get(pk=edition.id)
     open_items = edition.warnings.exclude(severity=QAWarning.Severity.INFO).filter(resolved_at=None)
-    # the adaptation's own review items ask a person to look; here the gates answered
+    # the edition's own review items ask a person to look; here the gates answered
     other = sorted(
-        set(open_items.exclude(code__startswith="adaptation_").values_list("code", flat=True))
+        set(
+            open_items.exclude(code__startswith="adaptation_")
+            .exclude(code__startswith="translation_")
+            .values_list("code", flat=True)
+        )
     )
     if other:
         raise Held(f"Review items of another kind are open: {', '.join(other)}.")
@@ -486,8 +532,8 @@ def _sign_off(edition: Edition, run: PipelineRun) -> None:
             edition=edition,
             reviewer=None,
             notes=(
-                f"Signed off by the automatic production {run.id}: the level gate and the "
-                "fidelity gate both passed. No person reviewed this edition."
+                f"Signed off by the automatic production {run.id}: every check it runs "
+                "passed. No person reviewed this edition."
             ),
         )
 
@@ -525,6 +571,125 @@ def _promote(run: PipelineRun, state: dict, level: str) -> tuple:
     return ("wait", f"Promotion to {state['promote_to']} is running.")
 
 
+def _translate(run: PipelineRun, state: dict, language: str) -> tuple:
+    """A parallel translation into ``language``: the one that exists, or a new one."""
+
+    from django.conf import settings
+
+    from almonium_book_processor.catalog.ai_translation import create_parallel_translation
+    from almonium_book_processor.catalog.tasks import translate_edition_on_plan
+
+    source = run.edition
+    if language not in state["editions"]:
+        existing = (
+            source.work.editions.filter(
+                source_edition=source,
+                language=language,
+                edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+                literary_register=state["register"],
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        if existing is not None and existing.blocks.exists():
+            state["editions"][language] = str(existing.id)
+            return ("goto", "review", f"A translation exists already: {existing.slug}.")
+        edition = existing or create_parallel_translation(
+            source_edition=source,
+            target_language=language,
+            register=state["register"],
+            tier=settings.PRODUCTION_TRANSLATION_TIER,
+        )
+        state["editions"][language] = str(edition.id)
+    edition = _edition(state, language)
+    if edition.blocks.exists() and edition.status in (
+        Edition.Status.REVIEW,
+        Edition.Status.READY,
+        Edition.Status.PUBLISHED,
+    ):
+        return ("goto", "review", f"The translation is written: {edition.slug}.")
+    writing = edition.ai_runs.order_by("-created_at").first()
+    fresh = writing is not None and writing.updated_at > timezone.now() - STALL
+    if writing is not None and writing.status in ("queued", "submitted") and fresh:
+        return ("wait", "The translation is being written.")
+    _started(state, f"translation {language}")
+    tier = settings.PRODUCTION_TRANSLATION_TIER
+    transaction.on_commit(lambda: translate_edition_on_plan.delay(str(edition.id), tier))
+    return ("wait", "The translation is being written.")
+
+
+def _review(run: PipelineRun, state: dict, language: str) -> tuple:
+    """The two editors' reading of the translation as it stands."""
+
+    from almonium_book_processor.catalog.tasks import review_edition_translation
+    from almonium_book_processor.catalog.translation_review import REVIEW_VERSION, review_plan
+
+    edition = _edition(state, language)
+    if busy := _busy(edition):
+        return ("wait", f"The edition's own jobs are running: {busy}.")
+    review = (
+        edition.pipeline_runs.filter(
+            processor_version=REVIEW_VERSION, input_hash=review_plan(edition)["hash"]
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if review is not None and review.status == PipelineRun.Status.SUCCEEDED:
+        return ("goto", "corrections", "Both editors have read the translation.")
+    if review is not None and review.status in ACTIVE and not _stalled(review):
+        return ("wait", "The editors are reading the translation.")
+    _started(state, f"review {language}")
+    transaction.on_commit(lambda: review_edition_translation.delay(str(edition.id)))
+    return ("wait", "The editors are reading the translation.")
+
+
+def _corrections(run: PipelineRun, state: dict, language: str) -> tuple:
+    """Write in what both editors stand behind, then say whether anything serious is left.
+
+    The editors report only serious findings, so what is left open and backed by both is a
+    defect nobody could correct by replacing its span: that holds the translation. A finding
+    one editor raised and the other refused is left for a person and holds nothing.
+    """
+
+    from almonium_book_processor.catalog.fidelity_audit import SEVERITIES, open_findings
+    from almonium_book_processor.catalog.services import apply_fidelity_findings
+
+    edition = _edition(state, language)
+    if not state["settled"].get(language):
+        state["settled"][language] = 1
+        ready = [
+            finding.id
+            for finding in open_findings(edition)
+            if finding.can_apply and finding.suggested_text and backed(finding.evidence)
+        ]
+        if ready:
+            applied = apply_fidelity_findings(
+                edition=edition,
+                reviewer=None,
+                severities=list(SEVERITIES),
+                only=set(ready),
+                carry=False,
+            )
+            return ("goto", "corrections", f"{applied} agreed correction(s) were written in.")
+    left = [
+        finding
+        for finding in open_findings(edition)
+        if finding.code == "fidelity_material" and backed(finding.evidence)
+    ]
+    if left:
+        raise Held(
+            f"{len(left)} serious finding(s) both editors stand behind could not be corrected "
+            "by replacing the words they quote."
+        )
+    note = "Nothing serious that both editors stand behind is left."
+    if state["sign_off"]:
+        _sign_off(edition, run)
+        note += " Signed off without a person."
+    if state["promote_to"]:
+        return ("goto", "promote", note)
+    return ("ready", note)
+
+
 STEPS = {
     "source": _source,
     "probe": _probe,
@@ -535,6 +700,9 @@ STEPS = {
     "settle": _settle,
     "verdict": _verdict,
     "promote": _promote,
+    "translate": _translate,
+    "review": _review,
+    "corrections": _corrections,
 }
 
 
@@ -549,7 +717,7 @@ def production_context(edition: Edition) -> dict:
         "production": {
             "run": run,
             "active": run.status in ACTIVE,
-            "levels": state["levels"],
+            "levels": _targets(state),
             "step": state["step"],
             "outcomes": state["outcomes"],
             "log": state["log"][-12:],

@@ -651,4 +651,5 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .production-form { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
 .production-form label { display: inline-flex; align-items: center; gap: .3rem; }
 .production-form input { width: auto; }
+.production-form input[type=text] { width: 7rem; }
 .production-log p { margin: .15rem 0; font-size: .85rem; }

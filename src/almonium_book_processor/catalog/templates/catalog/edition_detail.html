@@ -292,10 +292,11 @@
     <form method="post" action="{% url 'catalog:queue-production' edition.id %}" class="production-form">{% csrf_token %}
       <span>Make every step run by itself:</span>
       {% for rung in adaptation_ladder %}{% if rung.state != "reached" %}<label><input type="checkbox" name="levels" value="{{ rung.level }}" checked> {{ rung.level }}</label>{% endif %}{% endfor %}
+      <label>translate into <input type="text" name="languages" placeholder="uk, de" size="10"></label>
       <label><input type="checkbox" name="confirm" required> sign off without a person</label>
       <button class="button" type="submit">Produce</button>
     </form>
-    <p class="muted">A production probes, writes, has the judges read, mends, audits and applies the corrections both auditors stand behind, level by level, and ends with each level ready or held with the reasons. Nothing is promoted from here.</p>
+    <p class="muted">A production probes, writes, has the judges read, mends, audits and applies the corrections both auditors stand behind, level by level; then translates into each language named, has two editors read it and applies what both stand behind. It ends with each one ready or held with the reasons. Nothing is promoted from here.</p>
     {% endif %}
   </div>
   <div class="adaptation-ladder" id="adaptation-ladder">

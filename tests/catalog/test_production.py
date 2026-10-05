@@ -163,9 +163,11 @@ def world(monkeypatch):
     return world
 
 
-def finding(pk, *, backed_by_both):
+def finding(pk, *, backed_by_both, can_apply=True, code="fidelity_material"):
     evidence = {"raised_by": ["a", "b"] if backed_by_both else ["a"]}
-    return SimpleNamespace(id=pk, can_apply=True, suggested_text="better", evidence=evidence)
+    return SimpleNamespace(
+        id=pk, can_apply=can_apply, suggested_text="better", evidence=evidence, code=code
+    )
 
 
 def run_to_the_end(run, limit=60):
@@ -225,7 +227,7 @@ def test_a_failed_probe_holds_the_level_and_the_levels_below_are_not_attempted(w
     run = run_to_the_end(queue_production(world.source.id, ["B1", "B2"]))
 
     assert run.summary["levels"] == ["B2", "B1"]  # down the ladder, whatever order was asked
-    assert run.status == "failed" and run.error.startswith("Held at B2: The B2 probe failed")
+    assert run.status == "failed" and run.error.startswith("B2 held: The B2 probe failed")
     assert run.summary["outcomes"]["B1"]["outcome"] == "not attempted"
     assert "book B2" not in world.calls
 
@@ -358,3 +360,99 @@ def test_a_job_a_dead_worker_left_running_is_started_again_not_waited_for(world)
     run = run_to_the_end(queue_production(world.source.id, ["B2"]))
 
     assert "audit" in world.calls and run.status == "succeeded"
+
+
+@pytest.fixture
+def translating(world, monkeypatch):
+    """A world whose translator and editors finish when the test says so."""
+
+    def create(*, source_edition, target_language, register, tier):
+        world.calls.append(f"translation {target_language} {tier}")
+        return Edition.objects.create(
+            work=source_edition.work,
+            source_edition=source_edition,
+            slug=f"book-{target_language}",
+            language=target_language,
+            edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+            literary_register=register,
+            status=Edition.Status.PROCESSING,
+        )
+
+    monkeypatch.setattr(f"{CATALOG}.ai_translation.create_parallel_translation", create)
+    monkeypatch.setattr(f"{CATALOG}.translation_review.review_plan", lambda edition: {"hash": "h"})
+
+    def written(language):
+        edition = Edition.objects.get(slug=f"book-{language}")
+        chapter = Chapter.objects.create(edition=edition, sequence=1, title="1")
+        edition.blocks.create(
+            chapter=chapter, sequence=1, block_id="c1.p1", block_type="paragraph", text="Текст."
+        )
+        edition.status = Edition.Status.REVIEW
+        edition.save()
+        return edition
+
+    def reviewed(edition):
+        PipelineRun.objects.create(
+            edition=edition,
+            stage=PipelineRun.Stage.TRANSLATE,
+            processor_version="translation-review-v3",
+            input_hash="h",
+            idempotency_key=f"review-{edition.slug}",
+            status=PipelineRun.Status.SUCCEEDED,
+        )
+
+    world.written, world.reviewed = written, reviewed
+    return world
+
+
+def test_a_language_is_translated_read_by_two_editors_corrected_and_signed_off(translating):
+    world = translating
+    world.findings = [finding(1, backed_by_both=True), finding(2, backed_by_both=False)]
+    run = queue_production(world.source.id, [], languages=["UK", "uk"])
+    assert run.summary["languages"] == ["uk"]
+
+    assert not advance(run.id)  # being written
+    edition = world.written("uk")
+    assert not advance(run.id)  # with the editors
+    world.reviewed(edition)
+    run = run_to_the_end(run)
+
+    assert world.calls == ["translation uk codex", "apply 1 carry=False by=None"]
+    assert run.status == "succeeded" and run.summary["outcomes"]["uk"]["outcome"] == "ready"
+    edition.refresh_from_db()
+    assert edition.status == Edition.Status.READY
+    # what one editor raised and the other refused stays open for a person and holds nothing
+    assert [f.id for f in world.findings] == [2]
+
+
+def test_a_serious_finding_both_editors_stand_behind_that_cannot_be_placed_holds_it(translating):
+    world = translating
+    world.findings = [finding(1, backed_by_both=True, can_apply=False)]
+    run = queue_production(world.source.id, [], languages=["uk"])
+    advance(run.id)
+    edition = world.written("uk")
+    advance(run.id)
+    world.reviewed(edition)
+
+    run = run_to_the_end(run)
+
+    assert run.status == "failed"
+    assert "1 serious finding(s) both editors stand behind could not be corrected" in run.error
+    edition.refresh_from_db()
+    assert edition.status == Edition.Status.REVIEW
+
+
+def test_a_held_level_does_not_stop_the_translations(translating):
+    world = translating
+    world.ladder["B2"] = "probe_failed"
+    run = queue_production(world.source.id, ["B2", "B1"], languages=["uk"])
+    advance(run.id)
+    edition = world.written("uk")
+    advance(run.id)
+    world.reviewed(edition)
+
+    run = run_to_the_end(run)
+
+    outcomes = {target: o["outcome"] for target, o in run.summary["outcomes"].items()}
+    assert outcomes == {"B2": "held", "B1": "not attempted", "uk": "ready"}
+    assert run.status == "failed" and "uk" not in run.error

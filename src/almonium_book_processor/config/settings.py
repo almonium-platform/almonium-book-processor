@@ -179,6 +179,12 @@ OPENAI_TRANSLATION_DRAFT_MODEL = os.getenv("OPENAI_TRANSLATION_DRAFT_MODEL", "gp
 # on three chapters it found as much as at high effort, ten of high's eleven material
 # findings among them, on a quarter of the tokens and in a sixth of the time.
 TRANSLATION_OUTSIDE_REVIEWER = os.getenv("TRANSLATION_OUTSIDE_REVIEWER", "codex:gpt-6.1-sol:medium")
+# Windows of a translation its two editors read at a time, when a production has it reviewed.
+TRANSLATION_REVIEW_WORKERS = int(os.getenv("TRANSLATION_REVIEW_WORKERS", "1"))
+# How a production translates: a tier of catalog/ai_translation.py. "codex" is gpt-6-astra on
+# the owner's Codex plan, the translator chosen on a blind comparison; "subscription" is the
+# Claude Code plan; "quality" is the paid API, for an environment with no plan.
+PRODUCTION_TRANSLATION_TIER = os.getenv("PRODUCTION_TRANSLATION_TIER", "codex")
 # Who writes a level adaptation, as a seat (see ai/seats.py): chapter pilots, floor probes and
 # whole books. Empty means the API's quality model, which is what a deployed worker uses; the
 # owner's machine names a plan seat, e.g. codex:gpt-6-astra.
@@ -225,6 +231,8 @@ def plan_task_routes(*seat_settings: str) -> dict[str, dict[str, str]]:
             "audit_edition_fidelity",
             "analyze_edition_chapters",
             "produce_edition",
+            "translate_edition_on_plan",
+            "review_edition_translation",
         )
     }
 
