@@ -19,7 +19,7 @@
 {% if ai_run_summaries %}
 <section class="panel">
   <p class="eyebrow">AI processing</p>
-  {% for summary in ai_run_summaries %}{% with run=summary.run %}<div class="run-row"><span>{{ run.model_configuration.model }}</span><span class="status status-{{ run.status }}">{{ summary.display_status }}</span><span>{% if run.estimated_cost_usd is not None %}${{ run.estimated_cost_usd }} · {% endif %}{{ run.input_tokens }} in / {{ run.output_tokens }} out{% if summary.outcome %} · {{ summary.outcome }}{% endif %}{% if run.error %} · {{ run.error|truncatechars:160 }}{% endif %}</span></div>{% endwith %}{% endfor %}
+  {% for summary in ai_run_summaries %}{% with run=summary.run %}<div class="run-row"><span>{{ run.model_configuration.model|model_name }}</span><span class="status status-{{ run.status }}">{{ summary.display_status }}</span><span>{% if run.estimated_cost_usd is not None %}${{ run.estimated_cost_usd }} · {% endif %}{{ run.input_tokens }} in / {{ run.output_tokens }} out{% if summary.outcome %} · {{ summary.outcome }}{% endif %}{% if run.error %} · {{ run.error|truncatechars:160 }}{% endif %}</span></div>{% endwith %}{% endfor %}
 </section>
 {% endif %}
 

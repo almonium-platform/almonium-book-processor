@@ -20,6 +20,15 @@ def thousands(value):
 
 
 @register.filter
+def model_name(value):
+    """A model, or several joined, named with the version: ``opus`` as ``opus-5.5``."""
+
+    from almonium_book_processor.ai.seats import versioned
+
+    return versioned(str(value)) if value else value
+
+
+@register.filter
 def mark_excerpt(text, quote):
     """The sentence around ``quote`` with the quote itself marked, escaped for HTML."""
 

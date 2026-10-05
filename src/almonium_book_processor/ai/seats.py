@@ -8,6 +8,7 @@ API seats and the owner's machine names plan seats for the same steps.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from almonium_book_processor.ai.pricing import has_price
@@ -15,6 +16,18 @@ from almonium_book_processor.ai.pricing import has_price
 PROVIDERS = ("openai", "codex", "claude-code")
 PLAN_PROVIDERS = ("codex", "claude-code")
 EFFORTS = ("low", "medium", "high")
+
+# The Claude Code CLI is asked for a family and runs that family's current model. Records keep
+# the name the CLI was given; pages print the model it stood for, read from the CLI's own
+# ``modelUsage`` on 2026-10-05. Move a family here when the CLI moves it.
+CLAUDE_CODE_MODELS = {"opus": "opus-5.5", "fable": "fable-5.1", "sonnet": "sonnet-5.5"}
+_FAMILY = re.compile(rf"\b({'|'.join(CLAUDE_CODE_MODELS)})\b(?![-.]?\d)")
+
+
+def versioned(names: str) -> str:
+    """Model names as pages print them, each with its version, as the GPT names carry theirs."""
+
+    return _FAMILY.sub(lambda match: CLAUDE_CODE_MODELS[match.group(1)], names)
 
 
 @dataclass(frozen=True)

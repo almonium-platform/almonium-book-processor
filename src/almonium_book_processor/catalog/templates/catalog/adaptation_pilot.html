@@ -6,7 +6,7 @@
 <section class="panel">
   <a href="{% url 'catalog:edition-detail' run.edition.id %}">Back to original edition</a>
   <h1>{{ run.summary.chapter_title }} — {{ run.summary.target_level|default:"B2" }} {% if run.summary.modernisation %}modernisation{% else %}adaptation{% endif %} pilot</h1>
-  <p>{{ run.get_status_display }} · {{ ai.request_payload.body.model }} · prompt v{{ ai.prompt_template.version }} · {{ run.processor_version }}</p>
+  <p>{{ run.get_status_display }} · {{ ai.request_payload.body.model|model_name }} · prompt v{{ ai.prompt_template.version }} · {{ run.processor_version }}</p>
   <p>Original preserved. {{ run.summary.target_level|default:"B2" }} is the requested target, not an independently verified assessment. This chapter sample is not an edition and cannot be published. Review for ease of reading, lost meaning and literary voice before generating a whole book.</p>
   {% if stale %}<p class="message error">Source has changed. This comparison shows the saved source snapshot, not the current chapter.</p>{% endif %}
   {% if run.error %}<p class="message error">{{ run.error }}</p>{% endif %}
@@ -14,15 +14,15 @@
   {% if run.summary.editorial_feedback %}<details><summary>Editorial corrections supplied for this run</summary><p>{{ run.summary.editorial_feedback }}</p></details>{% endif %}
   {% if run.summary.difficulty_check %}
   <h2>Blind judge: {{ run.summary.difficulty_check.cefr_estimate }} · target {{ run.summary.target_level|default:"B2" }}</h2>
-  <p>Highest window: {{ run.summary.difficulty_check.max_level }} · judge prompt v{{ run.summary.difficulty_check.prompt_version }} · {{ run.summary.difficulty_check.model }} · ${{ run.summary.difficulty_check.cost_usd }}. Fidelity still needs review.</p>
-  {% if run.summary.difficulty_check.judges %}<p>Each judge's readings, and the middle one that counts:{% for judge in run.summary.difficulty_check.judges %} <strong>{{ judge.model }}</strong> {{ judge.readings|join:", " }} → {{ judge.level }}{% if not forloop.last %} ·{% endif %}{% endfor %}. The strictest judge decides.</p>{% endif %}
+  <p>Highest window: {{ run.summary.difficulty_check.max_level }} · judge prompt v{{ run.summary.difficulty_check.prompt_version }} · {{ run.summary.difficulty_check.model|model_name }} · ${{ run.summary.difficulty_check.cost_usd }}. Fidelity still needs review.</p>
+  {% if run.summary.difficulty_check.judges %}<p>Each judge's readings, and the middle one that counts:{% for judge in run.summary.difficulty_check.judges %} <strong>{{ judge.model|model_name }}</strong> {{ judge.readings|join:", " }} → {{ judge.level }}{% if not forloop.last %} ·{% endif %}{% endfor %}. The strictest judge decides.</p>{% endif %}
   {% for window in run.summary.difficulty_check.windows %}<details><summary>{{ window.cefr_estimate }} — assessment evidence</summary>{% for item in window.evidence %}<p><code>{{ item.block_id }}</code>: “{{ item.quote }}” — {{ item.explanation }}</p>{% endfor %}</details>{% endfor %}
   {% endif %}
   {% if run.summary.fidelity_audit %}
   <h2>Fidelity audit: {{ run.summary.fidelity_audit.counts.material }} material · {{ run.summary.fidelity_audit.counts.minor }} minor · {{ run.summary.fidelity_audit.counts.uncertain }} uncertain</h2>
-  <p>{{ run.summary.fidelity_audit.blocks }} blocks read beside the source · prompt v{{ run.summary.fidelity_audit.prompt_version }} · {{ run.summary.fidelity_audit.model }} · ${{ run.summary.fidelity_audit.cost_usd }}. Findings are leads for your review, not a certificate.</p>
+  <p>{{ run.summary.fidelity_audit.blocks }} blocks read beside the source · prompt v{{ run.summary.fidelity_audit.prompt_version }} · {{ run.summary.fidelity_audit.model|model_name }} · ${{ run.summary.fidelity_audit.cost_usd }}. Findings are leads for your review, not a certificate.</p>
   {% if run.summary.fidelity_audit.assessment %}<p class="muted">{{ run.summary.fidelity_audit.assessment }}</p>{% endif %}
-  {% for issue in run.summary.fidelity_audit.issues %}<p class="{% if issue.severity == "material" %}message warning{% else %}muted{% endif %}"><a href="#{{ issue.block_id }}"><code>{{ issue.block_id }}</code></a> {{ issue.severity }}: {{ issue.explanation }} “{{ issue.source_quote }}” → “{{ issue.adapted_quote }}”{% if issue.suggested_correction %} · suggested: {{ issue.suggested_correction }}{% endif %}{% if not issue.quote_verified %} (quotes not found verbatim){% endif %}{% if issue.raised_by %} · raised by {{ issue.raised_by|join:" and " }}{% endif %}{% if issue.second_opinion %} · {{ issue.second_opinion.by }} {% if issue.second_opinion.material %}confirms{% else %}does not find it material{% endif %}: {{ issue.second_opinion.reason }}{% endif %}</p>{% endfor %}
+  {% for issue in run.summary.fidelity_audit.issues %}<p class="{% if issue.severity == "material" %}message warning{% else %}muted{% endif %}"><a href="#{{ issue.block_id }}"><code>{{ issue.block_id }}</code></a> {{ issue.severity }}: {{ issue.explanation }} “{{ issue.source_quote }}” → “{{ issue.adapted_quote }}”{% if issue.suggested_correction %} · suggested: {{ issue.suggested_correction }}{% endif %}{% if not issue.quote_verified %} (quotes not found verbatim){% endif %}{% if issue.raised_by %} · raised by {{ issue.raised_by|join:" and "|model_name }}{% endif %}{% if issue.second_opinion %} · {{ issue.second_opinion.by|model_name }} {% if issue.second_opinion.material %}confirms{% else %}does not find it material{% endif %}: {{ issue.second_opinion.reason }}{% endif %}</p>{% endfor %}
   {% elif run.status == "succeeded" and run.summary.source_edition_id == run.edition_id|stringformat:"s" %}
   <p class="muted">Blind judge and fidelity audit run after generation; they appear here when done.</p>
   {% endif %}

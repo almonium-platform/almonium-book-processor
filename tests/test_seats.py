@@ -36,3 +36,11 @@ def test_each_provider_gets_its_own_caller(settings):
     assert isinstance(provider_for("openai", "gpt-5.6-terra"), OpenAIBatchProvider)
     claude = provider_for("claude-code", "fable")
     assert isinstance(claude, ClaudeCodeProvider) and claude.model == "fable"
+
+
+def test_pages_name_a_claude_model_with_its_version_as_the_gpt_names_carry_theirs():
+    from almonium_book_processor.ai.seats import versioned
+
+    assert versioned("opus + gpt-6.1-sol") == "opus-5.5 + gpt-6.1-sol"
+    assert versioned("fable and gpt-6-astra") == "fable-5.1 and gpt-6-astra"
+    assert versioned("opus-5.5") == "opus-5.5"

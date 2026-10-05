@@ -1,7 +1,7 @@
 {% load catalog_extras %}<details class="reader-drawer">
   <summary>Provenance</summary>
   <dl class="provenance-list">
-    <dt>Generation</dt><dd>{{ provenance.generation }}{% if provenance.generation != "Imported source" %} · {{ provenance.model }} · {{ provenance.prompt }}{% endif %}</dd>
+    <dt>Generation</dt><dd>{{ provenance.generation }}{% if provenance.generation != "Imported source" %} · {{ provenance.model|model_name }} · {{ provenance.prompt }}{% endif %}</dd>
     {% if provenance.generation != "Imported source" %}<dt>Pipeline</dt><dd>{{ provenance.generation_pipeline }} · {{ provenance.generation_record_scope|lower }}</dd>{% endif %}
     <dt>Source</dt><dd><code>{{ provenance.source }}</code></dd>
     {% if provenance.source_revision_at_generation != "Not recorded" %}<dt>Source revision</dt><dd><code title="{{ provenance.source_revision_at_generation }}">{{ provenance.source_revision_at_generation|short_hash }}</code><button class="copy-link" type="button" data-copy="{{ provenance.source_revision_at_generation }}">Copy</button></dd>{% endif %}
