@@ -456,3 +456,13 @@ def test_a_held_level_does_not_stop_the_translations(translating):
     outcomes = {target: o["outcome"] for target, o in run.summary["outcomes"].items()}
     assert outcomes == {"B2": "held", "B1": "not attempted", "uk": "ready"}
     assert run.status == "failed" and "uk" not in run.error
+
+
+def test_a_level_the_book_already_reads_at_is_not_needed_and_the_rung_below_is_made(world):
+    del world.ladder["B2"]  # the book itself is B2: its ladder starts at B1
+
+    run = run_to_the_end(queue_production(world.source.id, ["B2", "B1"]))
+
+    outcomes = {target: o["outcome"] for target, o in run.summary["outcomes"].items()}
+    assert outcomes == {"B2": "not needed", "B1": "ready"}
+    assert run.status == "succeeded" and "book B1" in world.calls

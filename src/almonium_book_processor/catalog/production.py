@@ -169,10 +169,11 @@ def _advance_once(run_id) -> tuple[bool, bool]:
         raise ValueError("Not a production run.")
     if run.status in FINISHED:
         return True, False
+    state = run.summary
     if run.status == PipelineRun.Status.QUEUED:
         run.status = PipelineRun.Status.RUNNING
         run.started_at = timezone.now()
-    state = run.summary
+        _read_meters(state, "started")
     level = _targets(state)[state["index"]]
     step = state["step"]
     try:
@@ -209,6 +210,10 @@ def _apply(run: PipelineRun, state: dict, level: str, step: str, move: tuple) ->
         state["outcomes"][level] = {"outcome": "ready", "note": move[1]}
         _log(state, level, step, f"READY: {move[1]}")
         following = state["index"] + 1
+    elif kind == "skip":
+        state["outcomes"][level] = {"outcome": "not needed", "note": move[1]}
+        _log(state, level, step, f"NOT NEEDED: {move[1]}")
+        following = state["index"] + 1
     else:
         reasons = move[1]
         state["outcomes"][level] = {"outcome": "held", "reasons": reasons}
@@ -231,14 +236,41 @@ def _apply(run: PipelineRun, state: dict, level: str, step: str, move: tuple) ->
     unfinished = [
         f"{target} {outcome['outcome']}: {' '.join(outcome.get('reasons', []))}"
         for target, outcome in state["outcomes"].items()
-        if outcome["outcome"] != "ready"
+        if outcome["outcome"] not in ("ready", "not needed")
     ]
     # a held book is a verdict, and it is shown where a failed job is: it needs a person
     run.status = PipelineRun.Status.FAILED if unfinished else PipelineRun.Status.SUCCEEDED
     run.error = "; ".join(unfinished)
     run.progress = 100
     run.finished_at = timezone.now()
+    _read_meters(state, "finished")
     return True
+
+
+def _read_meters(state: dict, label: str) -> None:
+    """Keep both plans' meters with the production, where plans are what it runs on.
+
+    A plan's price per list-price dollar is measured from meter readings around work of known
+    list cost (``ai/pricing.py``). The Claude meter is the account's: the readings measure
+    this production only if no other Claude Code session worked meanwhile.
+    """
+
+    from django.conf import settings
+
+    if not settings.CELERY_TASK_ROUTES:
+        return
+    from almonium_book_processor.ai.claude_code_provider import claude_meter
+    from almonium_book_processor.ai.codex_provider import codex_meter
+
+    codex = codex_meter()
+    state.setdefault("meters", []).append(
+        {
+            "at": timezone.now().isoformat(),
+            "label": label,
+            "codex_week_percent": codex["used_percent"] if codex else None,
+            "claude": claude_meter(),
+        }
+    )
 
 
 def _first_step(state: dict, target: str) -> str:
@@ -287,8 +319,8 @@ def _stalled(job: PipelineRun | None) -> bool:
     return job is not None and job.updated_at < timezone.now() - STALL
 
 
-# Steps. Each returns ("wait", why), ("goto", step, what happened), ("ready", note) or
-# raises Held.
+# Steps. Each returns ("wait", why), ("goto", step, what happened), ("ready", note),
+# ("skip", why the target is not needed) or raises Held.
 
 
 def _source(run: PipelineRun, state: dict, level: str) -> tuple:
@@ -314,7 +346,8 @@ def _probe(run: PipelineRun, state: dict, level: str) -> tuple:
     source = run.edition
     row = next((r for r in ladder(source) if r["level"] == level), None)
     if row is None:
-        raise Held(f"{level} is not below this book's own level.")
+        # the ladder starts below the book's own level: nothing to make, and no rung is missed
+        return ("skip", f"The book itself reads at {level} or below it.")
     if row["state"] in ("reached", "generated"):
         edition = (
             source.work.editions.filter(
