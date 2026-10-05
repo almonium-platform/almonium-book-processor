@@ -374,6 +374,26 @@ def test_probe_passes_when_the_judge_is_at_target_and_the_audit_is_clean(source)
     assert generator.calls == judge.calls == auditor.calls == 3
 
 
+def test_the_book_takes_the_chapters_its_probe_wrote_and_writes_only_the_rest(source):
+    probe = queue_probe(source.id, "B2")
+    run_probe(probe.id, provider=Generator(), judge=Judge("B2"), auditor=Auditor([]))
+    probed = [
+        result["chapter_id"] for result in PipelineRun.objects.get(pk=probe.id).summary["results"]
+    ]
+    writer = Generator()
+
+    book = queue_book(source.id)
+    run_book(book.id, provider=writer)
+
+    book.refresh_from_db()
+    assert book.status == "succeeded"
+    assert book.summary["from_probe"] == sorted(probed)
+    # the probe wrote three of the chapters; the book pays for the others only
+    assert writer.calls == source.chapters.count() - 3
+    edition = Edition.objects.get(pk=book.edition_id)
+    assert edition.blocks.count() == source.blocks.count()
+
+
 @pytest.mark.parametrize("problem", ["above_target", "material"])
 def test_a_failed_probe_closes_the_ladder(source, problem):
     run = queue_probe(source.id, "B2")

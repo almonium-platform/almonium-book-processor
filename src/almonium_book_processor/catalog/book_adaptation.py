@@ -15,6 +15,7 @@ from almonium_book_processor.catalog.adaptation import (
     generator_seat,
     queue_pilot,
     run_pilot,
+    source_snapshot,
 )
 from almonium_book_processor.catalog.ai_translation import _unique_slug
 from almonium_book_processor.catalog.models import (
@@ -178,6 +179,46 @@ def queue_book(source_id, *, target_level=TARGET_LEVEL):
     return run
 
 
+def probe_chapters(source, target_level) -> dict[str, dict]:
+    """The chapters the level's passed probe wrote, by chapter and block: the book takes them.
+
+    A probe writes three chapters, has them judged and audited, and passes; writing those
+    chapters a second time for the book pays for a text that may read differently from the
+    one that was checked. A chapter is taken only from the latest passed probe under today's
+    configuration, and only while its source text is what the probe adapted.
+    """
+
+    from almonium_book_processor.catalog.adaptation_floor import PROBE_VERSION, probe_spec
+
+    probe = (
+        source.pipeline_runs.filter(
+            processor_version=PROBE_VERSION,
+            status=PipelineRun.Status.SUCCEEDED,
+            summary__target_level=target_level,
+            summary__verdict="passed",
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if probe is None or probe.summary["spec"] != probe_spec(target_level, source.language):
+        return {}
+    written = {}
+    for result in probe.summary.get("results", []):
+        pilot = PipelineRun.objects.filter(pk=result["pilot_id"], edition=source).first()
+        chapter = source.chapters.filter(pk=result["chapter_id"]).first()
+        if pilot is None or chapter is None:
+            continue
+        current = digest(source_snapshot(chapter, None, target_level=target_level))
+        ai = pilot.ai_runs.filter(pk=pilot.summary.get("ai_run_id")).first()
+        if ai is None or pilot.summary.get("source_hash") != current:
+            continue
+        written[result["chapter_id"]] = {
+            block["block_id"]: {**block, "ai_run_id": str(ai.id)}
+            for block in ai.response_payload["adaptation"]["blocks"]
+        }
+    return written
+
+
 def _generate(child_id):
     close_old_connections()
     try:
@@ -202,6 +243,8 @@ def run_book(run_id, *, provider=None):
             )
         results = {}
         total = len(plan["windows"])
+        probed = probe_chapters(source, run.summary["target_level"])
+        reused = set()
         # At most three paid requests in flight; stop launching batches after any failure.
         for start in range(0, total, WORKERS):
             source.refresh_from_db()
@@ -221,6 +264,20 @@ def run_book(run_id, *, provider=None):
                             "reason": "",
                             "ai_run_id": None,
                         }
+                    continue
+                written = probed.get(window["chapter_id"], {})
+                if written and all(b.block_id in written for b in blocks if b.text.strip()):
+                    for block in blocks:
+                        results[block.block_id] = written.get(
+                            block.block_id,
+                            {
+                                "text": block.text,
+                                "decision": "kept",
+                                "reason": "",
+                                "ai_run_id": None,
+                            },
+                        )
+                    reused.add(window["chapter_id"])
                     continue
                 child = queue_pilot(
                     source.id,
@@ -246,7 +303,12 @@ def run_book(run_id, *, provider=None):
                 for block in ai.response_payload["adaptation"]["blocks"]:
                     results[block["block_id"]] = {**block, "ai_run_id": str(ai.id)}
             completed = min(start + WORKERS, total)
-            run.summary = {**run.summary, "completed": completed}
+            run.summary = {
+                **run.summary,
+                "completed": completed,
+                # chapters taken as the probe wrote them, not written again
+                "from_probe": sorted(reused),
+            }
             run.progress = max(1, int(90 * completed / total))
             run.save(update_fields=["summary", "progress", "updated_at"])
         _materialize(run, results)
