@@ -5,7 +5,7 @@
 // label while closed and the full titles in its list. Edit replaces a block's
 // text in place with a textarea as tall as its content; Save stays disabled
 // until the text differs and a reason is given, and Cancel or Esc restores it.
-// Provenance opens as a popover. Everything listens on the document, so it
+// Provenance opens as a popover; the sentence alignment page filters its groups. Everything listens on the document, so it
 // survives live.js swapping the page.
 (function () {
   "use strict";
@@ -108,6 +108,15 @@
         var label = copy.textContent;
         copy.textContent = "Copied";
         setTimeout(function () { copy.textContent = label; }, 1200);
+      });
+      return;
+    }
+    var filter = event.target.closest("[data-align-filter]");
+    if (filter) {
+      var body = document.querySelector("[data-align-rows]");
+      body.classList.toggle("only-low", filter.dataset.alignFilter === "low");
+      document.querySelectorAll("[data-align-filter]").forEach(function (chip) {
+        chip.classList.toggle("is-active", chip === filter);
       });
       return;
     }

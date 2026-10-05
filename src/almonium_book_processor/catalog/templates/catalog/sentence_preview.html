@@ -1,84 +1,74 @@
 {% extends "catalog/base.html" %}
 {% load catalog_extras %}
+{% block title %}Sentence alignment · {{ primary.title }}{% endblock %}
 {% block content %}
 <div {% live_work primary %}>
-<h1>Sentence alignment preview</h1>
-<p>{{ primary.title }} ({{ primary.language|upper }} · {{ primary.cefr_level|default:"Level pending" }} · {{ primary.get_edition_type_display }}) ↔ {{ secondary.title }} ({{ secondary.language|upper }} · {{ secondary.cefr_level|default:"Level pending" }} · {{ secondary.get_edition_type_display }})</p>
-<p><a href="{% url 'catalog:edition-detail' primary.id %}">Back to edition review</a> · <a href="{% url 'catalog:edition-reader' primary.id %}?chapter={{ chapter }}&parallel={{ secondary.id }}">Open editable paragraph comparison</a></p>
-<p>Blocks pair through inherited canonical groups. This checks structure, not fidelity: paired passages still need editorial review.</p>
-<p>Automatic correspondence, not editorial certification. The full-book job uses the local multilingual embedding model, not a paid AI API. Semicolon clauses are refined inside accepted sentence groups. Click or focus a highlighted passage to see its counterpart. Uncertain or unsupported passages remain paragraph-aligned. Nothing is published by this preview.</p>
-<div class="panel preview-toolbar">
-  <form class="preview-chapter-form" method="get">
-    <div class="preview-field"><label for="chapter-select">Chapter</label><select id="chapter-select" name="chapter">{% for item in chapters %}<option value="{{ item.sequence }}"{% if item.sequence == chapter %} selected{% endif %}>{{ item.sequence }} — {{ item.title }}</option>{% endfor %}</select></div>
-    <button class="button button-secondary" type="submit">Open chapter</button>
-  </form>
-  <form class="preview-align-form" method="post">{% csrf_token %}
-    <div class="preview-field"><label for="model-select">Local model</label><select id="model-select" name="model">{% for model in models %}<option value="{{ model|model_name }}"{% if model == "sentence-transformers/LaBSE" %} selected{% endif %}>{{ model|model_name }}</option>{% endfor %}</select></div>
-    <button class="button" type="submit">Align all chapters offline (no API cost)</button>
+<div class="page-heading reader-heading-page align-heading-page">
+  <div>
+    <a class="align-back" href="{% url 'catalog:edition-detail' primary.id %}">← {{ primary.title }}</a>
+    <p class="eyebrow">Sentence alignment</p>
+    <h1>{{ primary.title }} ↔ {{ secondary.title }}</h1>
+  </div>
+  <form class="align-run" method="post">{% csrf_token %}
+    <button class="button" type="submit">Align all {{ chapters|length }} chapter{{ chapters|length|pluralize }}</button>
+    <span class="align-run-meta">Local model · no API cost · <select name="model" aria-label="Local model" title="{{ default_model }}">{% for model in models %}<option value="{{ model.id }}" title="{{ model.id }}"{% if model.id == default_model %} selected{% endif %}>{{ model.label }}</option>{% endfor %}</select><span class="align-run-caret" aria-hidden="true">▾</span></span>
   </form>
 </div>
-{% if alignment_run %}<p>Latest offline job: {{ alignment_run.get_status_display }} · {{ alignment_run.summary.model|model_name }} · {{ alignment_run.processor_version }} · {{ alignment_run.progress }}%.</p>{% if alignment_run.error %}<p class="message warning">{{ alignment_run.error }}</p>{% endif %}{% if alignment_run.summary.completed_blocks %}<p>{{ alignment_run.summary.completed_blocks }} blocks processed · {{ alignment_run.summary.highlighted_groups }} confident groups · {{ alignment_run.summary.paragraph_fallback_blocks }} blocks with provisional pairs only.</p>{% endif %}{% endif %}
-{% if alignment_run.summary.fallback_reasons %}<p>Provisional-only reasons: {% for reason, count in alignment_run.summary.fallback_reasons.items %}{{ reason }}: {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}. Uncertain paired groups: {{ alignment_run.summary.uncertain_groups }}; unmatched sentences: {{ alignment_run.summary.unmatched_sentences }}.</p>{% endif %}
-<div id="sentence-preview"></div>
-{{ payload|json_script:"sentence-data" }}
-<style>
-  .sentence-row { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 1rem 0; }
-  .sentence-pane { white-space: pre-wrap; line-height: 1.8; }
-  .sentence-hit { cursor: pointer; border-bottom: 1px dotted #947838; }
-  .sentence-hit.active, .sentence-hit:focus { background: #e4bf6260; }
-</style>
+
+<div class="align-status">
+  <span class="status">Preview</span>
+  <span>{% if alignment_run.status == "running" or alignment_run.status == "queued" %}Aligning · {{ alignment_run.progress }}% · {% endif %}{% if stats.aligned %}Chapter {{ chapter }} aligned{% if stats.aligned_at %} {{ stats.aligned_at|date:"j M" }}{% endif %} · {{ stats.groups }} group{{ stats.groups|pluralize }}, {{ stats.low }} below {{ low_threshold }}%{% else %}Chapter {{ chapter }} not aligned yet{% endif %} · {% if other_aligned %}{{ other_aligned }} other chapter{{ other_aligned|pluralize }} aligned{% else %}other chapters not aligned yet{% endif %}. Nothing here is published.</span>
+  <details class="align-how">
+    <summary>How alignment works</summary>
+    <p>Blocks pair through the canonical groups both editions inherit, so the paragraphs are already exact. Inside each pair a local multilingual embedding model matches sentences: no paid API is called. Semicolon clauses are refined inside accepted groups. A group the model is unsure of keeps its similarity, and one below {{ low_threshold }}% is marked for a look; a paragraph it cannot split stays paragraph-aligned. This checks structure, not fidelity: paired passages still need editorial review.</p>
+    {% if alignment_run %}<p>Latest job: {{ alignment_run.get_status_display }} · {{ alignment_run.summary.model|default:"" }} · {{ alignment_run.processor_version }}{% if alignment_run.summary.completed_blocks %} · {{ alignment_run.summary.completed_blocks }} blocks, {{ alignment_run.summary.highlighted_groups }} confident groups, {{ alignment_run.summary.paragraph_fallback_blocks }} paragraph-aligned{% endif %}.</p>{% endif %}
+  </details>
 </div>
-<script>
-// Draws the preview from the embedded payload; runs on load and again after
-// live.js swaps the page in place when an alignment job moves.
-function renderSentencePreview() {
-const payload = JSON.parse(document.getElementById('sentence-data').textContent);
-const root = document.getElementById('sentence-preview');
-root.replaceChildren();
-for (const [rowIndex, block] of payload.blocks.entries()) {
-  const row = document.createElement('div'); row.className = 'sentence-row';
-  for (const side of ['primary', 'secondary']) {
-    const pane = document.createElement('div'); pane.className = 'sentence-pane';
-    pane.lang = payload[side + '_language'];
-    const text = Array.from(block[side + '_text']);
-    let cursor = 0;
-    for (const [index, span] of block[side + '_sentences'].entries()) {
-      pane.append(text.slice(cursor, span.start).join(''));
-      const group = block.sentence_alignment.findIndex(g => g.primary.length && g.secondary.length && g[side].includes(index));
-      const hit = document.createElement('span');
-      hit.textContent = text.slice(span.start, span.end).join('');
-      if (group >= 0) {
-        hit.className = 'sentence-hit'; hit.tabIndex = 0; hit.dataset.group = `${rowIndex}-${group}`;
-        const activate = () => {
-          root.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
-          root.querySelectorAll(`[data-group="${hit.dataset.group}"]`).forEach(el => el.classList.add('active'));
-        };
-        hit.addEventListener('click', activate); hit.addEventListener('focus', activate);
-      }
-      pane.append(hit); cursor = span.end;
-    }
-    pane.append(text.slice(cursor).join('')); row.append(pane);
-  }
-  root.append(row);
-  const details = document.createElement('details');
-  const summary = document.createElement('summary');
-  summary.textContent = block.primary_block_id + ' — Passage versions and provenance';
-  details.append(summary);
-  for (const [label, value] of [['Primary text', block.primary_provenance], ['Companion text', block.secondary_provenance], ['Alignment', block.alignment_provenance || {status: 'No current artifact for these texts'}]]) {
-    const heading = document.createElement('strong'); heading.textContent = label; details.append(heading);
-    const dl = document.createElement('dl');
-    for (const [key, item] of Object.entries(value || {})) {
-      if (item === null) continue;
-      const dt = document.createElement('dt'); dt.textContent = key.replaceAll('_', ' ');
-      const dd = document.createElement('dd'); dd.textContent = String(item); dd.style.overflowWrap = 'anywhere';
-      dl.append(dt, dd);
-    }
-    details.append(dl);
-  }
-  root.append(details);
-}
-}
-renderSentencePreview();
-document.addEventListener('live:refreshed', renderSentencePreview);
-</script>
+{% if alignment_run.error %}<p class="message warning">{{ alignment_run.error }}</p>{% endif %}
+
+<div class="reader-toolbar">
+  <div class="reader-toolbar-inner">
+    <form class="toolbar-group" method="get" action="">
+      {% if previous_chapter %}<a class="toolbar-step" href="?chapter={{ previous_chapter.sequence }}" title="Previous chapter" aria-label="Previous chapter">‹</a>{% else %}<span class="toolbar-step" aria-hidden="true">‹</span>{% endif %}
+      <select class="toolbar-select" name="chapter" aria-label="Chapter" data-autosubmit data-short-labels>
+        {% for item in chapters %}<option value="{{ item.sequence }}"{% if item.sequence == chapter %} selected{% endif %} data-short="{{ item.title|short_title:primary|default:'Untitled chapter' }} · {{ forloop.counter }} of {{ chapters|length }}">{{ item.title|display_title:primary|default:"Untitled chapter" }} · {{ forloop.counter }} of {{ chapters|length }}</option>{% endfor %}
+      </select>
+      {% if next_chapter %}<a class="toolbar-step" href="?chapter={{ next_chapter.sequence }}" title="Next chapter" aria-label="Next chapter">›</a>{% else %}<span class="toolbar-step" aria-hidden="true">›</span>{% endif %}
+    </form>
+    {% if stats.aligned %}
+    <span class="toolbar-divider" aria-hidden="true"></span>
+    <div class="toolbar-group align-filters">
+      <button class="difficulty-chip is-active" type="button" data-align-filter="all">All groups</button>
+      <button class="difficulty-chip" type="button" data-align-filter="low"{% if not stats.low %} disabled{% endif %}>Below {{ low_threshold }}% · {{ stats.low }}</button>
+    </div>
+    {% endif %}
+    <a class="toolbar-link align-edit-link" href="{% url 'catalog:edition-reader' primary.id %}?chapter={{ chapter }}&parallel={{ secondary.id }}">Edit side by side</a>
+  </div>
+  <div class="reader-columns-head align-columns">
+    <span><code>{{ primary.language|upper }}</code>{% if primary_level %}<span class="side-level">{{ primary_level }}</span>{% endif %}<span>{{ primary.get_edition_type_display }}</span></span>
+    <span></span>
+    <span><code>{{ secondary.language|upper }}</code>{% if secondary_level %}<span class="side-level">{{ secondary_level }}</span>{% endif %}<span>{{ secondary.get_edition_type_display }}</span></span>
+  </div>
+</div>
+
+<section class="reader-body align-body" data-align-rows>
+  <div class="reader-heading"><h2>{{ current_chapter.title|display_title:primary|default:"Untitled chapter" }}</h2></div>
+  <div class="align-blocks">
+  {% for row in rows %}
+  <div class="align-block{% if row.heading %} is-heading{% endif %}" data-low="{% for group in row.groups %}{% if group.low %}1{% endif %}{% endfor %}">
+    <div class="align-line align-ids"><code>{{ row.primary_block_id }}</code><span></span><code>{{ row.secondary_block_id }}</code></div>
+    {% for group in row.groups %}
+    <div class="align-line align-group{% if group.low %} is-low{% endif %}" tabindex="0" data-low="{% if group.low %}1{% endif %}">
+      <span lang="{{ primary.language }}">{{ group.primary|default:"—" }}</span>
+      <span class="align-mark">{% if group.low %}<span class="align-low" title="Similarity {{ group.confidence }}%">{{ group.confidence }}%</span>{% elif group.paragraph %}{% if row.aligned %}<span class="align-paragraph">Paragraph-aligned</span>{% endif %}{% elif group.unmatched %}<span title="No counterpart on the other side">—</span>{% else %}<span{% if group.confidence %} title="Similarity {{ group.confidence }}%"{% elif group.positional %} title="Placed by position, not matched"{% endif %}>{{ group.number }}</span>{% endif %}</span>
+      <span lang="{{ secondary.language }}">{{ group.secondary|default:"—" }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% empty %}
+  <p class="muted">This chapter has no paired blocks.</p>
+  {% endfor %}
+  </div>
+</section>
+</div>
 {% endblock %}

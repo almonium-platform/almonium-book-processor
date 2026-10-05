@@ -85,7 +85,9 @@ def test_preview_requires_staff(client, pair):
     client.force_login(staff)
     response = client.get(url)
     assert response.status_code == 200
-    assert b"sentence-data" in response.content
+    assert b'class="align-block' in response.content
+    # Provenance lives in the reader's popover, not on this page.
+    assert b"provenance" not in response.content.lower()
 
 
 def test_failed_output_is_recorded_and_retryable(monkeypatch, pair):
@@ -144,3 +146,39 @@ def test_paid_preview_cached_and_invalidated(monkeypatch, pair):
     assert inherited_payload(s, p)["blocks"][0]["sentence_alignment"] == mapping["groups"]
     s.blocks.update(text="Changed.")
     assert inherited_payload(p, s)["blocks"][0]["sentence_alignment"] == []
+
+
+def test_each_sentence_group_is_one_row_and_weak_ones_are_marked():
+    from almonium_book_processor.catalog.sentence_rows import block_rows, chapter_rows
+
+    block = {
+        "primary_block_id": "c9.p2",
+        "secondary_block_id": "c9.p2",
+        "block_type": "paragraph",
+        "primary_text": "Один. Два. Три.",
+        "secondary_text": "One. Two and three.",
+        "primary_sentences": [
+            {"start": 0, "end": 5},
+            {"start": 6, "end": 10},
+            {"start": 11, "end": 15},
+        ],
+        "secondary_sentences": [{"start": 0, "end": 4}, {"start": 5, "end": 19}],
+        "alignment_provenance": {"created_at": "2026-10-12T10:00:00+00:00"},
+        "sentence_alignment": [
+            {"primary": [1, 2], "secondary": [1], "similarity": 0.71},
+            {"primary": [0], "secondary": [0], "similarity": 0.93},
+        ],
+    }
+    edition = SimpleNamespace(language="uk")
+    row = block_rows(block, edition, edition)
+    assert [(g["number"], g["primary"], g["secondary"], g["low"]) for g in row["groups"]] == [
+        (1, "Один.", "One.", False),
+        (2, "Два. Три.", "Two and three.", True),
+    ]
+    assert row["groups"][1]["confidence"] == 71
+    _, stats = chapter_rows([block], edition, edition)
+    assert (stats["aligned"], stats["groups"], stats["low"]) == (True, 2, 1)
+
+    unaligned = {**block, "sentence_alignment": [], "alignment_provenance": None}
+    (only,) = block_rows(unaligned, edition, edition)["groups"]
+    assert only["paragraph"] and only["primary"] == "Один. Два. Три."

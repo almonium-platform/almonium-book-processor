@@ -8,7 +8,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from almonium_book_processor.catalog.models import Edition, Work
 from almonium_book_processor.catalog.offline_sentence_alignment import available_models
 from almonium_book_processor.catalog.parallel_content import inherited_payload
-from almonium_book_processor.catalog.passage_provenance import passage_provenance
+from almonium_book_processor.catalog.sentence_rows import LOW, chapter_rows, short_model
 from almonium_book_processor.processing.sentence_correspondence import VERSION
 
 
@@ -38,24 +38,35 @@ def sentence_preview(request, edition_id, other_id):
         chapter = int(request.GET.get("chapter", chapters[0].sequence))
     except ValueError:
         raise Http404("Invalid chapter") from None
-    payload["blocks"] = [b for b in payload["blocks"] if b["chapter"] == chapter]
-    provenance = passage_provenance(
-        list(primary.blocks.filter(chapter__sequence=chapter))
-        + list(secondary.blocks.filter(chapter__sequence=chapter))
-    )
-    for block in payload["blocks"]:
-        block["primary_provenance"] = provenance[(primary.id, block["primary_block_id"])]
-        block["secondary_provenance"] = provenance[(secondary.id, block["secondary_block_id"])]
+    aligned_chapters = {b["chapter"] for b in payload["blocks"] if b.get("alignment_provenance")}
+    blocks = [b for b in payload["blocks"] if b["chapter"] == chapter]
+    rows, stats = chapter_rows(blocks, primary, secondary)
+    positions = {item.sequence: index for index, item in enumerate(chapters)}
+    index = positions.get(chapter)
+    models = available_models()
     return render(
         request,
         "catalog/sentence_preview.html",
         {
-            "payload": payload,
-            "models": available_models(),
+            "rows": rows,
+            "stats": stats,
+            "other_aligned": len(aligned_chapters - {chapter}),
+            "models": [{"id": model, "label": short_model(model)} for model in models],
+            "default_model": "sentence-transformers/LaBSE"
+            if "sentence-transformers/LaBSE" in models
+            else models[0],
             "primary": primary,
             "secondary": secondary,
+            "primary_level": primary.cefr_level,
+            "secondary_level": secondary.cefr_level,
             "chapters": chapters,
             "chapter": chapter,
+            "current_chapter": chapters[index] if index is not None else None,
+            "previous_chapter": chapters[index - 1] if index else None,
+            "next_chapter": (
+                chapters[index + 1] if index is not None and index + 1 < len(chapters) else None
+            ),
+            "low_threshold": round(LOW * 100),
             "alignment_run": primary.pipeline_runs.filter(
                 summary__method=VERSION, summary__secondary_id=str(secondary.id)
             ).first(),
