@@ -17,14 +17,22 @@
   <div class="reader-toolbar-inner">
     {% if chapters %}
     <form class="toolbar-group" method="get" action="">
-      {% if previous_chapter and not query %}<a class="toolbar-step" href="?chapter={{ previous_chapter.sequence }}{{ parallel_param }}" title="Previous chapter" aria-label="Previous chapter">‹</a>{% else %}<span class="toolbar-step" aria-hidden="true">‹</span>{% endif %}
+      {% if previous_chapter and not query %}<a class="toolbar-step" href="?chapter={{ previous_chapter.sequence }}{{ parallel_param }}{{ notes_param }}" title="Previous chapter" aria-label="Previous chapter">‹</a>{% else %}<span class="toolbar-step" aria-hidden="true">‹</span>{% endif %}
       <select class="toolbar-select" name="chapter" aria-label="Chapter" data-autosubmit>
         {% if query %}<option value="" selected>Search results</option>{% endif %}
         {% for item in chapters %}<option value="{{ item.sequence }}"{% if not query and item.sequence == chapter %} selected{% endif %}>{{ item.title|display_title|default:"Untitled chapter" }} · {{ forloop.counter }} of {{ chapters|length }}</option>{% endfor %}
       </select>
       {% if parallel_edition %}<input type="hidden" name="parallel" value="{{ parallel_edition.id }}">{% if diff_available %}<input type="hidden" name="diff" value="{% if show_diff %}1{% else %}0{% endif %}">{% endif %}{% endif %}
-      {% if next_chapter and not query %}<a class="toolbar-step" href="?chapter={{ next_chapter.sequence }}{{ parallel_param }}" title="Next chapter" aria-label="Next chapter">›</a>{% else %}<span class="toolbar-step" aria-hidden="true">›</span>{% endif %}
+      {% if notes %}<input type="hidden" name="notes" value="difficulty">{% endif %}
+      {% if next_chapter and not query %}<a class="toolbar-step" href="?chapter={{ next_chapter.sequence }}{{ parallel_param }}{{ notes_param }}" title="Next chapter" aria-label="Next chapter">›</a>{% else %}<span class="toolbar-step" aria-hidden="true">›</span>{% endif %}
     </form>
+    {% endif %}
+    {% if notes_available and not query %}
+    <span class="toolbar-divider" aria-hidden="true"></span>
+    <div class="toolbar-group">
+      <span class="toolbar-label">Notes</span>
+      <span class="toolbar-segments"><a href="?chapter={{ chapter }}"{% if not notes %} class="is-active" aria-current="true"{% endif %}>Off</a><a href="?chapter={{ chapter }}&notes=difficulty"{% if notes %} class="is-active" aria-current="true"{% endif %}>Difficulty · {{ notes_count }}</a></span>
+    </div>
     {% endif %}
     {% if parallel_options %}
     <span class="toolbar-divider" aria-hidden="true"></span>
@@ -53,6 +61,9 @@
     <h2>{{ match_count }} block{{ match_count|pluralize }} match “{{ query }}”{% if truncated %} <span class="reader-heading-count">· showing the first {{ search_limit }}</span>{% endif %} <a class="toolbar-link" href="?chapter={{ chapter|default:1 }}{{ parallel_param }}">Back to chapters</a></h2>
     {% else %}
     <h2>{{ current_chapter.title|display_title|default:"Untitled chapter" }} <span class="reader-heading-count">{{ chapter_position }} of {{ chapters|length }}</span></h2>
+    {% if notes.available %}
+    <p class="notes-heading-meta">{% if notes.level %}<span class="status{% if notes.within_target %} status-succeeded{% endif %}">{{ notes.level }}</span>{% endif %}{% if notes.above %}<span class="status status-review">Above target</span>{% elif notes.above_ungated %}<span class="status status-missing" title="Front and back matter does not hold the gate">Above · not gated</span>{% endif %}{% if notes.judges %}<span class="muted">Judges: {% for model, level in notes.judges %}{{ model|model_name }} {{ level }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>{% endif %}</p>
+    {% endif %}
     {% endif %}
     {% if parallel_edition %}
     <p class="reader-pairing">
@@ -65,6 +76,39 @@
   <p class="muted reader-note">This companion was created from another edition, not from this adaptation. Its wording and difficulty may differ from the adapted text.</p>
   {% endif %}
 
+  {% if notes.available and not notes.current %}<p class="muted reader-note">The text changed after the chapter analysis read this chapter. These notes are from that reading; analyse the edition again to replace them.</p>{% endif %}
+  {% if notes and not notes.available %}<p class="muted reader-note">The chapter analysis has not read this chapter, so it has no difficulty notes.</p>{% endif %}
+
+  {% if notes.available %}
+  <div class="notes-layer" data-notes-layer>
+  <div class="notes-gutter" aria-hidden="true" data-notes-gutter></div>
+  {% for row in rows %}{% if row.block %}
+  {% if row.notes_window %}{% with window=row.notes_window %}
+  <details class="notes-window">
+    <summary><span class="notes-window-label">{% if notes.windows > 1 %}<strong>Window {{ window.number }} of {{ notes.windows }}</strong> · analysis {{ window.level }}{% else %}<strong>Analysis {{ window.level }}</strong>{% endif %}{% if window.archaism is not None %} · archaism {{ window.archaism|floatformat:1 }}{% endif %}</span><span class="notes-window-rule"></span>{% if window.recap %}<span class="notes-window-toggle">Recap (spoilers)</span>{% endif %}</summary>
+    {% if window.recap %}<p>{{ window.recap }}</p>{% endif %}
+  </details>
+  {% endwith %}{% endif %}
+  <article class="notes-block{% if row.notes %} has-notes{% endif %}" id="block-{{ row.block.id }}">
+    <span class="notes-id" title="{{ row.block.block_id }}">{{ row.short_id }}</span>
+    <div class="notes-text">
+      <p class="reader-text">{% if row.note_segments %}{% for segment in row.note_segments %}{% if segment.note %}<span class="note-quote note-{{ segment.note.kind }}" data-note="{{ segment.note.index }}">{{ segment.text|linebreaksbr }}</span>{% else %}{{ segment.text|linebreaksbr }}{% endif %}{% endfor %}{% else %}{{ row.block.text|linebreaksbr|default:"—" }}{% endif %}</p>
+      {% include "catalog/reader_drawer.html" %}
+    </div>
+    <div class="notes-cards">
+      {% for note in row.notes %}
+      <div class="note-card note-{{ note.kind }}{% if note.changed %} is-changed{% endif %}" data-note="{{ note.index }}" tabindex="0">
+        <div class="note-card-head"><code>{{ note.block_id }}</code><span class="note-dimension">{{ note.dimension }}</span></div>
+        <p>{{ note.explanation }}</p>
+        {% if note.changed %}<span class="note-changed" title="The quote “{{ note.quote }}” is no longer in this block">Text changed since analysis</span>{% endif %}
+        <div class="note-card-actions"><button type="button" data-note-edit>Edit block</button><button type="button" data-note-next>Next ›</button></div>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+  {% endif %}{% endfor %}
+  </div>
+  {% else %}
   {% for row in rows %}
   <article class="reader-block{% if parallel_edition %} reader-parallel{% endif %}{% if row.status != 'paired' %} reader-gap reader-gap-{{ row.status }}{% endif %}"{% if row.block %} id="block-{{ row.block.id }}"{% endif %}>
     <div class="reader-columns">
@@ -105,36 +149,17 @@
     {% endif %}
 
     {% if row.block %}
-    <details class="reader-drawer">
-      <summary>Edit this block</summary>
-      <form class="reader-edit" method="post" action="{% url 'catalog:edit-block-text' edition.id row.block.id %}">
-        {% csrf_token %}<input type="hidden" name="chapter" value="{{ row.block.chapter.sequence }}"><input type="hidden" name="q" value="{{ query }}">
-        {% if parallel_edition %}<input type="hidden" name="parallel" value="{{ parallel_edition.id }}">{% if diff_available %}<input type="hidden" name="diff" value="{% if show_diff %}1{% else %}0{% endif %}">{% endif %}{% endif %}
-        <textarea name="text" rows="6" required>{{ row.block.text }}</textarea>
-        <div class="reader-edit-row">
-          <input name="notes" placeholder="Reason for correction" required>
-          <button class="button" type="submit">Save correction</button>
-        </div>
-      </form>
-      <details class="reader-remove">
-        <summary>Remove from book…</summary>
-        <form class="reader-edit-row" method="post" action="{% url 'catalog:remove-block' edition.id row.block.id %}">
-          {% csrf_token %}<input type="hidden" name="chapter" value="{{ row.block.chapter.sequence }}"><input type="hidden" name="q" value="{{ query }}">
-          {% if parallel_edition %}<input type="hidden" name="parallel" value="{{ parallel_edition.id }}">{% if diff_available %}<input type="hidden" name="diff" value="{% if show_diff %}1{% else %}0{% endif %}">{% endif %}{% endif %}
-          <input name="notes" placeholder="Why this block is not part of the book" required>
-          <button class="button button-danger" type="submit">Remove block</button>
-        </form>
-      </details>
-    </details>
+    {% include "catalog/reader_drawer.html" %}
     {% include "catalog/reader_provenance.html" with provenance=row.block.passage_provenance %}
     {% endif %}
   </article>
   {% empty %}
   <p class="muted">{% if query %}No block matches that id or phrase.{% else %}This chapter has no blocks.{% endif %}</p>
   {% endfor %}
+  {% endif %}
 
   {% if not query and next_chapter %}
-  <div class="button-row reader-footer-nav"><a class="button" href="?chapter={{ next_chapter.sequence }}{{ parallel_param }}">Continue to {{ next_chapter.title|display_title|default:"the next chapter" }} →</a></div>
+  <div class="button-row reader-footer-nav"><a class="button" href="?chapter={{ next_chapter.sequence }}{{ parallel_param }}{{ notes_param }}">Continue to {{ next_chapter.title|display_title|default:"the next chapter" }} →</a></div>
   {% endif %}
 </section>
 {% else %}

@@ -48,7 +48,7 @@ def difficulty_panel(assessment: dict, blocks: dict | None = None) -> dict:
         difficulty = row["difficulty"]
         level = _gate_level(row) if target else difficulty.get("cefr_estimate")
         level = level if level in LEVEL_INDEX else None
-        sections = {s["window"]: s for s in row.get("summary", {}).get("sections", [])}
+        sections = {s["window"]: s for s in (row.get("summary") or {}).get("sections", [])}
         windows = []
         for window in difficulty.get("windows", []):
             evidence = _evidence(window.get("evidence", []), blocks)

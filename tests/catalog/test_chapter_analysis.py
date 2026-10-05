@@ -1197,3 +1197,43 @@ def test_difficulty_panel_counts_the_level_the_gate_reads():
     assert window["evidence"][0]["uuid"] == "uuid-of-c3.p0"
     assert window["evidence"][0]["dimension"] == "Syntax"
     assert window["evidence_count"] == 3
+
+
+def test_reader_difficulty_notes_sit_beside_the_quotes_they_cite(edition):
+    run = queue_analysis(str(edition.id))
+    analyze_chapters(str(run.id), provider=Provider())
+    client = Client()
+    client.force_login(get_user_model().objects.create_user("notes-ui", is_staff=True))
+    url = reverse("catalog:edition-reader", args=[edition.id])
+
+    plain = client.get(url, {"chapter": 1}).content.decode()
+    assert "Difficulty · 1" in plain
+    assert "note-card" not in plain
+
+    page = client.get(url, {"chapter": 1, "notes": "difficulty"}).content.decode()
+    assert '<span class="note-quote note-evidence" data-note="0">Ere</span>' in page
+    assert "An obsolete conjunction." in page
+    assert "Analysis B2" in page and "Recap (spoilers)" in page
+    assert "Text changed since analysis" not in page
+    # The layer takes the column a compared edition would, so the two never show together.
+    assert 'name="layer" value="difficulty"' in page
+
+    # Editing the block makes the analysis stale; its last reading stays, marked as changed,
+    # even where the quote survives the edit.
+    from almonium_book_processor.catalog.services import revise_block_text
+
+    block = ContentBlock.objects.get(edition=edition, block_id="c1.p1")
+    revise_block_text(
+        edition=edition,
+        block_id=block.id,
+        revised_text="Ere dawn, the traveller considered the journey.",
+        editor=None,
+        notes="spelling",
+    )
+    changed = client.get(url, {"chapter": 1, "notes": "difficulty"}).content.decode()
+    assert "Text changed since analysis" in changed
+    assert "note-quote" not in changed
+    assert "These notes are from that reading" in changed
+    untouched = client.get(url, {"chapter": 2, "notes": "difficulty"}).content.decode()
+    assert '<span class="note-quote note-evidence" data-note="0">Ere</span>' in untouched
+    assert "Text changed since analysis" not in untouched

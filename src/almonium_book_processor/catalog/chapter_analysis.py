@@ -101,6 +101,19 @@ def chapter_blocks(chapter: Chapter) -> list[dict]:
     ]
 
 
+def window_parts(blocks: list[dict], window_bytes: int) -> list[list[dict]]:
+    """A chapter's blocks cut into the windows the analysis reads, each within ``window_bytes``."""
+    parts, current = [], []
+    for block in blocks:
+        if current and len(_json([*current, block]).encode()) > window_bytes:
+            parts.append(current)
+            current = []
+        current.append(block)
+    if current:
+        parts.append(current)
+    return parts
+
+
 def chapter_hash(edition: Edition, chapter: Chapter, blocks: list[dict]) -> str:
     """Fingerprint of one chapter's analyzable text and identity, independent of the spec."""
     return _hash(
@@ -142,19 +155,13 @@ def snapshot(edition: Edition, spec: dict) -> dict:
         if not blocks:
             continue
         digest = chapter_hash(edition, chapter, blocks)
-        parts, current = [], []
         for block in blocks:
             if len(_json([block]).encode()) > spec["window_bytes"]:
                 raise ValueError(
                     f"Block {block['block_id']} exceeds the chapter-analysis window limit; "
                     "review its segmentation before analysis. No text was truncated."
                 )
-            if current and len(_json([*current, block]).encode()) > spec["window_bytes"]:
-                parts.append(current)
-                current = []
-            current.append(block)
-        if current:
-            parts.append(current)
+        parts = window_parts(blocks, spec["window_bytes"])
         chapters.append({"id": str(chapter.id), "hash": digest, "windows": len(parts)})
         for index, part in enumerate(parts, 1):
             data = {

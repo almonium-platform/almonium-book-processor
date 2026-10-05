@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from almonium_book_processor import __version__
+from almonium_book_processor.catalog import difficulty_notes
 from almonium_book_processor.catalog.adaptation import (
     PILOT_VERSIONS,
     pilot_context,
@@ -842,8 +843,11 @@ def _reader_redirect(
     block_id: str = "",
     parallel: str = "",
     diff: str = "",
+    notes: str = "",
 ) -> HttpResponse:
     url = f"{reverse('catalog:edition-reader', args=[edition_id])}?chapter={chapter}"
+    if notes == difficulty_notes.LAYER:
+        url += f"&notes={notes}"
     if query:
         url += f"&q={quote(query)}"
     if parallel:
@@ -1079,7 +1083,9 @@ def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
         match_count = len(blocks)
 
     parallel_options = _parallel_options(edition)
-    requested_parallel = request.GET.get("parallel", "").strip()
+    # The notes layer and a compared edition both take the right-hand column.
+    notes_layer = request.GET.get("notes") == difficulty_notes.LAYER and not query
+    requested_parallel = "" if notes_layer else request.GET.get("parallel", "").strip()
     parallel_edition = next(
         (option for option in parallel_options if str(option.id) == requested_parallel), None
     )
@@ -1102,14 +1108,31 @@ def edition_reader(request: HttpRequest, edition_id: str) -> HttpResponse:
 
     positions = {item.sequence: index for index, item in enumerate(chapters)}
     current_index = positions.get(chapter)
+    current_chapter = chapters[current_index] if current_index is not None else None
+    analysis = analysis_context(edition) if current_chapter and not query else {}
+    notes = (
+        difficulty_notes.attach_notes(edition, current_chapter, rows, analysis)
+        if notes_layer and current_chapter
+        else None
+    )
     return render(
         request,
         "catalog/reader.html",
         {
+            "notes": notes,
+            "notes_available": difficulty_notes.notes_available(edition, analysis),
+            "notes_count": (
+                notes["count"]
+                if notes
+                else difficulty_notes.chapter_evidence_count(edition, current_chapter, analysis)
+                if analysis
+                else 0
+            ),
+            "notes_param": f"&notes={difficulty_notes.LAYER}" if notes_layer else "",
             "edition": edition,
             "chapters": chapters,
             "chapter": chapter,
-            "current_chapter": chapters[current_index] if current_index is not None else None,
+            "current_chapter": current_chapter,
             "previous_chapter": (
                 chapters[current_index - 1] if current_index else None  # index 0 has no previous
             ),
@@ -1169,6 +1192,7 @@ def edit_block_text(request: HttpRequest, edition_id: str, block_id: uuid.UUID) 
         str(block_id),
         request.POST.get("parallel", ""),
         request.POST.get("diff", ""),
+        request.POST.get("layer", ""),
     )
 
 
