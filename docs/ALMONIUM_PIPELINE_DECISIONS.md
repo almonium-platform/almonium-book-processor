@@ -492,6 +492,16 @@ ones it had.
   independent of them: written, read by the two editors, corrected where
   both stand behind a correction, held only by a serious agreed finding that
   could not be placed.
+- **A production asks about copyright before it spends.** Almonium decides
+  whether a work may be prepared (free in both Ukraine, where editions are
+  made, and Germany, where they are hosted) and the processor only asks:
+  the production's first step is the backend's rights check, and a
+  protected work is held with its explanation. An unknown verdict or an
+  unanswered check goes ahead and is logged, because the publication is
+  checked again and refused with HTTP 409 there; a refusal is recorded on
+  the publish run as Almonium's reason, not as a transport failure. The
+  per-step buttons on the edition page are not gated: a person pressing one
+  has chosen to.
 - **Judges read once, and three times only where they disagree.** Of 48
   texts both judges had read three times, their first readings gave the same
   level on 37; Opus never gave two different levels for one text, and

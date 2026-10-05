@@ -285,6 +285,7 @@
   <div class="production" id="production">
     {% if production %}
     <p><strong>Production of {{ production.levels|join:", " }}</strong> · {% if production.active %}<span class="status">at "{{ production.step }}"</span>{% else %}<span class="status status-{{ production.run.status }}">{{ production.run.get_status_display }}</span>{% endif %}{% for level, outcome in production.outcomes.items %} · {{ level }}: {{ outcome.outcome }}{% endfor %}</p>
+    {% if production.rights %}<p class="muted">Rights in {{ production.rights.countries|join:", "|default:"UA, DE" }}: <strong>{{ production.rights_label }}</strong>{% if production.rights.catalog_title %} · catalogue: {{ production.rights.catalog_title }}{% if production.rights.catalog_author %} by {{ production.rights.catalog_author }}{% endif %}{% endif %} · {{ production.rights.explanation }}</p>{% endif %}
     {% for level, outcome in production.outcomes.items %}{% if outcome.reasons %}<p class="message warning">{{ level }} {{ outcome.outcome }}: {{ outcome.reasons|join:" " }}</p>{% endif %}{% endfor %}
     <details class="production-log"><summary>What it did ({{ production.log|length }} latest steps)</summary>{% for entry in production.log %}<p class="muted"><code>{{ entry.at|slice:"11:16" }}</code> {{ entry.level }} · {{ entry.step }} · {{ entry.note }}</p>{% endfor %}</details>
     {% endif %}

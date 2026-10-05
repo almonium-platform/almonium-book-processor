@@ -14,6 +14,7 @@ from almonium_book_processor.catalog.models import (
     Work,
 )
 from almonium_book_processor.catalog.production import advance, backed, queue_production
+from almonium_book_processor.catalog.publication import RIGHTS_UNCHECKED, RightsVerdict
 
 pytestmark = pytest.mark.django_db
 CATALOG = "almonium_book_processor.catalog"
@@ -32,6 +33,7 @@ class World:
         self.audit_touched = timezone.now()
         self.findings = []
         self.reached = True
+        self.rights = RightsVerdict("FREE", "Free in UA and DE since 1922.", 1922, ["UA", "DE"])
         self.calls = []
 
     def edition_for(self, level):
@@ -61,6 +63,7 @@ def world(monkeypatch):
         monkeypatch.setattr(f"{CATALOG}.{name}", value)
 
     patch("tasks.produce_edition.delay", lambda run_id: world.calls.append("tick"))
+    patch("publication.check_rights", lambda edition: world.rights)
     patch(
         "chapter_analysis.analysis_context",
         lambda edition: {
@@ -207,6 +210,54 @@ def test_a_level_is_carried_from_its_probe_to_a_signed_off_edition(world):
     assert edition.status == Edition.Status.READY
     decision = edition.review_decisions.get()
     assert decision.reviewer is None and "No person reviewed" in decision.notes
+
+
+def test_a_free_work_is_produced_with_the_verdict_kept(world):
+    run = run_to_the_end(queue_production(world.source.id, ["B2"]))
+
+    assert run.status == "succeeded"
+    assert run.summary["rights"]["status"] == "FREE"
+    assert run.summary["log"][0]["step"] == "rights"
+    assert run.summary["log"][0]["note"] == "Rights: free in UA, DE. Free in UA and DE since 1922."
+
+
+def test_a_protected_work_is_held_before_anything_is_spent_on_it(world):
+    reason = "Under copyright in UA and DE until the end of 2046 (by the catalogue's dates)."
+    world.rights = RightsVerdict("PROTECTED", reason, 2047, ["UA", "DE"])
+    world.analysis[str(world.source.id)] = "pending"
+
+    run = run_to_the_end(queue_production(world.source.id, ["B2", "B1"], languages=["uk"]))
+
+    assert world.calls == []
+    assert run.status == "failed"
+    assert run.summary["rights"]["status"] == "PROTECTED"
+    assert run.summary["outcomes"] == {
+        "B2": {"outcome": "held", "reasons": [f"Not prepared: {reason}"]},
+        "B1": {"outcome": "not attempted", "reasons": ["B2 was held: the book is not prepared."]},
+        "uk": {"outcome": "not attempted", "reasons": ["B2 was held: the book is not prepared."]},
+    }
+    assert reason in run.error
+
+
+@pytest.mark.parametrize(
+    ("status", "note"),
+    [
+        ("UNKNOWN", "Rights unknown, going ahead: No death year for the author."),
+        (
+            RIGHTS_UNCHECKED,
+            "Rights not checked, going ahead (publication is checked again): "
+            "No death year for the author.",
+        ),
+    ],
+)
+def test_an_unsettled_or_unchecked_verdict_goes_ahead_with_its_reason_logged(world, status, note):
+    world.rights = RightsVerdict(status, "No death year for the author.")
+
+    run = run_to_the_end(queue_production(world.source.id, ["B2"]))
+
+    assert run.status == "succeeded"
+    assert run.summary["rights"]["status"] == status
+    assert run.summary["log"][0]["note"] == note
 
 
 def test_the_adaptations_own_review_items_are_closed_and_another_kind_holds_the_book(world):
@@ -361,6 +412,13 @@ def test_the_source_page_shows_where_a_production_is_and_why_a_level_was_held(cl
             "log": [
                 {"at": "2026-10-05T21:00:00+00:00", "level": "B1", "step": "probe", "note": "x"}
             ],
+            "rights": {
+                "status": "UNKNOWN",
+                "explanation": "No death year for the author.",
+                "countries": ["UA", "DE"],
+                "catalog_title": "A Book",
+                "catalog_author": "Author",
+            },
         },
     )
     client.force_login(get_user_model().objects.create_user("staff", is_staff=True))
@@ -369,6 +427,10 @@ def test_the_source_page_shows_where_a_production_is_and_why_a_level_was_held(cl
 
     assert "Production of B2, B1" in page
     assert "B1 held: The B1 probe failed: too much is lost." in page
+    assert (
+        "Rights in UA, DE: <strong>unknown</strong> · catalogue: A Book by Author"
+        " · No death year for the author."
+    ) in page
 
 
 def test_a_job_a_dead_worker_left_running_is_started_again_not_waited_for(world):

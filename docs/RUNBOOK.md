@@ -76,7 +76,14 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   `translate_on_plan`, `review_translation`, `check_adaptation_wording`.
 - **One button for a book's adaptations: a production.** On the source
   edition's page, "Produce" under Level adaptation, or
-  `./plan-manage produce <source slug> --levels B2,B1 --languages uk --follow`. Level by
+  `./plan-manage produce <source slug> --levels B2,B1 --languages uk --follow`. First it
+  asks Almonium whether the work may be prepared at all (signed
+  `POST /internal/books/publications/rights-check`, the work's slug, title, author
+  and year): a work under copyright in Ukraine or Germany, where editions are made
+  and hosted, holds every target with Almonium's explanation before anything is
+  spent. An unknown verdict (usually a missing death year) and a check that could
+  not be made (API down or not configured) go ahead with the reason in the log;
+  the panel shows the verdict, and Almonium checks the publication again. Then, level by
   level, highest first, it has the source's chapters read, runs the probe,
   writes the book, has the judges read it, mends a chapter read above the
   target (its cited paragraphs once, the whole chapter once), has both
@@ -181,6 +188,11 @@ revives the book. No provider call.
 The promote run's summary line says what happened and its error why not
 ([PROMOTION.md](PROMOTION.md)).
 
+- *Refused by Almonium*: the product API answered 409, which it does for a
+  work under copyright in UA or DE. The release table shows its reason as
+  written. Fix the work's facts or link it to the right catalogue work in the
+  backend's /ops → Rights, or leave the book unpublished; republishing as is
+  meets the same refusal.
 - *Capabilities refused*: the bundle schema or newest catalog migration
   differs. Deploy the same build to both sides, then promote again.
 - *Timeout*: the target did not answer within the client's own timeout; check

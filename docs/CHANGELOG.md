@@ -4,6 +4,16 @@ Newest first, one entry per day the service changed, with the commits that
 carry the work. Measurements recorded on the day live here too; the backlog
 keeps only what is open. Cross-repository work names its repository.
 
+## 2026-10-06
+
+- A production first asks the product API's rights check whether the work is
+  free in Ukraine and Germany; a protected work is held before any paid step,
+  with Almonium's explanation, and unknown or unchecked verdicts go ahead
+  with the reason logged. The production panel shows the verdict. A
+  publication Almonium refuses (HTTP 409) is recorded with its reason and
+  shown as "Almonium refused it" in the release table. Backend side:
+  `almonium-be` branch `copyright-geoblock`.
+
 ## 2026-09-19
 
 - The catalogue heading offers "Promote N behind to <target>" whenever a

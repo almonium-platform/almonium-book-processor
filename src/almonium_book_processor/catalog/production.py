@@ -17,6 +17,11 @@ a failed step is started once more, a chapter is mended once by paragraph and on
 corrections are applied and re-read twice at most, and a step nobody finishes in three hours
 holds the book instead of waiting for ever.
 
+Before any of it, Almonium is asked whether the work may be prepared at all: editions are
+made in Ukraine and hosted in Germany, and a work under copyright in either holds every
+target before anything is spent. An unknown verdict, or a check that could not be made, goes
+ahead with the reason logged; Almonium checks the publication itself again.
+
 The production is a run on the source edition that a short task moves forward and then asks
 to be called again (``tasks.produce_edition``): it holds no worker while the long jobs it
 started run on theirs, and it picks up where it was after a restart.
@@ -120,7 +125,7 @@ def queue_production(
                 "languages": languages,
                 "register": register,
                 "index": 0,
-                "step": "source",
+                "step": "rights",
                 "since": timezone.now().isoformat(),
                 "sign_off": sign_off,
                 "promote_to": promote_to,
@@ -205,7 +210,15 @@ def _apply(run: PipelineRun, state: dict, level: str, step: str, move: tuple) ->
         state["outcomes"][level] = {"outcome": "held", "reasons": reasons}
         _log(state, level, step, "HELD: " + "; ".join(reasons))
         following = state["index"] + 1
-        if level in state["levels"]:
+        if kind == "stop":
+            # the book itself may not be made: nothing after this target is attempted
+            for skipped in _targets(state)[following:]:
+                state["outcomes"][skipped] = {
+                    "outcome": "not attempted",
+                    "reasons": [f"{level} was held: the book is not prepared."],
+                }
+            following = len(_targets(state))
+        elif level in state["levels"]:
             # the ladder is descended a rung at a time; the translations do not hang on it
             for skipped in state["levels"][state["index"] + 1 :]:
                 state["outcomes"][skipped] = {
@@ -306,7 +319,33 @@ def _stalled(job: PipelineRun | None) -> bool:
 
 
 # Steps. Each returns ("wait", why), ("goto", step, what happened), ("ready", note),
-# ("skip", why the target is not needed) or raises Held.
+# ("skip", why the target is not needed), ("stop", reasons) to hold every target, or
+# raises Held.
+
+
+def _rights(run: PipelineRun, state: dict, level: str) -> tuple:
+    """Ask Almonium whether the work may be prepared, before anything is spent on it.
+
+    Editions are made in Ukraine and hosted in Germany, so a work under copyright in
+    either is not prepared at all. An unknown verdict, usually a missing death year, goes
+    ahead with its explanation logged; so does a check that could not be made, since
+    Almonium checks the publication itself again and refuses a protected work there.
+    """
+
+    from almonium_book_processor.catalog.publication import RIGHTS_UNCHECKED, check_rights
+
+    verdict = check_rights(run.edition)
+    state["rights"] = {**verdict.as_dict(), "at": timezone.now().isoformat()}
+    explanation = verdict.explanation or "no explanation given"
+    if verdict.status == "PROTECTED":
+        return ("stop", [f"Not prepared: {explanation}"])
+    if verdict.status == RIGHTS_UNCHECKED:
+        note = f"Rights not checked, going ahead (publication is checked again): {explanation}"
+    elif verdict.status == "UNKNOWN":
+        note = f"Rights unknown, going ahead: {explanation}"
+    else:
+        note = f"Rights: free in {', '.join(verdict.countries) or 'UA, DE'}. {explanation}"
+    return ("goto", "source", note)
 
 
 def _source(run: PipelineRun, state: dict, level: str) -> tuple:
@@ -756,6 +795,7 @@ def _corrections(run: PipelineRun, state: dict, language: str) -> tuple:
 
 
 STEPS = {
+    "rights": _rights,
     "source": _source,
     "probe": _probe,
     "write": _write,
@@ -768,6 +808,14 @@ STEPS = {
     "translate": _translate,
     "review": _review,
     "corrections": _corrections,
+}
+
+
+RIGHTS_LABELS = {
+    "FREE": "free",
+    "PROTECTED": "under copyright",
+    "UNKNOWN": "unknown",
+    "UNCHECKED": "not checked",
 }
 
 
@@ -785,6 +833,8 @@ def production_context(edition: Edition) -> dict:
             "levels": _targets(state),
             "step": state["step"],
             "outcomes": state["outcomes"],
+            "rights": state.get("rights"),
+            "rights_label": RIGHTS_LABELS.get((state.get("rights") or {}).get("status"), ""),
             "log": state["log"][-12:],
         }
     }
