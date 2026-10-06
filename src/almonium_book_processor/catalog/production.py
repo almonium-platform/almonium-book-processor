@@ -480,30 +480,73 @@ def _settle(run: PipelineRun, state: dict, level: str) -> tuple:
     The audit is not carried over its own words here. A correction can be right and still
     land wrong, and with nobody reading the book the auditors are the ones to notice: the
     chapters a correction touched are read again, and only those.
+
+    A serious finding both auditors stand behind that names no replacement, or whose words
+    cannot be found as one piece, is given to the adapter to rewrite the paragraph for its
+    meaning, once per paragraph; the audit reads that again too.
     """
 
+    from almonium_book_processor.catalog.adaptation_wording import repair_chapter
     from almonium_book_processor.catalog.fidelity_audit import SEVERITIES, open_findings
     from almonium_book_processor.catalog.services import apply_fidelity_findings
 
     edition = _edition(state, level)
     rounds = state["settled"].get(level, 0)
+    findings = list(open_findings(edition))
     ready = [
         finding.id
-        for finding in open_findings(edition)
+        for finding in findings
         if finding.can_apply and finding.suggested_text and backed(finding.evidence)
     ]
-    if not ready or rounds >= SETTLE_ROUNDS:
-        left = f"; {len(ready)} agreed correction(s) left after {rounds} rounds" if ready else ""
-        return ("goto", "verdict", f"No corrections left to apply{left}.")
-    applied = apply_fidelity_findings(
-        edition=edition, reviewer=None, severities=list(SEVERITIES), only=set(ready), carry=False
-    )
+    if rounds >= SETTLE_ROUNDS:
+        left = f"; {len(ready)} agreed correction(s) left" if ready else ""
+        return ("goto", "verdict", f"The {rounds} rounds of corrections are used up{left}.")
+    if ready:
+        applied = apply_fidelity_findings(
+            edition=edition,
+            reviewer=None,
+            severities=list(SEVERITIES),
+            only=set(ready),
+            carry=False,
+        )
+        state["settled"][level] = rounds + 1
+        return (
+            "goto",
+            "levels",
+            f"{applied} correction(s) both models stand behind were written in; the changed "
+            "chapters go back to the judges and the auditors.",
+        )
+    repaired = state.setdefault("repaired", {}).setdefault(level, [])
+    stuck = [
+        finding
+        for finding in findings
+        if finding.code == "fidelity_material"
+        and backed(finding.evidence)
+        and finding.stable_block_id not in repaired
+    ]
+    if not stuck:
+        return ("goto", "verdict", "No corrections left to apply.")
+    by_chapter: dict = {}
+    for finding in stuck:
+        by_chapter.setdefault(finding.block.chapter_id, []).append(finding)
+    changed = 0
+    for chapter_id, chapter_findings in by_chapter.items():
+        chapter = edition.chapters.get(pk=chapter_id)
+        outcome = repair_chapter(edition, chapter, chapter_findings)
+        changed += outcome["changed"]
+        repaired.extend(sorted({f.stable_block_id for f in chapter_findings}))
+    if not changed:
+        return (
+            "goto",
+            "verdict",
+            "The adapter could not rewrite the paragraphs the findings name.",
+        )
     state["settled"][level] = rounds + 1
     return (
         "goto",
         "levels",
-        f"{applied} correction(s) both models stand behind were written in; the changed "
-        "chapters go back to the judges and the auditors.",
+        f"{changed} paragraph(s) rewritten for their meaning, as both auditors asked; they go "
+        "back to the judges and the auditors.",
     )
 
 

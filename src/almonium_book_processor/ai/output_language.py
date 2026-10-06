@@ -82,7 +82,11 @@ def validate_output_language(texts: list[str], language: str) -> None:
         detected, confidence = _classify(text, expected)
         # langid distinguishes Norwegian Bokmål and Nynorsk; the catalogue does not.
         detected = {"nb": "no", "nn": "no"}.get(detected, detected)
-        if detected != expected or confidence < 0.8:
+        # The gate is against prose in the wrong language. The whole text must be read as
+        # the expected language with confidence; one block of it, short and without the
+        # letters that tell Ukrainian from Russian, need only be read as that language: a
+        # chapter of Wuthering Heights was refused on one such block read as Ukrainian at 0.79.
+        if detected != expected or (index == 0 and confidence < 0.8):
             raise OutputLanguageError(
                 f"Generated prose did not validate as {expected}: sample {index}, "
                 f"detected {detected}, confidence {confidence:.3f}."

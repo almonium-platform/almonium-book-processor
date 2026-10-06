@@ -1663,3 +1663,20 @@ def test_an_english_correction_for_a_ukrainian_edition_fails_the_audit(source):
     ukrainian = {**issue, "suggested_correction": "і страх ані на мить не полишав його дорогою"}
     review = audit_pilot(pilot.id, provider=Auditor([ukrainian]))
     assert review["counts"]["minor"] == 1 and review["issues"][0]["quote_verified"] is True
+
+
+def test_a_block_read_as_the_right_language_with_modest_confidence_passes_the_gate():
+    from almonium_book_processor.ai.output_language import (
+        OutputLanguageError,
+        validate_output_language,
+    )
+
+    # the whole text must be read as Ukrainian with confidence; one block of it need only be
+    # read as Ukrainian, as a short line without the telling letters often is
+    whole = "Вона підійшла до вікна і довго дивилася на дорогу, що вела до села."
+    plain = "Да, сказав він тихо."  # no і, ї, є, ґ: the detector hesitates between Cyrillic tongues
+    validate_output_language([whole, whole, plain], "uk")
+    with pytest.raises(OutputLanguageError):
+        validate_output_language(
+            ["This is plain English prose that is not Ukrainian at all, clearly."], "uk"
+        )

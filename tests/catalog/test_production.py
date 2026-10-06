@@ -146,6 +146,14 @@ def world(monkeypatch):
     patch("fidelity_audit.queue_edition_audit", queue_audit)
     patch("fidelity_audit.open_findings", lambda edition: list(world.findings))
 
+    def repair(edition, chapter, findings):
+        changed(edition, f"repair {chapter.sequence} {[f.id for f in findings]}")
+        world.findings = [f for f in world.findings if f not in findings]
+        world.audit = "stale"
+        return {"changed": len(findings), "skipped": []}
+
+    patch("adaptation_wording.repair_chapter", repair)
+
     def apply(*, edition, reviewer, severities, only, carry):
         changed(edition, f"apply {len(only)} carry={carry} by={reviewer}")
         world.findings = [f for f in world.findings if f.id not in only]
@@ -167,10 +175,16 @@ def world(monkeypatch):
     return world
 
 
-def finding(pk, *, backed_by_both, can_apply=True, code="fidelity_material"):
+def finding(pk, *, backed_by_both, can_apply=True, code="fidelity_material", block=None):
     evidence = {"raised_by": ["a", "b"] if backed_by_both else ["a"]}
     return SimpleNamespace(
-        id=pk, can_apply=can_apply, suggested_text="better", evidence=evidence, code=code
+        id=pk,
+        can_apply=can_apply,
+        suggested_text="better" if can_apply else "",
+        evidence=evidence,
+        code=code,
+        stable_block_id=f"c1.p{pk}",
+        block=block or SimpleNamespace(chapter_id=None),
     )
 
 
@@ -485,3 +499,24 @@ def test_a_source_the_judges_are_part_way_through_is_waited_for_not_started_agai
     assert "analysis" not in world.calls
     world.analysis[source] = "complete"
     assert run_to_the_end(run).status == "succeeded"
+
+
+def test_a_serious_agreed_finding_with_no_replacement_has_its_paragraph_rewritten(world):
+    world.audit = "running"
+    run = queue_production(world.source.id, ["B2"])
+    advance(run.id)  # the probe is running
+    advance(run.id)  # written, read, and now with the auditors
+    chapter = Chapter.objects.get(edition__slug="book-b2", sequence=1)
+    world.audit = "current"
+    world.findings = [
+        finding(
+            7, backed_by_both=True, can_apply=False, block=SimpleNamespace(chapter_id=chapter.id)
+        )
+    ]
+    run = run_to_the_end(run)
+
+    assert any(call.startswith("repair") for call in world.calls)
+    assert run.status == "succeeded"
+    # the paragraph is rewritten once; a finding on it that comes back is not rewritten again
+    assert run.summary["repaired"]["B2"] == ["c1.p7"]
+    assert chapter.edition.block_revisions.count() == 0  # the fake wrote nothing itself
