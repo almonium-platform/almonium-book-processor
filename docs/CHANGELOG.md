@@ -11,6 +11,12 @@ keeps only what is open. Cross-repository work names its repository.
   or on an edition generated from it (a production's adaptations and
   translations), in pipeline order, and `current_stage`, the stage of the
   newest queued or running run, or null.
+- An EPUB made by Wikisource's exporter (ws-export) loses its title page,
+  its "About this digital edition" credits and the wiki's licence banner at
+  import, each noted as `wikisource_matter_trimmed`; on The Time Machine
+  (Heinemann text) that is 79 of 473 blocks. An export of a disambiguation or
+  "several editions" page fails the import with that reason. Source QA flags
+  any block still naming Wikisource (`wikisource_boilerplate`, source-qa-v5).
 
 ## 2026-10-06
 

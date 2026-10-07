@@ -318,8 +318,8 @@ from the computed estimate so an operator can override it.
 
 Every normalized edition can be scanned independently, including an original
 with no translations. The deterministic first pass records reviewable findings
-for Gutenberg boilerplate, malformed Unicode, duplicate blocks, broken line
-hyphenation, and conservative probable split-word cases. Findings are a
+for Gutenberg or Wikisource boilerplate, malformed Unicode, duplicate blocks,
+broken line hyphenation, and conservative probable split-word cases. Findings are a
 versioned `source_qa` artifact plus individually reviewable database records;
 they do not make a readable edition unavailable.
 

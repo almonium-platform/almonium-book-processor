@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from ebooklib import epub
 
 from almonium_book_processor.ingest.epub import ingest_epub
@@ -258,3 +259,109 @@ def test_a_book_without_gutenberg_markers_is_left_alone(tmp_path) -> None:
     assert texts[0] == "Preface."
     assert texts[-1] == "Section 1. General Terms of Use of Project Gutenberg-tm works"
     assert [w.code for w in artifact.warnings] == ["cover_document_skipped"]
+
+
+def _wikisource_epub(tmp_path, *, chapters: list[str], producer: bool = True) -> str:
+    """The shape ws-export ships: its title page, the wiki's pages, its credits."""
+
+    source = tmp_path / "wikisource.epub"
+    book = epub.EpubBook()
+    book.set_identifier("https://fr.wikisource.org/wiki/Le_Tour_du_monde")
+    book.set_title("Le Tour du monde")
+    book.set_language("fr")
+    book.add_author("Jules Verne")
+    if producer:
+        book.add_metadata("DC", "contributor", "Wikisource")
+
+    title = epub.EpubHtml(title="Title", file_name="title.xhtml", lang="fr")
+    title.content = (
+        "<h2>Le Tour du monde</h2><h3>Jules Verne</h3>"
+        '<img alt="Wikisource logo" src="images/Wikisource-logo.svg.png"/>'
+        "<h6>Exporté de Wikisource le 7 octobre 2026</h6>"
+    )
+    pages = []
+    for index, content in enumerate(chapters):
+        page = epub.EpubHtml(title=f"c{index}", file_name=f"c{index}_Le_Tour.xhtml", lang="fr")
+        page.content = content
+        pages.append(page)
+    about = epub.EpubHtml(title="About", file_name="about.xhtml", lang="fr")
+    about.content = (
+        "<h1>À propos de cette édition électronique</h1>"
+        "<p>Ce livre électronique est issu de la bibliothèque numérique Wikisource.</p>"
+        "<p>Les contributeurs suivants ont permis la réalisation de ce livre :</p>"
+        "<ul><li>Hsarrazin</li><li>Zyephyrus</li></ul>"
+    )
+    documents = [title, *pages, about]
+    for item in documents:
+        book.add_item(item)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", *documents]
+    epub.write_epub(source, book)
+    return str(source)
+
+
+WIKISOURCE_LICENCE_BANNER = (
+    '<div class="licenseContainer licenseBanner dynlayout-exempt"><p>This work is in the '
+    "public domain in the United States because it was published before 1931.</p></div>"
+)
+
+
+def test_a_wikisource_export_loses_its_title_page_credits_and_licence_banner(tmp_path) -> None:
+    artifact = ingest_epub(
+        _wikisource_epub(
+            tmp_path,
+            chapters=[
+                "<h2>Le Tour du monde</h2><p>Table des matières.</p>" + WIKISOURCE_LICENCE_BANNER,
+                "<h2>I</h2><p>En l'année 1872, la maison portant le numéro 7.</p>",
+            ],
+        ),
+        edition_slug="tour-fr-orig",
+        work_slug="tour",
+    )
+
+    texts = [block.text for block in artifact.blocks]
+    assert texts == [
+        "Le Tour du monde",
+        "Table des matières.",
+        "I",
+        "En l'année 1872, la maison portant le numéro 7.",
+    ]
+    assert [(w.code, w.source_ref) for w in artifact.warnings] == [
+        ("wikisource_matter_trimmed", "title.xhtml"),
+        ("wikisource_matter_trimmed", "c0_Le_Tour.xhtml"),
+        ("wikisource_matter_trimmed", "about.xhtml"),
+    ]
+    assert ingestion_warning_severity("wikisource_matter_trimmed") == IngestionWarningSeverity.INFO
+
+
+def test_an_epub_wikisource_did_not_make_keeps_pages_with_those_names(tmp_path) -> None:
+    source = _wikisource_epub(tmp_path, chapters=["<p>Un texte.</p>"], producer=False)
+    # Neither the producer nor a wiki identifier: someone else's title page.
+    book = epub.read_epub(source)
+    book.set_unique_metadata("DC", "identifier", "urn:test:other")
+    epub.write_epub(source, book)
+
+    artifact = ingest_epub(source, edition_slug="other-fr-orig", work_slug="other")
+
+    assert artifact.blocks[0].text == "Le Tour du monde"
+    assert not any(w.code == "wikisource_matter_trimmed" for w in artifact.warnings)
+
+
+@pytest.mark.parametrize(
+    "listing",
+    [
+        '<div class="ws-disambiguation"><i>Cette page répertorie les différents œuvres.</i></div>'
+        "<ul><li>Le Corbeau et le Renard (La Fontaine)</li><li>(Ésope)</li></ul>",
+        '<img src="images/c1_big.svg_40px_Disambig.svg.png"/>'
+        "<p>Wikisource propose plusieurs éditions de Le Horla.</p>"
+        "<ul><li>Le Horla (Ollendorff 1895)</li><li>Le Horla (Conard 1909)</li></ul>",
+    ],
+)
+def test_a_wikisource_disambiguation_page_is_refused(tmp_path, listing) -> None:
+    with pytest.raises(ValueError, match="disambiguation page"):
+        ingest_epub(
+            _wikisource_epub(tmp_path, chapters=[listing]),
+            edition_slug="corbeau-fr-orig",
+            work_slug="corbeau",
+        )
