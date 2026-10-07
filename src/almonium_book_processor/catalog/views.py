@@ -68,6 +68,7 @@ from almonium_book_processor.catalog.models import (
     GlossNote,
     PipelineRun,
     QAWarning,
+    SourceDownload,
     TextQualityFinding,
     Work,
 )
@@ -109,6 +110,7 @@ from almonium_book_processor.catalog.tasks import (
     publication_blocker,
     publication_stale,
     publish_edition,
+    retry_source_download,
     translate_edition_inline,
     withdraw_edition,
 )
@@ -754,6 +756,7 @@ def _render_edition_detail(
             row["state"] == "running" for row in parallel_companions
         ),
         "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
+        "source_download": SourceDownload.objects.filter(edition=edition).first(),
         **assessment,
         "adaptation_level": ADAPTATION_TARGET_LEVEL,
         "adaptation_pilots": edition.pipeline_runs.filter(
@@ -2070,6 +2073,8 @@ def retry_failed_edition(request: HttpRequest, edition_id: str) -> HttpResponse:
     edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
     if edition.status != Edition.Status.FAILED:
         messages.error(request, "Only failed editions can be retried.")
+    elif retry_source_download(edition):
+        messages.success(request, "Download queued again.")
     elif (
         edition.edition_type == Edition.EditionType.ADAPTATION
         and edition.pipeline_runs.filter(

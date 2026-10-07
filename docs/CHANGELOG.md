@@ -6,6 +6,15 @@ keeps only what is open. Cross-repository work names its repository.
 
 ## 2026-10-08
 
+- `POST /api/v1/internal/source-ingests/` takes a public-domain text by its
+  download link on Project Gutenberg or Wikisource's exporter (HTTPS, those
+  hosts only, EPUB links only; anything else is a 400) and answers at once
+  with a public edition in phase `downloading`. A worker fetches the EPUB
+  (60 MB cap, redirects only within the allowlist, three retries for a
+  library that is down), attaches it and starts the upload pipeline; a link
+  that cannot become a book fails the edition with the reason. The request id
+  is the idempotency key. A new `SourceDownload` row keeps the provenance,
+  shown on the edition page, where Retry fetches a failed download again.
 - The library-ingest status the backend polls also names
   `completed_stages`, the pipeline stages with a succeeded run on the edition
   or on an edition generated from it (a production's adaptations and

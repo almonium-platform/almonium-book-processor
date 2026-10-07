@@ -22,6 +22,7 @@ from almonium_book_processor.api.serializers import (
     PipelineRunSerializer,
     PrivateImportMetadataSerializer,
     PrivateImportSerializer,
+    SourceIngestSerializer,
     TranslationEstimateSerializer,
     TranslationJobSerializer,
 )
@@ -44,7 +45,11 @@ from almonium_book_processor.catalog.promotion import (
 )
 from almonium_book_processor.catalog.promotion_client import TOKEN_HEADER as PROMOTION_TOKEN_HEADER
 from almonium_book_processor.catalog.purge import purge_edition
-from almonium_book_processor.catalog.services import create_library_ingest
+from almonium_book_processor.catalog.services import (
+    SourceIngestConflict,
+    create_library_ingest,
+    create_source_ingest,
+)
 from almonium_book_processor.catalog.spend import ai_spend
 from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
@@ -57,6 +62,7 @@ from almonium_book_processor.catalog.translation_jobs import (
     estimate_translation,
     library_ingest,
     library_ingest_status,
+    source_ingest,
     start_translation_job,
     translation_job,
     translation_status,
@@ -274,6 +280,37 @@ class LibraryIngestDetailView(APIView):
     def get(self, request, edition_id):
         try:
             edition = library_ingest(edition_id)
+        except JobNotFound as error:
+            raise NotFound(str(error)) from error
+        return Response(library_ingest_status(edition))
+
+
+class SourceIngestView(APIView):
+    """A public-domain text fetched from Gutenberg or Wikisource, then ingested."""
+
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [InternalBooksPermission]
+
+    def post(self, request):
+        serializer = SourceIngestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            edition, created = create_source_ingest(**serializer.validated_data)
+        except SourceIngestConflict as error:
+            return Response({"detail": str(error)}, status=status.HTTP_409_CONFLICT)
+        return Response(
+            library_ingest_status(edition),
+            status=status.HTTP_202_ACCEPTED if created else status.HTTP_200_OK,
+        )
+
+
+class SourceIngestDetailView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [InternalBooksPermission]
+
+    def get(self, request, edition_id):
+        try:
+            edition = source_ingest(edition_id)
         except JobNotFound as error:
             raise NotFound(str(error)) from error
         return Response(library_ingest_status(edition))

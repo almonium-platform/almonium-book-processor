@@ -17,6 +17,8 @@ from almonium_book_processor.api.views import (
     PromotionExportView,
     PromotionImportView,
     PublishedEditionViewSet,
+    SourceIngestDetailView,
+    SourceIngestView,
     TranslationEstimateView,
     TranslationJobCancelView,
     TranslationJobDetailView,
@@ -89,5 +91,11 @@ urlpatterns = [
         "internal/library-ingests/<uuid:edition_id>/",
         LibraryIngestDetailView.as_view(),
         name="library-ingest-detail",
+    ),
+    path("internal/source-ingests/", SourceIngestView.as_view(), name="source-ingest"),
+    path(
+        "internal/source-ingests/<uuid:edition_id>/",
+        SourceIngestDetailView.as_view(),
+        name="source-ingest-detail",
     ),
 ]

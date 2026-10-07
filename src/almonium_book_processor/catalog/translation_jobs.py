@@ -1,4 +1,4 @@
-"""Translations and library ingests the product API orders, as jobs it can watch.
+"""Translations and library and source ingests the product API orders, as jobs it can watch.
 
 The product's /ops console decides; this service runs. An order arrives with the
 API's own job id, which becomes the edition's ``external_job_id``: the second
@@ -30,7 +30,13 @@ from almonium_book_processor.catalog.ai_translation import (
     TRANSLATION_MODEL_PRICING,
     create_parallel_translation,
 )
-from almonium_book_processor.catalog.models import AIRun, Edition, PipelineRun, Work
+from almonium_book_processor.catalog.models import (
+    AIRun,
+    Edition,
+    PipelineRun,
+    SourceDownload,
+    Work,
+)
 from almonium_book_processor.languages import LANGUAGE_CHOICES
 
 logger = logging.getLogger(__name__)
@@ -350,7 +356,9 @@ def continue_after_translation(edition_id: str) -> bool:
 # --- Library ingests -------------------------------------------------------
 
 
-def _ingest_phase(edition: Edition) -> str:
+def _ingest_phase(edition: Edition, download: SourceDownload | None = None) -> str:
+    if download is not None and download.status == SourceDownload.Status.PENDING:
+        return "downloading"
     if edition.status == Edition.Status.PUBLISHED:
         return "published"
     if edition.status == Edition.Status.FAILED:
@@ -406,15 +414,34 @@ def _stage_progress(edition: Edition) -> dict[str, Any]:
     }
 
 
+def source_ingest(edition_id: uuid.UUID) -> Edition:
+    edition = (
+        Edition.objects.select_related("work", "source_download")
+        .filter(
+            id=edition_id, source_download__isnull=False, work__visibility=Work.Visibility.PUBLIC
+        )
+        .first()
+    )
+    if edition is None:
+        raise JobNotFound("Source ingest not found.")
+    return edition
+
+
 def library_ingest_status(edition: Edition) -> dict[str, Any]:
+    """The status body of a library or a source ingest; one shape for both."""
+
     latest_run = edition.pipeline_runs.order_by("-created_at").first()
+    download = SourceDownload.objects.filter(edition=edition).first()
+    error = (latest_run.error if latest_run else "") or ""
+    if download is not None and download.status == SourceDownload.Status.FAILED:
+        error = download.error
     return {
         "edition_id": str(edition.id),
         "slug": edition.slug,
         "status": edition.status,
-        "phase": _ingest_phase(edition),
+        "phase": _ingest_phase(edition, download),
         "progress": latest_run.progress if latest_run else 0,
-        "error": (latest_run.error if latest_run else "") or "",
+        "error": error,
         "published_at": edition.published_at,
         "published_book_id": edition.published_book_id,
         **_stage_progress(edition),
