@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import Any
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from almonium_book_processor.ai.translation import (
@@ -29,7 +30,7 @@ from almonium_book_processor.catalog.ai_translation import (
     TRANSLATION_MODEL_PRICING,
     create_parallel_translation,
 )
-from almonium_book_processor.catalog.models import AIRun, Edition, Work
+from almonium_book_processor.catalog.models import AIRun, Edition, PipelineRun, Work
 from almonium_book_processor.languages import LANGUAGE_CHOICES
 
 logger = logging.getLogger(__name__)
@@ -377,6 +378,34 @@ def library_ingest(edition_id: uuid.UUID) -> Edition:
     return edition
 
 
+def _work_runs(edition: Edition):
+    """The runs that prepare this edition: its own and its derived editions'.
+
+    A production is a run on the source edition, but the adaptations and
+    translations it starts write their runs on the editions they make, so the
+    product's view of "preparing the work" has to read both.
+    """
+
+    return PipelineRun.objects.filter(Q(edition=edition) | Q(edition__source_edition=edition))
+
+
+def _stage_progress(edition: Edition) -> dict[str, Any]:
+    runs = _work_runs(edition)
+    succeeded = set(
+        runs.filter(status=PipelineRun.Status.SUCCEEDED).values_list("stage", flat=True)
+    )
+    active = (
+        runs.filter(status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING])
+        .order_by("-created_at")
+        .values_list("stage", flat=True)
+        .first()
+    )
+    return {
+        "completed_stages": [stage for stage in PipelineRun.Stage.values if stage in succeeded],
+        "current_stage": active,
+    }
+
+
 def library_ingest_status(edition: Edition) -> dict[str, Any]:
     latest_run = edition.pipeline_runs.order_by("-created_at").first()
     return {
@@ -388,4 +417,5 @@ def library_ingest_status(edition: Edition) -> dict[str, Any]:
         "error": (latest_run.error if latest_run else "") or "",
         "published_at": edition.published_at,
         "published_book_id": edition.published_book_id,
+        **_stage_progress(edition),
     }

@@ -4,6 +4,14 @@ Newest first, one entry per day the service changed, with the commits that
 carry the work. Measurements recorded on the day live here too; the backlog
 keeps only what is open. Cross-repository work names its repository.
 
+## 2026-10-08
+
+- The library-ingest status the backend polls also names
+  `completed_stages`, the pipeline stages with a succeeded run on the edition
+  or on an edition generated from it (a production's adaptations and
+  translations), in pipeline order, and `current_stage`, the stage of the
+  newest queued or running run, or null.
+
 ## 2026-10-06
 
 - A production first asks the product API's rights check whether the work is
