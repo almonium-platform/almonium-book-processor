@@ -365,6 +365,11 @@ class ContentBlock(TimestampedModel):
         IMAGE = "image", "Image"
         SEPARATOR = "separator", "Separator"
 
+    # Verse an adaptation keeps word for word: a poem is the author's, and a level adapter may
+    # not rewrite it. So it is the original by rule, like front matter, and the judges of an
+    # adaptation's level leave it out of the chapter they read.
+    PROTECTED_VERSE = frozenset({"verse_line", "verse_stanza", "stanza"})
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     edition = models.ForeignKey(Edition, related_name="blocks", on_delete=models.CASCADE)
     chapter = models.ForeignKey(Chapter, related_name="blocks", on_delete=models.CASCADE)

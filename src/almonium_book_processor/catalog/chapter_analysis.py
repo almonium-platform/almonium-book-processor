@@ -46,6 +46,7 @@ from almonium_book_processor.catalog.ai_translation import TRANSLATION_MODEL_PRI
 from almonium_book_processor.catalog.models import (
     AIRun,
     Chapter,
+    ContentBlock,
     Edition,
     ModelConfiguration,
     PipelineRun,
@@ -134,12 +135,28 @@ def needs_api_key(spec: dict) -> bool:
 
 
 def chapter_blocks(chapter: Chapter) -> list[dict]:
-    """The nonblank text blocks a chapter is analyzed from, in their stored order."""
-    return [
+    """The nonblank text blocks a chapter is analyzed from, in their stored order.
+
+    An adaptation is read without its protected verse (``ContentBlock.PROTECTED_VERSE``): the
+    poem is the original's by rule, and a level that promises the wording must not be closed
+    by lines nobody may reword. A chapter that is only verse is read as it is.
+    """
+
+    blocks = [
         {"block_id": b.block_id, "text": b.text, "type": b.block_type}
         for b in chapter.blocks.all()
         if b.text.strip()
     ]
+    return judged_blocks(blocks, adaptation=chapter.edition.edition_type == "adaptation")
+
+
+def judged_blocks(blocks: list[dict], *, adaptation: bool) -> list[dict]:
+    """The blocks an adaptation's judges read: all of them but the protected verse."""
+
+    if not adaptation:
+        return blocks
+    prose = [block for block in blocks if block["type"] not in ContentBlock.PROTECTED_VERSE]
+    return prose or blocks
 
 
 def window_parts(blocks: list[dict], window_bytes: int) -> list[list[dict]]:

@@ -25,6 +25,7 @@ from almonium_book_processor.catalog.ai_translation import (
 from almonium_book_processor.catalog.models import (
     AIRun,
     Chapter,
+    ContentBlock,
     Edition,
     ModelConfiguration,
     PipelineRun,
@@ -289,7 +290,8 @@ def validate_result(result, source):
             raise ValueError(f"Empty adapted block: {block.block_id}")
         if (
             not original["text"].strip()
-            or original["type"] in {"heading", "verse_line", "verse_stanza", "stanza"}
+            or original["type"] == "heading"
+            or original["type"] in ContentBlock.PROTECTED_VERSE
         ) and not unchanged:
             raise ValueError(f"Protected block changed: {block.block_id}")
         if not unchanged and not block.reason.strip():

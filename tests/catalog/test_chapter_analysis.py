@@ -1237,3 +1237,28 @@ def test_reader_difficulty_notes_sit_beside_the_quotes_they_cite(edition):
     untouched = client.get(url, {"chapter": 2, "notes": "difficulty"}).content.decode()
     assert '<span class="note-quote note-evidence" data-note="0">Ere</span>' in untouched
     assert "Text changed since analysis" not in untouched
+
+
+def test_an_adaptation_is_judged_without_its_protected_verse(edition):
+    from almonium_book_processor.catalog.chapter_analysis import chapter_blocks, judged_blocks
+
+    chapter = edition.chapters.get(sequence=1)
+    ContentBlock.objects.create(
+        edition=edition,
+        chapter=chapter,
+        sequence=2,
+        block_id="c1.vs2",
+        block_type="verse_stanza",
+        text="You are old, Father William, the young man said,",
+    )
+    # an original is read whole, verse and all
+    assert [b["block_id"] for b in chapter_blocks(chapter)] == ["c1.p1", "c1.vs2"]
+
+    edition.edition_type = Edition.EditionType.ADAPTATION
+    edition.save(update_fields=["edition_type"])
+    chapter = edition.chapters.get(sequence=1)
+    # an adaptation's kept poem is the original's by rule and does not set the level
+    assert [b["block_id"] for b in chapter_blocks(chapter)] == ["c1.p1"]
+    # a chapter that is only verse is read as it is
+    verse = [{"block_id": "c2.vs1", "type": "verse_line", "text": "Twinkle, twinkle"}]
+    assert judged_blocks(verse, adaptation=True) == verse

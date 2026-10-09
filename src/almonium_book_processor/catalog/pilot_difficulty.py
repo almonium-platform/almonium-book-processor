@@ -22,6 +22,7 @@ from almonium_book_processor.catalog.chapter_analysis import (
     _hash,
     _json,
     analysis_spec,
+    judged_blocks,
     snapshot,
 )
 from almonium_book_processor.catalog.chapter_projections import LEVELS, percentile
@@ -311,12 +312,16 @@ def assess_pilot(pilot_id, *, provider=None):
     ):
         raise ValueError("Pilot source changed; generate a current pilot first.")
     adapted = {b["block_id"]: b for b in generation.response_payload["adaptation"]["blocks"]}
-    # No target, author, work title, generation prompt or judge's previous answer is supplied.
-    blocks = [
-        {"block_id": b["block_id"], "type": b["type"], "text": adapted[b["block_id"]]["text"]}
-        for b in source["blocks"]
-        if adapted[b["block_id"]]["text"].strip()
-    ]
+    # No target, author, work title, generation prompt or judge's previous answer is supplied,
+    # and the protected verse is left out, as it is from an adaptation's chapters.
+    blocks = judged_blocks(
+        [
+            {"block_id": b["block_id"], "type": b["type"], "text": adapted[b["block_id"]]["text"]}
+            for b in source["blocks"]
+            if adapted[b["block_id"]]["text"].strip()
+        ],
+        adaptation=True,
+    )
     if not blocks:
         raise ValueError("No pilot text to assess.")
     readings = judge_readings()

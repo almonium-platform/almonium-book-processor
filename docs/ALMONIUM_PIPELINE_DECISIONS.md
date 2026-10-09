@@ -602,6 +602,9 @@ ones it had.
   original by rule, like front matter, and the level gate has no allowance
   for it; the choice is the owner's: let the judges leave protected verse
   out of a chapter's level, or let a B1 adapter rewrite or cut verse with a
-  note. Until then a book with verse in its chapters cannot pass at B1.
+  note. The owner chose the first: an adaptation's judges read its chapters
+  without the protected verse (`ContentBlock.PROTECTED_VERSE`,
+  `chapter_analysis.judged_blocks`), a chapter that is only verse being read
+  as it is; an original is still read whole.
   The uk translation by sol was signed off in twelve minutes with 19 agreed
   corrections; the whole production cost USD 0.47.
