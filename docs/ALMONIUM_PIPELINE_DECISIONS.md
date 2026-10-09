@@ -593,3 +593,15 @@ ones it had.
   reads the result once, blind, as the independent check; if the levels
   hold under astra too, sol adapting is a matter of price (about USD 0.95
   for two levels against USD 1.69), if not, astra stays.
+- **Alice (2026-10-10) decided nothing about sol and found a rule instead.**
+  Its B1 probe was held on the Caterpillar chapter under both writers: sol
+  kept the "Father William" verse word for word, as the protected-block rule
+  requires, and the sol judge read the chapter B2 three times on the verse
+  alone (Opus read it B1); astra changed the verse and its generation failed
+  twice. The sol judge was not soft on sol's own text. A kept verse is the
+  original by rule, like front matter, and the level gate has no allowance
+  for it; the choice is the owner's: let the judges leave protected verse
+  out of a chapter's level, or let a B1 adapter rewrite or cut verse with a
+  note. Until then a book with verse in its chapters cannot pass at B1.
+  The uk translation by sol was signed off in twelve minutes with 19 agreed
+  corrections; the whole production cost USD 0.47.
