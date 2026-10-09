@@ -22,6 +22,7 @@ from almonium_book_processor.catalog.models import (
     ContentBlock,
     Edition,
     ModelConfiguration,
+    PipelineRun,
     PromptTemplate,
     Work,
 )
@@ -577,6 +578,52 @@ def test_ingest_status_maps_the_edition_state() -> None:
         edition.status = status
         edition.save(update_fields=["status"])
         assert translation_jobs.library_ingest_status(edition)["phase"] == phase
+
+
+def test_ingest_status_names_the_stages_done_and_the_one_under_way() -> None:
+    edition = published_canonical()
+    edition.external_job_id = uuid.uuid4()
+    edition.save(update_fields=["external_job_id"])
+    adaptation = Edition.objects.create(
+        slug=f"{edition.slug}-b1",
+        work=edition.work,
+        source_edition=edition,
+        title=edition.title,
+        author=edition.author,
+        language=edition.language,
+        edition_type=Edition.EditionType.ADAPTATION,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+    )
+    unrelated = published_canonical()
+
+    def run(on: Edition, stage: str, status: str) -> None:
+        PipelineRun.objects.create(
+            edition=on,
+            stage=stage,
+            status=status,
+            idempotency_key=uuid.uuid4().hex,
+            processor_version="test",
+            input_hash="",
+        )
+
+    assert translation_jobs.library_ingest_status(edition)["completed_stages"] == []
+    assert translation_jobs.library_ingest_status(edition)["current_stage"] is None
+
+    run(edition, PipelineRun.Stage.SENTENCES, PipelineRun.Status.SUCCEEDED)
+    run(edition, PipelineRun.Stage.INGEST, PipelineRun.Status.SUCCEEDED)
+    run(edition, PipelineRun.Stage.METADATA, PipelineRun.Status.FAILED)
+    run(adaptation, PipelineRun.Stage.ADAPT, PipelineRun.Status.SUCCEEDED)
+    run(edition, PipelineRun.Stage.LEXICAL, PipelineRun.Status.QUEUED)
+    run(adaptation, PipelineRun.Stage.TRANSLATE, PipelineRun.Status.RUNNING)
+    run(unrelated, PipelineRun.Stage.PUBLISH, PipelineRun.Status.SUCCEEDED)
+    run(unrelated, PipelineRun.Stage.GLOSSES, PipelineRun.Status.RUNNING)
+
+    status = translation_jobs.library_ingest_status(edition)
+
+    # In pipeline order, the derived adaptation's run included, failures and
+    # other works left out.
+    assert status["completed_stages"] == ["ingest", "sentences", "adapt"]
+    assert status["current_stage"] == "translate"
 
 
 # --- A7 source download ------------------------------------------------------

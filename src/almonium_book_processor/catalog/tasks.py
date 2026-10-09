@@ -31,6 +31,7 @@ from almonium_book_processor.catalog.models import (
     EditionArtifact,
     PipelineRun,
     QAWarning,
+    SourceDownload,
     TextQualityFinding,
     Work,
 )
@@ -44,6 +45,7 @@ from almonium_book_processor.catalog.promotion import (
 )
 from almonium_book_processor.catalog.promotion_client import PromotionClient
 from almonium_book_processor.catalog.publication import (
+    PublicationRefused,
     publish_to_almonium,
     withdraw_from_almonium,
 )
@@ -362,6 +364,100 @@ def process_book_pipeline(self, edition_id: str) -> None:
         raise
 
 
+DOWNLOAD_RETRIES = 3
+DOWNLOAD_RETRY_SECONDS = 120
+
+
+@shared_task(bind=True, acks_late=True, max_retries=DOWNLOAD_RETRIES)
+def download_source_edition(self, edition_id: str) -> None:
+    """Fetch a source ingest's EPUB, attach it, and start the upload pipeline.
+
+    A library that is slow or down this minute is tried again a few times; a
+    link that cannot become a book fails the edition at once with the reason.
+    """
+
+    from django.core.files import File
+
+    from almonium_book_processor.catalog.source_download import (
+        DownloadRefused,
+        DownloadUnavailable,
+        download,
+    )
+
+    edition = Edition.objects.select_related("source_download").get(id=edition_id)
+    record = edition.source_download
+    if record.status != SourceDownload.Status.PENDING or edition.source_file:
+        return
+    record.attempts += 1
+    record.save(update_fields=["attempts", "updated_at"])
+    try:
+        fetched = download(record.download_url, record.source_kind)
+    except DownloadUnavailable as error:
+        if self.request.retries < DOWNLOAD_RETRIES:
+            record.error = f"{error} Trying again."
+            record.save(update_fields=["error", "updated_at"])
+            raise self.retry(
+                countdown=DOWNLOAD_RETRY_SECONDS * (self.request.retries + 1)
+            ) from error
+        _fail_download(edition, record, f"{error} Gave up after {record.attempts} tries.")
+        return
+    except DownloadRefused as error:
+        _fail_download(edition, record, str(error))
+        return
+    except Exception as error:
+        _fail_download(edition, record, f"The download failed: {error}")
+        raise
+
+    try:
+        with fetched.path.open("rb") as stream, transaction.atomic():
+            edition.source_file.save("source.epub", File(stream), save=False)
+            edition.save(update_fields=["source_file", "updated_at"])
+            record.status = SourceDownload.Status.DOWNLOADED
+            record.error = ""
+            record.final_url = fetched.final_url
+            record.size_bytes = fetched.size
+            record.downloaded_at = timezone.now()
+            record.save(
+                update_fields=[
+                    "status",
+                    "error",
+                    "final_url",
+                    "size_bytes",
+                    "downloaded_at",
+                    "updated_at",
+                ]
+            )
+            transaction.on_commit(lambda: process_book_pipeline.delay(edition_id))
+    finally:
+        fetched.path.unlink(missing_ok=True)
+
+
+def _fail_download(edition: Edition, record: SourceDownload, reason: str) -> None:
+    with transaction.atomic():
+        record.status = SourceDownload.Status.FAILED
+        record.error = reason[:10000]
+        record.save(update_fields=["status", "error", "updated_at"])
+        edition.status = Edition.Status.FAILED
+        edition.save(update_fields=["status", "updated_at"])
+    logger.warning("Download for edition %s failed: %s", edition.id, reason)
+
+
+def retry_source_download(edition: Edition) -> bool:
+    """Queue a failed download again; whether there was one to queue."""
+
+    record = getattr(edition, "source_download", None)
+    if record is None or edition.source_file or record.status != SourceDownload.Status.FAILED:
+        return False
+    with transaction.atomic():
+        record.status = SourceDownload.Status.PENDING
+        record.error = ""
+        record.save(update_fields=["status", "error", "updated_at"])
+        edition.status = Edition.Status.QUEUED
+        edition.save(update_fields=["status", "updated_at"])
+        transaction.on_commit(lambda: download_source_edition.delay(str(edition.id)))
+    return True
+
+
 @shared_task(bind=True, acks_late=True)
 def detect_edition_metadata(self, edition_id: str, *, rerun: bool = False) -> None:
     """Propose bibliographic metadata for a fresh upload; tell a private owner.
@@ -554,7 +650,10 @@ def publish_edition(edition_id: str) -> None:
         run.status = PipelineRun.Status.FAILED
         run.finished_at = timezone.now()
         run.error = str(error)[:10000]
-        run.save(update_fields=["status", "finished_at", "error", "updated_at"])
+        # a refusal is Almonium's verdict on the work, not a transport failure, and the
+        # editor reads its reason as Almonium wrote it
+        run.summary = {"refused": error.reason} if isinstance(error, PublicationRefused) else {}
+        run.save(update_fields=["status", "finished_at", "error", "summary", "updated_at"])
         raise
 
 

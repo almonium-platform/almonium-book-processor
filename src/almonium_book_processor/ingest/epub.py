@@ -16,6 +16,10 @@ from almonium_book_processor.ingest.common import (
     sha256_file,
 )
 from almonium_book_processor.ingest.gutenberg import trim_gutenberg_boilerplate
+from almonium_book_processor.ingest.wikisource import (
+    is_wikisource_export,
+    trim_wikisource_matter,
+)
 from almonium_book_processor.models import (
     BookArtifact,
     EditionMetadata,
@@ -113,6 +117,9 @@ def ingest_epub(
     builder = BlockBuilder(edition_slug)
     documents, notices = trim_gutenberg_boilerplate(documents)
     builder.warnings.extend(notices)
+    if is_wikisource_export(book):
+        documents, notices = trim_wikisource_matter(documents)
+        builder.warnings.extend(notices)
     chapter = 0
     cover_images = _cover_image_names(book)
     for document_name, root in documents:

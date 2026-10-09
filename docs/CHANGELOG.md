@@ -4,6 +4,39 @@ Newest first, one entry per day the service changed, with the commits that
 carry the work. Measurements recorded on the day live here too; the backlog
 keeps only what is open. Cross-repository work names its repository.
 
+## 2026-10-08
+
+- `POST /api/v1/internal/source-ingests/` takes a public-domain text by its
+  download link on Project Gutenberg or Wikisource's exporter (HTTPS, those
+  hosts only, EPUB links only; anything else is a 400) and answers at once
+  with a public edition in phase `downloading`. A worker fetches the EPUB
+  (60 MB cap, redirects only within the allowlist, three retries for a
+  library that is down), attaches it and starts the upload pipeline; a link
+  that cannot become a book fails the edition with the reason. The request id
+  is the idempotency key. A new `SourceDownload` row keeps the provenance,
+  shown on the edition page, where Retry fetches a failed download again.
+- The library-ingest status the backend polls also names
+  `completed_stages`, the pipeline stages with a succeeded run on the edition
+  or on an edition generated from it (a production's adaptations and
+  translations), in pipeline order, and `current_stage`, the stage of the
+  newest queued or running run, or null.
+- An EPUB made by Wikisource's exporter (ws-export) loses its title page,
+  its "About this digital edition" credits and the wiki's licence banner at
+  import, each noted as `wikisource_matter_trimmed`; on The Time Machine
+  (Heinemann text) that is 79 of 473 blocks. An export of a disambiguation or
+  "several editions" page fails the import with that reason. Source QA flags
+  any block still naming Wikisource (`wikisource_boilerplate`, source-qa-v5).
+
+## 2026-10-06
+
+- A production first asks the product API's rights check whether the work is
+  free in Ukraine and Germany; a protected work is held before any paid step,
+  with Almonium's explanation, and unknown or unchecked verdicts go ahead
+  with the reason logged. The production panel shows the verdict. A
+  publication Almonium refuses (HTTP 409) is recorded with its reason and
+  shown as "Almonium refused it" in the release table. Backend side:
+  `almonium-be` branch `copyright-geoblock`.
+
 ## 2026-09-19
 
 - The catalogue heading offers "Promote N behind to <target>" whenever a

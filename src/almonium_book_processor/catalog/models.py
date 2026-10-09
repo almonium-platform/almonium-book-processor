@@ -321,6 +321,48 @@ class Edition(TimestampedModel):
         }
 
 
+class SourceDownload(TimestampedModel):
+    """Where a catalogue edition's text was fetched from, and how the fetch went.
+
+    The product API can ask for a public-domain text from an approved free
+    library instead of uploading a file. The edition exists from the request
+    on, without a source file, while a worker fetches it; this row is what
+    says the edition is waiting for a download rather than for an upload, and
+    it stays as the edition's provenance once the file is attached. It
+    belongs to the environment that fetched the file and does not travel in
+    promotion bundles.
+    """
+
+    class Kind(models.TextChoices):
+        GUTENBERG = "gutenberg", "Project Gutenberg"
+        WIKISOURCE = "wikisource", "Wikisource"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Downloading"
+        DOWNLOADED = "downloaded", "Downloaded"
+        FAILED = "failed", "Failed"
+
+    edition = models.OneToOneField(
+        Edition, related_name="source_download", on_delete=models.CASCADE
+    )
+    # The product API's id for the request; unique, so two identical requests
+    # racing each other make one edition.
+    external_id = models.UUIDField(unique=True)
+    source_kind = models.CharField(max_length=20, choices=Kind.choices)
+    source_page_url = models.URLField(max_length=1000)
+    download_url = models.URLField(max_length=1000)
+    # Where the redirects ended: the file that was actually stored.
+    final_url = models.URLField(max_length=1000, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    error = models.TextField(blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    size_bytes = models.PositiveIntegerField(null=True, blank=True)
+    downloaded_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f"{self.get_source_kind_display()} · {self.download_url}"
+
+
 class Chapter(TimestampedModel):
     class AnalysisRole(models.TextChoices):
         BODY = "body", "Substantive chapter"

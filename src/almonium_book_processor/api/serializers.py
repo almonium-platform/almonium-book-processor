@@ -2,8 +2,19 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from almonium_book_processor.catalog.models import ContentBlock, Edition, PipelineRun, Work
+from almonium_book_processor.catalog.models import (
+    ContentBlock,
+    Edition,
+    PipelineRun,
+    SourceDownload,
+    Work,
+)
 from almonium_book_processor.catalog.services import create_source_edition
+from almonium_book_processor.catalog.source_download import (
+    DownloadRefused,
+    check_download_url,
+    check_page_url,
+)
 from almonium_book_processor.ingest.source import SUPPORTED_SOURCE_EXTENSIONS
 from almonium_book_processor.languages import LANGUAGE_CHOICES
 
@@ -214,3 +225,30 @@ class LibraryIngestSerializer(serializers.Serializer):
     publication_year = serializers.IntegerField(
         min_value=1, max_value=9999, required=False, allow_null=True
     )
+
+
+class SourceIngestSerializer(serializers.Serializer):
+    external_id = serializers.UUIDField()
+    download_url = serializers.URLField(max_length=1000)
+    source_kind = serializers.ChoiceField(choices=SourceDownload.Kind.choices)
+    source_page_url = serializers.URLField(max_length=1000)
+    title = serializers.CharField(max_length=500)
+    author = serializers.CharField(max_length=300)
+    language = serializers.ChoiceField(choices=LANGUAGE_CHOICES)
+    publication_year = serializers.IntegerField(
+        min_value=1, max_value=9999, required=False, allow_null=True
+    )
+
+    def validate(self, attrs):
+        errors = {}
+        for field, check in (
+            ("download_url", check_download_url),
+            ("source_page_url", check_page_url),
+        ):
+            try:
+                check(attrs[field], attrs["source_kind"])
+            except DownloadRefused as error:
+                errors[field] = str(error)
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs

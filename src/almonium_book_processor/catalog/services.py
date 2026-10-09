@@ -11,7 +11,7 @@ from typing import BinaryIO
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
 from django.core.files import File
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -27,6 +27,7 @@ from almonium_book_processor.catalog.models import (
     PipelineRun,
     QAWarning,
     ReviewDecision,
+    SourceDownload,
     TextQualityFinding,
     Work,
 )
@@ -51,9 +52,24 @@ def hash_uploaded_file(upload: BinaryIO) -> str:
 
 
 @transaction.atomic
-def create_source_edition(
+def create_source_edition(*, source_file: File, **fields) -> Edition:
+    """Queue a catalogue source; every bibliographic field is an optional pin.
+
+    See ``_create_catalogue_edition`` for the fields. The pipeline starts once
+    the edition is committed.
+    """
+
+    edition = _create_catalogue_edition(source_file=source_file, **fields)
+
+    from almonium_book_processor.catalog.tasks import process_book_pipeline
+
+    transaction.on_commit(lambda: process_book_pipeline.delay(str(edition.id)))
+    return edition
+
+
+def _create_catalogue_edition(
     *,
-    source_file: File,
+    source_file: File | None,
     edition_type: str = Edition.EditionType.ORIGINAL,
     work: Work | None = None,
     cefr_level: str | None = None,
@@ -68,7 +84,7 @@ def create_source_edition(
     edition_title: str = "",
     language: str = "",
 ) -> Edition:
-    """Queue a catalogue source; every bibliographic field is an optional pin.
+    """Create a catalogue work and edition; every bibliographic field is an optional pin.
 
     Blank fields are read from the file header and completed by the metadata
     stage, which also replaces provisional slugs with ones derived from the
@@ -133,7 +149,7 @@ def create_source_edition(
     work.metadata_provenance = provenance
     work.save()
 
-    edition = Edition.objects.create(
+    return Edition.objects.create(
         slug=edition_slug or provisional_slug(),
         work=work,
         title=edition_title or work_title,
@@ -141,14 +157,9 @@ def create_source_edition(
         language=language,
         edition_type=edition_type,
         cefr_level=cefr_level or None,
-        source_file=source_file,
+        source_file=source_file or "",
         status=Edition.Status.QUEUED,
     )
-
-    from almonium_book_processor.catalog.tasks import process_book_pipeline
-
-    transaction.on_commit(lambda: process_book_pipeline.delay(str(edition.id)))
-    return edition
 
 
 def create_library_ingest(
@@ -198,6 +209,74 @@ def create_library_ingest(
             edition.external_job_id = suggestion_id
             edition.save(update_fields=["external_job_id", "updated_at"])
     return edition, True
+
+
+class SourceIngestConflict(RuntimeError):
+    """The request's id already names something other than a source ingest."""
+
+
+def create_source_ingest(
+    *,
+    external_id: uuid.UUID,
+    download_url: str,
+    source_kind: str,
+    source_page_url: str,
+    title: str,
+    author: str,
+    language: str,
+    publication_year: int | None = None,
+) -> tuple[Edition, bool]:
+    """Seed a public catalogue edition whose text a worker fetches from a free library.
+
+    The edition exists at once, without a file, so the product API can watch
+    it; ``tasks.download_source_edition`` fetches the EPUB, attaches it and
+    starts the same pipeline an upload starts. The request's id keys the call:
+    a repeat returns the edition it already made, even while two race.
+    The link must already have passed ``source_download.check_download_url``.
+    """
+
+    existing = _source_ingest_by_id(external_id)
+    if existing is not None:
+        return existing, False
+    if Edition.objects.filter(external_job_id=external_id).exists():
+        raise SourceIngestConflict("This id already names another kind of job.")
+
+    from almonium_book_processor.catalog.tasks import download_source_edition
+
+    try:
+        with transaction.atomic():
+            edition = _create_catalogue_edition(
+                source_file=None,
+                work_title=title,
+                author=author,
+                original_language=language,
+                publication_year=publication_year,
+                language=language,
+            )
+            edition.external_job_id = external_id
+            edition.save(update_fields=["external_job_id", "updated_at"])
+            SourceDownload.objects.create(
+                edition=edition,
+                external_id=external_id,
+                source_kind=source_kind,
+                source_page_url=source_page_url,
+                download_url=download_url,
+            )
+            transaction.on_commit(lambda: download_source_edition.delay(str(edition.id)))
+    except IntegrityError:
+        existing = _source_ingest_by_id(external_id)
+        if existing is None:
+            raise
+        return existing, False
+    return edition, True
+
+
+def _source_ingest_by_id(external_id: uuid.UUID) -> Edition | None:
+    return (
+        Edition.objects.select_related("work", "source_download")
+        .filter(source_download__external_id=external_id)
+        .first()
+    )
 
 
 @transaction.atomic

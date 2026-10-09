@@ -188,11 +188,25 @@ def next_step(edition: Edition, context: dict[str, Any]) -> dict[str, Any]:
             "run": run,
             "text": f"{run.get_stage_display()} is running; this page follows it.",
         }
+    download = context.get("source_download")
+    if edition.status == Edition.Status.FAILED and download and download.status == "failed":
+        return {
+            "kind": "retry",
+            "text": f"The download failed: {download.error} Retry fetches the file again.",
+        }
     if edition.status == Edition.Status.FAILED:
         return {
             "kind": "retry",
             "text": (
                 "Processing failed. Retry after correcting the worker, importer or source problem."
+            ),
+        }
+    if download and download.status == "pending":
+        return {
+            "kind": "wait",
+            "text": (
+                f"Downloading the text from {download.get_source_kind_display()}; "
+                "processing starts when it arrives."
             ),
         }
     if edition.status in (Edition.Status.QUEUED, Edition.Status.PROCESSING, Edition.Status.DRAFT):

@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 SOURCE_QA_SCHEMA_VERSION = 1
-SOURCE_QA_PROCESSOR_VERSION = "source-qa-v4"
+SOURCE_QA_PROCESSOR_VERSION = "source-qa-v5"
 
 WORD_PAIR = re.compile(
     r"(?=(\b(?P<left>[^\W\d_]{2,})[ \t]+(?P<right>[^\W\d_]{2,})\b))",
@@ -29,6 +29,10 @@ GUTENBERG_MARKERS = (
     "end of the project gutenberg",
     "gutenberg-tm",
 )
+# What is left of a Wikisource export's own pages when the importer could not
+# drop them: its title page, its credits, or a licence banner. Books do not name
+# the wiki they were transcribed on.
+WIKISOURCE_MARKERS = ("wikisource",)
 
 
 @dataclass(frozen=True, slots=True)
@@ -236,6 +240,21 @@ def analyze_source_quality(
                     suggested_text="",
                     confidence=0.99,
                     message="This block appears to contain Project Gutenberg boilerplate.",
+                    evidence={},
+                )
+            )
+        if any(marker in lowered for marker in WIKISOURCE_MARKERS):
+            findings.append(
+                SourceQAFinding(
+                    block_id=block.id,
+                    stable_block_id=block.block_id,
+                    code="wikisource_boilerplate",
+                    start_offset=None,
+                    end_offset=None,
+                    original_text="",
+                    suggested_text="",
+                    confidence=0.95,
+                    message="This block appears to contain Wikisource export or licence text.",
                     evidence={},
                 )
             )

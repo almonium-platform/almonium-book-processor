@@ -135,6 +135,21 @@ def test_source_qa_flags_boilerplate_unicode_and_duplicate_blocks() -> None:
     assert duplicate.evidence == {"earlier_block_id": "c1.p2"}
 
 
+def test_source_qa_flags_what_is_left_of_a_wikisource_export() -> None:
+    findings = analyze_source_quality(
+        [
+            SourceQABlock("one", "c0.h1", 0, "Exported from Wikisource on October 7, 2026"),
+            SourceQABlock("two", "c1.p1", 1, "The Time Traveller was expounding to us."),
+        ],
+        "en",
+        frequency_lookup=lambda text, language: 0.0,
+    )
+
+    assert [(item.code, item.stable_block_id) for item in findings] == [
+        ("wikisource_boilerplate", "c0.h1")
+    ]
+
+
 def test_source_qa_detects_detached_block_initials_with_precise_offsets() -> None:
     frequency = {
         "the": 7.73,

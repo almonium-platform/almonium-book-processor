@@ -261,6 +261,9 @@ is a withdrawal that never completed.
   sentence correspondence and approved notes for both sides of a parallel companion.
 - `POST /api/v1/internal/translations/` and `/internal/library-ingests/` —
   service-authenticated translation orders and library ingests from the backend.
+- `POST /api/v1/internal/source-ingests/` and `GET .../source-ingests/{edition_id}/` —
+  a public-domain text the backend names by its download link on Project
+  Gutenberg or Wikisource (see "Source ingests" below).
 - `POST /api/v1/internal/promotions/` — receives a promotion bundle from
   another environment (`docs/PROMOTION.md`).
 - `GET /api/v1/internal/ai-spend/` — the AI ledger for the backend's spend report.
@@ -270,6 +273,62 @@ is a withdrawal that never completed.
 - `DELETE /api/v1/internal/imports/{uuid}/?owner_id={uuid}` — the owner destroys their
   own import: text, upload, and the book's words inside AI payloads.
 - `GET /healthz/` — process and database readiness.
+
+### Source ingests
+
+The backend asks for a text from an approved free library instead of uploading
+a file. The request is service-authenticated like a library ingest:
+
+```json
+POST /api/v1/internal/source-ingests/
+{
+  "external_id": "uuid: idempotency key, also the edition's external_job_id",
+  "download_url": "https://www.gutenberg.org/ebooks/84.epub3.images",
+  "source_kind": "gutenberg | wikisource",
+  "source_page_url": "https://www.gutenberg.org/ebooks/84",
+  "title": "Frankenstein",
+  "author": "Mary Shelley",
+  "language": "en",
+  "publication_year": 1818
+}
+```
+
+`download_url` must be HTTPS on the named library's hosts:
+`www.gutenberg.org`/`gutenberg.org` with an EPUB path (`/ebooks/<id>.epub3.images`,
+`/ebooks/<id>.epub[.no]images`, `/cache/epub/<id>/pg<id>[-images][-3].epub`), or
+`ws-export.wmcloud.org/?lang=..&page=..&format=epub-3` for Wikisource.
+`source_page_url` must be on `gutenberg.org` or `*.wikisource.org`. Anything
+else is a 400 naming the field. An `external_id` already used by another kind
+of job is a 409.
+
+The answer is `202` for a new edition and `200` with the same edition for a
+repeated `external_id`. The edition is public, has no file yet and shows
+phase `downloading`; a worker task (`download_source_edition`) fetches the
+EPUB with a descriptive User-Agent, follows redirects only within the allowed
+hosts, stops at 60 MB, waits up to five minutes for the exporter's first byte,
+retries a timeout, 429 or 5xx three times, attaches the file and starts the
+pipeline an upload starts. Anything else fails the edition with the reason in
+`error`. The edition page shows the provenance, and "Retry processing" fetches
+a failed download again. Provenance stays in the environment that fetched it;
+it does not travel in promotion bundles.
+
+Library and source ingests share one status body (also `GET` on either
+detail endpoint):
+
+```json
+{
+  "edition_id": "uuid", "slug": "frankenstein-en", "status": "queued",
+  "phase": "downloading | ingesting | review | ready | published | failed",
+  "progress": 0, "error": "", "published_at": null, "published_book_id": null,
+  "completed_stages": ["ingest", "metadata", "sentences"],
+  "current_stage": "lexical"
+}
+```
+
+`completed_stages` lists, in pipeline order, the stages with a succeeded run
+on the edition or on an edition generated from it (a production's adaptations
+and translations); `current_stage` is the stage of the newest queued or
+running run among them, or null.
 
 Staff resources use Django authentication. Private import resources are not a
 client API: only the Almonium backend can call them, and it must supply the owner

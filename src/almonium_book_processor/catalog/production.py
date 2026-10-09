@@ -18,6 +18,11 @@ a failed step is started once more, a chapter is mended once by paragraph and on
 corrections are applied and re-read twice at most, and a step nobody finishes in three hours
 holds the book instead of waiting for ever.
 
+Before any of it, Almonium is asked whether the work may be prepared at all: editions are
+made in Ukraine and hosted in Germany, and a work under copyright in either holds every
+target before anything is spent. An unknown verdict, or a check that could not be made, goes
+ahead with the reason logged; Almonium checks the publication itself again.
+
 The production is a run on the source edition that a short task moves forward and then asks
 to be called again (``tasks.produce_edition``): it holds no worker while the long jobs it
 started run on theirs, and it picks up where it was after a restart.
@@ -193,6 +198,11 @@ def _advance_once(run_id, only: set[str] | None = None) -> tuple[bool, set[str]]
         run.status = PipelineRun.Status.RUNNING
         run.started_at = timezone.now()
         _read_meters(state, "started")
+    if "rights" not in state and not _may_be_prepared(run, state):
+        _finish(run, state)
+        run.summary = state
+        run.save()
+        return True, set()
     moved = set()
     for name, track in _tracks(state).items():
         if track["index"] >= len(track["targets"]) or (only is not None and name not in only):
@@ -313,6 +323,27 @@ def _read_meters(state: dict, label: str) -> None:
     )
 
 
+def _may_be_prepared(run: PipelineRun, state: dict) -> bool:
+    """Ask Almonium once, before either track spends; a protected work holds every target."""
+
+    first = _targets(state)[0]
+    move = _rights(run, state, first)
+    if move[0] == "goto":
+        _log(state, first, "rights", move[2])
+        return True
+    state["outcomes"][first] = {"outcome": "held", "reasons": move[1]}
+    _log(state, first, "rights", "HELD: " + "; ".join(move[1]))
+    for track in _tracks(state).values():
+        for target in track["targets"]:
+            if target != first:
+                state["outcomes"][target] = {
+                    "outcome": "not attempted",
+                    "reasons": [f"{first} was held: the book is not prepared."],
+                }
+        track["index"] = len(track["targets"])
+    return False
+
+
 def _first_step(state: dict, target: str) -> str:
     return "probe" if target in state["levels"] else "translate"
 
@@ -360,7 +391,33 @@ def _stalled(job: PipelineRun | None) -> bool:
 
 
 # Steps. Each returns ("wait", why), ("goto", step, what happened), ("ready", note),
-# ("skip", why the target is not needed) or raises Held.
+# ("skip", why the target is not needed) or raises Held. The rights check comes before
+# them all, once for the production, and answers ("stop", reasons) to hold every target.
+
+
+def _rights(run: PipelineRun, state: dict, level: str) -> tuple:
+    """Ask Almonium whether the work may be prepared, before anything is spent on it.
+
+    Editions are made in Ukraine and hosted in Germany, so a work under copyright in
+    either is not prepared at all. An unknown verdict, usually a missing death year, goes
+    ahead with its explanation logged; so does a check that could not be made, since
+    Almonium checks the publication itself again and refuses a protected work there.
+    """
+
+    from almonium_book_processor.catalog.publication import RIGHTS_UNCHECKED, check_rights
+
+    verdict = check_rights(run.edition)
+    state["rights"] = {**verdict.as_dict(), "at": timezone.now().isoformat()}
+    explanation = verdict.explanation or "no explanation given"
+    if verdict.status == "PROTECTED":
+        return ("stop", [f"Not prepared: {explanation}"])
+    if verdict.status == RIGHTS_UNCHECKED:
+        note = f"Rights not checked, going ahead (publication is checked again): {explanation}"
+    elif verdict.status == "UNKNOWN":
+        note = f"Rights unknown, going ahead: {explanation}"
+    else:
+        note = f"Rights: free in {', '.join(verdict.countries) or 'UA, DE'}. {explanation}"
+    return ("goto", "source", note)
 
 
 def _source(run: PipelineRun, state: dict, level: str) -> tuple:
@@ -825,6 +882,14 @@ STEPS = {
 }
 
 
+RIGHTS_LABELS = {
+    "FREE": "free",
+    "PROTECTED": "under copyright",
+    "UNKNOWN": "unknown",
+    "UNCHECKED": "not checked",
+}
+
+
 def production_context(edition: Edition) -> dict:
     """The latest production of a source edition, for its page."""
 
@@ -843,6 +908,8 @@ def production_context(edition: Edition) -> dict:
                 if track["index"] < len(track["targets"])
             ),
             "outcomes": state["outcomes"],
+            "rights": state.get("rights"),
+            "rights_label": RIGHTS_LABELS.get((state.get("rights") or {}).get("status"), ""),
             "log": state["log"][-12:],
         }
     }
