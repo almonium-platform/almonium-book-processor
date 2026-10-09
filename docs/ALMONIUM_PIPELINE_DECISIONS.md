@@ -567,7 +567,12 @@ ones it had.
     4.7 times the price ($1.88 against $0.40 for the eight passages).
   - B1 adaptation: Opus 2.54, Fable 2.62, astra 2.88, sol 2.96. Judges
     agreed on the best candidate on 0 to 4 passages of 8, so the order is
-    soft; Opus costs 40% of Fable.
+    soft; Opus costs 40% of Fable. But the pipeline's own level judges
+    (`--read-levels`) read the GPT writers' B1 at B1 on 6 passages of 8
+    (both judges), Opus's on 4 and Fable's on 1: the Claude writers
+    simplify less, which the ranking rewarded as prose and the level gate
+    would send back to be mended. The adapter stays astra; sol lands as
+    often at a fifth of the price and is the one to try on a book.
   - Every judge put itself first or second except Fable on translation;
     Fable and astra ranked their own adaptations at 1.38 where the others
     put them at 2.6 and 2.9. A single judge's verdict on its own family

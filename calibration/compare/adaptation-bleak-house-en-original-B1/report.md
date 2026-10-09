@@ -11,6 +11,15 @@ Every judge saw the source and the candidates under shuffled letters, without mo
 | gpt-6.1-sol | 8 | 14692 | $0.43 |
 | gpt-6-astra | 8 | 14497 | $1.89 |
 
+## Level readings: passages the pipeline's judges read at B1 or under
+
+| Writer | gpt-6.1-sol | opus-5.5 | Both |
+|---|---|---|---|
+| opus-5.5 | 4 of 8 | 8 of 8 | 4 of 8 |
+| fable-5.1 | 1 of 8 | 6 of 8 | 1 of 8 |
+| gpt-6.1-sol | 7 of 8 | 7 of 8 | 6 of 8 |
+| gpt-6-astra | 6 of 8 | 8 of 8 | 6 of 8 |
+
 ## Judge: opus-5.5 (8 passages, $0.64 list)
 
 | Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
