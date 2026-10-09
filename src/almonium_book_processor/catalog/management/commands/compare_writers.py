@@ -35,8 +35,11 @@ from almonium_book_processor.ai.translation import (
     ChapterTranslation,
     render_source_block,
 )
+from almonium_book_processor.catalog.adaptation_wording import text_hash
 from almonium_book_processor.catalog.ai_translation import language_name
+from almonium_book_processor.catalog.chapter_projections import LEVELS
 from almonium_book_processor.catalog.models import Edition
+from almonium_book_processor.catalog.pilot_difficulty import judge_specs, judge_text
 
 ROOT = Path(settings.BASE_DIR) / "calibration" / "compare"
 LABELS = "ABCDEFGH"
@@ -337,6 +340,71 @@ def judge(task, source, passage, writers, seat, folder, lock, **options):
     )
 
 
+def read_levels(source, passages, writers, folder, level):
+    """The pipeline's own level judges read every writer's adaptation of every passage once.
+
+    The readings are kept under the source edition like a pilot's and in levels.json here.
+    """
+
+    path = folder / "levels.json"
+    levels = json.loads(path.read_text()) if path.exists() else {}
+    specs = judge_specs(source.language, wording=True)
+    for writer in writers:
+        name = short(writer)
+        for passage in passages:
+            record_path = folder / "writes" / name / f"{passage['id']}.json"
+            record = json.loads(record_path.read_text()) if record_path.exists() else {}
+            if "blocks" not in record or passage["id"] in levels.get(name, {}):
+                continue
+            blocks = [
+                {"block_id": b["block_id"], "text": b["text"], "type": "paragraph"}
+                for b in record["blocks"]
+            ]
+            read = {}
+            for spec in specs:
+                verdict = judge_text(
+                    edition=source,
+                    key=f"compare:{folder.name}:{name}:{passage['id']}",
+                    seed=text_hash(blocks),
+                    summary={"compare": folder.name, "writer": name, "passage": passage["id"]},
+                    chapter_sequence=passage["chapter_sequence"],
+                    blocks=blocks,
+                    spec=spec,
+                    readings=1,
+                    provider=None,
+                    processor_version="compare-writers-v1",
+                )
+                read[versioned(spec["model"])] = verdict["max_level"]
+            levels.setdefault(name, {})[passage["id"]] = read
+            path.write_text(json.dumps(levels, indent=1) + "\n")
+            print(f"levels {name:12} {passage['id']:5} {read}", flush=True)
+    return levels
+
+
+def level_table(folder, writers, level):
+    path = folder / "levels.json"
+    if not path.exists():
+        return []
+    levels = json.loads(path.read_text())
+    judges = sorted({j for reads in levels.values() for read in reads.values() for j in read})
+    lines = [
+        "",
+        f"## Level readings: passages the pipeline's judges read at {level} or under",
+        "",
+        "| Writer | " + " | ".join(judges) + " | Both |",
+        "|---|" + "---|" * (len(judges) + 1),
+    ]
+    for writer in writers:
+        reads = levels.get(short(writer), {})
+        if not reads:
+            continue
+        under = lambda read, j: LEVELS.index(read[j]) <= LEVELS.index(level)  # noqa: E731
+        cells = [f"{sum(under(r, j) for r in reads.values())} of {len(reads)}" for j in judges]
+        both = sum(all(under(r, j) for j in judges) for r in reads.values())
+        lines.append(f"| {short(writer)} | " + " | ".join(cells) + f" | {both} of {len(reads)} |")
+    return lines
+
+
 def report(task, folder, writers, judges, **options):
     names = [short(w) for w in writers]
     rows = {}
@@ -375,6 +443,8 @@ def report(task, folder, writers, judges, **options):
     ]
     for name, (count, usd, out) in spent.items():
         lines.append(f"| {name} | {count} | {out} | ${usd:.2f} |")
+    if task == "adaptation":
+        lines += level_table(folder, writers, options["level"])
 
     def table(rs, judge_name=None):
         out = [
@@ -478,6 +548,11 @@ class Command(BaseCommand):
         parser.add_argument("--judges", default="", help="seats; the writers by default")
         parser.add_argument("--workers", type=int, default=8)
         parser.add_argument("--report-only", action="store_true")
+        parser.add_argument(
+            "--read-levels",
+            action="store_true",
+            help="adaptation: the configured level judges also read every candidate",
+        )
 
     def handle(self, *args, **options):
         task = options["task"]
@@ -536,4 +611,8 @@ class Command(BaseCommand):
                         jobs,
                     )
                 )
+        if options["read_levels"] and task == "adaptation":
+            if not settings.DIFFICULTY_JUDGES:
+                raise CommandError("Set DIFFICULTY_JUDGES: there is no level judge.")
+            read_levels(source, passages, writers, folder, options["level"])
         self.stdout.write(report(task, folder, writers, judges, **opts))
