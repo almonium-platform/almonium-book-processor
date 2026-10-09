@@ -1,0 +1,750 @@
+# The writers judge each other: uk translation of bleak-house-en-original
+
+Every judge saw the source and the candidates under shuffled letters, without model names. Rank 1 is best; a win is rank 1. Each judge also rated its own work, blind.
+
+## Writing
+
+| Writer | Passages | Output tokens | List price |
+|---|---|---|---|
+| opus-5.5 | 8 | 41217 | $0.94 |
+| fable-5.1 | 8 | 41640 | $2.38 |
+| gpt-6.1-sol | 8 | 15768 | $0.40 |
+| gpt-6-astra | 8 | 14745 | $1.88 |
+
+## Judge: opus-5.5 (8 passages, $0.89 list)
+
+| Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
+|---|---|---|---|---|
+| gpt-6-astra | 2.25 | 1 (12%) | 7.5 | 8 of 8 |
+| opus-5.5 (itself) | 2.38 | 4 (50%) | 7.1 | 8 of 8 |
+| gpt-6.1-sol | 2.50 | 2 (25%) | 6.9 | 8 of 8 |
+| fable-5.1 | 2.88 | 1 (12%) | 6.6 | 8 of 8 |
+
+## Judge: fable-5.1 (8 passages, $2.51 list)
+
+| Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
+|---|---|---|---|---|
+| gpt-6-astra | 1.88 | 5 (62%) | 7.4 | 8 of 8 |
+| gpt-6.1-sol | 2.12 | 2 (25%) | 7.4 | 8 of 8 |
+| opus-5.5 | 3.00 | 0 (0%) | 6.6 | 8 of 8 |
+| fable-5.1 (itself) | 3.00 | 1 (12%) | 6.4 | 8 of 8 |
+
+## Judge: gpt-6.1-sol (8 passages, $0.41 list)
+
+| Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
+|---|---|---|---|---|
+| gpt-6-astra | 2.12 | 4 (50%) | 8.0 | 8 of 8 |
+| gpt-6.1-sol (itself) | 2.38 | 1 (12%) | 7.8 | 8 of 8 |
+| opus-5.5 | 2.62 | 2 (25%) | 7.5 | 8 of 8 |
+| fable-5.1 | 2.88 | 1 (12%) | 7.1 | 8 of 8 |
+
+## Judge: gpt-6-astra (8 passages, $2.24 list)
+
+| Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
+|---|---|---|---|---|
+| gpt-6-astra (itself) | 1.88 | 5 (62%) | 8.0 | 8 of 8 |
+| gpt-6.1-sol | 2.25 | 1 (12%) | 7.6 | 8 of 8 |
+| opus-5.5 | 2.75 | 2 (25%) | 7.4 | 8 of 8 |
+| fable-5.1 | 3.12 | 0 (0%) | 6.6 | 8 of 8 |
+
+## All judges together
+
+| Writer | Mean rank | Wins | Mean score | Rank by itself | Rank by the other judges |
+|---|---|---|---|---|---|
+| gpt-6-astra | 2.03 | 15 (47%) | 7.7 | 1.88 | 2.08 |
+| gpt-6.1-sol | 2.31 | 6 (19%) | 7.4 | 2.38 | 2.29 |
+| opus-5.5 | 2.69 | 8 (25%) | 7.2 | 2.38 | 2.79 |
+| fable-5.1 | 2.97 | 3 (9%) | 6.7 | 3.00 | 2.96 |
+
+## Agreement on the best candidate
+
+- opus-5.5 and fable-5.1: same best candidate on 2 of 8 passages
+- opus-5.5 and gpt-6.1-sol: same best candidate on 1 of 8 passages
+- opus-5.5 and gpt-6-astra: same best candidate on 2 of 8 passages
+- fable-5.1 and gpt-6.1-sol: same best candidate on 5 of 8 passages
+- fable-5.1 and gpt-6-astra: same best candidate on 5 of 8 passages
+- gpt-6.1-sol and gpt-6-astra: same best candidate on 6 of 8 passages
+
+## Slips flagged, for a person to check
+
+- c7 / gpt-6-astra, by opus-5.5: 'замкнувся у своєму колишньому єстві' turns 'shrunk into his former self' into withdrawal and loses the image of shrinking
+- c7 / gpt-6-astra, by opus-5.5: 'жодної такої гарної й тонкої волосини, як оці' changes the comparison from hair to a single strand of hair
+- c7 / gpt-6.1-sol, by opus-5.5: Speech broken up by an author's remark is closed and reopened as separate quotes («...» — сказав... «...»), which goes against Ukrainian dialogue punctuation
+- c7 / gpt-6.1-sol, by opus-5.5: 'бомаг' moves Krook's nonstandard form from 'parchmentses' to 'papers'
+- c7 / gpt-6.1-sol, by opus-5.5: 'вискочив із себе' is an awkward calque of 'leaped out of it'
+- c7 / opus-5.5, by opus-5.5: 'підбадьорені Річардовим веселим сміхом' loses 'encouragement': Richard's laughing encouragement becomes just laughter
+- c7 / opus-5.5, by opus-5.5: 'маленька стара леді' is a calque and sounds stiff
+- c7 / opus-5.5, by opus-5.5: 'мій любий друже' softens the curt 'my good friend'
+- c7 / opus-5.5, by opus-5.5: 'а яке на дотик!' is clumsy for 'what texture'
+- c7 / opus-5.5, by opus-5.5: 'моє місце' is too literal for 'my place' (meaning his shop)
+- c7 / fable-5.1, by opus-5.5: 'Лорд-канцлером' leaves 'лорд' undeclined and wrongly capitalised; it should be 'лордом-канцлером'
+- c7 / fable-5.1, by opus-5.5: 'підбадьорені сміхом Річарда' loses 'encouragement'
+- c7 / fable-5.1, by opus-5.5: 'але такого гарного й тонкого немає' drops 'as this'
+- c7 / fable-5.1, by opus-5.5: Krook's nonstandard 'parchmentses' and his dialect are flattened into standard speech
+- c7 / fable-5.1, by opus-5.5: Mixes dash-style dialogue with «» inside the narrative paragraph
+- c7 / fable-5.1, by opus-5.5: 'маленька стара леді' is a calque
+- c15 / gpt-6.1-sol, by opus-5.5: 'безперечно був' slightly weakens 'pre-eminently was'
+- c15 / gpt-6.1-sol, by opus-5.5: 'який мені трапилося мати' is stiff for 'I happen to have'
+- c15 / gpt-6.1-sol, by opus-5.5: dialogue set in «» quotes rather than Ukrainian dashes
+- c15 / fable-5.1, by opus-5.5: 'у бутність її' is a Russianism (в бытность)
+- c15 / fable-5.1, by opus-5.5: 'об одинадцятій годині ранку' loses the formal capitalised 'Eleven in the forenoon'
+- c15 / fable-5.1, by opus-5.5: 'передусім і був' misreads 'pre-eminently' as 'first and foremost'
+- c15 / fable-5.1, by opus-5.5: 'Африканської станції' is unclear for the naval 'African Station'
+- c15 / gpt-6-astra, by opus-5.5: 'щоразу вінчалася' adds a verb not in the source
+- c15 / gpt-6-astra, by opus-5.5: 'прихилилася серцем' embellishes 'had become attached'
+- c15 / gpt-6-astra, by opus-5.5: 'сповна натішилися обома' adds enjoyment to 'had the full benefit of them'
+- c15 / gpt-6-astra, by opus-5.5: 'яке воно рідкісне' renders 'curious' as 'rare'
+- c15 / gpt-6-astra, by opus-5.5: 'який маю в запасі' drops the 'happen to have' hedge
+- c15 / opus-5.5, by opus-5.5: 'довірливим тоном' means 'trusting', not 'in a tone of confidence' (довірчим)
+- c15 / opus-5.5, by opus-5.5: 'і щоразу шлюб брали' adds a clause not in the source
+- c15 / opus-5.5, by opus-5.5: 'в найвищій мірі' is a Russian calque (найвищою мірою)
+- c15 / opus-5.5, by opus-5.5: 'Тільки не в цій склянці' wrong case for pouring into a tumbler
+- c15 / opus-5.5, by opus-5.5: 'якнайпримітніші' is weak for 'most remarkable' (distinguished)
+- c15 / opus-5.5, by opus-5.5: 'лікував його в останній хворобі' is awkward Ukrainian
+- c23 / gpt-6.1-sol, by opus-5.5: Puts George's 'latter remark' narration on a separate line, which breaks the source paragraph
+- c23 / gpt-6.1-sol, by opus-5.5: 'спадні води чаю в мисці' is a stiff rendering of 'ebbtide of the basin'
+- c23 / gpt-6.1-sol, by opus-5.5: Drops 'and all' from 'extra little back-kitchen and all'
+- c23 / fable-5.1, by opus-5.5: Uses «» quotation marks instead of the Ukrainian dialogue dash
+- c23 / fable-5.1, by opus-5.5: Nests «так» inside «» with the same quotation marks
+- c23 / fable-5.1, by opus-5.5: 'не жерти' is coarser than 'gormandize'
+- c23 / fable-5.1, by opus-5.5: 'беручи стілець' is a literal calque of 'taking a chair'
+- c23 / fable-5.1, by opus-5.5: Inconsistent vocative: 'містере Джордж' instead of 'містере Джордже'
+- c23 / gpt-6-astra, by opus-5.5: Puts the 'latter remark' narration on a separate line, which breaks the source paragraph
+- c23 / gpt-6-astra, by opus-5.5: Invents the compound 'скуто-скупі' and then repeats 'скупі' in 'скупі звуки'
+- c23 / gpt-6-astra, by opus-5.5: Inconsistent vocative: 'містере Джордж' instead of 'містере Джордже'
+- c23 / gpt-6-astra, by opus-5.5: 'пробувши тут довше' changes 'if he remained there long'
+- c23 / opus-5.5, by opus-5.5: Uses «» quotation marks instead of the Ukrainian dialogue dash
+- c23 / opus-5.5, by opus-5.5: 'дівчиська/дівчиськ' adds a pejorative tone that is not in 'you girls'
+- c23 / opus-5.5, by opus-5.5: 'являє собою' is a Russian calque
+- c23 / opus-5.5, by opus-5.5: 'по юридичній части' is an odd form of 'частині'
+- c23 / opus-5.5, by opus-5.5: 'натираєте ноги' shifts 'rub' towards chafing or applying ointment
+- c23 / opus-5.5, by opus-5.5: Inconsistent vocative: 'містере Джордж' instead of 'містере Джордже'
+- c31 / fable-5.1, by opus-5.5: The opening guillemet is missing before «Гадаю, ваша милість». It copies a typo in the source, but the Ukrainian dialogue punctuation is still wrong.
+- c31 / fable-5.1, by opus-5.5: «your ladyship's own portrait» becomes «портретом вашої милості», so the emphatic «own» is lost.
+- c31 / fable-5.1, by opus-5.5: «екран» for the hand-screen is very literal and may puzzle a reader without the later «ручним екраном».
+- c31 / gpt-6-astra, by opus-5.5: «quite satisfactory» is rendered as «цілком задоволений» ("quite satisfied"), which shifts the meaning.
+- c31 / gpt-6-astra, by opus-5.5: «огортає його розум» adds «розум», which is not in the source.
+- c31 / gpt-6-astra, by opus-5.5: «з трохи меншою граційною невимушеністю» is fine, but «погляд ані на мить не здригається» changes «never falters in her steady gaze» into an image of the gaze trembling.
+- c31 / gpt-6.1-sol, by opus-5.5: «Містер Гаппі сідає» spells out «does so» and flattens the joke of the original.
+- c31 / gpt-6.1-sol, by opus-5.5: «в якому порядку думав про що говорити» is ungrammatical and clumsy.
+- c31 / gpt-6.1-sol, by opus-5.5: «Яке це має відношення до мене» uses a calque; «стосунок» is the idiomatic word.
+- c31 / gpt-6.1-sol, by opus-5.5: «пристрасть до схожостей» makes «taste for likenesses» stronger than the source.
+- c31 / gpt-6.1-sol, by opus-5.5: «розпікаючись» is an odd choice for «growing warm».
+- c31 / gpt-6.1-sol, by opus-5.5: The quoted «„E. S!“» copies the source's punctuation without adapting it.
+- c31 / opus-5.5, by opus-5.5: «ви... мене й не примітила» has a broken agreement: «ви» needs «примітили».
+- c31 / opus-5.5, by opus-5.5: «чути або бачити молоду леді» makes it "hear the lady" instead of «hear of» her.
+- c31 / opus-5.5, by opus-5.5: «Перепрошую, щиро перепрошую» adds a repetition that is not in the source.
+- c31 / opus-5.5, by opus-5.5: The polite plural is used inconsistently: «ваша світлість поскаржилися» and «дозволять» sit beside singular forms elsewhere.
+- c31 / opus-5.5, by opus-5.5: Address in the nominative («Отож, ваша світлість») is used where the vocative «світлосте» is expected.
+- c31 / opus-5.5, by opus-5.5: «дрібно занотував» misreads «small notes» (short notes) as small handwriting.
+- c31 / opus-5.5, by opus-5.5: «відношення» is used as a calque for «стосунок».
+- c39 / gpt-6.1-sol, by opus-5.5: 'my dear girl' becomes just 'моя люба', so 'girl' is lost
+- c39 / gpt-6.1-sol, by opus-5.5: 'мандрівна приятелька' takes Miss Flite's mental 'wandering' as physical travel
+- c39 / gpt-6.1-sol, by opus-5.5: 'Якщо він трохи скривив мене': 'він' is unclear and could be read as Jarndyce instead of the influence
+- c39 / opus-5.5, by opus-5.5: 'my dear girl' becomes just 'моя люба'
+- c39 / opus-5.5, by opus-5.5: 'блукаюча приятелька' is literal and leaves the mental sense of 'wandering' unclear
+- c39 / opus-5.5, by opus-5.5: 'прокляттi' contains a Latin 'i' typo
+- c39 / fable-5.1, by opus-5.5: 'що саме так її змінює' garbles 'what so changes it' and reads as a conjunction clause
+- c39 / fable-5.1, by opus-5.5: 'якому можуть надіти дах' is awkward and unidiomatic
+- c39 / fable-5.1, by opus-5.5: 'Якщо він трохи скривив мене': 'він' is unclear and could be read as Jarndyce
+- c39 / gpt-6-astra, by opus-5.5: 'подруга-мандрівниця' gets 'wandering' wrong: it means a traveller, not a wandering mind
+- c39 / gpt-6-astra, by opus-5.5: 'відтінок виразу обличчя того нещасного чоловіка' adds 'facial expression', which is not in the source
+- c39 / gpt-6-astra, by opus-5.5: 'влаштуватися на постійне життя' adds a gloss that is not in the source
+- c39 / gpt-6-astra, by opus-5.5: 'такою величезною масою спочивали' over-literalises 'massively hushed'
+- c39 / gpt-6-astra, by opus-5.5: the time phrases in the house simile are reordered, which breaks the parallel with the English
+- c47 / opus-5.5, by opus-5.5: 'наді мною начальством' adds 'начальством', which is not in the source
+- c47 / opus-5.5, by opus-5.5: 'рівно стільки ж малу й стільки ж велику' is a clumsy rendering of 'as little and as much'
+- c47 / opus-5.5, by opus-5.5: 'Він прочитав небагато, коли сперся' reads awkwardly
+- c47 / gpt-6-astra, by opus-5.5: 'little' is dropped from 'my dear little woman'
+- c47 / gpt-6-astra, by opus-5.5: 'laid upon his arm' becomes 'поклала йому на плече' (shoulder)
+- c47 / gpt-6-astra, by opus-5.5: 'It is all over here' becomes 'Воно тут скрізь', which loses the sense that everything is finished
+- c47 / fable-5.1, by opus-5.5: The full stop goes inside the closing guillemet throughout (e.g. 'Естер.»'), against Ukrainian convention
+- c47 / fable-5.1, by opus-5.5: 'Що було, те загуло' is a colloquial idiom that breaks the period register
+- c47 / fable-5.1, by opus-5.5: 'arm' becomes 'плече' (shoulder)
+- c47 / fable-5.1, by opus-5.5: 'Він не прочитав далеко' is a calque and not idiomatic
+- c47 / fable-5.1, by opus-5.5: 'мету, яку я маю переслідувати' is a calque
+- c47 / fable-5.1, by opus-5.5: There is a stray dash before the narration in '«...?» — Він говорив'
+- c47 / fable-5.1, by opus-5.5: 'саме стільки, як мало й як багато' is garbled
+- c47 / gpt-6.1-sol, by opus-5.5: 'little' is dropped from 'my dear little woman'
+- c47 / gpt-6.1-sol, by opus-5.5: The negation 'I have no care, no mind, no heart, no soul, but for one thing' is turned into a positive statement
+- c47 / gpt-6.1-sol, by opus-5.5: 'лише для того' adds 'лише', which is not in the source
+- c47 / gpt-6.1-sol, by opus-5.5: 'м'явши' is the wrong participle for an action happening at the same time
+- c47 / gpt-6.1-sol, by opus-5.5: 'Вулзу' is a non-standard spelling; the usual form is Воулз
+- c47 / gpt-6.1-sol, by opus-5.5: 'as little and as much' is flattened to 'ані більше, ані менше'
+- c55 / opus-5.5, by opus-5.5: Nested quotation «моя люба» inside «…» should use „моя люба“ by Ukrainian convention
+- c55 / opus-5.5, by opus-5.5: 'мій рідний брат' adds 'рідний', which is not in the source
+- c55 / opus-5.5, by opus-5.5: 'звісно' added in Bucket's line about the delicate female
+- c55 / gpt-6-astra, by opus-5.5: 'велика втрата' / 'стати великою втратою' adds 'great', which is not in the source
+- c55 / gpt-6-astra, by opus-5.5: 'я б не витримав такого розумового напруження' shifts the meaning of 'had my mind so much upon the stretch'
+- c55 / gpt-6-astra, by opus-5.5: Final 'no fler' repetition dropped ('ніж жодного')
+- c55 / gpt-6-astra, by opus-5.5: 'по закону' is a Russianism; 'в законі' / 'за законом' is standard
+- c55 / fable-5.1, by opus-5.5: 'Це приголомшує' overstates 'gives a start'
+- c55 / fable-5.1, by opus-5.5: 'в порядку правосуддя' is a bureaucratic, flat rendering
+- c55 / fable-5.1, by opus-5.5: 'мій рідний брат' adds 'рідний'
+- c55 / fable-5.1, by opus-5.5: Final 'no fler' repetition dropped ('ніж жодного')
+- c55 / gpt-6.1-sol, by opus-5.5: Name rendered 'Волумнія' instead of the conventional 'Волюмнія'
+- c55 / gpt-6.1-sol, by opus-5.5: 'наголошує це слово' is ungrammatical; it should be 'наголошує на цьому слові'
+- c55 / gpt-6.1-sol, by opus-5.5: 'Для делікатної жінки це потрясіння' overstates 'gives a start'
+- c55 / gpt-6.1-sol, by opus-5.5: 'пускаючи в переконливий рух свого пальця' is awkward and unidiomatic
+- c55 / gpt-6.1-sol, by opus-5.5: 'йому до вподоби' softens 'to his satisfaction'
+- c55 / gpt-6.1-sol, by opus-5.5: 'якогсь' is a garbled clipping
+- c63 / opus-5.5, by opus-5.5: 'сповивальники' is unclear and can suggest the people who swaddle rather than the bandages
+- c63 / opus-5.5, by opus-5.5: 'я гадаю' drops the conditional hedge of 'I should imagine'
+- c63 / opus-5.5, by opus-5.5: 'одну зі зброй' is an awkward plural of зброя
+- c63 / gpt-6-astra, by opus-5.5: The refrain 'in such a case as that' is moved to the start of each sentence, so the repeated ending is lost
+- c63 / gpt-6-astra, by opus-5.5: 'як у віршику про дім' adds 'віршику', which is not in the source
+- c63 / gpt-6-astra, by opus-5.5: 'одну зі зброй' is an awkward plural of зброя
+- c63 / gpt-6-astra, by opus-5.5: The 'general cohesion of things' clause is paraphrased rather than translated
+- c63 / fable-5.1, by opus-5.5: 'бо сам хочу грошей' mistranslates 'because I want it myself', which means 'because I lack that faith', not 'I want money'
+- c63 / fable-5.1, by opus-5.5: 'не скований упередженнями' (bound) weakens 'warped' (twisted out of shape)
+- c63 / fable-5.1, by opus-5.5: 'затишно мстить' is an odd choice for 'avenges us comfortably'
+- c63 / gpt-6.1-sol, by opus-5.5: 'забобони' (superstitions) is wrong for 'prejudices', used twice
+- c63 / gpt-6.1-sol, by opus-5.5: 'похитнути цю віру в Бакета' means faith in Bucket instead of the faith Bucket holds
+- c63 / gpt-6.1-sol, by opus-5.5: The refrain 'in such a case as that' is moved to the start of each sentence, so the repeated ending is lost
+- c63 / gpt-6.1-sol, by opus-5.5: 'одну з Бакетових зброй' is an awkward plural
+- c63 / gpt-6.1-sol, by opus-5.5: 'ніхто ніколи не бачив ні в кому іншому' is redundant
+- c7 / gpt-6-astra, by fable-5.1: «бумажок» — Russianism/surzhyk for 'papers' (unless meant as Krook's dialect, it reads as a lapse)
+- c7 / gpt-6-astra, by fable-5.1: «що за шовк» — adds a silk image where source has only 'what texture'
+- c7 / gpt-6-astra, by fable-5.1: «у своїй безневинній примсі» — 'harmless way' turned into a 'whim', slight addition
+- c7 / opus-5.5, by fable-5.1: «підбадьорені Річардовим веселим сміхом» — 'laughing encouragement' reduced to laughter, encouragement dropped
+- c7 / opus-5.5, by fable-5.1: «мене й моє місце» — 'my place' rendered literally as 'місце' instead of the shop/premises
+- c7 / opus-5.5, by fable-5.1: «мій любий друже» — 'my good friend' (ironic rebuke) softened to 'dear friend'
+- c7 / gpt-6.1-sol, by fable-5.1: Dialogue punctuation follows English style («…» — сказав… «…») rather than Ukrainian convention
+- c7 / gpt-6.1-sol, by fable-5.1: «позбутися її» — 'not to be so easily left' hardened into 'get rid of her'
+- c7 / gpt-6.1-sol, by fable-5.1: «Угодіть їй» — non-standard (Russian-coloured) verb; «догодіть» expected
+- c7 / gpt-6.1-sol, by fable-5.1: «бомаг» — odd coinage for 'papers', neither natural Ukrainian nor a clear rendering of 'parchmentses'
+- c7 / fable-5.1, by fable-5.1: «у свій нешкідливий спосіб» — awkward literal rendering of 'in her harmless way'
+- c7 / fable-5.1, by fable-5.1: «з великою величністю» — wrong word ('majesty') for 'stateliness'
+- c7 / fable-5.1, by fable-5.1: «підбадьорені сміхом Річарда» — 'laughing encouragement' flattened to just laughter
+- c7 / fable-5.1, by fable-5.1: «старих пергаментів» — Krook's comic 'parchmentses' normalised away
+- c7 / fable-5.1, by fable-5.1: «яка ніжність» — 'what texture' shifted to 'tenderness'
+- c15 / gpt-6-astra, by fable-5.1: «Ви переконаєтесь, яке воно рідкісне» — 'very curious' means unusual/interesting, not rare
+- c15 / gpt-6-astra, by fable-5.1: «який маю в запасі» drops the hedge 'I happen to have'
+- c15 / gpt-6-astra, by fable-5.1: «мимоволі думаю» for 'I feel' shifts the verb
+- c15 / gpt-6-astra, by fable-5.1: «вінчалася» is added; source only says 'each time'
+- c15 / gpt-6.1-sol, by fable-5.1: «безперечно» for 'pre-eminently' weakens the superlative
+- c15 / gpt-6.1-sol, by fable-5.1: «поданий дуже пишно» — 'handsomely served' is elegance, not pomp
+- c15 / gpt-6.1-sol, by fable-5.1: «який мені трапилося мати» is a stiff calque of 'happen to have'
+- c15 / fable-5.1, by fable-5.1: «яким капітан Своссер передусім і був» — 'pre-eminently' mistranslated as 'first of all'
+- c15 / fable-5.1, by fable-5.1: «у бутність її місіс Своссер» — Russianism (в бытность)
+- c15 / fable-5.1, by fable-5.1: «вельми заслужений офіцер» — 'distinguished' is not quite 'заслужений'
+- c15 / fable-5.1, by fable-5.1: «Аді дуже сподобалися» softens 'very much admired'
+- c15 / fable-5.1, by fable-5.1: «як то взагалі буває з людьми» clunky for 'as people generally do'
+- c15 / opus-5.5, by fable-5.1: «довірливим тоном» — довірливий means 'trusting'; 'confidential' is довірчий
+- c15 / opus-5.5, by fable-5.1: «в найвищій мірі» — Russian calque for 'найвищою мірою'
+- c15 / opus-5.5, by fable-5.1: «благопристойний прийом» — Russianism for 'genteel entertainment'
+- c15 / opus-5.5, by fable-5.1: «Я бувала з ним у Середземномор'ї» — iterative 'бувала' alters 'I was in the Mediterranean with him'
+- c15 / opus-5.5, by fable-5.1: «двоє з них украй видатні» — 'украй' is a wrong intensifier for 'highly'
+- c23 / gpt-6.1-sol, by fable-5.1: «Фу!» for “Whew!” reads as disgust rather than a puff at the heat
+- c23 / gpt-6.1-sol, by fable-5.1: «у спадні води чаю в мисці» is a stiff rendering of the ebb-tide image
+- c23 / gpt-6.1-sol, by fable-5.1: Narrator's tag after Mr. George's speech is broken onto a new line, splitting the source paragraph
+- c23 / opus-5.5, by fable-5.1: «по юридичній части» — misspelling of «частині»
+- c23 / opus-5.5, by fable-5.1: «компліментарний» is a calque where «утішний/похвальний» is natural
+- c23 / opus-5.5, by fable-5.1: Vocative not declined: «містере Джордж» instead of «Джордже»
+- c23 / fable-5.1, by fable-5.1: «Як із м'ячем» drops “football”
+- c23 / fable-5.1, by fable-5.1: «за довгою звичкою» calques “long habit” (should be «давньою»)
+- c23 / fable-5.1, by fable-5.1: «беручи стілець» is a literal “taking a chair”, not idiomatic for sitting down
+- c23 / fable-5.1, by fable-5.1: «брунатної руки» is an odd word for sunburnt skin
+- c23 / fable-5.1, by fable-5.1: Nested quotation uses the same «» marks instead of „“
+- c23 / gpt-6-astra, by fable-5.1: «по-диявольському схожий» is clumsy for “devilish like”; and the sentence replaces “last adjective” with the quoted word
+- c23 / gpt-6-astra, by fable-5.1: «Як із м'ячем» drops “football”
+- c23 / gpt-6-astra, by fable-5.1: «служить у законників» loosens “He is in the law”
+- c23 / gpt-6-astra, by fable-5.1: «скуто-скупі повадки» is an invented compound not in the source
+- c23 / gpt-6-astra, by fable-5.1: Vocative not declined: «містере Джордж»
+- c23 / gpt-6-astra, by fable-5.1: Narrator's tag broken onto a new line, splitting the source paragraph
+- c39 / fable-5.1, by fable-5.1: «що до того» — spelling slip for «щодо того»
+- c39 / fable-5.1, by fable-5.1: «залагоджу свої справи взагалі» — awkward calque of 'affairs in general'
+- c39 / fable-5.1, by fable-5.1: «розкішні для ока» — stiff calque of 'exquisite to see'
+- c39 / opus-5.5, by fable-5.1: «блукаюча приятелька» — Russism-style participle; the mental 'wandering' of Miss Flite is lost/ambiguous
+- c39 / opus-5.5, by fable-5.1: «Дамо Дерден» — 'Dame Durden' is a homely nickname, not the title 'Dame'; wrong register
+- c39 / opus-5.5, by fable-5.1: «Джарндайс» — non-standard transliteration (pronounced Jarn-dis)
+- c39 / opus-5.5, by fable-5.1: Dialogue in guillemets rather than conventional Ukrainian em-dashes
+- c39 / gpt-6.1-sol, by fable-5.1: «мандрівна приятелька» — misreads 'wandering' (mentally astray) as travelling
+- c39 / gpt-6.1-sol, by fable-5.1: «Страшно було подумати» — unnecessary tense shift from the narrator's present aside
+- c39 / gpt-6.1-sol, by fable-5.1: «він не є людиною честі» — bureaucratic 'не є' construction, out of period register
+- c39 / gpt-6.1-sol, by fable-5.1: Dialogue in guillemets rather than conventional Ukrainian em-dashes
+- c39 / gpt-6-astra, by fable-5.1: «подруга-мандрівниця» — misreads 'wandering' (mentally astray) as a wanderer/traveller
+- c39 / gpt-6-astra, by fable-5.1: Unfinished-house sentence restructured (time list moved to the front), breaking parallel alignment
+- c39 / gpt-6-astra, by fable-5.1: «влаштуватися на постійне життя» — expansion not in source ('settle')
+- c39 / gpt-6-astra, by fable-5.1: «відтінок виразу обличчя того нещасного чоловіка» — adds 'expression of the face' not in source
+- c39 / gpt-6-astra, by fable-5.1: «такою величезною масою спочивали в сонній тиші» — overwrought rendering of 'massively hushed in sleep'
+- c39 / gpt-6-astra, by fable-5.1: Dialogue in guillemets rather than conventional Ukrainian em-dashes
+- c31 / gpt-6-astra, by fable-5.1: «нужденне життя» — 'poor life' here means pitiable, not destitute
+- c31 / gpt-6-astra, by fable-5.1: «цілком задоволений» shifts 'quite satisfactory' from the answer to the speaker
+- c31 / gpt-6-astra, by fable-5.1: «Даруйте, будь ласка» drops the comic hedge 'I am sure'
+- c31 / gpt-6-astra, by fable-5.1: «огортає його розум» adds 'mind' not in the source
+- c31 / gpt-6-astra, by fable-5.1: «як іти далі» loses 'right on'
+- c31 / fable-5.1, by fable-5.1: «не раз» softens 'often'
+- c31 / fable-5.1, by fable-5.1: «екран» for hand-screen is unclear to a modern reader (fire-screen/заслінка)
+- c31 / fable-5.1, by fable-5.1: «бачу свій шлях, просто вперед» — literal, unidiomatic
+- c31 / fable-5.1, by fable-5.1: Opening quotation mark missing before «Гадаю, ваша милість…»
+- c31 / fable-5.1, by fable-5.1: First paragraph closes and reopens quotes around the narrator's interruption instead of the standard «…, — … — …» pattern
+- c31 / gpt-6.1-sol, by fable-5.1: «ваша світлість» overstates 'your ladyship' (милість)
+- c31 / gpt-6.1-sol, by fable-5.1: «в якому порядку думав про що говорити» — garbled rendering of 'the order of the points I thought of touching upon'
+- c31 / gpt-6.1-sol, by fable-5.1: «пристрасть до схожостей» escalates 'taste for likenesses'
+- c31 / gpt-6.1-sol, by fable-5.1: «відношення до мене» — calque; стосунок
+- c31 / gpt-6.1-sol, by fable-5.1: Initials left in Latin (C. S. / E. S.) inside a Cyrillic text
+- c31 / opus-5.5, by fable-5.1: «ви… мене й не примітила» — grammatical mismatch (ви + singular past)
+- c31 / opus-5.5, by fable-5.1: «ваша світлість» overstates 'your ladyship'
+- c31 / opus-5.5, by fable-5.1: Honorific verb agreement inconsistent: «ваша світлість поскаржилися/дозволять» vs «ваша світлість… пам'ятаєте»
+- c31 / opus-5.5, by fable-5.1: «не раз» softens 'often'
+- c31 / opus-5.5, by fable-5.1: «відношення до мене» — calque
+- c31 / opus-5.5, by fable-5.1: «пристрасть до схожостей» escalates 'taste'
+- c31 / opus-5.5, by fable-5.1: Initials left in Latin (C. S. / E. S.)
+- c47 / gpt-6.1-sol, by fable-5.1: «Він тут скрізь» misreads «It is all over here» (it is finished) as the letter being scattered
+- c47 / gpt-6.1-sol, by fable-5.1: «Вулзу» — Vholes is pronounced Voles; «Воулз» expected
+- c47 / gpt-6.1-sol, by fable-5.1: «моя люба жіночко» drops «little»
+- c47 / gpt-6.1-sol, by fable-5.1: «Усі мої турботи, думки, серце й душа віддані лише одній справі» recasts the negative «I have no care, no mind…» construction
+- c47 / gpt-6.1-sol, by fable-5.1: «м'явши» — wrong participle form for a simultaneous action («мнучи»)
+- c47 / gpt-6-astra, by fable-5.1: «Воно тут скрізь» misreads «It is all over here» (it is finished) as the letter scattered about
+- c47 / gpt-6-astra, by fable-5.1: «моя люба жіночко» drops «little»
+- c47 / gpt-6-astra, by fable-5.1: «поклала йому на плече» — arm rendered as shoulder
+- c47 / gpt-6-astra, by fable-5.1: «Хай минуле буде минулим» — stiff calque for «Let bygones be bygones»
+- c47 / opus-5.5, by fable-5.1: «Дамо Дерден» — unnatural vocative; «Dame Durden» is a homely nickname, not a title
+- c47 / opus-5.5, by fable-5.1: «щоб я ще й у церкві побував» — ambiguous; sounds like visiting a church, not taking holy orders
+- c47 / opus-5.5, by fable-5.1: «ті, кого поставлено наді мною начальством» — muddled rendering of «put in authority over me»
+- c47 / opus-5.5, by fable-5.1: «рівно стільки ж малу й стільки ж велику, скільки я змарнував» — awkward calque
+- c47 / opus-5.5, by fable-5.1: «Він прочитав небагато, коли сперся…» — calque of English «He had not read far, when»
+- c47 / opus-5.5, by fable-5.1: «моїх власних вуст» — redundant calque of «my own lips»
+- c47 / fable-5.1, by fable-5.1: Full stops placed inside closing quotation marks throughout («Естер.», «Річарде.») — against Ukrainian convention
+- c47 / fable-5.1, by fable-5.1: «Він не прочитав далеко» — literal calque, unidiomatic
+- c47 / fable-5.1, by fable-5.1: «побувати в церкві» — ambiguous; sounds like visiting a church, not the clergy
+- c47 / fable-5.1, by fable-5.1: «Поза боргами й кредиторами та всіма такими перешкодами» — awkward; «drawbacks» ≠ «перешкоди»
+- c47 / fable-5.1, by fable-5.1: «яка так скоро напевне буде її» / «саме стільки, як мало й як багато я змарнював» — clumsy calques
+- c47 / fable-5.1, by fable-5.1: «поклала йому на плече» — arm rendered as shoulder
+- c47 / fable-5.1, by fable-5.1: Stray dash before «Він говорив пом'якшеним голосом» breaks dialogue punctuation
+- c47 / fable-5.1, by fable-5.1: «Мене мусили б відрядити» — shifts «I must have been ordered» (certainty) toward obligation
+- c55 / gpt-6-astra, by fable-5.1: «ще дужче… посилила» adds an intensifier not in 'aggravated'
+- c55 / gpt-6-astra, by fable-5.1: 'in the course of justice' compressed to «за законом»
+- c55 / gpt-6.1-sol, by fable-5.1: 'first marked' expanded to «обрати його за жертву»
+- c55 / gpt-6.1-sol, by fable-5.1: 'to his satisfaction' softened to «йому до вподоби»
+- c55 / fable-5.1, by fable-5.1: 'watched at my house' shifted to «підстерігати» (lie in wait)
+- c55 / fable-5.1, by fable-5.1: «лише посилила» adds 'only'
+- c55 / fable-5.1, by fable-5.1: «склянка-друга хересу» — odd vessel for sherry
+- c55 / fable-5.1, by fable-5.1: 'fail in the assertion of my respect' recast as «не виконаю обов'язку шани»
+- c55 / opus-5.5, by fable-5.1: «мій рідний брат» adds 'own'
+- c55 / opus-5.5, by fable-5.1: «звісно» added to Bucket's 'It gives a start to a delicate female'
+- c55 / opus-5.5, by fable-5.1: 'calculated to be a deprivation' flattened to «був такий, що його втрату не можна не відчути», losing Bucket's comic idiom
+- c55 / opus-5.5, by fable-5.1: «скромної, стриманої поведінки» doubles 'retiring'
+- c55 / opus-5.5, by fable-5.1: cousin's «тепер'шній час» / «хлоп'ця» renders the slurred speech awkwardly
+- c63 / gpt-6-astra, by fable-5.1: «як у віршику про дім, що збудував Джек» — explanatory gloss 'у віршику' added to the source
+- c63 / gpt-6-astra, by fable-5.1: «одну зі зброй Бакета» — unidiomatic plural of uncountable 'зброя'
+- c63 / gpt-6-astra, by fable-5.1: «його добра думка… має своє скромне, але необхідне місце» — sentence restructured, loosening 'deems it essential… that he should think well of Bucket'
+- c63 / gpt-6-astra, by fable-5.1: «Держава прямо закликає» — 'asks' slightly strengthened to 'calls upon'
+- c63 / gpt-6.1-sol, by fable-5.1: «похитнути цю віру в Бакета» — ambiguous: reads as 'faith in Bucket' rather than 'Bucket's faith (in money)'
+- c63 / gpt-6.1-sol, by fable-5.1: «одну з Бакетових зброй» — unidiomatic plural of 'зброя'
+- c63 / gpt-6.1-sol, by fable-5.1: «не надаю грошам ніякої цінності» — awkward; 'ваги' is the idiomatic word
+- c63 / gpt-6.1-sol, by fable-5.1: «Я неохоче вдавалася в подробиці» — implies she did go into detail, whereas source only says she was reluctant
+- c63 / opus-5.5, by fable-5.1: «сповивальники» — non-standard word for swaddling bands (сповиток/сповивач)
+- c63 / opus-5.5, by fable-5.1: «банкнота, яку показав чоловік» — 'produced' rendered as 'showed' and shifted to past tense inside a present-tense chain
+- c63 / opus-5.5, by fable-5.1: «детективній операції» — calque; anachronistic for the period register
+- c63 / opus-5.5, by fable-5.1: «вище за підозру» — calque of 'above suspicion'; idiomatic is 'поза підозрою'
+- c63 / opus-5.5, by fable-5.1: «одну зі зброй Бакета» — unidiomatic plural of 'зброя'
+- c63 / fable-5.1, by fable-5.1: «бо сам хочу грошей» — mistranslation: 'because I want it myself' means 'because I lack that faith', not 'I want money'
+- c63 / fable-5.1, by fable-5.1: «затишно мстить за нас» — 'comfortably' mistranslated as 'cozily'
+- c63 / fable-5.1, by fable-5.1: «поліцейський офіцер» — false-friend calque of 'police officer'
+- c63 / fable-5.1, by fable-5.1: «Я не скований упередженнями» — 'warped' (deformed) weakened to 'bound'
+- c63 / fable-5.1, by fable-5.1: «Скімполові гідно догани брати» — ungrammatical construction
+- c63 / fable-5.1, by fable-5.1: «чи не так?» — 'do you know?' shifted to a tag question seeking agreement
+- c15 / opus-5.5, by gpt-6.1-sol: «Я бувала з ним» додає повторюваність, якої немає в «I was … with him».
+- c15 / opus-5.5, by gpt-6.1-sol: «Професійної відзнаки» підмінює професійну визначність окремою відзнакою.
+- c15 / opus-5.5, by gpt-6.1-sol: «Хотів би побачити» не передає ретроспективного «should like to have seen».
+- c15 / fable-5.1, by gpt-6.1-sol: «Професійних відзнак» підмінює професійну визначність множиною відзнак.
+- c15 / fable-5.1, by gpt-6.1-sol: «Передусім і був» не передає найвищого ступеня в «pre-eminently was».
+- c15 / fable-5.1, by gpt-6.1-sol: «Разюча подібність» втрачає образ живого, немов промовистого портрета в «a speaking likeness».
+- c15 / fable-5.1, by gpt-6.1-sol: «Хотів би побачити» не передає ретроспективного «should like to have seen».
+- c15 / fable-5.1, by gpt-6.1-sol: У звертаннях потрібне «містере Джарндісе», а не «містере Джарндіс».
+- c15 / gpt-6.1-sol, by gpt-6.1-sol: Початкове «І чоловіками надзвичайно видатними!» має невмотивований орудний відмінок.
+- c15 / gpt-6.1-sol, by gpt-6.1-sol: «Професійні заслуги» підмінює професійну визначність заслугами.
+- c15 / gpt-6.1-sol, by gpt-6.1-sol: «Безперечно був» підмінює найвищий ступінь у «pre-eminently was» певністю твердження.
+- c15 / gpt-6.1-sol, by gpt-6.1-sol: «Хотів би побачити» не передає ретроспективного «should like to have seen».
+- c15 / gpt-6.1-sol, by gpt-6.1-sol: «Поданий дуже пишно» додає пишність замість гарного подавання.
+- c15 / gpt-6.1-sol, by gpt-6.1-sol: «Як вони збереглися» зміщує увагу з тривалого збереження на досягнутий результат.
+- c15 / gpt-6.1-sol, by gpt-6.1-sol: У звертаннях потрібне «містере Джарндісе», а не «містере Джарндіс».
+- c15 / gpt-6-astra, by gpt-6.1-sol: «Вінчалася» додає конкретний церковний обряд до нейтрального повідомлення про одруження.
+- c15 / gpt-6-astra, by gpt-6.1-sol: «Мимоволі думаю» додає мимовільність і замінює «I feel» думкою.
+- c15 / gpt-6-astra, by gpt-6.1-sol: «Хотів би побачити» не передає ретроспективного «should like to have seen».
+- c15 / gpt-6-astra, by gpt-6.1-sol: «Як вони збереглися» зміщує увагу з тривалого збереження на досягнутий результат.
+- c15 / gpt-6-astra, by gpt-6.1-sol: «Який маю в запасі» усуває відтінок випадковості в «I happen to have».
+- c15 / gpt-6-astra, by gpt-6.1-sol: У звертаннях потрібне «містере Джарндісе», а не «містере Джарндіс».
+- c7 / opus-5.5, by gpt-6.1-sol: «Річардовим веселим сміхом» опускає його заохочення: laughing encouragement.
+- c7 / opus-5.5, by gpt-6.1-sol: «Коли ті двері не відмикаються» звужує out of order до конкретної несправності.
+- c7 / opus-5.5, by gpt-6.1-sol: «Ото волосся!» не передає lovely у першому захопленому вигуку.
+- c7 / fable-5.1, by gpt-6.1-sol: «Підбадьорені сміхом Річарда» опускає його заохочення.
+- c7 / fable-5.1, by gpt-6.1-sol: «Яка ніжність» підмінює texture оцінкою ніжності волосся.
+- c7 / fable-5.1, by gpt-6.1-sol: «Тішити її гордість» зміщує can only feel proud від почуття гордості до задоволення самолюбства.
+- c7 / fable-5.1, by gpt-6.1-sol: «Пергаментів» усуває навмисно ненормативне parchmentses, збіднюючи голос Крука.
+- c7 / fable-5.1, by gpt-6.1-sol: «Лорд-канцлером» має невиправдану велику літеру.
+- c7 / gpt-6.1-sol, by gpt-6.1-sol: «Позбутися її» додає відтінок бажання відкараскатися замість просто залишити її.
+- c7 / gpt-6.1-sol, by gpt-6.1-sol: «Хоч на хвилину» подовжує for an instant.
+- c7 / gpt-6.1-sol, by gpt-6.1-sol: «Поблажливо схиляючись» додає фізичний рух до condescending.
+- c7 / gpt-6.1-sol, by gpt-6.1-sol: «Жартівливими заохоченнями» замінює супровідний сміх припущенням про жарти.
+- c7 / gpt-6.1-sol, by gpt-6.1-sol: «Яка шовковистість» конкретизує texture через відсутній в оригіналі образ шовку.
+- c7 / gpt-6.1-sol, by gpt-6.1-sol: «Пергаментів» усуває навмисно ненормативне parchmentses.
+- c7 / gpt-6.1-sol, by gpt-6.1-sol: Оформлення реплік із продовженням після авторських слів не відповідає українській пунктуації: «Крук», — сказала… «Сусіди…».
+- c7 / gpt-6-astra, by gpt-6.1-sol: «У своїй безневинній примсі» додає примху замість harmless way.
+- c7 / gpt-6-astra, by gpt-6.1-sol: «Хоч на хвилинку» подовжує for an instant.
+- c7 / gpt-6-astra, by gpt-6.1-sol: «Поблажливо схиляючись» додає фізичний рух до condescending.
+- c7 / gpt-6-astra, by gpt-6.1-sol: «Жартівливими заохоченнями» замінює супровідний сміх припущенням про жарти.
+- c7 / gpt-6-astra, by gpt-6.1-sol: Повторюване lady зникає в «старенька», послаблюючи її соціальну самопрезентацію.
+- c7 / gpt-6-astra, by gpt-6.1-sol: «Жодної… волосини» підмінює порівняння волосся загалом порівнянням окремих волосин; «жодної… як оці» також граматично неузгоджене.
+- c7 / gpt-6-astra, by gpt-6.1-sol: «Що за шовк!» додає образ шовку замість texture.
+- c7 / gpt-6-astra, by gpt-6.1-sol: «Стала така напрочуд гарна» додає зміну зовнішності: в оригіналі was, а не became.
+- c7 / gpt-6-astra, by gpt-6.1-sol: «Замкнувся у своєму колишньому єстві» підмінює образ раптового зіщулення образом замикання.
+- c7 / gpt-6-astra, by gpt-6.1-sol: «Пергаментів та бумажок» усуває ненормативність parchmentses і натомість додає зменшувальність до papers.
+- c7 / gpt-6-astra, by gpt-6.1-sol: «Страх як не люблю» послаблює категоричне can't abear.
+- c23 / gpt-6-astra, by gpt-6.1-sol: «Як із м’ячем» loses the specificity of “football.”
+- c23 / gpt-6-astra, by gpt-6.1-sol: «Років п’ятдесяти» makes the stated age approximate.
+- c23 / gpt-6-astra, by gpt-6.1-sol: «Верхня губа довгі роки звикала» changes longstanding familiarity into a prolonged process of becoming accustomed.
+- c23 / gpt-6-astra, by gpt-6.1-sol: «Скуто-скупі» introduces an awkward invented compound.
+- c23 / gpt-6-astra, by gpt-6.1-sol: «І всім іншим» adds unspecified contents beyond the inclusive “and all.”
+- c23 / gpt-6-astra, by gpt-6.1-sol: The direct address «містере Джордж» requires «містере Джордже».
+- c23 / opus-5.5, by gpt-6.1-sol: «Дівчиська» adds a derogatory designation absent from “girls.”
+- c23 / opus-5.5, by gpt-6.1-sol: «У відплив чайної миски» transfers the ebb from the tea to the basin and obscures the image.
+- c23 / opus-5.5, by gpt-6.1-sol: «Брудні чашки» omits the specification “tea-cups.”
+- c23 / opus-5.5, by gpt-6.1-sol: «По юридичній части» uses a nonstandard Russian-inflected construction and ending.
+- c23 / opus-5.5, by gpt-6.1-sol: «Років п’ятдесяти» makes the stated age approximate.
+- c23 / opus-5.5, by gpt-6.1-sol: «Давно вже» adds an unsupported indication of how long ago the equipment was discarded.
+- c23 / opus-5.5, by gpt-6.1-sol: «Їхні недорослі постаті» suggests immaturity rather than stunted bodily development.
+- c23 / opus-5.5, by gpt-6.1-sol: The direct address «містере Джордж» requires «містере Джордже».
+- c23 / fable-5.1, by gpt-6.1-sol: The nested quotation in «Не кажи «так»» uses indistinguishable quotation marks.
+- c23 / fable-5.1, by gpt-6.1-sol: «Без балачок» broadens the specific prohibition against saying “yes.”
+- c23 / fable-5.1, by gpt-6.1-sol: «Не жерти» loses the explicit sense of overeating and coarsens the register; «просто» adds emphasis.
+- c23 / fable-5.1, by gpt-6.1-sol: «У відплив чайної миски» transfers the ebb from the tea to the basin and obscures the image.
+- c23 / fable-5.1, by gpt-6.1-sol: «Брудні чашки» omits the specification “tea-cups.”
+- c23 / fable-5.1, by gpt-6.1-sol: «Беручи стілець» fails to convey that George sits down.
+- c23 / fable-5.1, by gpt-6.1-sol: «Останньому прикметнику» incorrectly calls «з біса» an adjective.
+- c23 / fable-5.1, by gpt-6.1-sol: «Як із м’ячем» loses the specificity of “football.”
+- c23 / fable-5.1, by gpt-6.1-sol: «Років п’ятдесяти» makes the stated age approximate.
+- c23 / fable-5.1, by gpt-6.1-sol: «Давно» adds an unsupported indication of when the equipment was discarded.
+- c23 / fable-5.1, by gpt-6.1-sol: «Рот його стулений» substitutes closed lips for the mouth’s habitual set.
+- c23 / fable-5.1, by gpt-6.1-sol: The direct address «містере Джордж» requires «містере Джордже».
+- c23 / gpt-6.1-sol, by gpt-6.1-sol: «Без балачок» broadens the specific prohibition against saying “yes.”
+- c23 / gpt-6.1-sol, by gpt-6.1-sol: «Не зовсім утішний» means not entirely comforting rather than not entirely complimentary.
+- c23 / gpt-6.1-sol, by gpt-6.1-sol: «Років п’ятдесяти» makes the stated age approximate.
+- c23 / gpt-6.1-sol, by gpt-6.1-sol: «У найсильнішій і найдивнішій суперечності» turns contrasting characteristics into a contradiction.
+- c31 / gpt-6-astra, by gpt-6.1-sol: «Деякі пункти» втрачає конкретне «пункт чи два».
+- c31 / gpt-6-astra, by gpt-6.1-sol: «Даруйте, будь ласка» прибирає комічне запевнення «I am sure».
+- c31 / gpt-6-astra, by gpt-6.1-sol: «Маєток» замість «mansion» зміщує значення з панського будинку на володіння.
+- c31 / gpt-6-astra, by gpt-6.1-sol: «Коротенька прогулянка» звужує значення короткої заміської поїздки.
+- c31 / gpt-6-astra, by gpt-6.1-sol: «На моїм серці» не передає характерної вимови «art» замість «heart».
+- c31 / gpt-6-astra, by gpt-6.1-sol: «Нужденне життя» додає відтінок злиденності до співчутливого «poor life».
+- c31 / gpt-6-astra, by gpt-6.1-sol: «За твоє … життя не дали б і хвилини» неприродно відтворює образ життя, якому залишилася щонайбільше хвилина.
+- c31 / gpt-6-astra, by gpt-6.1-sol: «Яке це має до мене діло?» та «уподобання … має до неї діло» — неідіоматичні конструкції.
+- c31 / gpt-6.1-sol, by gpt-6.1-sol: «Містер Гаппі сідає» вигадує дію: «does so» стосується подяки.
+- c31 / gpt-6.1-sol, by gpt-6.1-sol: «Їй-богу» додає релігійне запевнення замість світського «I am sure».
+- c31 / gpt-6.1-sol, by gpt-6.1-sol: «Маєток» замість «mansion» зміщує значення з панського будинку на володіння.
+- c31 / gpt-6.1-sol, by gpt-6.1-sol: «Коротенька прогулянка» звужує значення короткої заміської поїздки.
+- c31 / gpt-6.1-sol, by gpt-6.1-sol: «У моїм серці» не передає характерної вимови «art» замість «heart».
+- c31 / gpt-6.1-sol, by gpt-6.1-sol: «Пристрасть до схожостей» посилює нейтральніше «taste for likenesses».
+- c31 / gpt-6.1-sol, by gpt-6.1-sol: «За твоє … життя не дали б і хвилини» неприродно відтворює образ життя, якому залишилася щонайбільше хвилина.
+- c31 / gpt-6.1-sol, by gpt-6.1-sol: «Має відношення» — калькована конструкція замість природного «має стосунок».
+- c31 / opus-5.5, by gpt-6.1-sol: «Ваша світлість» у звертаннях ужито замість кличного «ваша світлосте».
+- c31 / opus-5.5, by gpt-6.1-sol: «Ваша світлість поскаржилися / дозволять» порушує граматичне узгодження.
+- c31 / opus-5.5, by gpt-6.1-sol: «Ніяк не можу второпати» прибирає обмеження «не зовсім» у «can't quite make out».
+- c31 / opus-5.5, by gpt-6.1-sol: «Екран» і «ручний екран» неприродно називають камінну заслінку.
+- c31 / opus-5.5, by gpt-6.1-sol: «Щиро перепрошую» додає щирість замість запевнення «I am sure».
+- c31 / opus-5.5, by gpt-6.1-sol: «Чути … молоду леді» означає чути її голос, тоді як оригінал говорить про відомості про неї.
+- c31 / opus-5.5, by gpt-6.1-sol: «Маєток» замість «mansion» зміщує значення з панського будинку на володіння.
+- c31 / opus-5.5, by gpt-6.1-sol: «У своєму серці» не передає характерної вимови «art» замість «heart».
+- c31 / opus-5.5, by gpt-6.1-sol: «Ви … не примітила» порушує узгодження займенника й дієслова.
+- c31 / opus-5.5, by gpt-6.1-sol: «Вбоге життя» додає відтінок злиденності до співчутливого «poor life».
+- c31 / opus-5.5, by gpt-6.1-sol: «Життя не вартувало б і хвилини» втрачає образ оцінювання життя з огляду на його неминучу загибель.
+- c31 / opus-5.5, by gpt-6.1-sol: «Пристрасть до схожостей» посилює нейтральніше «taste for likenesses».
+- c31 / opus-5.5, by gpt-6.1-sol: «Має відношення» — калькована конструкція замість природного «має стосунок».
+- c31 / fable-5.1, by gpt-6.1-sol: «Екран» і «ручний екран» неприродно називають камінну заслінку.
+- c31 / fable-5.1, by gpt-6.1-sol: «Упріваючи» додає піт до «growing warm».
+- c31 / fable-5.1, by gpt-6.1-sol: «Дивиться на нього впритул» підміняє прямий погляд просторовою близькістю.
+- c31 / fable-5.1, by gpt-6.1-sol: Перед «Гадаю» пропущено відкривальні лапки.
+- c31 / fable-5.1, by gpt-6.1-sol: «Ваша милість» у репліці «Гадаю…» вжито замість кличного «ваша милосте».
+- c31 / fable-5.1, by gpt-6.1-sol: «Маєток» замість «mansion» зміщує значення з панського будинку на володіння.
+- c31 / fable-5.1, by gpt-6.1-sol: «У своєму серці» не передає характерної вимови «art» замість «heart».
+- c31 / fable-5.1, by gpt-6.1-sol: «Їй-богу» додає присягання замість простого «really».
+- c31 / fable-5.1, by gpt-6.1-sol: «Життя … не варте було б і хвилини» втрачає образ оцінювання життя з огляду на його неминучу загибель.
+- c31 / fable-5.1, by gpt-6.1-sol: «Смак до подібностей» — неприродна буквальна передача «taste for likenesses».
+- c31 / fable-5.1, by gpt-6.1-sol: «Бачу свій шлях, просто вперед» надто буквально передає розуміння подальшого ходу аргументації.
+- c39 / gpt-6.1-sol, by gpt-6.1-sol: «Мандрівна приятелька» звужує wandering до фізичного мандрування.
+- c39 / gpt-6.1-sol, by gpt-6.1-sol: «Величними» замість massively послаблює образ масивності лісів.
+- c39 / gpt-6.1-sol, by gpt-6.1-sol: «Скривив» двічі невдало передає twisted: тут ідеться про викривлення характеру.
+- c39 / gpt-6.1-sol, by gpt-6.1-sol: «Джарндіс» не передає дифтонга в англійському Jarndyce.
+- c39 / fable-5.1, by gpt-6.1-sol: «З блукаючим розумом» прямо пояснює wandering, знімаючи неоднозначність оригіналу.
+- c39 / fable-5.1, by gpt-6.1-sol: «Велично» замість massively послаблює образ масивності лісів.
+- c39 / fable-5.1, by gpt-6.1-sol: «Добудувати» звужує built up до завершення вже розпочатого будівництва.
+- c39 / fable-5.1, by gpt-6.1-sol: «Що до того» слід писати «щодо того».
+- c39 / fable-5.1, by gpt-6.1-sol: Після «От славна дівчина! — відказав Річард» потрібні крапка й нове речення.
+- c39 / fable-5.1, by gpt-6.1-sol: «Скривив» невдало передає викривлення характеру.
+- c39 / fable-5.1, by gpt-6.1-sol: «Джарндіс» не передає дифтонга в англійському Jarndyce.
+- c39 / gpt-6-astra, by gpt-6.1-sol: «Тішили око» послаблює exquisite to see до простого задоволення.
+- c39 / gpt-6-astra, by gpt-6.1-sol: «Владнаю всі свої справи» замінює узагальнення in general категоричним «всі».
+- c39 / gpt-6-astra, by gpt-6.1-sol: У «якогось певного діла» втрачено підсилення very.
+- c39 / gpt-6-astra, by gpt-6.1-sol: «На постійне життя» додає уточнення, якого немає в settle.
+- c39 / gpt-6-astra, by gpt-6.1-sol: «Подруга-мандрівниця» приписує wandering однозначне значення подорожування.
+- c39 / gpt-6-astra, by gpt-6.1-sol: «Тож можна й зараз» послаблює оцінку доцільності в it's as well at once.
+- c39 / gpt-6-astra, by gpt-6.1-sol: Після «От люба дівчина! — відказав Річард» потрібні крапка й нове речення.
+- c39 / gpt-6-astra, by gpt-6.1-sol: «Скривив» невдало передає викривлення характеру.
+- c39 / gpt-6-astra, by gpt-6.1-sol: «Джарндіс» не передає дифтонга в англійському Jarndyce.
+- c39 / opus-5.5, by gpt-6.1-sol: «Невимовно гарні» додає відсутній в exquisite мотив невимовності.
+- c39 / opus-5.5, by gpt-6.1-sol: «Велично зануреними в сон» втрачає масивність і виразне принишкнення лісів.
+- c39 / opus-5.5, by gpt-6.1-sol: «Добудувати» звужує built up до завершення вже розпочатого будівництва.
+- c39 / opus-5.5, by gpt-6.1-sol: «Дамо Дерден» передає титул Dame хибним українським відповідником.
+- c39 / opus-5.5, by gpt-6.1-sol: «Нічого про нього не дбав» — неприродне керування; потрібно «не дбав про нього».
+- c39 / opus-5.5, by gpt-6.1-sol: «Дівчинка» додає зменшення, відсутнє в dear girl.
+- c39 / opus-5.5, by gpt-6.1-sol: У «прокляттi» вжито латинську i замість української і.
+- c47 / opus-5.5, by gpt-6.1-sol: «Тут усьому кінець» помилково передає «It is all over here»: зміст листа видно всюди в кімнаті.
+- c47 / opus-5.5, by gpt-6.1-sol: «У церкві побував» означає відвідини церкви замість служіння священником.
+- c47 / opus-5.5, by gpt-6.1-sol: «Стискав» послаблює образ зминання густо списаного аркуша.
+- c47 / opus-5.5, by gpt-6.1-sol: «Кредиторів» не передає докучливого вимагання сплати, закладеного в «duns».
+- c47 / opus-5.5, by gpt-6.1-sol: «Приїхала» додає не зазначений в оригіналі спосіб прибуття.
+- c47 / opus-5.5, by gpt-6.1-sol: «Рівно стільки ж малу й стільки ж велику» — граматично зламана передача протиставлення «little and much».
+- c47 / gpt-6-astra, by gpt-6.1-sol: Руку Естер покладено на плече Річарда замість його руки.
+- c47 / gpt-6-astra, by gpt-6.1-sol: «Стискаючи» послаблює образ зминання аркуша.
+- c47 / gpt-6-astra, by gpt-6.1-sol: «Воліли б радше» не зберігає підсилення «far rather».
+- c47 / fable-5.1, by gpt-6.1-sol: «Тут усьому кінець» помилково передає «It is all over here»: зміст листа видно всюди в кімнаті.
+- c47 / fable-5.1, by gpt-6.1-sol: «Побувати в церкві» означає відвідати церкву замість побути священником.
+- c47 / fable-5.1, by gpt-6.1-sol: Руку Естер покладено на плече Річарда замість його руки.
+- c47 / fable-5.1, by gpt-6.1-sol: «Ні розуму» зміщує значення «no mind»: ідеться про думки й увагу, присвячені єдиній справі.
+- c47 / fable-5.1, by gpt-6.1-sol: «Кредиторами» не передає докучливого вимагання сплати, закладеного в «duns».
+- c47 / fable-5.1, by gpt-6.1-sol: «Приїхала» додає не зазначений в оригіналі спосіб прибуття.
+- c47 / fable-5.1, by gpt-6.1-sol: «Матінко Дерден» додає материнське звертання замість титулу «Dame».
+- c47 / fable-5.1, by gpt-6.1-sol: «Поза боргами» — неприродна калька замість «не кажучи про борги» або «навіть без боргів».
+- c47 / fable-5.1, by gpt-6.1-sol: «Він не прочитав далеко» — неприродна калька замість «він прочитав небагато».
+- c47 / fable-5.1, by gpt-6.1-sol: «Саме стільки, як мало й як багато» синтаксично руйнує завершальне протиставлення.
+- c47 / fable-5.1, by gpt-6.1-sol: Крапки наприкінці кількох реплік поставлено перед закривальними лапками всупереч українському оформленню.
+- c47 / gpt-6.1-sol, by gpt-6.1-sol: «Рівно стільки… ані більше, ані менше» усуває протиставлення «little and much» та додає відсутнє уточнення.
+- c47 / gpt-6.1-sol, by gpt-6.1-sol: «М'явши» невдало передає одночасну дію: тут потрібне «мнучи».
+- c47 / gpt-6.1-sol, by gpt-6.1-sol: «Пом'якшалим голосом» — ненормативна форма; природно «пом’якшеним голосом» або «голос його пом’якшав».
+- c55 / gpt-6-astra, by gpt-6.1-sol: «Вдень» замість «noon» втрачає конкретне «опівдні».
+- c55 / gpt-6-astra, by gpt-6.1-sol: У фіналі уривчастість збережено, але змазану вимову кузена передано майже лише словом «прикл’ду».
+- c55 / opus-5.5, by gpt-6.1-sol: «Його втрату не можна не відчути» усуває комічну незграбність «He was calculated to be a deprivation».
+- c55 / opus-5.5, by gpt-6.1-sol: «Хлоп’ця» звужує нейтральне щодо віку «fler» — змазане «fellow».
+- c55 / opus-5.5, by gpt-6.1-sol: «Я сиджу на цій справі» — неприродна для української калька.
+- c55 / opus-5.5, by gpt-6.1-sol: «Вдень» замість «noon» втрачає конкретне «опівдні».
+- c55 / opus-5.5, by gpt-6.1-sol: Внутрішнє «моя люба» оформлено тими самими лапками, що й зовнішню репліку.
+- c55 / gpt-6.1-sol, by gpt-6.1-sol: «Смерть зрівнює всі відмінності» — невдале словосполучення: смерть стирає відмінності або зрівнює людей.
+- c55 / gpt-6.1-sol, by gpt-6.1-sol: «Він наголошує це слово» — ненормативне керування замість «наголошує на цьому слові».
+- c55 / gpt-6.1-sol, by gpt-6.1-sol: У звертанні «сер Лестер Дедлок, баронет» пропущено кличну форму «баронете».
+- c55 / gpt-6.1-sol, by gpt-6.1-sol: «Пускаючи в переконливий рух свого пальця» — неприродна буквальна конструкція.
+- c55 / gpt-6.1-sol, by gpt-6.1-sol: «Ниньки» додає діалектне забарвлення замість передачі змазаної вимови «presentime».
+- c55 / fable-5.1, by gpt-6.1-sol: «Підстерігати» замість «watched» підмінює спостереження очікуванням нагоди для нападу.
+- c55 / fable-5.1, by gpt-6.1-sol: «Примітити» послаблює «marked»: тут ідеться про вибір майбутньої жертви.
+- c55 / fable-5.1, by gpt-6.1-sol: «Не виконаю обов’язку шани» підмінює нездатність засвідчити повагу й вірність невиконанням обов’язку.
+- c55 / fable-5.1, by gpt-6.1-sol: «Лише посилила» додає обмежувальне «лише», якого немає в оригіналі.
+- c55 / fable-5.1, by gpt-6.1-sol: «Був створений для того» посилює «was calculated to be» до твердження про призначення.
+- c55 / fable-5.1, by gpt-6.1-sol: «Тендітну» зміщує характеристику «delicate» від чутливості до крихкості.
+- c55 / fable-5.1, by gpt-6.1-sol: «Вдень» замість «noon» втрачає конкретне «опівдні».
+- c63 / fable-5.1, by gpt-6.1-sol: «Бо сам хочу грошей» помилково передає «because I want it myself»: Скімполові бракує віри в гроші.
+- c63 / fable-5.1, by gpt-6.1-sol: «Умовну згоду» підмінює згоду із застереженнями умовною згодою.
+- c63 / fable-5.1, by gpt-6.1-sol: «Скований упередженнями» втрачає образ викривлення людини, паралельний деформації немовляти сповитком.
+- c63 / fable-5.1, by gpt-6.1-sol: «Затишно мстить» підмінює зручність для тих, за кого мстяться, затишністю.
+- c63 / fable-5.1, by gpt-6.1-sol: «Гідно догани брати» та «гідно догани її пропонувати» — неприродні українські конструкції.
+- c63 / fable-5.1, by gpt-6.1-sol: «Чи не так?» перетворює розмовне «do you know?» на прохання підтвердити думку.
+- c63 / gpt-6-astra, by gpt-6.1-sol: «У віршику про дім» додає пояснення алюзії, якого прямо немає в оригіналі.
+- c63 / gpt-6-astra, by gpt-6.1-sol: «На далеко більший осуд» — невдала українська конструкція; природніше «на значно більший осуд».
+- c63 / gpt-6.1-sol, by gpt-6.1-sol: «Я неохоче вдавалася в подробиці» повідомляє про вже здійснювану дію замість небажання її починати.
+- c63 / gpt-6.1-sol, by gpt-6.1-sol: «Забобони» звужує значення «prejudices»: тут ідеться про упередження.
+- c63 / gpt-6.1-sol, by gpt-6.1-sol: «Похитнути цю віру в Бакета» означає похитнути довіру до Бакета, тоді як оригінал говорить про Бакетову віру в гроші.
+- c63 / gpt-6.1-sol, by gpt-6.1-sol: «Наче в тому домі» подає алюзію на накопичувальний вірш як порівняння з перебуванням у будинку.
+- c63 / gpt-6.1-sol, by gpt-6.1-sol: «Зручно для нас мститься за нас» — неприродне формулювання, що обтяжує авторський жарт.
+- c63 / opus-5.5, by gpt-6.1-sol: «Я гадаю» послаблює умовну обережність «I should imagine».
+- c63 / opus-5.5, by gpt-6.1-sol: «Вони мені не потрібні» замінює небажання грошей відсутністю потреби в них.
+- c63 / opus-5.5, by gpt-6.1-sol: «Завжди відома» замість «always remarkable» підмінює прикметну рису репутацією.
+- c63 / opus-5.5, by gpt-6.1-sol: «Як у домі» затемнює алюзію на накопичувальний вірш.
+- c63 / opus-5.5, by gpt-6.1-sol: «Чого доброго» додає побоювання до нейтрального припущення «possibly».
+- c63 / opus-5.5, by gpt-6.1-sol: «Настільки ж вище за підозру» — неприродне українське формулювання.
+- c7 / opus-5.5, by gpt-6-astra: «Не відмикаються» звужує загальне «out of order» до конкретної несправності.
+- c7 / opus-5.5, by gpt-6-astra: «Річардовим веселим сміхом» замінює заохочення, висловлене зі сміхом, самим сміхом.
+- c7 / opus-5.5, by gpt-6-astra: «Одне з Адиних пасем»: нормативний родовий множини — «пасом».
+- c7 / fable-5.1, by gpt-6-astra: «Маючи вже приємність» неточно передає завершене «had had the pleasure».
+- c7 / fable-5.1, by gpt-6-astra: «Підбадьорені сміхом Річарда» опускає його заохочення.
+- c7 / fable-5.1, by gpt-6-astra: «Яка ніжність» підмінює фактуру волосся окремою його властивістю.
+- c7 / fable-5.1, by gpt-6-astra: «Сховався у свою колишню подобу» втрачає образ стискання у «shrunk».
+- c7 / fable-5.1, by gpt-6-astra: Нормативні «пергаментів» усувають характерну мовну неправильність «parchmentses» без помітної компенсації.
+- c7 / fable-5.1, by gpt-6-astra: Велика літера у повторюваному «Лорд-канцлером» невиправдана.
+- c7 / gpt-6.1-sol, by gpt-6-astra: «Позбутися її» додає відтінок бажання спекатися жінки до нейтральнішого «left».
+- c7 / gpt-6.1-sol, by gpt-6-astra: «Жартівливими заохоченнями» підмінює сміх жартівливістю.
+- c7 / gpt-6.1-sol, by gpt-6-astra: «Шовковистість» додає конкретну властивість замість загального «texture».
+- c7 / gpt-6.1-sol, by gpt-6-astra: «Добрий чоловіче» усуває фамільярне звертання «my good friend».
+- c7 / gpt-6.1-sol, by gpt-6-astra: У кількох репліках продовження після слів автора оформлено окремими лапками без потрібного тире.
+- c7 / gpt-6.1-sol, by gpt-6-astra: У конструкції «Крук», — сказала» кома помилково стоїть після закритих лапок.
+- c7 / gpt-6-astra, by gpt-6-astra: «У своїй безневинній примсі» додає примху замість характеристики її нешкідливої манери.
+- c7 / gpt-6-astra, by gpt-6-astra: «Жартівливими заохоченнями» підмінює сміх жартівливістю.
+- c7 / gpt-6-astra, by gpt-6-astra: Повторюване «старенька» опускає соціально забарвлене «lady».
+- c7 / gpt-6-astra, by gpt-6-astra: «Жодної такої… волосини, як оці» переводить порівняння волосся на окремі волосини й створює неузгодженість числа.
+- c7 / gpt-6-astra, by gpt-6-astra: «Що за шовк» додає метафору шовку замість «texture».
+- c7 / gpt-6-astra, by gpt-6-astra: «Добрий чоловіче» усуває фамільярне звертання «my good friend».
+- c7 / gpt-6-astra, by gpt-6-astra: «Стала така напрочуд гарна» замінює опис краси твердженням про її виникнення.
+- c7 / gpt-6-astra, by gpt-6-astra: «Замкнувся у своєму колишньому єстві» втрачає образ стискання у «shrunk».
+- c7 / gpt-6-astra, by gpt-6-astra: «Страх як не люблю» послаблює категоричне «can't abear».
+- c7 / gpt-6-astra, by gpt-6-astra: «Потрапило мені до рук» усуває активне хапання у «I once lay hold of».
+- c15 / gpt-6.1-sol, by gpt-6-astra: «Як зазвичай усім» перетворює узагальнення про звичайну реакцію людей на твердження про всіх.
+- c15 / gpt-6.1-sol, by gpt-6-astra: «Слабкодухий» означає брак мужності чи стійкості; тут weak стосується нерозумної марнославності.
+- c15 / gpt-6.1-sol, by gpt-6-astra: «Безперечно» замість pre-eminently підмінює найвищий ступінь якості впевненістю в ній.
+- c15 / gpt-6.1-sol, by gpt-6-astra: «Містере Джарндіс» у звертаннях потребує кличного відмінка: «містере Джарндісе».
+- c15 / fable-5.1, by gpt-6-astra: «Професійних відзнак» підмінює професійну знаність і становище відзнаками.
+- c15 / fable-5.1, by gpt-6-astra: «Ставити … на одну дошку» додає зневажливого відтінку до шанобливого порівняння.
+- c15 / fable-5.1, by gpt-6-astra: «Передусім» замість pre-eminently означає пріоритет, а не найвищий ступінь якості.
+- c15 / fable-5.1, by gpt-6-astra: «Разюча подібність» послаблює образ speaking likeness — портрета, наче живого.
+- c15 / fable-5.1, by gpt-6-astra: «Я прихилилася до цього дня» — неприродне словосполучення для емоційної прив’язаності до дати.
+- c15 / fable-5.1, by gpt-6-astra: «Містере Джарндіс» у звертаннях потребує форми «містере Джарндісе».
+- c15 / opus-5.5, by gpt-6-astra: «Довірливим тоном» приписує мовцеві довірливість замість довірчої манери розмови.
+- c15 / opus-5.5, by gpt-6-astra: «Я бувала з ним» додає повторюваність перебування, якої немає в I was.
+- c15 / opus-5.5, by gpt-6-astra: «Професійної відзнаки» підмінює професійну знаність і становище окремою відзнакою.
+- c15 / opus-5.5, by gpt-6-astra: «Слабкодухий» зміщує значення від нерозумної марнославності до браку мужності.
+- c15 / opus-5.5, by gpt-6-astra: «На одну дошку» додає недоречного зневажливого відтінку.
+- c15 / opus-5.5, by gpt-6-astra: «Благопристойний прийом» зміщує наголос із світської вишуканості частування на пристойність.
+- c15 / opus-5.5, by gpt-6-astra: «В найвищій мірі» — калькована конструкція замість «найвищою мірою».
+- c15 / gpt-6-astra, by gpt-6-astra: «Вінчалася» конкретизує одруження як церковний обряд, якого оригінал прямо не називає.
+- c15 / gpt-6-astra, by gpt-6-astra: «Слабкодухий» зміщує значення від нерозумної марнославності до браку мужності.
+- c15 / gpt-6-astra, by gpt-6-astra: «Мимоволі думаю» додає мимовільність і замінює авторське «відчуваю».
+- c15 / gpt-6-astra, by gpt-6-astra: «Який маю в запасі» додає запас і втрачає невимушене застереження I happen to have.
+- c15 / gpt-6-astra, by gpt-6-astra: «Містере Джарндіс» у звертаннях потребує форми «містере Джарндісе».
+- c23 / fable-5.1, by gpt-6-astra: «Не жерти» грубіше за gormandize й не передає значення надмірного споживання їжі.
+- c23 / fable-5.1, by gpt-6-astra: «Відплив чайної миски» замінює відплив чаю в мисці відпливом самої посудини.
+- c23 / fable-5.1, by gpt-6-astra: «Беручи стілець» не передає того, що Джордж сідає.
+- c23 / fable-5.1, by gpt-6-astra: «Останньому прикметнику» після «з біса схожий» помилково спрямовує наголос на «схожий».
+- c23 / fable-5.1, by gpt-6-astra: «М’ячем» опускає уточнення football.
+- c23 / fable-5.1, by gpt-6-astra: «Років п’ятдесяти» додає приблизність до зазначеного віку.
+- c23 / fable-5.1, by gpt-6-astra: «Давно відклав геть» додає часову давність замість altogether — цілковитої відмови від спорядження.
+- c23 / fable-5.1, by gpt-6-astra: «Рот його стулений» додає зімкнутість губ замість характерного положення рота.
+- c23 / fable-5.1, by gpt-6-astra: «Містере Джордж» — ненормативна форма звертання; потрібно «містере Джордже».
+- c23 / fable-5.1, by gpt-6-astra: Вкладені лапки в репліці «Не кажи «так»» не відрізнено від зовнішніх.
+- c23 / gpt-6.1-sol, by gpt-6-astra: «Не зовсім утішний» передає втішання замість не зовсім похвального характеру наголосу.
+- c23 / gpt-6.1-sol, by gpt-6-astra: «Років п’ятдесяти» додає приблизність до зазначеного віку.
+- c23 / gpt-6.1-sol, by gpt-6-astra: Авторське пояснення після репліки про вогонь винесено в окремий абзац.
+- c23 / gpt-6-astra, by gpt-6-astra: «Служить у законників» звужує роботу в правничій сфері до служби в певних осіб.
+- c23 / gpt-6-astra, by gpt-6-astra: «М’ячем» опускає уточнення football.
+- c23 / gpt-6-astra, by gpt-6-astra: «Років п’ятдесяти» додає приблизність до зазначеного віку.
+- c23 / gpt-6-astra, by gpt-6-astra: «Роками звикала» замінює тривалу звичність до вусів процесом звикання.
+- c23 / gpt-6-astra, by gpt-6-astra: «Пробувши тут довше, міг би» замінює «якби лишився надовго, то ввібрав би», додаючи порівняння й послаблюючи наслідок.
+- c23 / gpt-6-astra, by gpt-6-astra: «Прибудованою позаду» додає не зазначений прямо спосіб розташування кухні.
+- c23 / gpt-6-astra, by gpt-6-astra: «І всім іншим» вигадує додаткові об’єкти: and all завершує включення кухоньки.
+- c23 / gpt-6-astra, by gpt-6-astra: «Скуто-скупі» — неприродне штучне утворення для pinched.
+- c23 / gpt-6-astra, by gpt-6-astra: «Містере Джордж» — ненормативна форма звертання; потрібно «містере Джордже».
+- c23 / gpt-6-astra, by gpt-6-astra: Авторське пояснення після репліки про вогонь винесено в окремий абзац.
+- c23 / opus-5.5, by gpt-6-astra: «Дівчиська» додає зневажливе забарвлення до нейтрального girls.
+- c23 / opus-5.5, by gpt-6-astra: «Відплив чайної миски» замінює відплив чаю в мисці відпливом самої посудини.
+- c23 / opus-5.5, by gpt-6-astra: «Сердита» передає загальний гнів замість різкості й огризливості snappish.
+- c23 / opus-5.5, by gpt-6-astra: «По юридичній части» містить ненормативну форму «части».
+- c23 / opus-5.5, by gpt-6-astra: «Років п’ятдесяти» додає приблизність до зазначеного віку.
+- c23 / opus-5.5, by gpt-6-astra: «Давно вже» додає не зазначену в оригіналі давність відмови від убрання та амуніції.
+- c23 / opus-5.5, by gpt-6-astra: «Скупі звички» зміщує pinched ways від скутої манери триматися до ощадливості.
+- c23 / opus-5.5, by gpt-6-astra: «Містере Джордж» — ненормативна форма звертання; потрібно «містере Джордже».
+- c31 / opus-5.5, by gpt-6-astra: «Ваша світлість» підвищує титул порівняно з «your ladyship»; у звертаннях також бракує кличного відмінка.
+- c31 / opus-5.5, by gpt-6-astra: «Ніяк не можу второпати» посилює обережніше «can't quite make out».
+- c31 / opus-5.5, by gpt-6-astra: «Чути … молоду леді» замість «чути про молоду леді» змінює зміст.
+- c31 / opus-5.5, by gpt-6-astra: «Маєток» розширює конкретне «mansion» — панський будинок.
+- c31 / opus-5.5, by gpt-6-astra: У слові «серці» зникає комічна вимова «art» замість «heart».
+- c31 / opus-5.5, by gpt-6-astra: «Ви … не примітила» — граматично неузгоджена конструкція.
+- c31 / opus-5.5, by gpt-6-astra: «Вбоге життя» привносить відтінок убозтва замість співчутливого «poor life».
+- c31 / opus-5.5, by gpt-6-astra: «Пристрасть» посилює нейтральніше «taste».
+- c31 / opus-5.5, by gpt-6-astra: У фінальному «стривайте-но» втрачено поворот думки, переданий словом «though».
+- c31 / fable-5.1, by gpt-6-astra: У першому абзаці неправильно оформлено розрив прямої мови словами автора.
+- c31 / fable-5.1, by gpt-6-astra: «Упріваючи» додає пітніння до «growing warm».
+- c31 / fable-5.1, by gpt-6-astra: «Дивиться … впритул» підмінює прямоту погляду просторовою близькістю.
+- c31 / fable-5.1, by gpt-6-astra: Перед реплікою «Гадаю…» немає відкривальних лапок.
+- c31 / fable-5.1, by gpt-6-astra: У слові «серці» зникає комічна вимова «art» замість «heart».
+- c31 / fable-5.1, by gpt-6-astra: «Маєток» розширює конкретне «mansion» — панський будинок.
+- c31 / fable-5.1, by gpt-6-astra: «Їй-богу» замість «really» додає божіння.
+- c31 / fable-5.1, by gpt-6-astra: Непряме запитання «знову питає його…» помилково завершено знаком питання.
+- c31 / gpt-6-astra, by gpt-6-astra: «Деякі пункти» втрачає кількісне уточнення «a head or two».
+- c31 / gpt-6-astra, by gpt-6-astra: «Даруйте, будь ласка» не відтворює запевняльного «I am sure».
+- c31 / gpt-6-astra, by gpt-6-astra: У слові «серці» зникає комічна вимова «art» замість «heart».
+- c31 / gpt-6-astra, by gpt-6-astra: «Маєток» розширює конкретне «mansion» — панський будинок.
+- c31 / gpt-6-astra, by gpt-6-astra: «Коли ви їхали» додає рух карети, якого оригінал прямо не зазначає.
+- c31 / gpt-6-astra, by gpt-6-astra: «Нужденне життя» помилково привносить значення злиденності в співчутливе «poor life».
+- c31 / gpt-6-astra, by gpt-6-astra: Непряме запитання «знову питає його…» помилково завершено знаком питання.
+- c31 / gpt-6-astra, by gpt-6-astra: У фінальному «стривайте-но» втрачено поворот думки, переданий словом «though».
+- c31 / gpt-6.1-sol, by gpt-6-astra: «Сідає» конкретизує «does so» дією, не названою в поданому уривку.
+- c31 / gpt-6.1-sol, by gpt-6-astra: «Ваша світлість» підвищує титул порівняно з «your ladyship».
+- c31 / gpt-6.1-sol, by gpt-6-astra: «Їй-богу» додає божіння до «I am sure».
+- c31 / gpt-6.1-sol, by gpt-6-astra: «Молода особа» втрачає жіноче й суспільне означення «young lady».
+- c31 / gpt-6.1-sol, by gpt-6-astra: У слові «серці» зникає комічна вимова «art» замість «heart».
+- c31 / gpt-6.1-sol, by gpt-6-astra: «Маєток» розширює конкретне «mansion» — панський будинок.
+- c31 / gpt-6.1-sol, by gpt-6-astra: «Пристрасть» посилює нейтральніше «taste».
+- c31 / gpt-6.1-sol, by gpt-6-astra: Непряме запитання «знову питає його…» помилково завершено знаком питання.
+- c31 / gpt-6.1-sol, by gpt-6-astra: У фінальному «стривайте-но» втрачено поворот думки, переданий словом «though».
+- c47 / gpt-6.1-sol, by gpt-6-astra: «М’явши» замість «мнучи» неправильно передає одночасну тривалу дію.
+- c47 / gpt-6.1-sol, by gpt-6-astra: «Усі мої турботи… віддані» прибирає виразний повтор заперечень «no care, no mind, no heart, no soul».
+- c47 / gpt-6.1-sol, by gpt-6-astra: «Рівно стільки… ані більше, ані менше» зберігає рівність сум, але втрачає протиставлення «just as little and as much».
+- c47 / gpt-6-astra, by gpt-6-astra: «Стискаючи» послаблює «crushing»: він мне аркуш.
+- c47 / gpt-6-astra, by gpt-6-astra: «На плече» замість «upon his arm» змінює місце дотику.
+- c47 / gpt-6-astra, by gpt-6-astra: «Воліли б радше» не передає підсилення «far rather».
+- c47 / fable-5.1, by gpt-6-astra: «Тут усьому кінець» замінює просторовий зміст «It is all over here»: його скруту видно по всій кімнаті.
+- c47 / fable-5.1, by gpt-6-astra: «Приїхала» конкретизує спосіб прибуття, якого «had come» не називає.
+- c47 / fable-5.1, by gpt-6-astra: «Сьогодні йду у відпустку» змінює вже наявний стан «I am away on leave» на майбутню дію.
+- c47 / fable-5.1, by gpt-6-astra: «Побувати в церкві» означає відвідини храму замість служіння священником.
+- c47 / fable-5.1, by gpt-6-astra: «Кредиторами» не передає настирливого вимагання сплати в «duns».
+- c47 / fable-5.1, by gpt-6-astra: «Ні розуму… ні для чого» викривлює «no mind… but for one thing»: ідеться про зосередженість думок.
+- c47 / fable-5.1, by gpt-6-astra: «На плече» замість «upon his arm» змінює місце дотику.
+- c47 / fable-5.1, by gpt-6-astra: «Переслідувати мету», «не прочитав далеко» — неприродні буквальні кальки.
+- c47 / fable-5.1, by gpt-6-astra: «Саме стільки, як мало й як багато я змарнував» синтаксично спотворює порівняння розмірів спадщини.
+- c47 / fable-5.1, by gpt-6-astra: Крапки перед закривальними лапками та велика літера після тире перед словами автора порушують українське оформлення прямої мови.
+- c47 / opus-5.5, by gpt-6-astra: «Стискав» послаблює «crushing»: він мне аркуш.
+- c47 / opus-5.5, by gpt-6-astra: «Тут усьому кінець» замінює просторовий зміст «It is all over here»: його скруту видно по всій кімнаті.
+- c47 / opus-5.5, by gpt-6-astra: «Приїхала» конкретизує спосіб прибуття, якого «had come» не називає.
+- c47 / opus-5.5, by gpt-6-astra: «Сьогодні їду у відпустку» змінює вже наявний стан «I am away on leave» на майбутню дію.
+- c47 / opus-5.5, by gpt-6-astra: «У церкві побував» означає відвідини храму замість служіння священником.
+- c47 / opus-5.5, by gpt-6-astra: «Воліли б краще» не передає підсилення «far rather».
+- c47 / opus-5.5, by gpt-6-astra: «Кредиторів» не передає настирливого вимагання сплати в «duns».
+- c47 / opus-5.5, by gpt-6-astra: «Що то за штука» додає фамільярності до нейтрального «that thing».
+- c47 / opus-5.5, by gpt-6-astra: «Рівно стільки ж малу й стільки ж велику» — граматично невдале порівняння, що затемнює зміст фінальної репліки.
+- c39 / opus-5.5, by gpt-6-astra: «Велично зануреними в сон» не зберігає образу масивності й цілковитої тиші в «massively hushed in sleep».
+- c39 / opus-5.5, by gpt-6-astra: У слові «прокляттi» остання літера — латинська.
+- c39 / gpt-6.1-sol, by gpt-6-astra: «Я мало не повірила» замінює умовне «I could almost have believed» твердженням про майже здійснену дію.
+- c39 / gpt-6.1-sol, by gpt-6-astra: «Мандрівна приятелька» надає «wandering» значення подорожування, втрачаючи натяк на душевну розгубленість.
+- c39 / gpt-6.1-sol, by gpt-6-astra: «Величними» замість «massively» підмінює масивність величністю.
+- c39 / gpt-6.1-sol, by gpt-6-astra: «На якому можуть покласти чи зняти дах» неправильно поєднує обидва дієслова з одним прийменником: знімають дах із будинку.
+- c39 / fable-5.1, by gpt-6-astra: «Коли вони стояли» усуває «looked»: враження оповідачки стає прямим твердженням.
+- c39 / fable-5.1, by gpt-6-astra: «Велично принишклі» не передає масивності в «massively hushed».
+- c39 / fable-5.1, by gpt-6-astra: «Чувала старанніше» підмінює більшу пильність більшою старанністю.
+- c39 / fable-5.1, by gpt-6-astra: «Що до того» слід писати «щодо того».
+- c39 / fable-5.1, by gpt-6-astra: «Годі, сестро, годі» додає вимогу припинити, якої немає в примирливому «Come, sister, come».
+- c39 / fable-5.1, by gpt-6-astra: Після «От славна дівчина!» слова автора мають завершуватися крапкою, а продовження репліки починатися з великої літери.
+- c39 / gpt-6-astra, by gpt-6-astra: «Спочивали в сонній тиші» усуває «looked», перетворюючи враження на факт.
+- c39 / gpt-6-astra, by gpt-6-astra: «Всі свої справи» посилює «affairs in general» до безвиняткової повноти.
+- c39 / gpt-6-astra, by gpt-6-astra: «Якогось певного діла» не зберігає підсилення «very definite».
+- c39 / gpt-6-astra, by gpt-6-astra: «На постійне життя» додає відсутнє в оригіналі уточнення до «settle».
+- c39 / gpt-6-astra, by gpt-6-astra: «Я мало не повірила» втрачає умовність «I could almost have believed».
+- c39 / gpt-6-astra, by gpt-6-astra: «Подруга-мандрівниця» перетворює «wandering» на характеристику способу життя.
+- c39 / gpt-6-astra, by gpt-6-astra: «Відтінок виразу обличчя» звужує образ «a shade of that unfortunate man» до самої міміки.
+- c39 / gpt-6-astra, by gpt-6-astra: Після «От люба дівчина!» слова автора мають завершуватися крапкою, а продовження репліки починатися з великої літери.
+- c55 / opus-5.5, by gpt-6-astra: «Не підглядали за ним у моєму домі» звужує watched at my house до підглядання всередині будинку.
+- c55 / opus-5.5, by gpt-6-astra: «Його втрату не можна не відчути» усуває комічну недоладність Бакетового «He was calculated to be a deprivation».
+- c55 / opus-5.5, by gpt-6-astra: «Складає трикутником записку» передає форму, але втрачає образ капелюха cocked-hat.
+- c55 / opus-5.5, by gpt-6-astra: «Я сиджу на цій справі» — неприродна для цього значення українська конструкція.
+- c55 / opus-5.5, by gpt-6-astra: «Хлопця» замість fler додає віковий відтінок, якого немає в оригіналі.
+- c55 / opus-5.5, by gpt-6-astra: «З такою ж простодушною метою» помилково передає to the like artless purpose: йдеться про подальші запитання такого самого характеру.
+- c55 / gpt-6-astra, by gpt-6-astra: «Складає трикутником листа» втрачає образ капелюха cocked-hat.
+- c55 / gpt-6-astra, by gpt-6-astra: «По закону» — ненормативна конструкція; тут природніше «мовою закону».
+- c55 / gpt-6-astra, by gpt-6-astra: «Вдень» менш точно передає noon, ніж «опівдні».
+- c55 / fable-5.1, by gpt-6-astra: «Підстерігати» замість watched додає значення очікування в засідці.
+- c55 / fable-5.1, by gpt-6-astra: «Уперше примітити» послаблює marked: його могли вперше обрати мішенню.
+- c55 / fable-5.1, by gpt-6-astra: «Не виконаю обов'язку шани» вводить обов'язок замість нездатності засвідчити свою повагу.
+- c55 / fable-5.1, by gpt-6-astra: «Складає трикутничком записку» втрачає образ капелюха cocked-hat.
+- c55 / fable-5.1, by gpt-6-astra: «Вдень» менш точно передає noon, ніж «опівдні».
+- c55 / gpt-6.1-sol, by gpt-6-astra: «Смерть зрівнює всі відмінності» — невдала сполучуваність: смерть стирає відмінності або зрівнює людей.
+- c55 / gpt-6.1-sol, by gpt-6-astra: «Складає трикутником записку» втрачає образ капелюха cocked-hat.
+- c55 / gpt-6.1-sol, by gpt-6-astra: У звертанні «сер Лестер Дедлок, баронет» потрібен кличний відмінок, зокрема «баронете».
+- c55 / gpt-6.1-sol, by gpt-6-astra: «Ниньки» додає регіонального забарвлення замість відтворення недбалої, уривчастої вимови presentime.
+- c63 / gpt-6.1-sol, by gpt-6-astra: «Я неохоче вдавалася» замінює небажання докладно обговорювати питання на вже здійснювану дію.
+- c63 / gpt-6.1-sol, by gpt-6-astra: «Забобони» звужує значення prejudices: тут ідеться про упередження.
+- c63 / gpt-6.1-sol, by gpt-6-astra: «Похитнути цю віру в Бакета» означає підірвати довіру до Бакета, тоді як оригінал говорить про Бакетову віру в гроші.
+- c63 / gpt-6.1-sol, by gpt-6-astra: «Одну з Бакетових зброй» — неприродна множина збірного іменника «зброя».
+- c63 / gpt-6.1-sol, by gpt-6-astra: «На куди більший осуд» — помилкове роздільне написання «набагато» за змістом: потрібно «на куди» замінити на «на значно» або перебудувати вислів.
+- c63 / opus-5.5, by gpt-6-astra: «Я гадаю» послаблює умовність обережного I should imagine.
+- c63 / opus-5.5, by gpt-6-astra: «Вони мені не потрібні» змінює «я їх не хочу» з відсутності бажання на відсутність потреби.
+- c63 / opus-5.5, by gpt-6-astra: «Одну зі зброй Бакета» — неприродна множина збірного іменника «зброя».
+- c63 / opus-5.5, by gpt-6-astra: «Я почуваюся настільки ж вище за підозру» — граматично й ідіоматично невдале відтворення образу.
+- c63 / fable-5.1, by gpt-6-astra: «Умовну згоду» підмінює згоду із застереженнями згодою за певної умови.
+- c63 / fable-5.1, by gpt-6-astra: «Безнадійно нездатен» перетворює відсутність надії зрозуміти на категоричну нездатність.
+- c63 / fable-5.1, by gpt-6-astra: «Не скований упередженнями» втрачає образ викривлення людини й тіла немовляти.
+- c63 / fable-5.1, by gpt-6-astra: «Поліцейський офіцер» додає офіцерський статус, якого police officer тут не визначає.
+- c63 / fable-5.1, by gpt-6-astra: «Затишно мстить» неправильно передає comfortably: зручність стосується тих, за кого мстяться.
+- c63 / fable-5.1, by gpt-6-astra: «Бо сам хочу грошей» — суттєва помилка: because I want it myself означає, що самому Скімполові бракує цієї віри.
+- c63 / fable-5.1, by gpt-6-astra: «Одне зі знарядь» послаблює конкретний образ зброї.
+- c63 / fable-5.1, by gpt-6-astra: «Скімполові гідно догани» та повтори цього звороту синтаксично неприродні.
+- c63 / fable-5.1, by gpt-6-astra: «Вважає істотним» послаблює essential — «вважає необхідним».
+- c63 / fable-5.1, by gpt-6-astra: Самостійна внутрішня репліка «для чого це?» помилково починається з малої літери.
+- c63 / gpt-6-astra, by gpt-6-astra: «У віршику про» — додане пояснення літературної алюзії.
+- c63 / gpt-6-astra, by gpt-6-astra: «Одну зі зброй Бакета» — неприродна множина збірного іменника «зброя».
+- c63 / gpt-6-astra, by gpt-6-astra: «Прямо закликає» дещо посилює expressly asks — «прямо просить».

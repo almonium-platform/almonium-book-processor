@@ -556,3 +556,23 @@ ones it had.
 - **Passages the owner rates** (`calibration/level_passages.json`,
   `manage.py judge_passages`): ten passages, the same paragraphs at three
   levels among them, to hold the judges against one person's reading.
+- **The writers rank each other** (`manage.py compare_writers`, results
+  under `calibration/compare/`). On 2026-10-09, eight passages of Bleak
+  House, four writers (Opus 5.5, Fable 5.1, gpt-6.1-sol, gpt-6-astra) and
+  the same four judging blind, counting only what the other three said of
+  each writer (mean rank of 4, lower is better):
+  - Ukrainian translation: astra 2.08, sol 2.29, Opus 2.79, Fable 2.96.
+    Both GPT models beat both Claude models in every judge's eyes, the
+    Claude judges' included; astra leads sol by a fifth of a rank at
+    4.7 times the price ($1.88 against $0.40 for the eight passages).
+  - B1 adaptation: Opus 2.54, Fable 2.62, astra 2.88, sol 2.96. Judges
+    agreed on the best candidate on 0 to 4 passages of 8, so the order is
+    soft; Opus costs 40% of Fable.
+  - Every judge put itself first or second except Fable on translation;
+    Fable and astra ranked their own adaptations at 1.38 where the others
+    put them at 2.6 and 2.9. A single judge's verdict on its own family
+    is not evidence.
+  - The same shape as the dictionary entries (`scripts/lexicon_research`
+    in the backend, 99 German words): the dearest model is best by a
+    small margin, never in proportion to its price. The whole comparison
+    cost $22 at list on the plans.

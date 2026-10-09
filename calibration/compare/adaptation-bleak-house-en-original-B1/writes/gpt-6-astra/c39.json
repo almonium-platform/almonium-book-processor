@@ -1,0 +1,92 @@
+{
+ "writer": "gpt-6-astra",
+ "passage": "c39",
+ "blocks": [
+  {
+   "block_id": "c39.p51",
+   "text": "Richard was a little late that morning, but I did not wait long. We turned into the park. The air was bright and wet with dew, and the sky had no clouds. The birds sang beautifully. Drops of water shone on the ferns, grass, and trees. They were wonderfully beautiful to see. The woods seemed twenty times richer than yesterday. During the quiet night, they had looked like a great mass, silent in sleep. Yet Nature seemed to have stayed more awake than usual. It seemed to have worked on every tiny part of every wonderful leaf, to make that day glorious."
+  },
+  {
+   "block_id": "c39.p52",
+   "text": "“This is a lovely place,” said Richard, looking round. “None of the shocks and quarrels of court cases here!”"
+  },
+  {
+   "block_id": "c39.p53",
+   "text": "But there was other trouble."
+  },
+  {
+   "block_id": "c39.p54",
+   "text": "“I tell you what, my dear girl,” said Richard. “When I have everything settled, I think I shall come down here and rest.”"
+  },
+  {
+   "block_id": "c39.p55",
+   "text": "“Would it not be better to rest now?” I asked."
+  },
+  {
+   "block_id": "c39.p56",
+   "text": "“Oh, resting now,” said Richard, “or making any firm plans now—that's not easy. Really, it can't be done. At least, I can't do it.”"
+  },
+  {
+   "block_id": "c39.p57",
+   "text": "“Why not?” said I."
+  },
+  {
+   "block_id": "c39.p58",
+   "text": "“You know why not, Esther. Imagine living in an unfinished house. Its roof might be put on or taken off at any time. The whole house might be pulled down or built up. It might happen tomorrow, the next day, next week, next month, or next year. You would find it hard to rest or settle down. So do I. Now? There is no ‘now’ for those of us involved in court cases.”"
+  },
+  {
+   "block_id": "c39.p59",
+   "text": "I saw the same dark look on his face that I had seen last night. I could almost have believed in the pull my poor little wandering friend had described at such length. There was also something in his look that reminded me of that unfortunate man who had died. It was terrible to think of this."
+  },
+  {
+   "block_id": "c39.p60",
+   "text": "“My dear Richard,” said I, “this is a bad beginning of our conversation.”"
+  },
+  {
+   "block_id": "c39.p61",
+   "text": "“I knew you would tell me so, Dame Durden.”"
+  },
+  {
+   "block_id": "c39.p62",
+   "text": "“And I am not the only one, dear Richard. Someone else once warned you never to build any hope or expectation on the family curse.”"
+  },
+  {
+   "block_id": "c39.p63",
+   "text": "“There you go, coming back to John Jarndyce!” said Richard impatiently. “Well! We must talk about him sooner or later. Most of what I have to say concerns him, so we may as well begin now. My dear Esther, how can you be so blind? Don't you see that he has something to gain or lose in this case? He may want me to know nothing about it and care nothing about it. That may suit him very well. But it may not be quite so good for me.”"
+  },
+  {
+   "block_id": "c39.p64",
+   "text": "“O Richard,” I protested, “can this really be possible? You have seen him and heard him. You have lived under his roof and known him. Yet you can still whisper such shameful doubts about him? Even to me, here in this lonely place, where no one can hear us?”"
+  },
+  {
+   "block_id": "c39.p65",
+   "text": "His face turned very red. He was generous by nature, and it seemed that he felt a sharp pain of shame. He was silent for a little while. Then he replied in a quiet voice:"
+  },
+  {
+   "block_id": "c39.p66",
+   "text": "“Esther, I am sure you know that I am not an unkind man. I do understand, to some degree, that someone my age should not be so ready to suspect and distrust others.”"
+  },
+  {
+   "block_id": "c39.p67",
+   "text": "“I know it very well,” said I. “I am not more sure of anything.”"
+  },
+  {
+   "block_id": "c39.p68",
+   "text": "“That's a dear girl!” Richard replied. “And it's just like you to say that, because it gives me comfort. I certainly need some small scrap of comfort from all this business. Even at its best, it is bad, as I don't need to tell you.”"
+  },
+  {
+   "block_id": "c39.p69",
+   "text": "“I know perfectly well,” said I. “I know, Richard—how shall I put it?—as well as you do. It is not in your nature to judge someone's reasons so wrongly. And I know, as well as you know, what changes your nature so much.”"
+  },
+  {
+   "block_id": "c39.p70",
+   "text": "“Come, sister, come,” said Richard, a little more cheerfully. “At least you will be fair to me. If I am unlucky enough to be influenced by it, so is he. If it has twisted my character a little, it may have twisted his a little too. Away from all this confusion and uncertainty, I am sure he is an honest, good man. I am not saying otherwise. But it leaves a stain on everyone. You know it leaves a stain on everyone. You have heard him say so fifty times. Then why should he escape?”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 17548,
+  "cached_input_tokens": 0,
+  "output_tokens": 1963,
+  "list_usd": 0.27363
+ }
+}

@@ -1,0 +1,84 @@
+{
+ "writer": "gpt-6-astra",
+ "passage": "c23",
+ "blocks": [
+  {
+   "block_id": "c23.p58",
+   "text": "“Yes, miss,” says Charley."
+  },
+  {
+   "block_id": "c23.p59",
+   "text": "“Don't say yes,” returns Miss Smallweed, “for I know what you girls are. Do it without saying it, and then I may begin to believe you.”"
+  },
+  {
+   "block_id": "c23.p60",
+   "text": "Charley swallows a great mouthful of tea to show that she obeys. This scatters the ruins like those left by the Druids, ancient priests. Miss Smallweed tells her not to eat so greedily. This, she says, is disgusting “in you girls.” Charley might have further trouble satisfying Miss Smallweed's ideas about girls in general. But a knock at the door saves her from this."
+  },
+  {
+   "block_id": "c23.p61",
+   "text": "“See who it is, and don't chew when you open it!” cries Judy."
+  },
+  {
+   "block_id": "c23.p62",
+   "text": "The object of Miss Smallweed's attention goes to open the door. Miss Smallweed takes this chance to mix up the remaining bread and butter. She throws two or three dirty tea-cups into the basin of tea. The tea is low, like the sea when it flows away from shore. This is her hint that she considers the eating and drinking finished."
+  },
+  {
+   "block_id": "c23.p63",
+   "text": "“Now! Who is it, and what's wanted?” Judy asks sharply."
+  },
+  {
+   "block_id": "c23.p64",
+   "text": "It seems to be someone called “Mr. George.” Without being introduced any further, or waiting for anything formal, Mr. George walks in."
+  },
+  {
+   "block_id": "c23.p65",
+   "text": "“Whew!” says Mr. George. “It's hot in here. Always a fire, eh? Well! Perhaps you're right to get used to one.” Mr. George says this last part to himself as he nods to Grandfather Smallweed."
+  },
+  {
+   "block_id": "c23.p66",
+   "text": "“Ho! It's you!” cries the old gentleman. “How do you do? How do you do?”"
+  },
+  {
+   "block_id": "c23.p67",
+   "text": "“Fairly well,” replies Mr. George, taking a chair. “I have had the honour of meeting your granddaughter before. My respects to you, miss.”"
+  },
+  {
+   "block_id": "c23.p68",
+   "text": "“This is my grandson,” says Grandfather Smallweed. “You haven't seen him before. He works in the law and isn't at home much.”"
+  },
+  {
+   "block_id": "c23.p69",
+   "text": "“My respects to him, too! He is like his sister. He is very like his sister. He is devilishly like his sister,” says Mr. George. He puts great force into the word “devilishly.” His use of the word is not entirely a compliment."
+  },
+  {
+   "block_id": "c23.p70",
+   "text": "“And how is the world treating you, Mr. George?” Grandfather Smallweed asks, slowly rubbing his legs."
+  },
+  {
+   "block_id": "c23.p71",
+   "text": "“Pretty much as usual. Like a football.”"
+  },
+  {
+   "block_id": "c23.p72",
+   "text": "He is a dark-skinned man of fifty, browned by the sun. He has a well-shaped body and is good-looking. His dark hair is stiff and curly, his eyes bright, and his chest broad. His strong, powerful hands are as brown from the sun as his face. They clearly show that he has lived a fairly rough life. There is something curious about the way he sits forward on his chair. He seems to be leaving room for clothes or equipment he no longer wears. It is as though he has done this for so long that the habit remains. His steps, too, are steady and heavy. The heavy clashing and jingling of spurs would suit them well. These are the metal points riders wear on their boots to urge horses on. His face is closely shaved now. But he holds his mouth as if a great moustache had covered his upper lip for years. Now and then he places his broad brown palm over his mouth. This movement gives the same impression. Taking all this together, one might guess that Mr. George was once a soldier who rode a horse."
+  },
+  {
+   "block_id": "c23.p73",
+   "text": "Mr. George is especially different from the Smallweed family. No soldier on horseback was ever given rooms with a family less like himself. The difference is like that between a broad sword and a little knife for opening oysters. His body is fully grown; their bodies seem to have stopped growing too soon. His way of moving and behaving seems to fill any amount of space. Their ways are small, narrow, and tight. His voice is full and loud; their voices are sharp and thin. These differences are as great as they are strange. He sits in the middle of the gloomy sitting room, leaning a little forward. His hands rest on his thighs, and his elbows point out at right angles. He looks as if he might take the whole family into his own body if he stayed long enough. He might take in the whole four-roomed house too, extra little back-kitchen and all."
+  },
+  {
+   "block_id": "c23.p74",
+   "text": "“Are you rubbing your legs to rub life into them?” he asks Grandfather Smallweed, after looking round the room."
+  },
+  {
+   "block_id": "c23.p75",
+   "text": "“Why, it's partly a habit, Mr. George, and—yes—it partly helps the blood flow round my body,” he replies."
+  }
+ ],
+ "usage": {
+  "input_tokens": 17412,
+  "cached_input_tokens": 0,
+  "output_tokens": 2063,
+  "list_usd": 0.27727
+ }
+}

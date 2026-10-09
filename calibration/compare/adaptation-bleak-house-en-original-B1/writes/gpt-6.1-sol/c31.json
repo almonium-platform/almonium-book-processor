@@ -1,0 +1,80 @@
+{
+ "writer": "gpt-6.1-sol",
+ "passage": "c31",
+ "blocks": [
+  {
+   "block_id": "c31.p29",
+   "text": "“Thank your ladyship.” Mr. Guppy thanks her. “Now, your ladyship—” Mr. Guppy looks at a little piece of paper. He has written short notes about the points he plans to make. Whenever he looks at it, he seems to become completely confused. “I—oh yes!—I put myself entirely in your ladyship's hands. If your ladyship complained about this visit to Kenge and Carboy, or to Mr. Tulkinghorn, I would be in a very unpleasant position. I openly admit that. So I trust your ladyship to act with honour.”"
+  },
+  {
+   "block_id": "c31.p30",
+   "text": "My Lady moves the hand holding her small screen to show her contempt. She assures him that he is not worth a complaint from her."
+  },
+  {
+   "block_id": "c31.p31",
+   "text": "“Thank your ladyship,” says Mr. Guppy. “That is quite satisfactory. Now—I—damn it!—The fact is, I wrote down one or two main points here. I put them in the order I planned to discuss them. But I used short forms, and I can't quite understand what they mean. If your ladyship will excuse me, I'll take the paper to the window for a moment. I—”"
+  },
+  {
+   "block_id": "c31.p32",
+   "text": "On his way to the window, Mr. Guppy stumbles into a pair of love-birds. In his confusion, he says to them, “I do beg your pardon.” This does not make his notes any easier to read. He grows hot and red as he quietly speaks to himself. He holds the paper close to his eyes, then far away. “C. S. What does C. S. stand for? Oh! ‘E. S!’ Oh, I know! Yes, of course!” He comes back, now understanding his notes."
+  },
+  {
+   "block_id": "c31.p33",
+   "text": "“I don't know,” says Mr. Guppy, standing halfway between My Lady and his chair, “whether your ladyship has ever heard of a young lady called Miss Esther Summerson, or seen her.”"
+  },
+  {
+   "block_id": "c31.p34",
+   "text": "My Lady looks straight at him. “I saw a young lady of that name not long ago. This past autumn.”"
+  },
+  {
+   "block_id": "c31.p35",
+   "text": "“Now, did your ladyship think she looked like anyone?” asks Mr. Guppy. He crosses his arms and holds his head to one side. He scratches the corner of his mouth with his notes."
+  },
+  {
+   "block_id": "c31.p36",
+   "text": "My Lady does not look away from him again."
+  },
+  {
+   "block_id": "c31.p37",
+   "text": "“No.”"
+  },
+  {
+   "block_id": "c31.p38",
+   "text": "“Not like your ladyship's family?”"
+  },
+  {
+   "block_id": "c31.p39",
+   "text": "“No.”"
+  },
+  {
+   "block_id": "c31.p40",
+   "text": "“I think your ladyship,” says Mr. Guppy, “can hardly remember Miss Summerson's face?”"
+  },
+  {
+   "block_id": "c31.p41",
+   "text": "“I remember the young lady very well. What has this to do with me?”"
+  },
+  {
+   "block_id": "c31.p42",
+   "text": "“Your ladyship, I do assure you that Miss Summerson's image is fixed in my heart. I tell you this in private. I had the honour of visiting your ladyship's great house, Chesney Wold. I was taking a short trip in the county of Lincolnshire with a friend. There I saw how much Miss Esther Summerson looked like your ladyship's own portrait. It gave me such a shock that, at first, I didn't even know what had shocked me. And now I have the honour of seeing your ladyship close to me. Since that visit, I have often taken the freedom of looking at your ladyship in your carriage in the park. I dare say you didn't notice me. But I have never seen your ladyship so close before. The likeness really is even more surprising than I thought.”"
+  },
+  {
+   "block_id": "c31.p43",
+   "text": "Young man called Guppy! There were times when ladies lived in castles built to defend them. They had servants who would do anything, however wrong, and would come when called. In those times, no one would have paid anything for your poor life, even for a minute, with those beautiful eyes looking at you as they do now."
+  },
+  {
+   "block_id": "c31.p44",
+   "text": "My Lady slowly fans herself with the little screen in her hand. Again, she asks what he thinks his interest in likenesses has to do with her."
+  },
+  {
+   "block_id": "c31.p45",
+   "text": "“Your ladyship,” replies Mr. Guppy, looking at his paper again, “I am coming to that. Damn these notes. Oh! ‘Mrs. Chadband.’ Yes.” Mr. Guppy pulls his chair a little closer and sits down again. My Lady leans back calmly in her chair. Perhaps she is a little less graceful and relaxed than usual. Her steady look never weakens. “Ah—wait a minute, though!” Mr. Guppy looks at his paper again. “E. S. twice? Oh yes! Yes, now I know how to go on.”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 17541,
+  "cached_input_tokens": 0,
+  "output_tokens": 1734,
+  "list_usd": 0.052422
+ }
+}

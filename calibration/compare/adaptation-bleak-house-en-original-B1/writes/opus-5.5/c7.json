@@ -1,0 +1,52 @@
+{
+ "writer": "opus-5.5",
+ "passage": "c7",
+ "blocks": [
+  {
+   "block_id": "c7.p36",
+   "text": "“Hi hi!” said the old man coming to the door. “Have you anything to sell?”"
+  },
+  {
+   "block_id": "c7.p37",
+   "text": "Of course, we stepped back. We looked at our guide, the little old lady. She had taken a key from her pocket and was trying to open the house door. Richard now said to her that we had been pleased to see where she lived. But we were short of time, he said, so we would leave her now. But it was not so easy to leave her. She begged us, in a strange and very urgent way, to walk up and see her room for just a moment. In her harmless way, she was very set on leading me in. This was part of the good sign, or omen, that she wanted. So I felt I had no choice but to agree, whatever the others might do. I suppose we were all more or less curious. In any case, the old man then joined her in asking us. “Aye, aye! Please her! It won't take a minute! Come in, come in! Come in through the shop, if the other door's not working!” So we all went in. Richard laughed and encouraged us, and we trusted him to protect us."
+  },
+  {
+   "block_id": "c7.p38",
+   "text": "“My landlord, Krook,” said the little old lady, as she introduced him to us. She spoke down to him, as if from a high position. “The neighbours call him the Lord Chancellor. They call his shop the Court of Chancery. He is a very strange person. He is very odd. Oh, I assure you he is very odd!”"
+  },
+  {
+   "block_id": "c7.p39",
+   "text": "She shook her head a great many times and tapped her forehead with her finger. In this way she showed us that we must kindly excuse him. “For he is a little—you know!—M—!” said the old lady, very grandly and seriously. The old man heard this and laughed."
+  },
+  {
+   "block_id": "c7.p40",
+   "text": "“It's true enough,” he said, going in front of us with the lantern, “that they call me the Lord Chancellor, and call my shop Chancery. And why do you think they call me the Lord Chancellor, and my shop Chancery?”"
+  },
+  {
+   "block_id": "c7.p41",
+   "text": "“I don't know, I am sure!” said Richard, rather carelessly."
+  },
+  {
+   "block_id": "c7.p42",
+   "text": "“You see,” said the old man, stopping and turning round, “they—Hi! Here's lovely hair! I have got three sacks of ladies' hair downstairs, but none so beautiful and fine as this. What a color, and how fine it feels!”"
+  },
+  {
+   "block_id": "c7.p43",
+   "text": "“That'll do, my good friend!” said Richard. He strongly disliked what the old man had done. Krook had pulled one of Ada's long locks of hair through his yellow hand. “You can admire her hair as the rest of us do. You don't need to touch it so freely.”"
+  },
+  {
+   "block_id": "c7.p44",
+   "text": "The old man suddenly shot a sharp look at Richard. This look even pulled my attention away from Ada. Ada was startled and blushing, and she looked so remarkably beautiful that she seemed to hold the wandering attention even of the little old lady. But Ada stepped in and said, laughing, that she could only feel proud of such sincere admiration. Then Mr. Krook shrank back into his usual self, as suddenly as he had jumped out of it."
+  },
+  {
+   "block_id": "c7.p45",
+   "text": "“You see, I have so many things here,” he went on, holding up the lantern, “of so many kinds. And the neighbours think they're all wasting away and falling to pieces. (But they know nothing.) That's why they've given me and my place a name, as if at a christening. And I have so many old parchmentses and papers in my stock. And I like rust and damp mould and cobwebs. And I take anything that comes my way. And I can't bear to part with anything once I get hold of it. (Or so my neighbours think, but what do they know?) And I can't bear to change anything. I can't bear to have any sweeping, nor scrubbing, nor cleaning, nor repairing going on around me. That's how I've got the bad name of Chancery. I don't mind. I go to see my noble and learned brother pretty well every day, when he sits in the Inn. He don't notice me, but I notice him. There's not much difference between us. We both keep digging away in a muddle. Hi, Lady Jane!”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 5774,
+  "cached_input_tokens": 0,
+  "output_tokens": 4393,
+  "list_usd": 0.110956
+ }
+}
