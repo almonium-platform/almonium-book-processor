@@ -275,6 +275,14 @@ CODEX_BINARY = os.getenv("CODEX_BINARY", "codex")
 CODEX_TRANSLATION_MODEL = os.getenv("CODEX_TRANSLATION_MODEL", "gpt-6-astra")
 CODEX_TIMEOUT_SECONDS = float(os.getenv("CODEX_TIMEOUT_SECONDS", "1800"))
 CODEX_WORKERS = int(os.getenv("CODEX_WORKERS", "4"))
+# The plan accounts whose meters are read, as the directories that hold their logins: the
+# CODEX_HOME (~/.codex by default) and CLAUDE_CONFIG_DIR (~/.claude) of the workers that work
+# on them, separated by commas. Empty is the one account the process itself would use. A
+# worker uses the one account of each plan its own environment names.
+CODEX_HOMES = [home.strip() for home in os.getenv("CODEX_HOMES", "").split(",") if home.strip()]
+CLAUDE_CONFIG_DIRS = [
+    path.strip() for path in os.getenv("CLAUDE_CONFIG_DIRS", "").split(",") if path.strip()
+]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", not DEBUG)

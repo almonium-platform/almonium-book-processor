@@ -26,16 +26,27 @@ unless it says so.
 Level adaptation can run on one of the owner's plans instead of the API: set
 `ADAPTATION_GENERATOR` in `.env` to a seat such as `codex:gpt-6-astra`, then
 `docker compose up -d web worker` and install the host worker once with
-`./plan-service install`.
+`./plan-service install main`.
 
-- `./plan-service install` writes a systemd user service for `./plan-worker`
-  (this checkout, this shell's `PATH`, so install it from a shell where
-  `claude` and `codex` run). It starts with the machine, comes back after a
-  crash, and is restarted with `./plan-service restart` after a change to
-  `src/`; `status` and `logs` show what it is doing. Restart it when no plan
-  job is running: one cut off mid-way goes back to the queue and its run may
-  need retrying from the edition page. `./plan-worker` in a terminal still
-  works for a one-off; do not run both.
+- `./plan-service install <name> [codex home] [claude config dir]` writes a
+  systemd user service for `./plan-worker` (this checkout, this shell's
+  `PATH`, so install it from a shell where `claude` and `codex` run). It
+  starts with the machine, comes back after a crash, and is restarted with
+  `./plan-service restart` after a change to `src/`; `status` and
+  `logs <name>` show what it is doing. Restart it when no plan job is
+  running: one cut off mid-way goes back to the queue and its run may need
+  retrying from the edition page. `./plan-worker` in a terminal still works
+  for a one-off; do not run both.
+- **One worker per pair of accounts.** A worker works on the Codex account
+  its `CODEX_HOME` names and the Claude account its `CLAUDE_CONFIG_DIR`
+  names, which is how the CLIs themselves choose an account. A second plan
+  account is a second login directory (`CODEX_HOME=~/.codex-2 codex login`,
+  `CLAUDE_CONFIG_DIR=~/.claude-2 claude login`) and a second worker on it:
+  `./plan-service install second ~/.codex-2 ~/.claude-2` (leave an argument
+  out to share the default account). The workers share the queue, so a book
+  is spread over the accounts as its jobs come up. `CODEX_HOMES` and
+  `CLAUDE_CONFIG_DIRS` in `.env` name every account whose meter
+  `manage.py plan_meter` reads and a production records.
 
 - Chapter pilots, floor probes and whole-book adaptations are then sent to the
   `plans` queue. The container worker never takes that queue, because the

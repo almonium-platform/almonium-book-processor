@@ -289,16 +289,26 @@ def _read_meters(state: dict, label: str) -> None:
 
     if not settings.CELERY_TASK_ROUTES:
         return
-    from almonium_book_processor.ai.claude_code_provider import claude_meter
-    from almonium_book_processor.ai.codex_provider import codex_meter
+    from almonium_book_processor.ai.claude_code_provider import claude_config_dir, claude_meter
+    from almonium_book_processor.ai.codex_provider import codex_home, codex_meter
 
-    codex = codex_meter()
+    codex_accounts = {}
+    for home in settings.CODEX_HOMES or [None]:
+        codex = codex_meter(home=home)
+        codex_accounts[codex_home(home).name] = codex["used_percent"] if codex else None
+    claude_accounts = {
+        claude_config_dir(config_dir).name: claude_meter(config_dir=config_dir)
+        for config_dir in settings.CLAUDE_CONFIG_DIRS or [None]
+    }
     state.setdefault("meters", []).append(
         {
             "at": timezone.now().isoformat(),
             "label": label,
-            "codex_week_percent": codex["used_percent"] if codex else None,
-            "claude": claude_meter(),
+            # the first account of each plan, as the readings made with one account have it
+            "codex_week_percent": next(iter(codex_accounts.values())),
+            "claude": next(iter(claude_accounts.values())),
+            "codex_accounts": codex_accounts,
+            "claude_accounts": claude_accounts,
         }
     )
 

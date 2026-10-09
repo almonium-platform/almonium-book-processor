@@ -3,11 +3,16 @@
 # settings), because the Claude Code and Codex CLIs are signed in on this machine and not in
 # the worker container. Everything else stays with the container worker.
 #
+# One worker works on one account of each plan: the Codex account CODEX_HOME names (~/.codex
+# when unset) and the Claude account CLAUDE_CONFIG_DIR names (~/.claude). Another pair of
+# accounts is another worker with its own values; the workers share the queue.
+#
 # Usage: ./plan-service install    as a service that starts with the machine (the usual way)
 #        ./plan-worker             in a terminal, for a one-off; stop with Ctrl-C
 set -euo pipefail
 source "$(dirname "$0")/plan-env"
 
+name="${PLAN_WORKER_NAME:-$(basename "${CODEX_HOME:-$HOME/.codex}")}"
 exec .venv/bin/python -m celery -A almonium_book_processor.config worker \
-  --queues plans --hostname "plans@%h" --loglevel INFO \
+  --queues plans --hostname "plans-$name@%h" --loglevel INFO \
   --concurrency "${PLAN_WORKER_CONCURRENCY:-2}"

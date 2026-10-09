@@ -133,6 +133,24 @@ def test_the_meter_is_read_from_the_newest_session_log(tmp_path, monkeypatch):
     assert "--ephemeral" not in commands[0]
 
 
+def test_the_meter_of_a_named_account_is_asked_of_that_account_and_read_from_it(tmp_path):
+    second = tmp_path / ".codex-2"
+    day = second / "sessions" / "2026" / "10" / "10"
+    day.mkdir(parents=True)
+    limits = {"rate_limits": {"primary": {"used_percent": 3.0}, "plan_type": "prolite"}}
+    environments = []
+
+    def runner(command, **kwargs):
+        environments.append(kwargs["env"]["CODEX_HOME"])
+        (day / "rollout-2026-10-10T00-00-00-x.jsonl").write_text(json.dumps(limits) + "\n")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    meter = codex_meter(home=second, binary="codex", runner=runner)
+
+    assert meter == {"used_percent": 3.0, "plan_type": "prolite"}
+    assert environments == [str(second)]
+
+
 def test_an_unreadable_meter_is_none_and_never_an_error(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
 

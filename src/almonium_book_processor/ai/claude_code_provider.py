@@ -28,14 +28,27 @@ _METERS = {
 }
 
 
+def claude_config_dir(config_dir: str | Path | None = None) -> Path:
+    """The directory that holds a Claude Code account: its login and settings.
+
+    The CLI reads it from ``CLAUDE_CONFIG_DIR`` and falls back to ``~/.claude``, so a second
+    account is a second directory, and a worker started with it set works on that account.
+    """
+
+    return Path(config_dir or os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+
+
 def claude_meter(
-    *, binary: str | None = None, runner: Callable[..., Any] = subprocess.run
+    *,
+    config_dir: str | Path | None = None,
+    binary: str | None = None,
+    runner: Callable[..., Any] = subprocess.run,
 ) -> dict[str, int] | None:
-    """The plan's meters as the CLI's /usage screen shows them, or None when it cannot be read.
+    """An account's meters as the CLI's /usage screen shows them, or None when unreadable.
 
     Whole percent of the five-hour session, of the week for all models, and of the week for
     Fable, which is metered apart. Asking costs no tokens. The meters are the account's:
-    every Claude Code session of the owner moves them, so a reading before and after a job
+    every Claude Code session on it moves them, so a reading before and after a job
     measures that job only if nothing else ran.
     """
 
@@ -58,6 +71,7 @@ def claude_meter(
             text=True,
             timeout=120,
             cwd=workdir,
+            env={**os.environ, "CLAUDE_CONFIG_DIR": str(claude_config_dir(config_dir))},
         )
         screen = json.loads(completed.stdout)["result"]
     except Exception:  # a meter that cannot be read must never fail the run it surrounds

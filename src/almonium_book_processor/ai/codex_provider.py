@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import tempfile
@@ -15,16 +16,30 @@ from django.conf import settings
 from almonium_book_processor.ai.cli_calls import CallFailed, fits_schema, tried_twice
 
 
-def codex_meter(
-    *, binary: str | None = None, runner: Callable[..., Any] = subprocess.run
-) -> dict[str, Any] | None:
-    """The plan's weekly meter as the CLI last saw it, or None when it cannot be read.
+def codex_home(home: str | Path | None = None) -> Path:
+    """The directory that holds a Codex account: its login, config and session logs.
 
-    The CLI writes the rate limits it was told into the session log of every call that is
-    not ephemeral, so this makes one tiny call and reads the newest log. ``used_percent``
-    moves in whole points; ``resets_at`` is when the week starts over.
+    The CLI reads it from ``CODEX_HOME`` and falls back to ``~/.codex``, so a second account
+    is a second directory, and a worker started with ``CODEX_HOME`` set works on that account.
     """
 
+    return Path(home or os.environ.get("CODEX_HOME") or Path.home() / ".codex")
+
+
+def codex_meter(
+    *,
+    home: str | Path | None = None,
+    binary: str | None = None,
+    runner: Callable[..., Any] = subprocess.run,
+) -> dict[str, Any] | None:
+    """An account's weekly meter as the CLI last saw it, or None when it cannot be read.
+
+    The CLI writes the rate limits it was told into the session log of every call that is
+    not ephemeral, so this makes one tiny call on the account and reads its newest log.
+    ``used_percent`` moves in whole points; ``resets_at`` is when the week starts over.
+    """
+
+    account = codex_home(home)
     workdir = Path(tempfile.gettempdir()) / "almonium-codex-empty"
     workdir.mkdir(parents=True, exist_ok=True)
     try:
@@ -49,9 +64,10 @@ def codex_meter(
             text=True,
             timeout=120,
             cwd=workdir,
+            env={**os.environ, "CODEX_HOME": str(account)},
         )
         logs = sorted(
-            (Path.home() / ".codex" / "sessions").glob("*/*/*/rollout-*.jsonl"),
+            (account / "sessions").glob("*/*/*/rollout-*.jsonl"),
             key=lambda path: path.stat().st_mtime,
         )
         found = re.findall(r'"primary":\s*(\{[^}]*\})', logs[-1].read_text())

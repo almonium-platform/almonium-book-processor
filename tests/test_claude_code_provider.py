@@ -179,14 +179,15 @@ def test_the_plan_meters_are_read_from_the_usage_screen():
     asked = []
 
     def runner(command, **kwargs):
-        asked.append(kwargs["input"])
+        asked.append((kwargs["input"], kwargs["env"]["CLAUDE_CONFIG_DIR"]))
         return SimpleNamespace(stdout=json.dumps({"result": screen}))
 
-    assert claude_meter(binary="claude", runner=runner) == {
+    assert claude_meter(config_dir="/home/owner/.claude-2", binary="claude", runner=runner) == {
         "session_percent": 15,
         "week_percent": 41,
         "fable_week_percent": 67,
     }
-    assert asked == ["/usage"]
+    # the account asked is the one named, through the CLI's own variable
+    assert asked == [("/usage", "/home/owner/.claude-2")]
     # a screen that cannot be read is no meter, never an error
     assert claude_meter(binary="claude", runner=lambda *a, **k: SimpleNamespace(stdout="")) is None
