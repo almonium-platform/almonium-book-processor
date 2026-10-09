@@ -56,8 +56,30 @@ TimeoutStopSec=30
 [Install]
 WantedBy=default.target
 UNIT
+    # every quarter of an hour the host records each account's meter for the pages
+    cat > "$config/systemd/user/almonium-plan-meter.service" <<UNIT
+[Unit]
+Description=Almonium book processor: record the plan accounts' meters
+
+[Service]
+Type=oneshot
+WorkingDirectory=$repo
+Environment=PATH=$PATH
+ExecStart=$repo/plan-manage plan_meter --record
+UNIT
+    cat > "$config/systemd/user/almonium-plan-meter.timer" <<UNIT
+[Unit]
+Description=Almonium book processor: record the plan accounts' meters every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+
+[Install]
+WantedBy=timers.target
+UNIT
     systemctl --user daemon-reload
-    systemctl --user enable --now "$unit"
+    systemctl --user enable --now "$unit" almonium-plan-meter.timer
     # without lingering, a user's services start at login and stop at logout
     loginctl show-user "$USER" -p Linger | grep -q "=yes" ||
       echo "Starts at login. To start it at boot: sudo loginctl enable-linger $USER"
@@ -67,7 +89,11 @@ UNIT
     [ -n "$name" ] || { echo "name the worker to remove"; exit 2; }
     systemctl --user disable --now "$unit" || true
     rm -f "$config/almonium/plan-worker-$name.env"
-    [ -n "$(units)" ] || rm -f "$file"
+    if [ -z "$(units)" ]; then
+      systemctl --user disable --now almonium-plan-meter.timer || true
+      rm -f "$file" "$config/systemd/user/almonium-plan-meter.service" \
+        "$config/systemd/user/almonium-plan-meter.timer"
+    fi
     systemctl --user daemon-reload
     ;;
   restart)

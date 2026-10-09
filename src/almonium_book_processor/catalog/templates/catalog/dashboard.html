@@ -10,6 +10,21 @@
   </div>
 </div>
 
+{% if meters %}
+<section class="panel plan-meters" aria-label="Plan accounts">
+  <p class="eyebrow">Plans this week</p>
+  <ul class="plan-meter-list">
+    {% for meter in meters %}
+    <li class="plan-meter{% if meter.stale %} plan-meter-stale{% endif %}" title="Read {{ meter.read_at|timesince }} ago{% if meter.stale %}; the host's meter timer has not run for over an hour{% endif %}">
+      <span class="plan-meter-name">{{ meter.provider_label }} <small>{{ meter.account }}</small></span>
+      <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>
+      <span class="plan-meter-figures">{{ meter.week_percent }}% used · ${{ meter.left_usd|floatformat:2 }} of ${{ meter.week_usd|floatformat:2 }} left{% if meter.fable_week_percent is not None %} · Fable {{ meter.fable_week_percent }}%{% endif %}{% if meter.resets_at %} · resets {{ meter.resets_at|date:"D H:i" }}{% endif %}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <section class="work-list" {% live_catalogue "public" %}>
   {% for group in groups %}
     <article class="work-group">

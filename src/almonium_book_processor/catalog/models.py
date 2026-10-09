@@ -1115,3 +1115,27 @@ class UserErrorReport(TimestampedModel):
 
     class Meta:
         ordering = ["status", "-created_at"]
+
+
+class PlanMeterReading(TimestampedModel):
+    """One reading of a plan account's weekly meter, taken on the owner's machine.
+
+    The CLIs' meters can only be read where their logins are, so the host records them
+    (``manage.py plan_meter --record``, on a timer) and every page shows the last reading.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    provider = models.CharField(max_length=20)
+    account = models.CharField(max_length=80, help_text="The directory that holds the login.")
+    week_percent = models.PositiveSmallIntegerField()
+    session_percent = models.PositiveSmallIntegerField(null=True, blank=True)
+    fable_week_percent = models.PositiveSmallIntegerField(null=True, blank=True)
+    resets_at = models.DateTimeField(null=True, blank=True)
+    plan_type = models.CharField(max_length=40, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["provider", "account", "-created_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.provider} {self.account}: {self.week_percent}% of the week"

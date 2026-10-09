@@ -72,6 +72,7 @@ from almonium_book_processor.catalog.models import (
     TextQualityFinding,
     Work,
 )
+from almonium_book_processor.catalog.plan_meters import plan_meters
 from almonium_book_processor.catalog.promotion import (
     promotion_blocker,
     promotion_chain,
@@ -122,7 +123,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "catalog/dashboard.html",
-        {"groups": groups, "summary": catalogue_summary(groups)},
+        {"groups": groups, "summary": catalogue_summary(groups), "meters": plan_meters()},
     )
 
 

@@ -46,7 +46,11 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   out to share the default account). The workers share the queue, so a book
   is spread over the accounts as its jobs come up. `CODEX_HOMES` and
   `CLAUDE_CONFIG_DIRS` in `.env` name every account whose meter
-  `manage.py plan_meter` reads and a production records.
+  `manage.py plan_meter` reads and a production records. `install` also
+  puts a timer on the host that records every account's meter every
+  fifteen minutes (`plan_meter --record`); the catalogue page shows the
+  last reading of each as "Plans this week", marked stale when the timer
+  has not run for an hour.
 
 - Chapter pilots, floor probes and whole-book adaptations are then sent to the
   `plans` queue. The container worker never takes that queue, because the
