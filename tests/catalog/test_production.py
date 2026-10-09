@@ -295,7 +295,7 @@ def test_a_step_nobody_finishes_holds_the_book_instead_of_waiting_for_ever(world
     advance(run.id)
     assert not advance(run.id)
     run.refresh_from_db()
-    run.summary["since"] = (timezone.now() - timedelta(hours=4)).isoformat()
+    run.summary["tracks"]["levels"]["since"] = (timezone.now() - timedelta(hours=4)).isoformat()
     run.save()
 
     assert advance(run.id)
@@ -520,3 +520,19 @@ def test_a_serious_agreed_finding_with_no_replacement_has_its_paragraph_rewritte
     # the paragraph is rewritten once; a finding on it that comes back is not rewritten again
     assert run.summary["repaired"]["B2"] == ["c1.p7"]
     assert chapter.edition.block_revisions.count() == 0  # the fake wrote nothing itself
+
+
+def test_a_translation_is_made_beside_the_levels_not_after_them(translating):
+    world = translating
+    world.ladder["B2"] = "probing"
+    run = queue_production(world.source.id, ["B2"], languages=["uk"])
+
+    assert not advance(run.id)
+
+    run.refresh_from_db()
+    tracks = run.summary["tracks"]
+    assert tracks["levels"]["step"] == "probe" and tracks["languages"]["step"] == "translate"
+    assert world.calls == ["translation uk codex"]
+    assert "uk" in run.summary["editions"]
+    # the step that only waited is not asked again while the other track catches up
+    assert run.summary["starts"] == {"translation uk": 1}

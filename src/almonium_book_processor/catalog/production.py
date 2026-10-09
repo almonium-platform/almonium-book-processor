@@ -7,9 +7,10 @@ the corrections both auditors stand behind, the audit again on what those change
 verdict. A level that passes both gates is signed off and, if asked, promoted; a level that
 does not is held with the reasons, and the levels below it are not attempted.
 
-The languages asked for come after the levels and do not depend on them: each is translated,
-read by the two editors, corrected where both stand behind a correction, and signed off
-unless a serious finding they agree on could not be corrected.
+The languages asked for do not depend on the levels and are made beside them, on a track of
+their own that moves on every tick the levels' track does: each is translated, read by the
+two editors, corrected where both stand behind a correction, and signed off unless a serious
+finding they agree on could not be corrected.
 
 Nothing here decides quality. Each step asks the same gate a person's click would have met,
 and the production only knows what to start next, how long to wait, and when to stop trying:
@@ -119,9 +120,7 @@ def queue_production(
                 "levels": levels,
                 "languages": languages,
                 "register": register,
-                "index": 0,
-                "step": "source",
-                "since": timezone.now().isoformat(),
+                "tracks": _fresh_tracks(levels, languages),
                 "sign_off": sign_off,
                 "promote_to": promote_to,
                 "publish": publish,
@@ -137,18 +136,52 @@ def queue_production(
     return run
 
 
+def _fresh_tracks(levels: list[str], languages: list[str]) -> dict:
+    """The two cursors a production walks: the levels down the ladder, and the languages."""
+
+    now = timezone.now().isoformat()
+    tracks = {}
+    if levels:
+        tracks["levels"] = {"targets": levels, "index": 0, "step": "source", "since": now}
+    if languages:
+        tracks["languages"] = {"targets": languages, "index": 0, "step": "translate", "since": now}
+    return tracks
+
+
+def _tracks(state: dict) -> dict:
+    """The production's cursors; a run started with one cursor over both lists gets two."""
+
+    if "tracks" not in state:
+        tracks = _fresh_tracks(state["levels"], state.get("languages", []))
+        done = state.get("index", 0)
+        for name, track in tracks.items():
+            offset = 0 if name == "levels" else len(state["levels"])
+            track["index"] = min(max(0, done - offset), len(track["targets"]))
+            if track["index"] < len(track["targets"]) and done >= offset:
+                track["step"] = state.get("step", track["step"])
+                track["since"] = state.get("since", track["since"])
+        state["tracks"] = tracks
+    return state["tracks"]
+
+
 def advance(run_id) -> bool:
     """Move a production as far as it can go without waiting; say whether it is finished."""
 
+    # a track that only waited is not asked again in the same call: its step would start
+    # the same job once more, and count the start against the book
+    moved = None
     for _ in range(2 * len(STEPS)):
-        finished, moved = _advance_once(run_id)
+        finished, moved = _advance_once(run_id, moved)
         if finished or not moved:
             return finished
     return False
 
 
-def _advance_once(run_id) -> tuple[bool, bool]:
-    """One step: whether the production is finished, and whether it moved to another step."""
+def _advance_once(run_id, only: set[str] | None = None) -> tuple[bool, set[str]]:
+    """One step of each track (of the tracks named in ``only``, when given).
+
+    Whether the production is finished, and the tracks that moved to another step.
+    """
 
     run = PipelineRun.objects.select_related("edition__work").get(pk=run_id)
     if run.processor_version != VERSION:
@@ -160,65 +193,77 @@ def _advance_once(run_id) -> tuple[bool, bool]:
         run.status = PipelineRun.Status.RUNNING
         run.started_at = timezone.now()
         _read_meters(state, "started")
-    level = _targets(state)[state["index"]]
-    step = state["step"]
-    try:
-        move = STEPS[step](run, state, level)
-        if move[0] == "wait" and timezone.now() - parse_datetime(state["since"]) > STEP_TIMEOUT:
-            raise Held(f"Nothing finished '{step}' in {STEP_TIMEOUT}: {move[1]}")
-    except Held as held:
-        move = ("hold", held.reasons)
-    except Exception as error:
-        # a step that breaks is started again on the next call, as often as its own
-        # counters allow; one that keeps breaking holds the book with what it said
+    moved = set()
+    for name, track in _tracks(state).items():
+        if track["index"] >= len(track["targets"]) or (only is not None and name not in only):
+            continue
+        target = track["targets"][track["index"]]
+        step = track["step"]
         try:
-            _started(state, f"error:{level}:{step}", STARTS + 1)
-            move = ("wait", f"{type(error).__name__}: {str(error)[:300]}; trying again")
-        except Held:
-            move = ("hold", [f"'{step}' failed: {type(error).__name__}: {str(error)[:300]}"])
-    finished = _apply(run, state, level, step, move)
+            move = STEPS[step](run, state, target)
+            if move[0] == "wait" and timezone.now() - parse_datetime(track["since"]) > STEP_TIMEOUT:
+                raise Held(f"Nothing finished '{step}' in {STEP_TIMEOUT}: {move[1]}")
+        except Held as held:
+            move = ("hold", held.reasons)
+        except Exception as error:
+            # a step that breaks is started again on the next call, as often as its own
+            # counters allow; one that keeps breaking holds the book with what it said
+            try:
+                _started(state, f"error:{target}:{step}", STARTS + 1)
+                move = ("wait", f"{type(error).__name__}: {str(error)[:300]}; trying again")
+            except Held:
+                move = ("hold", [f"'{step}' failed: {type(error).__name__}: {str(error)[:300]}"])
+        _apply(state, track, target, step, move)
+        if move[0] != "wait":
+            moved.add(name)
+    finished = all(track["index"] >= len(track["targets"]) for track in _tracks(state).values())
+    if finished:
+        _finish(run, state)
     run.summary = state
     run.save()
-    return finished, move[0] != "wait"
+    return finished, moved
 
 
-def _apply(run: PipelineRun, state: dict, level: str, step: str, move: tuple) -> bool:
+def _apply(state: dict, track: dict, target: str, step: str, move: tuple) -> None:
+    """Move one track's cursor by what its step said."""
+
     kind = move[0]
     if kind == "wait":
-        _log(state, level, step, move[1], repeat=False)
-        return False
+        _log(state, target, step, move[1], repeat=False)
+        return
     if kind == "goto":
-        _log(state, level, step, move[2])
-        state["step"] = move[1]
-        state["since"] = timezone.now().isoformat()
-        return False
+        _log(state, target, step, move[2])
+        track["step"] = move[1]
+        track["since"] = timezone.now().isoformat()
+        return
     if kind == "ready":
-        state["outcomes"][level] = {"outcome": "ready", "note": move[1]}
-        _log(state, level, step, f"READY: {move[1]}")
-        following = state["index"] + 1
+        state["outcomes"][target] = {"outcome": "ready", "note": move[1]}
+        _log(state, target, step, f"READY: {move[1]}")
+        following = track["index"] + 1
     elif kind == "skip":
-        state["outcomes"][level] = {"outcome": "not needed", "note": move[1]}
-        _log(state, level, step, f"NOT NEEDED: {move[1]}")
-        following = state["index"] + 1
+        state["outcomes"][target] = {"outcome": "not needed", "note": move[1]}
+        _log(state, target, step, f"NOT NEEDED: {move[1]}")
+        following = track["index"] + 1
     else:
         reasons = move[1]
-        state["outcomes"][level] = {"outcome": "held", "reasons": reasons}
-        _log(state, level, step, "HELD: " + "; ".join(reasons))
-        following = state["index"] + 1
-        if level in state["levels"]:
+        state["outcomes"][target] = {"outcome": "held", "reasons": reasons}
+        _log(state, target, step, "HELD: " + "; ".join(reasons))
+        following = track["index"] + 1
+        if target in state["levels"]:
             # the ladder is descended a rung at a time; the translations do not hang on it
-            for skipped in state["levels"][state["index"] + 1 :]:
+            for skipped in track["targets"][track["index"] + 1 :]:
                 state["outcomes"][skipped] = {
                     "outcome": "not attempted",
-                    "reasons": [f"{level}, the level above, was held."],
+                    "reasons": [f"{target}, the level above, was held."],
                 }
-            following = len(state["levels"])
-    targets = _targets(state)
-    if following < len(targets):
-        state["index"] = following
-        state["step"] = _first_step(state, targets[following])
-        state["since"] = timezone.now().isoformat()
-        return False
+            following = len(track["targets"])
+    track["index"] = following
+    if following < len(track["targets"]):
+        track["step"] = _first_step(state, track["targets"][following])
+        track["since"] = timezone.now().isoformat()
+
+
+def _finish(run: PipelineRun, state: dict) -> None:
     unfinished = [
         f"{target} {outcome['outcome']}: {' '.join(outcome.get('reasons', []))}"
         for target, outcome in state["outcomes"].items()
@@ -230,7 +275,6 @@ def _apply(run: PipelineRun, state: dict, level: str, step: str, move: tuple) ->
     run.progress = 100
     run.finished_at = timezone.now()
     _read_meters(state, "finished")
-    return True
 
 
 def _read_meters(state: dict, label: str) -> None:
@@ -783,7 +827,11 @@ def production_context(edition: Edition) -> dict:
             "run": run,
             "active": run.status in ACTIVE,
             "levels": _targets(state),
-            "step": state["step"],
+            "step": ", ".join(
+                f"{track['step']} ({track['targets'][track['index']]})"
+                for track in _tracks(state).values()
+                if track["index"] < len(track["targets"])
+            ),
             "outcomes": state["outcomes"],
             "log": state["log"][-12:],
         }

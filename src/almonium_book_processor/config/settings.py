@@ -218,6 +218,8 @@ DIFFICULTY_READINGS = int(os.getenv("DIFFICULTY_READINGS", "3"))
 # Chapters the judges read at a time when they analyse an edition. One in tests and on
 # SQLite; a plan's CLI takes several calls at once.
 DIFFICULTY_JUDGE_WORKERS = int(os.getenv("DIFFICULTY_JUDGE_WORKERS", "1"))
+# Chapters a book's adaptation writes at a time.
+ADAPTATION_WRITE_WORKERS = int(os.getenv("ADAPTATION_WRITE_WORKERS", "3"))
 
 # A task that calls a plan seat can only run where the plan's CLI is signed in. It is sent to
 # a queue of its own, which the container worker never takes and the owner's host worker does

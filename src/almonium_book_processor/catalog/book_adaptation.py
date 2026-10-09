@@ -30,7 +30,6 @@ from almonium_book_processor.catalog.models import (
 VERSION = "b2-book-v1"
 MODERNISATION_BOOK_VERSION = "modernisation-book-v1"
 BOOK_VERSIONS = (VERSION, "b1-book-v1", MODERNISATION_BOOK_VERSION)
-WORKERS = 3
 REVIEW_CODE = "adaptation_fidelity_review"
 
 
@@ -245,15 +244,16 @@ def run_book(run_id, *, provider=None):
         total = len(plan["windows"])
         probed = probe_chapters(source, run.summary["target_level"])
         reused = set()
-        # At most three paid requests in flight; stop launching batches after any failure.
-        for start in range(0, total, WORKERS):
+        # ADAPTATION_WRITE_WORKERS requests in flight; stop launching batches after any failure.
+        workers = max(1, settings.ADAPTATION_WRITE_WORKERS)
+        for start in range(0, total, workers):
             source.refresh_from_db()
             if book_plan(source)["source_hash"] != plan["source_hash"]:
                 raise ValueError(
                     "Source changed; saved results retained, edition not materialized."
                 )
             children = []
-            for window in plan["windows"][start : start + WORKERS]:
+            for window in plan["windows"][start : start + workers]:
                 chapter = source.chapters.get(pk=window["chapter_id"])
                 blocks = list(chapter.blocks.filter(block_id__in=window["block_ids"]))
                 if not any(b.text.strip() for b in blocks):
@@ -293,7 +293,7 @@ def run_book(run_id, *, provider=None):
                 for child in children:
                     run_pilot(child.id, provider=provider)
             else:
-                with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+                with ThreadPoolExecutor(max_workers=workers) as pool:
                     list(pool.map(_generate, [child.id for child in children]))
             for child in children:
                 child.refresh_from_db()
@@ -302,7 +302,7 @@ def run_book(run_id, *, provider=None):
                 ai = child.ai_runs.get(pk=child.summary["ai_run_id"])
                 for block in ai.response_payload["adaptation"]["blocks"]:
                     results[block["block_id"]] = {**block, "ai_run_id": str(ai.id)}
-            completed = min(start + WORKERS, total)
+            completed = min(start + workers, total)
             run.summary = {
                 **run.summary,
                 "completed": completed,

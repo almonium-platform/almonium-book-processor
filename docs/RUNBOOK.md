@@ -89,12 +89,16 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   nobody finishes in three hours holds the book. The page shows where it is
   and what it did. It is a run on the source edition that a short task moves
   forward every half minute, so it survives a restart of the worker.
-  `--languages uk,de` adds translations, after the levels and whatever becomes
-  of them: each is written (`PRODUCTION_TRANSLATION_TIER`, gpt-6-astra on the
-  Codex plan by default), read by the two editors, corrected where both stand
-  behind a correction, and signed off unless a serious finding they agree on
-  could not be placed in the text. A language that already has a translation
-  in the same register is reviewed, not translated again.
+  `--languages uk,de` adds translations, made beside the levels on a track of
+  their own, whatever becomes of the levels: each is written
+  (`PRODUCTION_TRANSLATION_TIER`; on the Codex plan the model named by
+  `CODEX_TRANSLATION_MODEL`), read by the two editors, corrected where both
+  stand behind a correction, and signed off unless a serious finding they
+  agree on could not be placed in the text. A language that already has a
+  translation in the same register is reviewed, not translated again. How
+  many chapters each step takes at once is `ADAPTATION_WRITE_WORKERS`,
+  `DIFFICULTY_JUDGE_WORKERS`, `FIDELITY_AUDIT_WORKERS` and
+  `TRANSLATION_REVIEW_WORKERS`; the plans took sixteen calls at once.
 - **Where judges are configured they are the chapter analysis.** With
   `DIFFICULTY_JUDGES` set, "Analyze" on an edition's page (and the analysis
   queued after an import, a generation or an edit) has every judge read every
