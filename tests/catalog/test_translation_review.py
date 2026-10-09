@@ -163,7 +163,7 @@ def test_review_cross_checks_and_queues_every_finding():
     confirmed, disputed = findings["confirmed"], findings["disputed"]
     # findings are labelled with the models that raised and judged them
     assert confirmed.evidence["reviewers"] == ["claude-opus-5-5"]
-    assert confirmed.evidence["second_opinion"]["by"] == "gpt-6.1-sol"
+    assert confirmed.evidence["second_opinion"]["by"] == "gpt-6-astra"
     assert confirmed.suggested_text == "утішився" and confirmed.code == "fidelity_material"
     # A "no" from the other reviewer keeps the finding and the reason, and takes the
     # replacement away: what one model alone believes cannot be applied with a click.

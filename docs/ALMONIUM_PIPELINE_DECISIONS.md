@@ -581,3 +581,15 @@ ones it had.
     in the backend, 99 German words): the dearest model is best by a
     small margin, never in proportion to its price. The whole comparison
     cost $22 at list on the plans.
+- **The writer never checks its own work.** Every model ranked itself
+  about 0.4 of a rank above where the others put it, and the sol judge
+  passed sol's own B1 on 7 passages of 8 against astra's 6. A sibling
+  may check it, as one of two from different vendors. So since gpt-6.1-sol
+  translates (The Time Machine, 2026-10-09: 21 chapters in ten minutes,
+  14 agreed corrections, signed off, 2 Codex points), its second editor
+  is gpt-6-astra, not sol; that gives back about USD 0.40 of the USD 0.90
+  a book that sol saves over astra. Sol as the adapter is on trial on
+  Alice's Adventures in Wonderland with the Opus + sol judges, and astra
+  reads the result once, blind, as the independent check; if the levels
+  hold under astra too, sol adapting is a matter of price (about USD 0.95
+  for two levels against USD 1.69), if not, astra stays.

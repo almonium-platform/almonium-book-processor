@@ -180,11 +180,12 @@ OPENAI_TRANSLATION_DRAFT_MODEL = os.getenv("OPENAI_TRANSLATION_DRAFT_MODEL", "gp
 # (catalog/ai_translation.py), and the OPENAI_*_MODEL settings name what each tier and each
 # API-only job runs.
 #
-# A translation's two editors, from different vendors on purpose. GPT-6.1-sol reviews at
-# medium effort: on three chapters it found as much as at high effort, ten of high's eleven
+# A translation's two editors, from different vendors on purpose, and never the model that
+# translated: since gpt-6.1-sol translates, the GPT editor is gpt-6-astra. An editor reads at
+# medium effort: on three chapters sol found as much as at high effort, ten of high's eleven
 # material findings among them, on a quarter of the tokens and in a sixth of the time.
 TRANSLATION_REVIEWERS = os.getenv(
-    "TRANSLATION_REVIEWERS", "claude-code:claude-opus-5-5,codex:gpt-6.1-sol:medium"
+    "TRANSLATION_REVIEWERS", "claude-code:claude-opus-5-5,codex:gpt-6-astra:medium"
 )
 # Windows of a translation its two editors read at a time, when a production has it reviewed.
 TRANSLATION_REVIEW_WORKERS = int(os.getenv("TRANSLATION_REVIEW_WORKERS", "1"))
