@@ -16,6 +16,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from almonium_book_processor.artifact_migrations import migrate_artifact_payload
+from almonium_book_processor.catalog.front_matter import chapter_roles
 from almonium_book_processor.catalog.models import (
     AlignmentGroupReview,
     BlockAlignment,
@@ -392,7 +393,11 @@ def persist_artifact(edition: Edition, artifact: BookArtifact, run: PipelineRun)
             headings[block.chapter] = block.text[:500]
     for number, title in headings.items():
         chapters[number].title = title
-    Chapter.objects.bulk_update(list(chapters.values()), ["title"])
+    # the title page, a dedication, a preface: adapted as far as they go, never the level
+    roles = chapter_roles([chapters[number].title for number in chapter_numbers])
+    for number, role in zip(chapter_numbers, roles, strict=True):
+        chapters[number].analysis_role = role
+    Chapter.objects.bulk_update(list(chapters.values()), ["title", "analysis_role"])
 
     QAWarning.objects.bulk_create(
         [

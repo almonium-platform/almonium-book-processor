@@ -35,6 +35,7 @@ from almonium_book_processor.ai.translation import (
     render_source_block,
     straight_apostrophes,
 )
+from almonium_book_processor.catalog.front_matter import source_role
 from almonium_book_processor.catalog.models import (
     AIRun,
     Chapter,
@@ -487,6 +488,7 @@ def _materialize_chapter(
         edition=edition,
         sequence=chapter_manifest["chapter_sequence"],
         title=(heading.text if heading else chapter_manifest["chapter_title"])[:500],
+        analysis_role=source_role(edition, chapter_manifest["chapter_sequence"]),
     )
     rows = []
     for translated in translation.blocks:

@@ -619,9 +619,12 @@ ones it had.
   held once more on its dedication poem ("All in the golden afternoon"), which
   the rule first read as it stood and then sent to a mender that may not touch
   it. Such a chapter has no level of its own, does not hold the book and is
-  never a probe chapter (`adaptation_floor.probe_sample`). Front matter is
-  still tagged by hand (`analysis_role`); the title pages and dedications of
-  every book here are untitled leading chapters, so tagging them at ingest is
-  the natural next step.
+  never a probe chapter (`adaptation_floor.probe_sample`). Nobody tags front
+  matter by hand any more: ingest reads the chapter roles off the titles
+  (`catalog/front_matter.py`): the story runs from the first to the last
+  chapter with a story title, numbered or at least not a word for the matter
+  around a book; untitled chapters and prefaces before it are front matter,
+  notes after it back matter. Editions made from a source copy its roles;
+  `manage.py chapter_roles` retags what exists.
   The uk translation by sol was signed off in twelve minutes with 19 agreed
   corrections; the whole production cost USD 0.47.
