@@ -349,6 +349,10 @@ def _finish_normalized_pipeline(edition: Edition) -> None:
         else Edition.Status.READY
     )
     edition.save(update_fields=["status", "updated_at"])
+    if edition.status != Edition.Status.FAILED:
+        from almonium_book_processor.catalog.factory import continue_production
+
+        continue_production(edition)
 
 
 @shared_task(bind=True, acks_late=True)

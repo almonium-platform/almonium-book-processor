@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+from almonium_book_processor.catalog.adaptation_floor import PROBE_LEVELS
 from almonium_book_processor.catalog.models import (
     ContentBlock,
     Edition,
@@ -238,9 +239,18 @@ class SourceIngestSerializer(serializers.Serializer):
     publication_year = serializers.IntegerField(
         min_value=1, max_value=9999, required=False, allow_null=True
     )
+    # what the factory makes of the text once it is on the shelf; nothing when absent
+    levels = serializers.ListField(
+        child=serializers.ChoiceField(choices=PROBE_LEVELS), required=False, default=list
+    )
+    languages = serializers.ListField(
+        child=serializers.ChoiceField(choices=LANGUAGE_CHOICES), required=False, default=list
+    )
 
     def validate(self, attrs):
         errors = {}
+        if attrs["language"] in attrs.get("languages", []):
+            errors["languages"] = "A translation is into another language than the text's."
         for field, check in (
             ("download_url", check_download_url),
             ("source_page_url", check_page_url),

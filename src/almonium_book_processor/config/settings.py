@@ -280,6 +280,22 @@ CODEX_WORKERS = int(os.getenv("CODEX_WORKERS", "4"))
 # on them, separated by commas. Empty is the one account the process itself would use. A
 # worker uses the one account of each plan its own environment names.
 CODEX_HOMES = [home.strip() for home in os.getenv("CODEX_HOMES", "").split(",") if home.strip()]
+
+# The factory: the host's timer starts the next wanted book while the plan accounts have room
+# (catalog/factory.py). Off unless this host makes the books.
+FACTORY_ENABLED = env_bool("FACTORY_ENABLED", False)
+# books under way at once, from download to promotion
+FACTORY_MAX_PRODUCTIONS = int(os.getenv("FACTORY_MAX_PRODUCTIONS", "2"))
+# the share of each plan's week left untouched for the owner's own work
+FACTORY_RESERVE_PERCENT = int(os.getenv("FACTORY_RESERVE_PERCENT", "15"))
+# the levels made of a book wanted in its own language
+FACTORY_LEVELS = [
+    level.strip().upper()
+    for level in os.getenv("FACTORY_LEVELS", "B2,B1").split(",")
+    if level.strip()
+]
+# the promotion target the finished editions are published to; empty stops at the verdict
+FACTORY_PROMOTE_TO = os.getenv("FACTORY_PROMOTE_TO", "")
 CLAUDE_CONFIG_DIRS = [
     path.strip() for path in os.getenv("CLAUDE_CONFIG_DIRS", "").split(",") if path.strip()
 ]

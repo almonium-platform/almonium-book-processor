@@ -348,6 +348,11 @@ class SourceDownload(TimestampedModel):
     # The product API's id for the request; unique, so two identical requests
     # racing each other make one edition.
     external_id = models.UUIDField(unique=True)
+    # What to make once the text is on the shelf, {"levels": [...], "languages": [...]};
+    # empty for an ingest that stops at the shelf.
+    production = models.JSONField(default=dict, blank=True)
+    # Whether Almonium has been told the book is finished (the factory reports until then).
+    reported_final = models.BooleanField(default=False)
     source_kind = models.CharField(max_length=20, choices=Kind.choices)
     source_page_url = models.URLField(max_length=1000)
     download_url = models.URLField(max_length=1000)

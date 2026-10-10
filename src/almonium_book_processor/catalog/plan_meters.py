@@ -25,7 +25,11 @@ class PlanMeter:
 
     @property
     def provider_label(self) -> str:
-        return PROVIDER_LABELS.get(self.provider, self.provider)
+        return self.label(self.provider)
+
+    @staticmethod
+    def label(provider: str) -> str:
+        return PROVIDER_LABELS.get(provider, provider)
 
     @property
     def week_usd(self) -> Decimal:

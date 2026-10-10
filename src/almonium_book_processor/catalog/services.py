@@ -226,8 +226,13 @@ def create_source_ingest(
     author: str,
     language: str,
     publication_year: int | None = None,
+    levels: list[str] | None = None,
+    languages: list[str] | None = None,
 ) -> tuple[Edition, bool]:
     """Seed a public catalogue edition whose text a worker fetches from a free library.
+
+    ``levels`` and ``languages`` name what to make of the text once it is on the shelf; the
+    factory (``catalog/factory.py``) starts that production when the shelf pipeline ends.
 
     The edition exists at once, without a file, so the product API can watch
     it; ``tasks.download_source_edition`` fetches the EPUB, attaches it and
@@ -262,6 +267,11 @@ def create_source_ingest(
                 source_kind=source_kind,
                 source_page_url=source_page_url,
                 download_url=download_url,
+                production=(
+                    {"levels": list(levels or []), "languages": list(languages or [])}
+                    if levels or languages
+                    else {}
+                ),
             )
             transaction.on_commit(lambda: download_source_edition.delay(str(edition.id)))
     except IntegrityError:

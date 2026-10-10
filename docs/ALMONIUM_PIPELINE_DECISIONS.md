@@ -628,3 +628,18 @@ ones it had.
   `manage.py chapter_roles` retags what exists.
   The uk translation by sol was signed off in twelve minutes with 19 agreed
   corrections; the whole production cost USD 0.47.
+
+## 16. The factory lives where the plans are
+
+Readers want books and Almonium ranks the wants; the writers and judges run on
+the owner's Codex and Claude plans, which are signed in on one host. A
+scheduler in the backend would have to ask its own processor to make the book,
+and that processor has no plan workers, so the loop is driven from the host
+instead (`catalog/factory.py`, a timer every fifteen minutes): it reads its
+own plan meters, asks Almonium for the queue, reserves a row, fetches the free
+text, runs the production and promotes the result, pushing the progress back
+to Almonium as it goes. Almonium's part is three signed internal calls
+(`/internal/books/factory/*`) and a `reporter` column on preparations so the
+rows it is not polling are left alone. Two books at once and a 15% reserve of
+every plan's week are the starting settings; the reserve is what keeps the
+owner's own sessions from hitting the limit.

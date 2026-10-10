@@ -52,6 +52,20 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   last reading of each as "Plans this week", marked stale when the timer
   has not run for an hour.
 
+- **The factory** (`catalog/factory.py`) is a second timer `install` puts on
+  the host, every fifteen minutes: `manage.py factory_tick`. A tick tells
+  Almonium how every book under way is getting on (the signed internal
+  surface, `ALMONIUM_API_URL` + `ALMONIUM_BOOKS_PUBLISHER_TOKEN`), and if
+  fewer than `FACTORY_MAX_PRODUCTIONS` books are between download and
+  promotion and every plan has more than `FACTORY_RESERVE_PERCENT` of its
+  week left, asks Almonium for the wanted queue, reserves the first row with
+  a free text the processor reads and ingests it; once the text is on the
+  shelf the production is queued (`FACTORY_LEVELS` where the book is wanted
+  in its own language, else a translation into the wanted language) and the
+  finished editions are promoted and published to `FACTORY_PROMOTE_TO`.
+  `FACTORY_ENABLED=false` (the default) keeps the tick to reporting. The
+  books it makes show on the catalogue page like any other production.
+
 - Chapter pilots, floor probes and whole-book adaptations are then sent to the
   `plans` queue. The container worker never takes that queue, because the
   Claude Code and Codex CLIs are signed in on the host and not in the

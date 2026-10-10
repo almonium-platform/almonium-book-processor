@@ -78,8 +78,32 @@ OnUnitActiveSec=15min
 [Install]
 WantedBy=timers.target
 UNIT
+    # every quarter of an hour the factory reports its books to Almonium and starts the next
+    # wanted one if the plans have room (FACTORY_ENABLED in .env; off, the tick only reports)
+    cat > "$config/systemd/user/almonium-factory.service" <<UNIT
+[Unit]
+Description=Almonium book processor: one pass of the factory
+After=almonium-plan-meter.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=$repo
+Environment=PATH=$PATH
+ExecStart=$repo/plan-manage factory_tick
+UNIT
+    cat > "$config/systemd/user/almonium-factory.timer" <<UNIT
+[Unit]
+Description=Almonium book processor: run the factory every 15 minutes
+
+[Timer]
+OnBootSec=4min
+OnUnitActiveSec=15min
+
+[Install]
+WantedBy=timers.target
+UNIT
     systemctl --user daemon-reload
-    systemctl --user enable --now "$unit" almonium-plan-meter.timer
+    systemctl --user enable --now "$unit" almonium-plan-meter.timer almonium-factory.timer
     # without lingering, a user's services start at login and stop at logout
     loginctl show-user "$USER" -p Linger | grep -q "=yes" ||
       echo "Starts at login. To start it at boot: sudo loginctl enable-linger $USER"
@@ -90,9 +114,10 @@ UNIT
     systemctl --user disable --now "$unit" || true
     rm -f "$config/almonium/plan-worker-$name.env"
     if [ -z "$(units)" ]; then
-      systemctl --user disable --now almonium-plan-meter.timer || true
+      systemctl --user disable --now almonium-plan-meter.timer almonium-factory.timer || true
       rm -f "$file" "$config/systemd/user/almonium-plan-meter.service" \
-        "$config/systemd/user/almonium-plan-meter.timer"
+        "$config/systemd/user/almonium-plan-meter.timer" \
+        "$config/systemd/user/almonium-factory.service" "$config/systemd/user/almonium-factory.timer"
     fi
     systemctl --user daemon-reload
     ;;
