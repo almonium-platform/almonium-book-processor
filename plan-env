@@ -19,6 +19,8 @@ while IFS= read -r line || [ -n "$line" ]; do
   export "$key=$value"
 done < .env
 
-# The stack's database and broker as the host reaches them, not by their container names.
+# The stack's database, broker and the Almonium backend as the host reaches them, not by the
+# names only a container resolves (the rights check asks the backend before a book is made).
+export ALMONIUM_API_URL="${ALMONIUM_API_URL//host.docker.internal/localhost}"
 export DATABASE_URL="postgresql://almonium_books:almonium_books@localhost:5433/almonium_books"
 export CELERY_BROKER_URL="amqp://almonium_books:almonium_books@localhost:5673/almonium_books"
