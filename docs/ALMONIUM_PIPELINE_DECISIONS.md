@@ -614,7 +614,14 @@ ones it had.
   out of a chapter's level, or let a B1 adapter rewrite or cut verse with a
   note. The owner chose the first: an adaptation's judges read its chapters
   without the protected verse (`ContentBlock.PROTECTED_VERSE`,
-  `chapter_analysis.judged_blocks`), a chapter that is only verse being read
-  as it is; an original is still read whole.
+  `chapter_analysis.judged_blocks`); an original is still read whole.
+  A chapter that is only verse has nothing for the judges: Alice's B1 was
+  held once more on its dedication poem ("All in the golden afternoon"), which
+  the rule first read as it stood and then sent to a mender that may not touch
+  it. Such a chapter has no level of its own, does not hold the book and is
+  never a probe chapter (`adaptation_floor.probe_sample`). Front matter is
+  still tagged by hand (`analysis_role`); the title pages and dedications of
+  every book here are untitled leading chapters, so tagging them at ingest is
+  the natural next step.
   The uk translation by sol was signed off in twelve minutes with 19 agreed
   corrections; the whole production cost USD 0.47.

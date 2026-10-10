@@ -1259,6 +1259,6 @@ def test_an_adaptation_is_judged_without_its_protected_verse(edition):
     chapter = edition.chapters.get(sequence=1)
     # an adaptation's kept poem is the original's by rule and does not set the level
     assert [b["block_id"] for b in chapter_blocks(chapter)] == ["c1.p1"]
-    # a chapter that is only verse is read as it is
+    # a chapter that is only verse, a dedication poem, has nothing for the judges to read
     verse = [{"block_id": "c2.vs1", "type": "verse_line", "text": "Twinkle, twinkle"}]
-    assert judged_blocks(verse, adaptation=True) == verse
+    assert judged_blocks(verse, adaptation=True) == []

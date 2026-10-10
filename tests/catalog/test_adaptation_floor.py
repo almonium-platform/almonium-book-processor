@@ -346,6 +346,12 @@ def test_probe_samples_first_middle_and_last_substantive_chapters(source):
     assert [c.sequence for c in probe_sample(source)] == [1, 3, 4]
 
 
+def test_probe_never_samples_a_chapter_that_is_only_verse(source):
+    # a dedication poem is kept whole by rule: the probe could not adapt it
+    source.blocks.filter(chapter__sequence=1).update(block_type="verse_line")
+    assert [c.sequence for c in probe_sample(source)] == [2, 3, 4]
+
+
 def test_probe_passes_when_the_judge_is_at_target_and_the_audit_is_clean(source):
     with pytest.raises(ValueError, match="Reach the level above first"):
         queue_probe(source.id, "B1")

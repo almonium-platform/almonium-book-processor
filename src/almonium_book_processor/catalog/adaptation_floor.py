@@ -40,7 +40,7 @@ from almonium_book_processor.catalog.fidelity_audit import (
     auditor_label,
     fidelity_gate,
 )
-from almonium_book_processor.catalog.models import Chapter, Edition, PipelineRun, Work
+from almonium_book_processor.catalog.models import Chapter, ContentBlock, Edition, PipelineRun, Work
 from almonium_book_processor.catalog.pilot_difficulty import (
     assess_pilot,
     judge_label,
@@ -191,8 +191,9 @@ def probe_sample(edition: Edition) -> list[Chapter]:
 
     def fits(chapter: Chapter) -> bool:
         blocks = list(chapter.blocks.all())
+        # a chapter that is only verse is kept whole by rule and tells the probe nothing
         return (
-            any(b.text.strip() for b in blocks)
+            any(b.text.strip() for b in blocks if b.block_type not in ContentBlock.PROTECTED_VERSE)
             and len(blocks) <= MAX_BLOCKS
             and sum(len(b.text) for b in blocks) <= MAX_CHARS
         )

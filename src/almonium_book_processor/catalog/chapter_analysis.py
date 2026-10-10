@@ -151,12 +151,15 @@ def chapter_blocks(chapter: Chapter) -> list[dict]:
 
 
 def judged_blocks(blocks: list[dict], *, adaptation: bool) -> list[dict]:
-    """The blocks an adaptation's judges read: all of them but the protected verse."""
+    """The blocks an adaptation's judges read: all of them but the protected verse.
+
+    A chapter that is only verse, a dedication poem, is kept whole by rule, so there is nothing
+    in it for the judges to read: it has no level of its own and does not hold the book.
+    """
 
     if not adaptation:
         return blocks
-    prose = [block for block in blocks if block["type"] not in ContentBlock.PROTECTED_VERSE]
-    return prose or blocks
+    return [block for block in blocks if block["type"] not in ContentBlock.PROTECTED_VERSE]
 
 
 def window_parts(blocks: list[dict], window_bytes: int) -> list[list[dict]]:
