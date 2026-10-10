@@ -8,6 +8,7 @@ when a source is ingested and copied to every edition made from it.
 
 from __future__ import annotations
 
+import contextlib
 import re
 
 from almonium_book_processor.catalog.models import Chapter, Edition
@@ -75,10 +76,11 @@ def retag(edition: Edition) -> int:
     """Set the edition's chapter roles afresh; returns how many chapters changed.
 
     An original is read from its titles; an edition made from a source copies the source's.
-    A changed role retires the edition's book projection, as the editor's own change does.
+    A changed role retires the edition's book projection and, where the text has been read,
+    has it recomputed from the readings: no judge reads again.
     """
 
-    from almonium_book_processor.catalog.chapter_projections import KINDS
+    from almonium_book_processor.catalog.chapter_projections import KINDS, queue_projection_refresh
 
     chapters = list(edition.chapters.order_by("sequence"))
     if edition.source_edition_id:
@@ -95,4 +97,7 @@ def retag(edition: Edition) -> int:
         edition.artifacts.filter(kind=KINDS[0], chapter__isnull=True, is_current=True).update(
             is_current=False
         )
+        # not read yet: the first reading projects it
+        with contextlib.suppress(ValueError):
+            queue_projection_refresh(str(edition.id))
     return len(changed)
