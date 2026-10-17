@@ -80,3 +80,25 @@ def test_a_long_field_in_the_wrong_language_is_still_rejected():
 
     with pytest.raises(OutputLanguageError):
         validate_output_language([EN, EN, german], "en")
+
+
+def test_a_title_page_set_in_capitals_is_not_judged():
+    # Candide's title page, translated: names, an address and roman numerals, read as French
+    # (and once as Lao) by the detector however it is reworded.
+    page = [
+        "WORKS\nOF\nVOLTAIRE.",
+        "VOLUME XXXIII",
+        "PREFACES, NOTICES, NOTES, ETC.\nBY M. BEUCHOT.",
+        "PARIS,\nLEFÈVRE, BOOKSELLER,\nRUE DE L'ÉPERON, No 6.",
+        "MDCCCXXIX.",
+    ]
+    validate_output_language(page, "en")
+    # the same words as prose are still held to the gate
+    with pytest.raises(OutputLanguageError):
+        validate_output_language(
+            [
+                "Les œuvres de Voltaire furent imprimées à Paris chez Lefèvre, "
+                "libraire rue de l'Éperon."
+            ],
+            "en",
+        )

@@ -29,6 +29,12 @@ MIN_ASSESSABLE_LETTERS = 40
 # together, was English at 1.0. A field in the wrong language is rarely that short; a short
 # one still counts in the text judged together.
 MIN_FIELD_LETTERS = 100
+# Text set in capitals is a title page, a dedication or a list of names and addresses, not
+# prose: the detector read Candide's English title page ("WORKS OF VOLTAIRE ... PARIS, LEFÈVRE,
+# BOOKSELLER") as French at 0.54 and once as Lao at 0.94, and a second translation of the
+# same page can only come back the same. Above this share of capitals the sample is not
+# assessable; the structural and exact-copy checks on it still apply.
+MAX_CAPITALS_SHARE = 0.6
 
 
 @lru_cache(maxsize=1)
@@ -69,10 +75,15 @@ def _classify(text: str, expected: str) -> tuple[str, float]:
     return first.language.iso_code_639_1.name.lower(), first.value
 
 
+def _set_in_capitals(text: str) -> bool:
+    letters = [c for c in text if c.isalpha()]
+    return bool(letters) and sum(c.isupper() for c in letters) / len(letters) >= MAX_CAPITALS_SHARE
+
+
 def validate_output_language(texts: list[str], language: str) -> None:
     expected = normalize_language_code(language)
     prose = [text.strip() for text in texts if text.strip()]
-    if not prose:
+    if not prose or _set_in_capitals("\n".join(prose)):
         return
     candidates = ["\n".join(prose)]
     if len(prose) > 1:
