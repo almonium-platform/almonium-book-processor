@@ -8,7 +8,6 @@ import pytest
 
 from almonium_book_processor.catalog.models import Work
 from almonium_book_processor.config.db_routers import LexiconRouter
-from almonium_book_processor.config.settings import lexicon_database
 
 SETTINGS_FILE = (
     Path(__file__).resolve().parents[1]
@@ -52,13 +51,10 @@ def test_settings_add_a_read_only_lexicon_alias_from_the_variable(monkeypatch):
     assert lexicon["PASSWORD"] == "p@ss"
     assert lexicon["HOST"] == "pgbouncer"
     assert lexicon["PORT"] == 6432
-    assert lexicon["OPTIONS"]["options"] == "-c default_transaction_read_only=on"
+    # the read-only session is the role's, server side: PgBouncer refuses a startup option
+    assert "options" not in lexicon.get("OPTIONS", {})
     assert lexicon["CONN_MAX_AGE"] == 60
     assert loaded.DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3"
-
-
-def test_the_read_only_option_is_postgres_only():
-    assert "OPTIONS" not in lexicon_database("sqlite:///lexicon.sqlite3")
 
 
 @pytest.fixture
