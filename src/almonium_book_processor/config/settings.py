@@ -73,6 +73,32 @@ DATABASES = {
     )
 }
 
+# The backend's dictionary: its `lexicon` schema in the backend database of the same
+# environment, read through a role infra grants SELECT on that schema and nothing else
+# (almonium-infra, postgres_reader_grants). Ingest resolves lexeme and sense ids there in
+# bulk. This service never writes or migrates it: config/db_routers.py refuses both, and the
+# role is read-only on the server (default_transaction_read_only is set on the role itself,
+# because PgBouncer's transaction pooling drops a per-connection startup option). The alias
+# exists only where the variable is set, so a laptop or CI without a backend runs as before.
+LEXICON_DATABASE_ALIAS = "lexicon"
+LEXICON_DATABASE_URL = os.getenv("LEXICON_DATABASE_URL", "")
+
+
+def lexicon_database(url: str) -> dict:
+    """The Django database entry for the read-only lexicon connection."""
+    database = dj_database_url.parse(url, conn_max_age=60, conn_health_checks=True)
+    if database["ENGINE"] == "django.db.backends.postgresql":
+        # A direct connection (no pooler) is also read-only from the client's side.
+        options = database.setdefault("OPTIONS", {})
+        options["options"] = "-c default_transaction_read_only=on"
+    return database
+
+
+if LEXICON_DATABASE_URL:
+    DATABASES[LEXICON_DATABASE_ALIAS] = lexicon_database(LEXICON_DATABASE_URL)
+
+DATABASE_ROUTERS = ["almonium_book_processor.config.db_routers.LexiconRouter"]
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
