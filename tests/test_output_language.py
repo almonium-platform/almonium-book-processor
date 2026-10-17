@@ -102,3 +102,24 @@ def test_a_title_page_set_in_capitals_is_not_judged():
             ],
             "en",
         )
+
+
+def test_a_quotation_in_a_third_language_is_kept_when_the_source_is_named():
+    english = [
+        "The old man looked up from the book he had been reading by the window all afternoon.",
+        "He read the verse aloud, slowly, as he had learned it as a boy at the seminary school.",
+        "Beati pauperes spiritu, quoniam ipsorum est regnum caelorum; beati mites, quoniam "
+        "ipsi possidebunt terram; beati qui lugent, quoniam ipsi consolabuntur.",
+        "Then he closed the book and sat for a while without speaking to anyone in the house.",
+    ]
+    # the Latin verse alone reads as Italian or Latin, and without a source named it fails
+    with pytest.raises(OutputLanguageError, match="sample 1"):
+        validate_output_language(english, "en")
+    validate_output_language(english, "en", source_language="es")
+    # a field left in the source language is still refused
+    untranslated = english[:2] + [
+        "El anciano cerró el libro y se quedó un rato sin hablar con nadie de la casa, "
+        "mirando por la ventana la plaza vacía del pueblo."
+    ]
+    with pytest.raises(OutputLanguageError, match="es"):
+        validate_output_language(untranslated, "en", source_language="es")

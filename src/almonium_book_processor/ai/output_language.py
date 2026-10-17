@@ -80,8 +80,21 @@ def _set_in_capitals(text: str) -> bool:
     return bool(letters) and sum(c.isupper() for c in letters) / len(letters) >= MAX_CAPITALS_SHARE
 
 
-def validate_output_language(texts: list[str], language: str) -> None:
+def validate_output_language(
+    texts: list[str], language: str, *, source_language: str | None = None
+) -> None:
+    """Refuse prose that is not in the expected language.
+
+    The whole text must read as the expected language. A long field judged on its own is
+    refused when it reads as another language; with ``source_language`` named, as a
+    translation names the language it came from, a lone field is refused only when it reads
+    as that source, left untranslated. A field in a third language is then a quotation the
+    text carries by right: Marianela's English translation was refused on a Latin passage
+    read as Latin at 1.000.
+    """
+
     expected = normalize_language_code(language)
+    source = normalize_language_code(source_language) if source_language else None
     prose = [text.strip() for text in texts if text.strip()]
     if not prose or _set_in_capitals("\n".join(prose)):
         return
@@ -97,6 +110,8 @@ def validate_output_language(texts: list[str], language: str) -> None:
         # the expected language with confidence; one block of it, short and without the
         # letters that tell Ukrainian from Russian, need only be read as that language: a
         # chapter of Wuthering Heights was refused on one such block read as Ukrainian at 0.79.
+        if index > 0 and source is not None and detected not in {expected, source}:
+            continue
         if detected != expected or (index == 0 and confidence < 0.8):
             raise OutputLanguageError(
                 f"Generated prose did not validate as {expected}: sample {index}, "

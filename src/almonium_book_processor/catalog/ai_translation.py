@@ -421,9 +421,21 @@ def _validate_chapter(
                 raise ValueError(f"Block {block.block_id} was copied in the source language")
             prose.append(block.text)
         # A chapter made of a single short caption cannot be identified
-        # reliably; structural and exact-copy checks still apply to it.
-        if sum(char.isalpha() for text in prose for char in text) >= 40:
-            validate_output_language(prose, target_language)
+        # reliably; structural and exact-copy checks still apply to it. A title page,
+        # dedication or notes page is names, places and dates in any language (Marianela's
+        # read as Latin at 0.998), so the matter around the story is not judged either.
+        role = (
+            source_edition.chapters.filter(sequence=chapter_manifest["chapter_sequence"])
+            .values_list("analysis_role", flat=True)
+            .first()
+        )
+        if (
+            role in (None, Chapter.AnalysisRole.BODY)
+            and sum(char.isalpha() for text in prose for char in text) >= 40
+        ):
+            validate_output_language(
+                prose, target_language, source_language=source_edition.language
+            )
 
 
 def _estimated_cost(
