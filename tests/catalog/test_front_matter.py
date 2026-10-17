@@ -54,6 +54,14 @@ def test_a_numbered_chapter_is_the_story_whatever_it_is_called():
     assert chapter_roles(titles) == ["front"] * 3 + ["body"] * 4 + ["back"]
 
 
+def test_titled_publisher_pages_before_the_first_numbered_chapter_are_front_matter():
+    # Candide from Gutenberg: two title pages and the editor's preface, then CHAPITRE I
+    titles = ["OEUVRES", "Préface de l’Éditeur", "CANDIDE,", "CHAPITRE I. Comment Candide fut"]
+    assert chapter_roles(titles) == ["front", "front", "front", "body"]
+    # a book whose chapters are titled, never numbered, keeps every titled chapter
+    assert chapter_roles(["LE CRIME AU PÈRE BONIFACE", "ROSE", "LE PÈRE"]) == ["body"] * 3
+
+
 def test_a_book_of_bare_numerals_or_without_titles_is_all_story():
     assert chapter_roles(["I", "II", "III"]) == ["body"] * 3
     assert chapter_roles(["", "", ""]) == ["body"] * 3

@@ -39,12 +39,18 @@ def chapter_roles(titles: list[str]) -> list[str]:
     any title that is not a word for the matter around a book. Untitled chapters and
     prefaces before the story are front matter, notes after it back matter. An untitled
     chapter inside the story is the story's. A book with no story title is all story.
+
+    When the book numbers its chapters, the story begins at the first numbered one: the
+    publisher's pages before it carry titles that are no word for matter ("OEUVRES DE
+    VOLTAIRE", "CANDIDE, OU L'OPTIMISME" on Candide's title pages), and they would otherwise
+    count as the story and be held to its level.
     """
 
     story = [_is_story(title) for title in titles]
     if not any(story):
         return [Chapter.AnalysisRole.BODY] * len(titles)
-    first = story.index(True)
+    numbered = [bool(NUMBERED.match(title.strip())) for title in titles]
+    first = numbered.index(True) if any(numbered) else story.index(True)
     last = len(story) - 1 - story[::-1].index(True)
     return [
         Chapter.AnalysisRole.FRONT
