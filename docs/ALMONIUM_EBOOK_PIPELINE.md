@@ -50,7 +50,14 @@ is a first-class curated-catalogue input.** Both normalize into the same block
 schema. Reasons:
 
 1. It is structured. Spine order, chapter boundaries, and metadata are declared
-   rather than inferred from `<h2>` heuristics.
+   rather than inferred from `<h2>` heuristics. One exception stays: Project
+   Gutenberg's EPUBs saw a book into spine documents by size (about 150,000
+   characters each), not by chapter, so `ingest/chapter_split.py` cuts a long
+   document at its `h1`–`h3` headings and chapter-label paragraphs
+   (`CAPÍTULO I`, `II.`), and joins a file that opens mid-chapter to the
+   chapter before it. The adapter reports every cut as a
+   `spine_document_split` notice and a 60,000-character document it could not
+   cut as a `long_document_unsplit` warning.
 2. **It is the same code path as user uploads.** Every hour spent hardening
    EPUB ingestion serves both your catalogue and your premium import feature.
    HTML scraping serves only you.

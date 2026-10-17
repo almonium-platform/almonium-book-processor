@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import pytest
 from ebooklib import epub
 
@@ -365,3 +367,219 @@ def test_a_wikisource_disambiguation_page_is_refused(tmp_path, listing) -> None:
             edition_slug="corbeau-fr-orig",
             work_slug="corbeau",
         )
+
+
+def _one_document_epub(tmp_path, content: str, *, name: str = "book.xhtml") -> str:
+    """An EPUB whose whole text sits in one spine document, as Gutenberg's do."""
+
+    source = tmp_path / "one-document.epub"
+    book = epub.EpubBook()
+    book.set_identifier("urn:test:one-document")
+    book.set_title("One Document")
+    book.set_language("es")
+    book.add_author("Ada Author")
+    document = epub.EpubHtml(title="Text", file_name=name, lang="es")
+    document.content = content
+    book.add_item(document)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", document]
+    epub.write_epub(source, book)
+    return str(source)
+
+
+def _prose(words: int, seed: str = "palabra") -> str:
+    return " ".join(f"{seed}{index}" for index in range(words)) + "."
+
+
+def _chapters(artifact) -> dict[int, list]:
+    chapters: dict[int, list] = {}
+    for block in artifact.blocks:
+        chapters.setdefault(block.chapter, []).append(block)
+    return chapters
+
+
+def test_a_document_with_three_h2_chapters_is_split_at_them(tmp_path) -> None:
+    content = "<h1>Marianela</h1><p>Por Benito Pérez Galdós</p>" + "".join(
+        f'<h2 id="c{number}">-{numeral}- Capítulo</h2><p>{_prose(300)}</p><p>{_prose(300)}</p>'
+        for number, numeral in enumerate(("I", "II", "III"), start=1)
+    )
+
+    artifact = ingest_epub(
+        _one_document_epub(tmp_path, content), edition_slug="h2-es-orig", work_slug="h2"
+    )
+
+    chapters = _chapters(artifact)
+    assert [chapter[0].text for chapter in chapters.values()] == [
+        "Marianela",
+        "-I- Capítulo",
+        "-II- Capítulo",
+        "-III- Capítulo",
+    ]
+    # The heading is the chapter's title block and nothing else: no repeat as a paragraph.
+    assert [block.type for block in chapters[1]] == [
+        BlockType.HEADING,
+        BlockType.PARAGRAPH,
+        BlockType.PARAGRAPH,
+    ]
+    assert chapters[1][0].source_ref == "book.xhtml#c1"
+    assert [block.block_id for block in chapters[2]] == ["c2.h1", "c2.p2", "c2.p3"]
+    split = [w for w in artifact.warnings if w.code == "spine_document_split"]
+    assert len(split) == 1
+    assert split[0].source_ref == "book.xhtml"
+    assert split[0].chapter == 0
+    assert "into 4 chapters" in split[0].message
+    assert ingestion_warning_severity("spine_document_split") == IngestionWarningSeverity.INFO
+
+
+def test_paragraph_chapter_labels_split_and_title_the_chapters(tmp_path) -> None:
+    content = (
+        f"<p>{_prose(200, 'prefacio')}</p>"
+        f"<p>CAPÍTULO I</p><p>{_prose(300)}</p>"
+        f"<p>CAPÍTULO II</p><p>{_prose(300)}</p>"
+        f"<p>Capítulo III. La vuelta</p><p>{_prose(300)}</p>"
+    )
+
+    artifact = ingest_epub(
+        _one_document_epub(tmp_path, content), edition_slug="label-es-orig", work_slug="label"
+    )
+
+    chapters = _chapters(artifact)
+    assert len(chapters) == 4
+    # Untitled preface material before the first label is a chapter of its own.
+    assert [block.type for block in chapters[0]] == [BlockType.PARAGRAPH]
+    assert [chapters[n][0].text for n in (1, 2, 3)] == [
+        "CAPÍTULO I",
+        "CAPÍTULO II",
+        "Capítulo III. La vuelta",
+    ]
+    assert all(chapters[n][0].type == BlockType.HEADING for n in (1, 2, 3))
+    assert all(len(chapters[n]) == 2 for n in (1, 2, 3))
+
+
+def test_a_short_document_with_one_heading_is_not_split(tmp_path) -> None:
+    content = f"<p>{_prose(60, 'intro')}</p><h2>Eins</h2><p>{_prose(120)}</p>"
+
+    artifact = ingest_epub(
+        _one_document_epub(tmp_path, content), edition_slug="short-es-orig", work_slug="short"
+    )
+
+    assert {block.chapter for block in artifact.blocks} == {0}
+    assert not any(w.code == "spine_document_split" for w in artifact.warnings)
+
+
+def test_a_title_page_with_several_headings_is_not_split(tmp_path) -> None:
+    content = (
+        "<h3>OEUVRES</h3><h5>DE VOLTAIRE</h5><p class='center'>RUE JACOB</p>"
+        "<h3>OEUVRES</h3><p class='center'>RUE DU BATTOIR</p>"
+        "<h1>CANDIDE,</h1><h5>OU L'OPTIMISME</h5>"
+    )
+
+    artifact = ingest_epub(
+        _one_document_epub(tmp_path, content), edition_slug="title-fr-orig", work_slug="title"
+    )
+
+    assert {block.chapter for block in artifact.blocks} == {0}
+
+
+def test_verse_inside_a_chapter_stays_whole(tmp_path) -> None:
+    poem = (
+        '<div class="poem"><h3>Canción</h3>'
+        + "".join(f"<p>verso {index}<br/>otro verso {index}</p>" for index in range(40))
+        + "</div>"
+    )
+    content = (
+        f"<h2>I</h2><p>{_prose(2000)}</p>{poem}<p>{_prose(2000)}</p>"
+        f"<h2>II</h2><p>{_prose(2000)}</p>"
+    )
+
+    artifact = ingest_epub(
+        _one_document_epub(tmp_path, content), edition_slug="verse-es-orig", work_slug="verse"
+    )
+
+    chapters = _chapters(artifact)
+    assert [chapter[0].text for chapter in chapters.values()] == ["I", "II"]
+    first = chapters[0]
+    assert any(block.type == BlockType.VERSE_LINE for block in first)
+    # The poem's own heading and every verse line sit inside chapter I, with prose on both sides.
+    types = [block.type for block in first]
+    assert types[0] == BlockType.HEADING and types[1] == BlockType.PARAGRAPH
+    assert types[-1] == BlockType.PARAGRAPH
+
+
+def test_a_lone_section_numeral_does_not_start_a_chapter(tmp_path) -> None:
+    content = (
+        f"<h2>L'IVROGNE</h2><p>{_prose(2500)}</p><p>II</p><p>{_prose(1500)}</p>"
+        f"<h2>UNE VENDETTA</h2><p>{_prose(2500)}</p>"
+    )
+
+    artifact = ingest_epub(
+        _one_document_epub(tmp_path, content), edition_slug="section-fr-orig", work_slug="section"
+    )
+
+    chapters = _chapters(artifact)
+    assert [chapter[0].text for chapter in chapters.values()] == ["L'IVROGNE", "UNE VENDETTA"]
+    assert "II" in [block.text for block in chapters[0]]
+
+
+def test_a_file_cut_mid_chapter_continues_the_previous_chapter(tmp_path) -> None:
+    source = tmp_path / "cut.epub"
+    book = epub.EpubBook()
+    book.set_identifier("urn:test:cut")
+    book.set_title("Cut Test")
+    book.set_language("fr")
+    book.add_author("Ada Author")
+    first = epub.EpubHtml(title="h-0", file_name="h-0.xhtml", lang="fr")
+    first.content = f"<h2>LE PÈRE</h2><p>{_prose(2500)}</p><h2>LE VIEUX</h2><p>{_prose(2500)}</p>"
+    second = epub.EpubHtml(title="h-1", file_name="h-1.xhtml", lang="fr")
+    second.content = f"<p>{_prose(800, 'suite')}</p><h2>UN LÂCHE</h2><p>{_prose(2500)}</p>"
+    for item in (first, second, epub.EpubNcx(), epub.EpubNav()):
+        book.add_item(item)
+    book.spine = ["nav", first, second]
+    epub.write_epub(source, book)
+
+    artifact = ingest_epub(source, edition_slug="cut-fr-orig", work_slug="cut")
+
+    chapters = _chapters(artifact)
+    assert [chapter[0].text for chapter in chapters.values()] == ["LE PÈRE", "LE VIEUX", "UN LÂCHE"]
+    assert chapters[1][-1].text.startswith("suite0 ")
+    assert chapters[1][-1].source_ref == "h-1.xhtml"
+
+
+def test_a_long_document_without_headings_is_reported(tmp_path) -> None:
+    content = "".join(f"<p>{_prose(1200)}</p>" for _ in range(8))
+
+    artifact = ingest_epub(
+        _one_document_epub(tmp_path, content), edition_slug="long-es-orig", work_slug="long"
+    )
+
+    assert {block.chapter for block in artifact.blocks} == {0}
+    unsplit = [w for w in artifact.warnings if w.code == "long_document_unsplit"]
+    assert len(unsplit) == 1 and unsplit[0].source_ref == "book.xhtml"
+    assert ingestion_warning_severity("long_document_unsplit") == IngestionWarningSeverity.WARNING
+
+
+@pytest.mark.skipif(
+    not os.environ.get("ALMONIUM_TEST_GUTENBERG_EPUB"),
+    reason="set ALMONIUM_TEST_GUTENBERG_EPUB to a downloaded Gutenberg EPUB",
+)
+def test_a_real_gutenberg_epub_yields_readable_chapters() -> None:
+    """Runs only against a file already on disk; CI never downloads a book.
+
+    ALMONIUM_TEST_GUTENBERG_MIN_CHAPTERS and ALMONIUM_TEST_GUTENBERG_MAX_CHAPTER_CHARS
+    tune the expectation for the book at hand (defaults: 3 chapters, 60,000 characters).
+    """
+
+    path = os.environ["ALMONIUM_TEST_GUTENBERG_EPUB"]
+    min_chapters = int(os.environ.get("ALMONIUM_TEST_GUTENBERG_MIN_CHAPTERS", "3"))
+    max_chars = int(os.environ.get("ALMONIUM_TEST_GUTENBERG_MAX_CHAPTER_CHARS", "60000"))
+
+    artifact = ingest_epub(path, edition_slug="real-orig", work_slug="real")
+
+    chapters = _chapters(artifact)
+    assert len(chapters) >= min_chapters
+    sizes = {
+        number: sum(len(block.text) for block in blocks) for number, blocks in chapters.items()
+    }
+    assert max(sizes.values()) <= max_chars, sizes
+    assert not any(w.code == "long_document_unsplit" for w in artifact.warnings)

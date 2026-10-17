@@ -8,6 +8,13 @@ from bs4 import Tag
 from ebooklib import ITEM_COVER, ITEM_DOCUMENT, epub
 
 from almonium_book_processor import __version__
+from almonium_book_processor.ingest.chapter_split import (
+    LONG_DOCUMENT_CHARS,
+    UNSPLIT_DOCUMENT_CHARS,
+    document_length,
+    opens_without_heading,
+    split_at_chapter_headings,
+)
 from almonium_book_processor.ingest.common import (
     BlockBuilder,
     epub_image_resolver,
@@ -122,6 +129,9 @@ def ingest_epub(
         builder.warnings.extend(notices)
     chapter = 0
     cover_images = _cover_image_names(book)
+    # Gutenberg cuts a long book into files by size, mid-chapter; a file that
+    # opens in prose right after a long one continues the chapter it ended in.
+    previous_was_long = False
     for document_name, root in documents:
         if _is_cover_document(root, document_name, cover_images):
             builder.warnings.append(
@@ -133,15 +143,26 @@ def ingest_epub(
                 )
             )
             continue
-        previous_count = len(builder.blocks)
-        extract_blocks(
-            root,
-            chapter=chapter,
-            source_name=document_name,
-            builder=builder,
-            resolve_image=epub_image_resolver(document_name),
-        )
-        if len(builder.blocks) == previous_count:
+        first_chapter = chapter
+        length = document_length(root)
+        continues = previous_was_long and chapter > 0 and opens_without_heading(root)
+        previous_was_long = length > LONG_DOCUMENT_CHARS
+        segments = split_at_chapter_headings(root)
+        for index, segment in enumerate(segments):
+            previous_count = len(builder.blocks)
+            extract_blocks(
+                segment,
+                chapter=chapter - 1 if continues and index == 0 else chapter,
+                source_name=document_name,
+                builder=builder,
+                resolve_image=epub_image_resolver(document_name),
+            )
+            if len(builder.blocks) > previous_count and not (continues and index == 0):
+                chapter += 1
+        produced = chapter - first_chapter
+        if continues and len(segments) == 1:
+            continue
+        if not produced:
             builder.warnings.append(
                 IngestionWarning(
                     code="empty_spine_document",
@@ -150,8 +171,30 @@ def ingest_epub(
                     chapter=chapter,
                 )
             )
-            continue
-        chapter += 1
+        elif len(segments) > 1:
+            builder.warnings.append(
+                IngestionWarning(
+                    code="spine_document_split",
+                    message=(
+                        f"Split a {length:,}-character document into {produced} chapters"
+                        " at its chapter headings"
+                    ),
+                    source_ref=document_name,
+                    chapter=first_chapter,
+                )
+            )
+        elif length > UNSPLIT_DOCUMENT_CHARS:
+            builder.warnings.append(
+                IngestionWarning(
+                    code="long_document_unsplit",
+                    message=(
+                        f"A {length:,}-character document stayed one chapter: no chapter"
+                        " heading was found to split it at"
+                    ),
+                    source_ref=document_name,
+                    chapter=first_chapter,
+                )
+            )
 
     if not builder.blocks:
         raise ValueError("EPUB contains no supported content blocks")
