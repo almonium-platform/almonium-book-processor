@@ -25,7 +25,7 @@ from almonium_book_processor.ai.claude_code_provider import ClaudeCodeProvider
 from almonium_book_processor.ai.cli_calls import spent_by
 from almonium_book_processor.ai.codex_provider import CodexProvider
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
-from almonium_book_processor.ai.output_language import validate_output_language
+from almonium_book_processor.ai.output_language import set_in_capitals, validate_output_language
 from almonium_book_processor.ai.pricing import call_cost
 from almonium_book_processor.ai.translation import (
     TRANSLATION_OUTPUT_SCHEMA,
@@ -406,6 +406,16 @@ def _validate_chapter(
         source = {
             block.block_id: block for block in source_edition.blocks.filter(block_id__in=expected)
         }
+        # A title page, dedication or notes page is names, places and dates that read the
+        # same in every language: Der Schimmelreiter's and Pinocchio's publisher lines came
+        # back unchanged and were refused as copied, and Marianela's title page read as Latin
+        # at 0.998. The matter around the story keeps only the structural checks.
+        role = (
+            source_edition.chapters.filter(sequence=chapter_manifest["chapter_sequence"])
+            .values_list("analysis_role", flat=True)
+            .first()
+        )
+        story = role in (None, Chapter.AnalysisRole.BODY)
         prose = []
         for block in translation.blocks:
             original = source[block.block_id]
@@ -414,25 +424,17 @@ def _validate_chapter(
                 ContentBlock.BlockType.SEPARATOR,
             }:
                 continue
+            # a block set in capitals is a name or a label, the same in both languages
             if (
-                sum(char.isalpha() for char in block.text) >= 40
+                story
+                and sum(char.isalpha() for char in block.text) >= 40
                 and block.text.strip() == original.text.strip()
+                and not set_in_capitals(block.text)
             ):
                 raise ValueError(f"Block {block.block_id} was copied in the source language")
             prose.append(block.text)
-        # A chapter made of a single short caption cannot be identified
-        # reliably; structural and exact-copy checks still apply to it. A title page,
-        # dedication or notes page is names, places and dates in any language (Marianela's
-        # read as Latin at 0.998), so the matter around the story is not judged either.
-        role = (
-            source_edition.chapters.filter(sequence=chapter_manifest["chapter_sequence"])
-            .values_list("analysis_role", flat=True)
-            .first()
-        )
-        if (
-            role in (None, Chapter.AnalysisRole.BODY)
-            and sum(char.isalpha() for text in prose for char in text) >= 40
-        ):
+        # A chapter made of a single short caption cannot be identified reliably.
+        if story and sum(char.isalpha() for text in prose for char in text) >= 40:
             validate_output_language(
                 prose, target_language, source_language=source_edition.language
             )

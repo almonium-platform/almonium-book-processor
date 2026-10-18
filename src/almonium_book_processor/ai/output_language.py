@@ -75,7 +75,9 @@ def _classify(text: str, expected: str) -> tuple[str, float]:
     return first.language.iso_code_639_1.name.lower(), first.value
 
 
-def _set_in_capitals(text: str) -> bool:
+def set_in_capitals(text: str) -> bool:
+    """Whether the text is a title, a name or a label set in capitals rather than prose."""
+
     letters = [c for c in text if c.isalpha()]
     return bool(letters) and sum(c.isupper() for c in letters) / len(letters) >= MAX_CAPITALS_SHARE
 
@@ -96,7 +98,7 @@ def validate_output_language(
     expected = normalize_language_code(language)
     source = normalize_language_code(source_language) if source_language else None
     prose = [text.strip() for text in texts if text.strip()]
-    if not prose or _set_in_capitals("\n".join(prose)):
+    if not prose or set_in_capitals("\n".join(prose)):
         return
     candidates = ["\n".join(prose)]
     if len(prose) > 1:
