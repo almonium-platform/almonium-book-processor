@@ -29,7 +29,8 @@ ENDPOINT = "/api/v1/internal/source-ingests/"
 GUTENBERG_EPUB = "https://www.gutenberg.org/ebooks/84.epub3.images"
 GUTENBERG_CACHE = "https://www.gutenberg.org/cache/epub/84/pg84-images-3.epub"
 EXPORT = "https://ws-export.wmcloud.org/?lang=fr&page=Guerre_et_Paix&format=epub-3"
-EPUB_BYTES = b"PK\x03\x04" + b"epub body" * 100
+# over MIN_BYTES: a smaller file is refused as an audiobook's track list
+EPUB_BYTES = b"PK\x03\x04" + b"epub body" * 3_000
 
 
 @pytest.fixture(autouse=True)
@@ -351,6 +352,14 @@ def test_a_stream_over_the_cap_is_cut_off(monkeypatch) -> None:
     fake_web(monkeypatch, {GUTENBERG_EPUB: FakeResponse(b"PK\x03\x04" + b"x" * 2000)})
 
     with pytest.raises(DownloadRefused, match="over the"):
+        source_download.download(GUTENBERG_EPUB, "gutenberg")
+
+
+def test_an_audiobook_stub_is_refused_as_too_small(monkeypatch) -> None:
+    # Gutenberg 19790, Der Schimmelreiter read aloud: a 10 KB EPUB holding the track list
+    fake_web(monkeypatch, {GUTENBERG_EPUB: FakeResponse(b"PK\x03\x04" + b"x" * 10_000)})
+
+    with pytest.raises(DownloadRefused, match="too small"):
         source_download.download(GUTENBERG_EPUB, "gutenberg")
 
 

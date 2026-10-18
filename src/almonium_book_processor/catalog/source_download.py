@@ -29,6 +29,10 @@ from almonium_book_processor.catalog.models import SourceDownload
 
 USER_AGENT = "AlmoniumBookProcessor/1.0 (tech@almonium.com)"
 MAX_BYTES = 60 * 1024 * 1024
+# Gutenberg's audiobook records (LibriVox readings) ship a 10 KB EPUB holding the track
+# list; Der Schimmelreiter's and Pinocchio's came through the ingest and were adapted and
+# translated as books. The shortest text EPUB in the library is many times this.
+MIN_BYTES = 24 * 1024
 # The exporter builds the EPUB before it sends a byte; a long book takes a
 # minute or more, so the first byte may be slow. Every later read is held to
 # the same limit, and the whole transfer to the deadline.
@@ -209,6 +213,12 @@ def _store(response, url: str, started: float) -> Downloaded:
         path.unlink(missing_ok=True)
         content_type = response.headers.get("Content-Type", "unknown type")
         raise DownloadRefused(f"{_host(url)} sent {content_type}, not an EPUB.")
+    if size < MIN_BYTES:
+        path.unlink(missing_ok=True)
+        raise DownloadRefused(
+            f"The file is {size // 1024} KB, too small to be a book; a Gutenberg record "
+            "this size is an audiobook's track list, not the text."
+        )
     return Downloaded(path=path, final_url=url, size=size)
 
 
