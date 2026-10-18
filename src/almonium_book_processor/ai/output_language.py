@@ -144,6 +144,15 @@ def validate_rewritten_language(texts: list[str], language: str) -> None:
     changed text; a handful of short phrases is not enough evidence either way.
     """
     prose = "\n".join(text.strip() for text in texts if text.strip())
-    if sum(c.isalpha() for c in prose) < MIN_ASSESSABLE_LETTERS:
+    # One correction is often a single sentence, and a sentence of one Romance language reads as
+    # its neighbour: "Madame a des moyadors (des pièces d'or) et des diamants", 43 letters, was
+    # Catalan at 0.39 and failed a whole fidelity audit. The field rule applies here too: a
+    # Latin-script sample is judged alone only once it is long enough to trust the verdict.
+    minimum = (
+        MIN_ASSESSABLE_LETTERS
+        if normalize_language_code(language) in {"uk", "ru"}
+        else MIN_FIELD_LETTERS
+    )
+    if sum(c.isalpha() for c in prose) < minimum:
         return
     validate_output_language([prose], language)

@@ -123,3 +123,22 @@ def test_a_quotation_in_a_third_language_is_kept_when_the_source_is_named():
     ]
     with pytest.raises(OutputLanguageError, match="es"):
         validate_output_language(untranslated, "en", source_language="es")
+
+
+def test_one_short_correction_in_a_romance_language_is_not_judged_alone():
+    # the fidelity audit of Candide B1 failed on this one correction, read as Catalan at 0.39
+    validate_rewritten_language(["Madame a des moyadors (des pièces d’or) et des diamants"], "fr")
+    # the same length in Cyrillic is enough to tell Ukrainian from anything else
+    with pytest.raises(OutputLanguageError):
+        validate_rewritten_language(
+            ["Мадам имеет золотые монеты и бриллианты, спрятанные в платье."], "uk"
+        )
+    # and a longer correction in the wrong language is still refused
+    with pytest.raises(OutputLanguageError):
+        validate_rewritten_language(
+            [
+                "La señora tiene monedas de oro y diamantes escondidos en el vestido, y espera "
+                "la noche para marcharse con el viejo soldado sin que nadie la vea."
+            ],
+            "fr",
+        )
