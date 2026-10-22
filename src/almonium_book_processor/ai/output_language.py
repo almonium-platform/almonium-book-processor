@@ -108,6 +108,11 @@ def validate_output_language(
         detected, confidence = _classify(text, expected)
         # langid distinguishes Norwegian Bokmål and Nynorsk; the catalogue does not.
         detected = {"nb": "no", "nn": "no"}.get(detected, detected)
+        # Norwegian prose of Undset's day is Riksmål, which the detectors read as Danish:
+        # Jenny's pilot was refused at "detected da, confidence 0.907". For a Norwegian
+        # book, Danish is the same written language of that time, not the wrong one.
+        if expected == "no" and detected == "da":
+            detected = "no"
         # The gate is against prose in the wrong language. The whole text must be read as
         # the expected language with confidence; one block of it, short and without the
         # letters that tell Ukrainian from Russian, need only be read as that language: a

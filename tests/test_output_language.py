@@ -142,3 +142,18 @@ def test_one_short_correction_in_a_romance_language_is_not_judged_alone():
             ],
             "fr",
         )
+
+
+def test_riksmaal_read_as_danish_passes_for_a_norwegian_book(monkeypatch):
+    # Undset's Jenny (1911) was refused at "detected da, confidence 0.907": the detectors read
+    # Riksmål as Danish, which for a Norwegian book of that day is the same written language.
+    from almonium_book_processor.ai import output_language
+
+    monkeypatch.setattr(output_language, "_classify", lambda text, expected: ("da", 0.907))
+    validate_output_language(
+        ["Hun gik langsomt opover Via Condotti i den stille søndagsformiddag."], "no"
+    )
+    with pytest.raises(OutputLanguageError):
+        validate_output_language(
+            ["Hun gik langsomt opover Via Condotti i den stille søndagsformiddag."], "sv"
+        )
