@@ -367,7 +367,19 @@ def _started(state: dict, key: str, limit: int = STARTS) -> None:
 
     count = state["starts"].get(key, 0)
     if count >= limit:
-        raise Held(f"'{key}' was started {count} times and did not finish.")
+        # the last note logged for this step is the reason it did not finish, when there is one:
+        # "No chapter fits the pilot limits" held two Portuguese books as "did not finish".
+        step = key.split()[0]
+        reason = next(
+            (
+                entry["note"]
+                for entry in reversed(state["log"])
+                if entry["step"] == step and "trying again" in entry["note"]
+            ),
+            None,
+        )
+        suffix = f" Last: {reason.removesuffix('; trying again')}" if reason else ""
+        raise Held(f"'{key}' was started {count} times and did not finish.{suffix}")
     state["starts"][key] = count + 1
 
 
