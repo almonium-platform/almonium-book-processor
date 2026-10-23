@@ -149,16 +149,16 @@ def test_the_catalogue_page_draws_one_panel_per_work(client, staff, frankenstein
     other = _work("bleak-house", "Bleak House", "Charles Dickens")
     _edition(other, "en", Edition.Status.READY, word_count=353402)
 
-    page = client.get(reverse("catalog:dashboard")).content.decode()
+    page = client.get(reverse("catalog:dashboard"), {"tab": "all"}).content.decode()
 
-    assert page.count('<article class="work-group">') == 2
+    assert page.count('<details class="work-row"') == 2
     assert page.index("Frankenstein; or, the Modern Prometheus") < page.index("Bleak House")
-    assert "2 works · 5 editions · 1 needs review" in page
-    assert "Mary Shelley · 4 editions" in page
-    assert "Charles Dickens · 1 edition" in page
+    assert "2 works · 5 editions · 1 needs review · most urgent first" in page
+    assert '<span class="work-author">Mary Shelley</span>' in page
+    assert page.count('class="edition-token edition-token-') == 5
     assert '<span class="status status-review">1 needs review</span>' in page
     assert 'class="edition-row edition-row-review"' in page
-    assert 'edition-warnings edition-warnings-urgent">1 warning<' in page
+    assert 'edition-warnings edition-warnings-urgent"> · 1 warning<' in page
     assert "Frankenstein, ou le Prométhée Moderne" in page
     assert "from EN" in page
     assert "Canonical original" not in page
@@ -276,12 +276,12 @@ def test_every_approved_row_carries_one_token_per_promotion_target(client, staff
 
     page = client.get(reverse("catalog:dashboard")).content.decode()
     assert page.count('class="promotion-token promotion-') == 4
-    assert '<span class="promotion-dot"></span>staging</span>' in page
-    assert '<span class="promotion-dot"></span>staging behind</span>' in page
-    assert '<span class="promotion-dot"></span>staging failed</span>' in page
+    assert '<span class="promotion-dot"></span>staging</a>' in page
+    assert '<span class="promotion-dot"></span>staging behind</a>' in page
+    assert '<span class="promotion-dot"></span>staging failed</a>' in page
     assert 'title="The last promotion to staging failed: staging refused the bundle' in page
     assert 'title="Never promoted to staging."' in page
-    assert f'data-release="{reverse("catalog:edition-detail", args=[failed.id])}#release"' in page
+    assert f'href="{reverse("catalog:edition-detail", args=[failed.id])}#release"' in page
     assert '<span class="status status-failed">1 failed on staging</span>' in page
     assert '<span class="status status-review">1 behind on staging</span>' in page
 
@@ -356,3 +356,147 @@ def test_uploaded_label_is_relative_only_for_today():
     assert uploaded_label(now) == f"Today, {timezone.localtime(now):%H:%M}"
     earlier = datetime.datetime(2026, 9, 13, 21, 28, tzinfo=datetime.UTC)
     assert uploaded_label(earlier) == "Sep 13, 21:28"
+
+
+def _page(client, **params):
+    response = client.get(reverse("catalog:dashboard"), params)
+    return response.context["catalogue"], response.content.decode()
+
+
+def test_the_catalogue_opens_on_works_that_need_attention(client, staff, frankenstein):
+    _edition(_work("bleak-house", "Bleak House", "Charles Dickens"), "en", Edition.Status.READY)
+    broken = _work("dracula", "Dracula", "Bram Stoker")
+    _edition(broken, "en", Edition.Status.FAILED)
+
+    catalogue, page = _page(client)
+
+    assert catalogue.tab == "attention"
+    assert [group.title for group in catalogue.groups] == [
+        "Dracula",
+        "Frankenstein; or, the Modern Prometheus",
+    ]
+    tabs = {tab.key: tab for tab in catalogue.tabs}
+    assert (tabs["attention"].count, tabs["processing"].count, tabs["all"].count) == (2, 0, 3)
+    assert tabs["attention"].count_label == "2 works"
+    assert tabs["all"].count_label == "3"
+    assert "1 failed · 1 needs review · most urgent first" in page
+    assert '<span class="status status-failed">1 failed</span>' in page
+
+    catalogue, _ = _page(client, tab="all")
+    assert [group.title for group in catalogue.groups][-1] == "Bleak House"
+
+
+def test_with_nothing_to_attend_to_the_catalogue_opens_on_every_work(client, staff):
+    _edition(_work("bleak-house", "Bleak House", "Charles Dickens"), "en", Edition.Status.READY)
+
+    catalogue, _ = _page(client)
+    assert catalogue.tab == "all"
+    assert [group.title for group in catalogue.groups] == ["Bleak House"]
+
+    # Asking for the tab by name still shows it, empty.
+    catalogue, page = _page(client, tab="attention")
+    assert catalogue.groups == []
+    assert "Nothing in this tab right now." in page
+
+
+def test_search_ignores_the_tab_and_opens_a_work_found_through_an_edition(
+    client, staff, frankenstein
+):
+    _edition(_work("bleak-house", "Bleak House", "Charles Dickens"), "en", Edition.Status.READY)
+
+    catalogue, _ = _page(client, q="dickens")
+    assert [group.title for group in catalogue.groups] == ["Bleak House"]
+    assert not catalogue.groups[0].matched_through_edition
+
+    catalogue, page = _page(client, q="Прометей")
+    (group,) = catalogue.groups
+    assert group.matched_through_edition
+    assert f'id="work-{group.work.id}" data-work="{group.work.id}" data-matched open' in page
+    assert "1 work matches “Прометей”" in page
+
+    catalogue, page = _page(client, q="nothing like it")
+    assert catalogue.groups == []
+    assert "Nothing matches “nothing like it”." in page
+
+
+def test_the_language_filter_keeps_works_with_an_edition_in_that_language(
+    client, staff, frankenstein
+):
+    _edition(_work("bleak-house", "Bleak House", "Charles Dickens"), "en", Edition.Status.READY)
+
+    catalogue, page = _page(client, tab="all", lang="uk")
+    (group,) = catalogue.groups
+    assert group.matched_through_edition
+    assert '<option value="uk" selected>Ukrainian</option>' in page
+
+    catalogue, _ = _page(client, tab="all", lang="en")
+    assert len(catalogue.groups) == 2
+    assert not any(group.matched_through_edition for group in catalogue.groups)
+
+
+def test_sorts_and_pages_keep_their_choice_in_the_url(client, staff):
+    for index in range(30):
+        _edition(_work(f"w{index:02}", f"Work {index:02}", f"Author {29 - index:02}"), "en")
+
+    catalogue, page = _page(client, sort="title")
+    assert catalogue.tab == "all"
+    assert [group.title for group in catalogue.groups][:2] == ["Work 00", "Work 01"]
+    assert catalogue.shown_label == "25 of 30"
+    assert catalogue.more_count == 5
+    first_added = catalogue_groups(Work.Visibility.PUBLIC)
+    added = next(group for group in first_added if group.title == "Work 25")
+    assert catalogue.more_url == f"?sort=title&page=2#work-{added.work.id}"
+    assert "Show 5 more" in page
+    assert "30 works · 30 editions · by title" in page
+
+    catalogue, page = _page(client, sort="title", page=2)
+    assert len(catalogue.groups) == 30
+    assert catalogue.more_url == ""
+    assert "30 of 30</span></div>" in page
+
+    catalogue, _ = _page(client, sort="author")
+    assert catalogue.groups[0].title == "Work 29"
+
+    catalogue, _ = _page(client, sort="nonsense", page="x")
+    assert (catalogue.sort, catalogue.page) == ("urgent", 1)
+
+
+def test_a_failed_edition_names_its_stage_and_offers_a_retry(client, staff):
+    work = _work("gatsby", "The Great Gatsby", "F. Scott Fitzgerald")
+    original = _edition(work, "en", Edition.Status.READY, cefr_level="C1", word_count=48088)
+    adapted = _edition(
+        work,
+        "en",
+        Edition.Status.FAILED,
+        source_edition=original,
+        edition_type=Edition.EditionType.ADAPTATION,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+    )
+    PipelineRun.objects.create(
+        edition=adapted,
+        stage=PipelineRun.Stage.ADAPT,
+        status=PipelineRun.Status.FAILED,
+        processor_version="b1-book-v1",
+        input_hash="x",
+        idempotency_key="gatsby:adapt",
+        summary={"target_level": "B1"},
+    )
+
+    catalogue, page = _page(client)
+
+    (group,) = catalogue.groups
+    row = group.rows[1]
+    assert row.level_label == "B1 target"
+    assert row.token_level == "B1"
+    assert row.words_label == "Failed at level adaptation"
+    assert row.token_title == "Level adaptation · Parallel · Failed · at Level adaptation"
+    assert '<span class="level-chip">B1 target</span>' in page
+    assert reverse("catalog:retry-edition", args=[adapted.id]) in page
+    assert 'class="edition-token edition-token-failed"' in page
+    assert 'class="edition-token edition-token-settled"' in page
+
+
+def test_a_rollup_of_several_reviews_reads_need_review(frankenstein):
+    Edition.objects.filter(language="uk").update(status=Edition.Status.REVIEW)
+    (group,) = catalogue_groups(Work.Visibility.PUBLIC)
+    assert group.rollup.label == "2 need review"

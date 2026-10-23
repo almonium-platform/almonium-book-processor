@@ -139,6 +139,7 @@ def test_edition_page_and_dashboard_show_the_spend(client) -> None:
     assert "Whole work · $3.50" in html
 
     dashboard = client.get(reverse("catalog:dashboard"))
-    assert "$3.50 AI" in dashboard.content.decode()
+    spend_cell = 'title="AI spend on this work in this environment">$3.50</span>'
+    assert spend_cell in dashboard.content.decode()
     group = next(g for g in dashboard.context["groups"] if g.work == original.work)
     assert group.spend_label == "$3.50"

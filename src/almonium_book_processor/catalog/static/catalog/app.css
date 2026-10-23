@@ -363,13 +363,8 @@ span.toolbar-step { color: var(--line); background: transparent; }
 @media (max-width: 700px) { .pilot-comparison { grid-template-columns: 1fr; } }
 
 /* Editorial catalogue: one panel per work, one row per edition */
-.work-list { display: grid; gap: .9rem; }
 .work-group { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 12px 32px rgba(61,45,31,.05); overflow: hidden; }
-.work-header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem .9rem; }
-.work-header > div { display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap; }
-.work-header h2 { margin: 0; font-size: 1.4rem; }
-.work-meta, .rollup-stage { color: var(--muted); font-size: .88rem; }
-.work-header .status { flex: none; }
+.rollup-stage { color: var(--muted); font-size: .88rem; }
 .work-rollups { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .4rem; flex: none; }
 .edition-row { display: grid; grid-template-columns: 44px 1fr 150px 130px 90px 220px; align-items: center; gap: 0 1rem; padding: .7rem 1.5rem; border-top: 1px solid #ede4d6; font-size: .9rem; text-decoration: none; transition: background .15s ease; }
 .edition-row:hover { background: #fbf4e7; }
@@ -391,7 +386,7 @@ span.toolbar-step { color: var(--line); background: transparent; }
 /* One token per promotion target: a 7px dot and the target's name in mono.
    Filled green is current there, amber is behind, red failed, muted queued;
    a hollow ring means nothing has gone there yet. */
-.promotion-token { display: inline-flex; align-items: center; gap: 5px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .69rem; white-space: nowrap; color: #a39a90; cursor: pointer; }
+.promotion-token { display: inline-flex; align-items: center; gap: 5px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .69rem; white-space: nowrap; color: #a39a90; cursor: pointer; text-decoration: none; }
 .promotion-dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid #c4b8b0; flex: none; }
 .promotion-current { color: var(--green); }
 .promotion-current .promotion-dot { background: var(--green); border-color: var(--green); }
@@ -409,8 +404,89 @@ span.toolbar-step { color: var(--line); background: transparent; }
   .edition-row { grid-template-columns: 44px 1fr auto; row-gap: .4rem; }
   .edition-chips, .edition-words, .edition-warnings { grid-column: 2; }
   .edition-state { grid-column: 3; grid-row: 1; flex-direction: column; align-items: flex-end; gap: .3rem; }
-  .work-header { flex-direction: column; align-items: flex-start; }
-  .work-rollups { justify-content: flex-start; }
+}
+
+/* The catalogue at scale: tabs, one collapsed row per work, its editions as a
+   strip of tokens; a row opens into the edition rows above. */
+.catalogue-heading { align-items: flex-end; margin-bottom: 1.25rem; }
+.catalogue-actions { display: flex; align-items: center; gap: .9rem; }
+.plan-meters { position: relative; }
+.plan-meters-inline { display: inline-flex; align-items: center; gap: .65rem; font-size: .75rem; color: var(--muted); white-space: nowrap; cursor: pointer; list-style: none; padding: .35rem .2rem; }
+.plan-meters-inline::-webkit-details-marker { display: none; }
+.plan-meter-inline { display: inline-flex; align-items: center; gap: 5px; }
+.plan-meter-inline .run-bar { width: 36px; height: 3px; }
+.plan-meters-popover { position: absolute; right: 0; top: calc(100% + .4rem); z-index: 20; width: min(760px, 92vw); margin: 0; padding: 1rem 1.25rem; box-shadow: 0 16px 40px rgba(61,45,31,.16); }
+.catalogue-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .6rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.catalogue-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-right: auto; }
+.catalogue-tab { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; font-size: .84rem; white-space: nowrap; text-decoration: none; }
+.catalogue-tab span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.catalogue-tab:hover { background: var(--card); }
+.catalogue-tab.is-active { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 600; }
+.catalogue-tab.is-active span { color: #e9e1d4; }
+.catalogue-select { display: inline-flex; align-items: center; height: 34px; padding: 0 .4rem 0 .75rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: .82rem; }
+.catalogue-select > span { color: var(--muted); margin-right: .2rem; }
+.catalogue-select select { width: auto; height: 32px; padding: 0 .2rem; border: 0; border-radius: 0; background: transparent; font: inherit; color: var(--ink); cursor: pointer; }
+.catalogue-search { width: 200px; height: 34px; padding: 0 .75rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; font: inherit; font-size: .82rem; }
+.catalogue-line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .75rem; margin: .9rem 0; font-size: .82rem; color: var(--muted); }
+.catalogue-line form { display: inline-flex; align-items: center; gap: .6rem; }
+.catalogue-line form > span { color: var(--ink); }
+.work-table { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.work-table-head, .work-summary { display: grid; grid-template-columns: 18px minmax(0,1fr) 340px 130px 64px; align-items: center; gap: 0 14px; padding: 0 18px; }
+.work-table-head { padding-top: 8px; padding-bottom: 8px; font-size: .69rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.work-table-head span:nth-child(n+4) { justify-self: end; }
+.work-row { border-top: 1px solid #ede4d6; }
+.work-row[open] { background: #fdf6ea; }
+.work-summary { min-height: 46px; padding-top: 6px; padding-bottom: 6px; cursor: pointer; list-style: none; }
+.work-summary::-webkit-details-marker { display: none; }
+.work-summary:hover { background: #fbf4e7; }
+.work-row[open] > .work-summary:hover { background: #fbefdb; }
+.work-chevron::before { content: "▸"; font-size: .62rem; color: var(--muted); }
+.work-row[open] .work-chevron::before { content: "▾"; }
+.work-name { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.work-title { font-family: Georgia, serif; font-size: 1.03rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.work-author { font-size: .82rem; color: var(--muted); white-space: nowrap; }
+.edition-strip { display: flex; flex-wrap: wrap; gap: 5px; }
+.edition-token { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 7px; border: 1px solid #e6dccd; border-radius: 6px; background: #fff; font-size: .69rem; white-space: nowrap; text-decoration: none; }
+.edition-token:hover { border-color: var(--accent); }
+.edition-token-dot { width: 6px; height: 6px; border-radius: 50%; background: #c4b8b0; flex: none; }
+.edition-token-settled .edition-token-dot { background: var(--green); }
+.edition-token-review { border-color: #ecd9ae; background: #fbf1dc; }
+.edition-token-review .edition-token-dot { background: #c99a3a; }
+.edition-token-failed { border-color: #e8c9c4; background: #fbe9e6; }
+.edition-token-failed .edition-token-dot { background: #b5574b; }
+.edition-token-processing .edition-token-dot { background: #9a8f84; box-shadow: 0 0 0 2px #e9e1d4; }
+.edition-token-lang { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.edition-token-level { color: var(--muted); }
+.edition-token-canonical { color: var(--accent); font-weight: 700; font-size: .6rem; }
+.work-summary .work-rollups { justify-self: end; }
+.work-summary .status { font-size: .69rem; white-space: nowrap; }
+.work-spend { justify-self: end; font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.work-row .edition-row { position: relative; grid-template-columns: 36px minmax(0,1fr) 150px 180px 200px; gap: 0 14px; min-height: 38px; padding: .45rem 18px .45rem 50px; border-top: 1px dashed #ede4d6; font-size: .84rem; }
+.work-row .edition-row:hover { background: #fbefdb; }
+.work-row .edition-row-failed { background: #fbe9e6; }
+.work-row .edition-title { text-decoration: none; }
+/* The title link covers the row, so the whole row opens the edition; the
+   Retry button and promotion tokens sit above that cover. */
+.work-row .edition-title::after { content: ""; position: absolute; inset: 0; }
+.work-row .edition-state form, .work-row .promotion-token { position: relative; z-index: 1; }
+.work-row .edition-state .status { font-size: .62rem; padding: .15rem .45rem; }
+.work-row .role-badge, .work-row .level-chip { font-size: .62rem; padding: .15rem .45rem; }
+.work-row .edition-warnings { font-size: inherit; }
+.work-table-foot { display: flex; justify-content: center; align-items: center; gap: 1rem; padding: .8rem 18px; border-top: 1px solid #ede4d6; font-size: .82rem; color: var(--muted); }
+.work-table-foot .link-button { text-decoration: none; }
+.work-table .empty { padding: 1.5rem 18px; border-top: 1px solid #ede4d6; }
+.work-table .empty h2 { margin: 0 0 .4rem; font-size: 1.2rem; }
+@media (max-width: 900px) {
+  .catalogue-heading { flex-direction: column; align-items: flex-start; }
+  .catalogue-actions { flex-wrap: wrap; }
+  .plan-meters-inline { flex-wrap: wrap; white-space: normal; }
+  .plan-meters-popover { left: 0; right: auto; }
+  .catalogue-search { width: 100%; }
+  .work-table-head { display: none; }
+  .work-summary { grid-template-columns: 18px minmax(0,1fr) auto; row-gap: .4rem; padding-top: .6rem; padding-bottom: .6rem; }
+  .work-summary .edition-strip { grid-column: 2 / -1; }
+  .work-summary .work-rollups { grid-column: 2; justify-self: start; }
+  .work-row .edition-row { grid-template-columns: 36px 1fr auto; padding-left: 18px; }
 }
 
 /* User imports: one flat table, the owner beside the book */

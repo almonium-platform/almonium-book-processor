@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -26,6 +27,13 @@ class PlanMeter:
     @property
     def provider_label(self) -> str:
         return self.label(self.provider)
+
+    @property
+    def short_label(self) -> str:
+        """The provider, numbered when it is a second seat: Codex, Codex-2, Claude."""
+
+        seat = re.search(r"-(\d+)$", self.account)
+        return f"{self.provider_label}-{seat.group(1)}" if seat else self.provider_label
 
     @staticmethod
     def label(provider: str) -> str:

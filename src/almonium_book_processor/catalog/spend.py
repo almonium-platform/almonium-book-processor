@@ -173,6 +173,12 @@ def work_spend(work) -> dict[str, Any]:
 def spend_by_work(works) -> dict[Any, str]:
     """One label per work id for a listing, from two grouped queries."""
 
+    return {work_id: format_usd(usd) for work_id, usd in spend_totals_by_work(works).items()}
+
+
+def spend_totals_by_work(works) -> dict[Any, Decimal]:
+    """What each work's model calls cost, removed editions included, by work id."""
+
     slugs = {work.slug: work.id for work in works}
     totals: dict[Any, Decimal] = {}
     for row in (
@@ -188,7 +194,7 @@ def spend_by_work(works) -> dict[Any, str]:
     ):
         work_id = slugs[row["tombstone__work_slug"]]
         totals[work_id] = totals.get(work_id, Decimal("0")) + (row["usd"] or Decimal("0"))
-    return {work_id: format_usd(usd) for work_id, usd in totals.items()}
+    return totals
 
 
 def record_failed_call(

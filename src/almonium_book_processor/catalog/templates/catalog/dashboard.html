@@ -2,70 +2,149 @@
 {% load catalog_extras %}
 {% block title %}Public catalogue · Almonium Books{% endblock %}
 {% block content %}
-<div class="page-heading">
-  <div><p class="eyebrow">Editorial catalogue</p><h1>Public books</h1><p class="muted">{{ summary.label }}</p></div>
-  <div class="button-row">
-    {% for rollup in summary.promotable %}<form method="post" action="{% url 'catalog:promote-behind' %}">{% csrf_token %}<input type="hidden" name="target" value="{{ rollup.target }}"><button class="button button-secondary" type="submit" title="Bundle every edition {{ rollup.target }} is behind on, or last failed for, and send it again. Never-promoted editions stay where they are.">{{ rollup.button_label }}</button></form>{% endfor %}
+<div class="page-heading catalogue-heading">
+  <div><p class="eyebrow">Editorial catalogue</p><h1>Public books</h1></div>
+  <div class="catalogue-actions">
+    {% if meters %}
+    <details class="plan-meters">
+      <summary class="plan-meters-inline" title="Plans this week: open for what is left and when each resets">
+        {% for meter in meters %}<span class="plan-meter-inline{% if meter.stale %} plan-meter-stale{% endif %}">{{ meter.short_label }} <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>{{ meter.week_percent }}%</span>{% endfor %}
+      </summary>
+      <section class="panel plan-meters-popover" aria-label="Plan accounts">
+        <p class="eyebrow">Plans this week</p>
+        <ul class="plan-meter-list">
+          {% for meter in meters %}
+          <li class="plan-meter{% if meter.stale %} plan-meter-stale{% endif %}" title="Read {{ meter.read_at|timesince }} ago{% if meter.stale %}; the host's meter timer has not run for over an hour{% endif %}">
+            <span class="plan-meter-name">{{ meter.provider_label }} <small>{{ meter.account }}</small></span>
+            <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>
+            <span class="plan-meter-figures">{{ meter.week_percent }}% used · ${{ meter.left_usd|floatformat:2 }} of ${{ meter.week_usd|floatformat:2 }} left{% if meter.fable_week_percent is not None %} · Fable {{ meter.fable_week_percent }}%{% endif %}{% if meter.resets_at %} · resets {{ meter.resets_at|date:"D H:i" }}{% endif %}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+    </details>
+    {% endif %}
     <a class="button" href="{% url 'catalog:upload' %}">Upload source</a>
   </div>
 </div>
 
-{% if meters %}
-<section class="panel plan-meters" aria-label="Plan accounts">
-  <p class="eyebrow">Plans this week</p>
-  <ul class="plan-meter-list">
-    {% for meter in meters %}
-    <li class="plan-meter{% if meter.stale %} plan-meter-stale{% endif %}" title="Read {{ meter.read_at|timesince }} ago{% if meter.stale %}; the host's meter timer has not run for over an hour{% endif %}">
-      <span class="plan-meter-name">{{ meter.provider_label }} <small>{{ meter.account }}</small></span>
-      <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>
-      <span class="plan-meter-figures">{{ meter.week_percent }}% used · ${{ meter.left_usd|floatformat:2 }} of ${{ meter.week_usd|floatformat:2 }} left{% if meter.fable_week_percent is not None %} · Fable {{ meter.fable_week_percent }}%{% endif %}{% if meter.resets_at %} · resets {{ meter.resets_at|date:"D H:i" }}{% endif %}</span>
-    </li>
-    {% endfor %}
-  </ul>
-</section>
-{% endif %}
+<div class="catalogue" {% live_catalogue "public" %}>
+  <form class="catalogue-filters" method="get" action="">
+    <nav class="catalogue-tabs" aria-label="Filter works">
+      {% for tab in catalogue.tabs %}<a class="catalogue-tab{% if tab.active %} is-active{% endif %}" href="{{ tab.url }}"{% if tab.active %} aria-current="page"{% endif %}>{{ tab.label }}<span>{{ tab.count_label }}</span></a>{% endfor %}
+    </nav>
+    {% if not catalogue.search %}<input type="hidden" name="tab" value="{{ catalogue.tab }}">{% endif %}
+    <label class="catalogue-select"><span>Sort</span>
+      <select name="sort" data-catalogue-sort>
+        {% for key, label in catalogue.sorts %}<option value="{{ key }}"{% if key == catalogue.sort %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="catalogue-select">
+      <select name="lang" aria-label="Language">
+        <option value="">Language: any</option>
+        {% for code, name in catalogue.languages %}<option value="{{ code }}"{% if code == catalogue.language %} selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+    </label>
+    <input class="catalogue-search" type="search" name="q" value="{{ catalogue.search }}" placeholder="Title or author" aria-label="Search title or author">
+  </form>
 
-<section class="work-list" {% live_catalogue "public" %}>
-  {% for group in groups %}
-    <article class="work-group">
-      <header class="work-header">
-        <div>
-          <h2>{{ group.title }}</h2>
-          <span class="work-meta">{{ group.author }} · {{ group.edition_count_label }}{% if group.spend_label %} · <span class="work-spend" title="AI spend on this work in this environment">{{ group.spend_label }} AI</span>{% endif %}</span>
-        </div>
+  <div class="catalogue-line">
+    <span>{{ catalogue.breakdown }}</span>
+    {% for rollup in summary.promotable %}
+    <form method="post" action="{% url 'catalog:promote-behind' %}">{% csrf_token %}<input type="hidden" name="target" value="{{ rollup.target }}"><span>{{ rollup.count }} edition{{ rollup.count|pluralize }} behind {{ rollup.target }}</span><button class="button button-secondary button-small" type="submit" title="Bundle every edition {{ rollup.target }} is behind on, or last failed for, and send it again. Never-promoted editions stay where they are.">{{ rollup.button_label }}</button></form>
+    {% endfor %}
+  </div>
+
+  <section class="work-table">
+    <div class="work-table-head" aria-hidden="true"><span></span><span>Work</span><span>Editions</span><span>State</span><span>AI</span></div>
+    {% for group in catalogue.groups %}
+    <details class="work-row" id="work-{{ group.work.id }}" data-work="{{ group.work.id }}"{% if group.matched_through_edition %} data-matched open{% endif %}>
+      <summary class="work-summary">
+        <span class="work-chevron" aria-hidden="true"></span>
+        <span class="work-name"><span class="work-title">{{ group.title }}</span><span class="work-author">{{ group.author }}</span></span>
+        <span class="edition-strip">
+          {% for row in group.rows %}<a class="edition-token edition-token-{{ row.token_state }}" href="{% url 'catalog:edition-detail' row.edition.id %}" title="{{ row.token_title }}"><span class="edition-token-dot"></span><span class="edition-token-lang">{{ row.language }}</span>{% if row.token_level %}<span class="edition-token-level">{{ row.token_level }}</span>{% endif %}{% if row.is_canonical %}<span class="edition-token-canonical" aria-hidden="true">●</span>{% endif %}</a>{% endfor %}
+        </span>
         <span class="work-rollups">
           {% if group.rollup %}{% if group.rollup.in_flight %}<span class="rollup-stage">{{ group.rollup.label }}</span>{% else %}<span class="status status-{{ group.rollup.status }}">{{ group.rollup.label }}</span>{% endif %}{% endif %}
           {% for rollup in group.promotion_rollups %}<span class="status {% if rollup.state == "failed" %}status-failed{% else %}status-review{% endif %}">{{ rollup.label }}</span>{% endfor %}
         </span>
-      </header>
+        <span class="work-spend" title="AI spend on this work in this environment">{{ group.spend_label }}</span>
+      </summary>
       {% for row in group.rows %}
-        <a class="edition-row{% if row.needs_review %} edition-row-review{% elif row.is_failed %} edition-row-failed{% endif %}" href="{% url 'catalog:edition-detail' row.edition.id %}">
-          <span class="edition-lang">{{ row.language }}</span>
-          <span class="edition-title">
-            {% if row.title is None %}{{ row.type_label }}{% elif row.title %}<span>{{ row.title }}</span><small>{{ row.type_label }}</small>{% else %}<span class="edition-title-pending">Title pending</span><small>{{ row.type_label }}</small>{% endif %}
-          </span>
-          <span class="edition-chips"><span class="role-badge role-badge-{{ row.role }}">{{ row.role_label }}</span>{% if row.cefr_level %}<span class="level-chip">{{ row.cefr_level }}</span>{% endif %}</span>
-          <span class="edition-words{% if row.source_language %} edition-source{% endif %}">{{ row.words_label }}</span>
-          <span class="edition-warnings{% if row.warnings_urgent %} edition-warnings-urgent{% endif %}">{% if not row.run %}{{ row.warnings_label }}{% endif %}</span>
-          <span class="edition-state">
-            {% if row.run %}<span class="run-stage"><span>{{ row.run.get_stage_display }}</span><span class="run-bar"><span style="width:{{ row.run.progress }}%"></span></span></span>{% else %}<span class="status status-{{ row.status }}">{{ row.status_label }}</span>{% if row.metadata_behind %}<span class="status status-review edition-behind" title="Almonium here still shows this edition's previous metadata. Update it from the edition page.">Metadata behind</span>{% endif %}{% for token in row.promotions %}<span class="promotion-token promotion-{{ token.state }}" title="{{ token.title }}" data-release="{% url 'catalog:edition-detail' row.edition.id %}#release"><span class="promotion-dot"></span>{{ token.label }}</span>{% endfor %}{% endif %}
-          </span>
+      <div class="edition-row{% if row.needs_review %} edition-row-review{% elif row.is_failed %} edition-row-failed{% endif %}">
+        <span class="edition-lang">{{ row.language }}</span>
+        <a class="edition-title" href="{% url 'catalog:edition-detail' row.edition.id %}">
+          {% if row.title is None %}{{ row.type_label }}{% elif row.title %}<span>{{ row.title }}</span><small>{{ row.type_label }}</small>{% else %}<span class="edition-title-pending">Title pending</span><small>{{ row.type_label }}</small>{% endif %}
         </a>
+        <span class="edition-chips"><span class="role-badge role-badge-{{ row.role }}">{{ row.role_label }}</span>{% if row.level_label %}<span class="level-chip">{{ row.level_label }}</span>{% endif %}</span>
+        <span class="edition-words{% if row.source_language %} edition-source{% endif %}">{{ row.words_label }}{% if row.warning_count and not row.run %}<span class="edition-warnings{% if row.warnings_urgent %} edition-warnings-urgent{% endif %}"> · {{ row.warnings_label }}</span>{% endif %}</span>
+        <span class="edition-state">
+          {% if row.run %}<span class="run-stage"><span>{{ row.run.get_stage_display }}</span><span class="run-bar"><span style="width:{{ row.run.progress }}%"></span></span></span>{% else %}<span class="status status-{{ row.status }}">{{ row.status_label }}</span>{% if row.is_failed %}<form method="post" action="{% url 'catalog:retry-edition' row.edition.id %}">{% csrf_token %}<button class="link-button" type="submit">Retry</button></form>{% endif %}{% if row.metadata_behind %}<span class="status status-review edition-behind" title="Almonium here still shows this edition's previous metadata. Update it from the edition page.">Metadata behind</span>{% endif %}{% for token in row.promotions %}<a class="promotion-token promotion-{{ token.state }}" title="{{ token.title }}" href="{% url 'catalog:edition-detail' row.edition.id %}#release"><span class="promotion-dot"></span>{{ token.label }}</a>{% endfor %}{% endif %}
+        </span>
+      </div>
       {% endfor %}
-    </article>
-  {% empty %}
-    <div class="empty"><h2>No public editions yet</h2><p>Upload an EPUB or TEI XML file, or import the normalized migration artifacts.</p></div>
-  {% endfor %}
-</section>
+    </details>
+    {% empty %}
+      {% if catalogue.summary.work_count %}
+      <div class="empty"><h2>No works here</h2><p>{% if catalogue.search %}Nothing matches “{{ catalogue.search }}”. Search looks at work titles, edition titles in any language and authors.{% else %}Nothing in this tab right now.{% endif %} <a href="?tab=all">Show every work</a>.</p></div>
+      {% else %}
+      <div class="empty"><h2>No public editions yet</h2><p>Upload an EPUB or TEI XML file, or import the normalized migration artifacts.</p></div>
+      {% endif %}
+    {% endfor %}
+    {% if catalogue.groups %}
+    <div class="work-table-foot"><span>{{ catalogue.shown_label }}</span>{% if catalogue.more_url %}<a class="link-button" href="{{ catalogue.more_url }}">Show {{ catalogue.more_count }} more</a>{% endif %}</div>
+    {% endif %}
+  </section>
+</div>
 
 <script>
-  // The whole row is a link to the edition page; a promotion token goes
-  // straight to its Release panel.
-  document.addEventListener("click", function (event) {
-    var token = event.target.closest(".promotion-token");
-    if (!token) return;
-    event.preventDefault();
-    window.location.href = token.dataset.release;
-  });
+  // Selects apply on change; the sort is remembered per browser, so the list
+  // reopens the way its editor last sorted it. Each work row remembers whether
+  // it was left open, unless a filter opened it because an edition matched.
+  (function () {
+    var SORT_KEY = "catalogue:sort";
+    var OPEN_KEY = "catalogue:open";
+    function read(key, fallback) {
+      try { var value = localStorage.getItem(key); return value === null ? fallback : value; } catch (error) { return fallback; }
+    }
+    function write(key, value) {
+      try { localStorage.setItem(key, value); } catch (error) { /* storage is a convenience */ }
+    }
+    var params = new URLSearchParams(location.search);
+    var stored = read(SORT_KEY, "");
+    if (!params.has("sort") && stored && stored !== "urgent") {
+      params.set("sort", stored);
+      location.replace("?" + params.toString() + location.hash);
+      return;
+    }
+    function openState() {
+      try { return JSON.parse(read(OPEN_KEY, "{}")) || {}; } catch (error) { return {}; }
+    }
+    function restore(root) {
+      var state = openState();
+      root.querySelectorAll("details[data-work]:not([data-matched])").forEach(function (row) {
+        if (Object.prototype.hasOwnProperty.call(state, row.dataset.work)) row.open = state[row.dataset.work];
+      });
+    }
+    document.addEventListener("change", function (event) {
+      var select = event.target.closest(".catalogue-filters select");
+      if (!select) return;
+      if (select.matches("[data-catalogue-sort]")) write(SORT_KEY, select.value);
+      select.form.submit();
+    });
+    document.addEventListener("toggle", function (event) {
+      var row = event.target;
+      if (!row.matches || !row.matches("details[data-work]") || row.hasAttribute("data-matched")) return;
+      var state = openState();
+      state[row.dataset.work] = row.open;
+      write(OPEN_KEY, JSON.stringify(state));
+    }, true);
+    restore(document);
+    // "Show N more" lands on the first work it added.
+    var landing = location.hash && document.getElementById(location.hash.slice(1));
+    if (landing) landing.scrollIntoView();
+    document.addEventListener("live:refreshed", function (event) { restore(event.detail.root); });
+  })();
 </script>
 {% endblock %}

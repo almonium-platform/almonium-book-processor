@@ -63,4 +63,6 @@ def test_the_catalogue_page_shows_the_plans_this_week():
 
     assert "Plans this week" in page
     assert "Codex <small>.codex-2</small>" in page
+    # The header carries the short form inline; the popover keeps the account.
+    assert 'class="plan-meter-inline">Codex-2 <span class="run-bar">' in page
     assert "12% used" in page

@@ -202,7 +202,7 @@ def test_edition_page_and_dashboard_flag_what_is_behind(client, published):
 
     dashboard = client.get(reverse("catalog:dashboard")).content.decode()
     assert "Metadata behind" in dashboard
-    assert '<span class="promotion-dot"></span>staging behind</span>' in dashboard
+    assert '<span class="promotion-dot"></span>staging behind</a>' in dashboard
     assert "1 behind on staging" in dashboard
 
 
@@ -303,7 +303,8 @@ def test_the_catalogue_catches_a_target_up_on_everything_it_is_behind_on(
     promote(adapted, "staging")
     promote(adapted, "staging", status="failed", when=timezone.now())
     dashboard = client.get(reverse("catalog:dashboard")).content.decode()
-    assert "Promote 2 behind to staging" in dashboard
+    assert "2 editions behind staging" in dashboard
+    assert "Promote 2 to staging" in dashboard
 
     response = client.post(reverse("catalog:promote-behind"), {"target": "staging"}, follow=True)
     assert "2 promotions to staging queued: release-en, release-en-b2" in response.content.decode()
@@ -322,7 +323,7 @@ def test_the_catalogue_catches_a_target_up_on_everything_it_is_behind_on(
     # Both rows now follow their run, and the button is gone until something lands.
     dashboard = client.get(reverse("catalog:dashboard")).content.decode()
     assert dashboard.count('<span class="run-stage"><span>Promotion</span>') == 2
-    assert "Promote 2 behind" not in dashboard
+    assert "Promote 2 to" not in dashboard
 
     response = client.post(reverse("catalog:promote-behind"), {"target": "nowhere"}, follow=True)
     assert "Choose a configured promotion target." in response.content.decode()

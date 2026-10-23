@@ -16,13 +16,16 @@ group: one flat table, newest upload first, in the same row grammar.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 
-from django.db.models import Count, Q
+from django.db.models import Count, Max, Q
 from django.utils import timezone
 
 from almonium_book_processor.catalog.models import Edition, PipelineRun, QAWarning, Work
 from almonium_book_processor.catalog.release_state import PromotionToken
+from almonium_book_processor.languages import LANGUAGES
 
 # Most urgent first. Failed and review need a person; processing and queued
 # need time; draft needs an upload to finish; ready and published need nothing.
@@ -89,6 +92,10 @@ class EditionRow:
     # One token per promotion target, in target order, once the edition is
     # approved or has been promoted; empty before that.
     promotions: list[PromotionToken] = field(default_factory=list)
+    # The level an adaptation without a level of its own was generated for.
+    target_level: str | None = None
+    # The stage whose run failed, on a failed edition.
+    failed_stage: str = ""
 
     @property
     def status(self) -> str:
@@ -111,7 +118,48 @@ class EditionRow:
         return self.edition.cefr_level
 
     @property
+    def level_label(self) -> str | None:
+        """The level chip: the edition's own level, or "B1 target" for an adaptation."""
+
+        if self.cefr_level:
+            return self.cefr_level
+        return f"{self.target_level} target" if self.target_level else None
+
+    @property
+    def token_level(self) -> str:
+        """The level on the edition strip, where "target" would not fit."""
+
+        return self.cefr_level or self.target_level or ""
+
+    @property
+    def is_canonical(self) -> bool:
+        return self.role == Edition.ParallelRole.CANONICAL
+
+    @property
+    def token_state(self) -> str:
+        """The status dot's colour: settled, review, failed, or a run in flight."""
+
+        if self.run or self.status in IN_FLIGHT_STATUSES:
+            return "processing"
+        if self.status in SETTLED_STATUSES:
+            return "settled"
+        return self.status
+
+    @property
+    def token_title(self) -> str:
+        """What a hover over the strip token says: type, role, status, stage."""
+
+        parts = [self.type_label, self.role_label, self.status_label]
+        if self.run:
+            parts.append(self.run.get_stage_display())
+        elif self.failed_stage:
+            parts.append(f"at {self.failed_stage}")
+        return " · ".join(parts)
+
+    @property
     def words_label(self) -> str:
+        if self.failed_stage:
+            return f"Failed at {self.failed_stage[0].lower()}{self.failed_stage[1:]}"
         if self.source_language:
             return f"from {self.source_language}"
         return word_count_label(self.edition.word_count)
@@ -158,6 +206,8 @@ class Rollup:
     def label(self) -> str:
         if self.in_flight:
             return f"{self.count} processing"
+        if self.status == Edition.Status.REVIEW and self.count != 1:
+            return f"{self.count} need review"
         return f"{self.count} {Edition.Status(self.status).label.lower()}"
 
 
@@ -179,7 +229,7 @@ class PromotionRollup:
 
     @property
     def button_label(self) -> str:
-        return f"Promote {self.count} behind to {self.target}"
+        return f"Promote {self.count} to {self.target}"
 
 
 def promotion_rollups(rows: list[EditionRow]) -> list[PromotionRollup]:
@@ -204,6 +254,12 @@ class WorkGroup:
     rows: list[EditionRow] = field(default_factory=list)
     # What this environment's ledger says the work's model calls cost.
     spend_label: str = ""
+    spend_usd: Decimal = Decimal("0")
+    # The latest run or edit on any of its editions.
+    last_activity: datetime | None = None
+    # Whether the catalogue's filter found this work through one of its
+    # editions rather than its own title or author, so it opens expanded.
+    matched_through_edition: bool = False
 
     @property
     def title(self) -> str:
@@ -238,6 +294,21 @@ class WorkGroup:
     def promotion_rollups(self) -> list[PromotionRollup]:
         return promotion_rollups(self.rows)
 
+    @property
+    def needs_attention(self) -> bool:
+        return any(row.is_failed or row.needs_review for row in self.rows)
+
+    @property
+    def processing(self) -> bool:
+        return any(row.run or row.status in IN_FLIGHT_STATUSES for row in self.rows)
+
+    def behind_count(self, target: str) -> int:
+        return sum(
+            1
+            for row in self.rows
+            if any(t.target == target and t.state in ("behind", "failed") for t in row.promotions)
+        )
+
 
 @dataclass
 class CatalogueSummary:
@@ -261,7 +332,7 @@ class CatalogueSummary:
         if self.failed:
             parts.append(f"{self.failed} failed")
         if self.review:
-            parts.append(f"{self.review} needs review")
+            parts.append(f"{self.review} {'needs' if self.review == 1 else 'need'} review")
         if self.processing:
             parts.append(f"{self.processing} processing")
         parts.extend(rollup.label for rollup in self.promotions)
@@ -347,23 +418,54 @@ def catalogue_groups(visibility: str) -> list[WorkGroup]:
     editions = list(_editions(visibility))
     release = listing_release_state(editions)
     groups: dict = {}
+    failed_stages = _failed_stages(
+        [edition.id for edition in editions if edition.status == Edition.Status.FAILED]
+    )
+    last_runs = dict(
+        PipelineRun.objects.filter(edition__work__visibility=visibility)
+        .values_list("edition_id")
+        .annotate(Max("created_at"))
+    )
     for edition in editions:
         group = groups.setdefault(edition.work_id, WorkGroup(work=edition.work))
         row = _row(edition, runs.get(edition.id))
         state = release[edition.id]
         row.metadata_behind = state.metadata_behind
         row.promotions = state.tokens
-        group.rows.append(row)
-    from almonium_book_processor.catalog.spend import spend_by_work
+        row.failed_stage = failed_stages.get(edition.id, "")
+        if edition.edition_type == Edition.EditionType.ADAPTATION and not edition.cefr_level:
+            from almonium_book_processor.catalog.adaptation_quality import adaptation_target
 
-    spend = spend_by_work([group.work for group in groups.values()])
+            row.target_level = adaptation_target(edition)
+        group.rows.append(row)
+        moments = [edition.updated_at, last_runs.get(edition.id)]
+        group.last_activity = max(
+            [moment for moment in [group.last_activity, *moments] if moment is not None]
+        )
+    from almonium_book_processor.catalog.spend import format_usd, spend_totals_by_work
+
+    spend = spend_totals_by_work([group.work for group in groups.values()])
     for group in groups.values():
         group.rows.sort(key=lambda row: (ROLE_ORDER.index(row.role), row.edition.language))
-        group.spend_label = spend.get(group.work.id, "")
+        if group.work.id in spend:
+            group.spend_usd = spend[group.work.id]
+            group.spend_label = format_usd(group.spend_usd)
     return sorted(
         groups.values(),
         key=lambda group: (group.urgency, _surname(group.work.author), group.title.casefold()),
     )
+
+
+def _failed_stages(edition_ids) -> dict:
+    """The stage of the newest failed run of each failed edition, as the row names it."""
+
+    stages: dict = {}
+    failed = PipelineRun.objects.filter(
+        edition_id__in=edition_ids, status=PipelineRun.Status.FAILED
+    ).order_by("-created_at")
+    for run in failed:
+        stages.setdefault(run.edition_id, run.get_stage_display())
+    return stages
 
 
 def catalogue_summary(groups: list[WorkGroup]) -> CatalogueSummary:
@@ -375,6 +477,241 @@ def catalogue_summary(groups: list[WorkGroup]) -> CatalogueSummary:
         review=sum(1 for row in rows if row.status == Edition.Status.REVIEW),
         processing=sum(1 for row in rows if row.status in IN_FLIGHT_STATUSES),
         promotions=promotion_rollups(rows),
+    )
+
+
+# The catalogue at scale: one collapsed row per work, filtered by a tab, sorted,
+# searched and paged, every choice in the URL so a link reopens the same list.
+
+PAGE_SIZE = 25
+DEFAULT_TAB = "attention"
+DEFAULT_SORT = "urgent"
+
+SORTS: dict[str, tuple[str, str]] = {
+    # key: (the select's label, how the line under the tabs restates it)
+    "urgent": ("Most urgent", "most urgent first"),
+    "updated": ("Recently updated", "recently updated first"),
+    "newest": ("Newest", "newest first"),
+    "title": ("Title", "by title"),
+    "author": ("Author", "by author"),
+    "spend": ("AI spend", "highest AI spend first"),
+}
+
+
+LANGUAGE_NAMES = {language.code: language.name for language in LANGUAGES}
+
+
+def language_name(code: str) -> str:
+    return LANGUAGE_NAMES.get(code, code.upper())
+
+
+def _plural(count: int, singular: str, plural: str | None = None) -> str:
+    return f"{count} {singular if count == 1 else plural or singular + 's'}"
+
+
+def _sort_key(sort: str):
+    def recency(group: WorkGroup) -> float:
+        return -group.last_activity.timestamp() if group.last_activity else 0.0
+
+    def title(group: WorkGroup) -> str:
+        return group.title.casefold()
+
+    keys = {
+        "urgent": lambda group: (group.urgency, recency(group), title(group)),
+        "updated": lambda group: (recency(group), title(group)),
+        "newest": lambda group: (-group.work.created_at.timestamp(), title(group)),
+        "title": title,
+        "author": lambda group: (_surname(group.author), title(group)),
+        "spend": lambda group: (-group.spend_usd, title(group)),
+    }
+    return keys[sort]
+
+
+@dataclass
+class CatalogueTab:
+    key: str
+    label: str
+    count: int
+    unit: str
+    url: str
+    active: bool
+
+    @property
+    def count_label(self) -> str:
+        # The active tab names what it counts; the others are a bare number.
+        return _plural(self.count, self.unit) if self.active else str(self.count)
+
+
+@dataclass
+class CataloguePage:
+    """One page of the public catalogue as its query asks for it."""
+
+    tab: str
+    sort: str
+    language: str
+    search: str
+    page: int
+    tabs: list[CatalogueTab]
+    groups: list[WorkGroup]
+    matched: int
+    breakdown: str
+    summary: CatalogueSummary
+    languages: list[tuple[str, str]]
+    more_url: str = ""
+    more_count: int = 0
+
+    @property
+    def sorts(self) -> list[tuple[str, str]]:
+        return [(key, label) for key, (label, _) in SORTS.items()]
+
+    @property
+    def shown_label(self) -> str:
+        return f"{len(self.groups)} of {self.matched}"
+
+
+def _query_url(**params) -> str:
+    from urllib.parse import urlencode
+
+    # The tab is kept even when it is the default: with nothing needing
+    # attention the page falls back to All, and a link to the default tab has
+    # to be able to say it means the default.
+    defaults = {"sort": DEFAULT_SORT, "page": 1}
+    kept = {key: value for key, value in params.items() if value and value != defaults.get(key)}
+    return f"?{urlencode(kept)}" if kept else "?"
+
+
+def _matches(group: WorkGroup, search: str, language: str) -> tuple[bool, bool]:
+    """Whether a work passes the search and language filter, and whether only an edition did."""
+
+    through_edition = False
+    if search:
+        needle = search.casefold()
+        if needle not in group.title.casefold() and needle not in group.author.casefold():
+            if not any(needle in (row.edition.title or "").casefold() for row in group.rows):
+                return False, False
+            through_edition = True
+    if language:
+        languages = [row.edition.language for row in group.rows]
+        if language not in languages:
+            return False, False
+        # A work found through its canonical original is found through itself.
+        if not any(row.is_canonical and row.edition.language == language for row in group.rows):
+            through_edition = True
+    return True, through_edition
+
+
+def catalogue_page(params, groups: list[WorkGroup]) -> CataloguePage:
+    """Filter, sort and page the work groups by the request's query parameters.
+
+    The tab picks which works need looking at; a search ignores the tab, since
+    someone typing a title wants that book wherever it sits. With no tab asked
+    for and nothing needing attention, the list opens on every work instead of
+    on an empty page.
+    """
+
+    from almonium_book_processor.catalog.promotion import promotion_targets
+
+    targets = [target.name for target in promotion_targets()]
+    search = (params.get("q") or "").strip()
+    language = (params.get("lang") or "").strip().lower()
+    sort = params.get("sort") if params.get("sort") in SORTS else DEFAULT_SORT
+    try:
+        page = max(1, int(params.get("page") or 1))
+    except ValueError:
+        page = 1
+
+    tests = {
+        "attention": ("Needs attention", "work", lambda group: group.needs_attention),
+        "processing": ("Processing", "work", lambda group: group.processing),
+        **{
+            f"behind-{target}": (
+                f"Behind {target}",
+                "edition",
+                lambda group, target=target: group.behind_count(target) > 0,
+            )
+            for target in targets
+        },
+        "all": ("All", "work", lambda group: True),
+    }
+    tab = params.get("tab")
+    if tab not in tests:
+        tab = DEFAULT_TAB
+        if not params.get("tab") and not any(group.needs_attention for group in groups):
+            tab = "all"
+
+    tabs = []
+    for key, (label, unit, test) in tests.items():
+        if key.startswith("behind-"):
+            count = sum(group.behind_count(key.removeprefix("behind-")) for group in groups)
+        else:
+            count = sum(1 for group in groups if test(group))
+        url = _query_url(tab=key, sort=sort, lang=language)
+        tabs.append(CatalogueTab(key, label, count, unit, url, active=key == tab and not search))
+
+    matched: list[WorkGroup] = []
+    for group in groups:
+        found, through_edition = _matches(group, search, language)
+        if not found or (not search and not tests[tab][2](group)):
+            continue
+        group.matched_through_edition = through_edition
+        matched.append(group)
+    matched.sort(key=_sort_key(sort))
+
+    rows = [row for group in matched for row in group.rows]
+    if search:
+        verb = "matches" if len(matched) == 1 else "match"
+        breakdown = f"{_plural(len(matched), 'work')} {verb} \u201c{search}\u201d"
+    elif tab == "attention":
+        failed = sum(1 for row in rows if row.is_failed)
+        review = sum(1 for row in rows if row.needs_review)
+        parts = [f"{failed} failed"] if failed else []
+        if review:
+            parts.append(f"{review} {'needs' if review == 1 else 'need'} review")
+        breakdown = " · ".join(parts) or "Nothing needs attention"
+    elif tab == "processing":
+        busy = sum(1 for row in rows if row.run or row.status in IN_FLIGHT_STATUSES)
+        breakdown = f"{_plural(busy, 'edition')} processing"
+    elif tab.startswith("behind-"):
+        target = tab.removeprefix("behind-")
+        behind = sum(group.behind_count(target) for group in matched)
+        breakdown = f"{_plural(behind, 'edition')} behind {target}"
+    else:
+        breakdown = catalogue_summary(matched).label
+    breakdown = f"{breakdown} · {SORTS[sort][1]}"
+
+    shown = matched[: PAGE_SIZE * page]
+    more_count = min(PAGE_SIZE, len(matched) - len(shown))
+    more_url = ""
+    if more_count:
+        more_url = (
+            _query_url(
+                tab=tab if params.get("tab") else "",
+                sort=sort,
+                lang=language,
+                q=search,
+                page=page + 1,
+            )
+            + f"#work-{matched[len(shown)].work.id}"
+        )
+
+    languages = sorted(
+        {row.edition.language for group in groups for row in group.rows},
+        key=lambda code: language_name(code),
+    )
+    return CataloguePage(
+        tab=tab,
+        sort=sort,
+        language=language,
+        search=search,
+        page=page,
+        tabs=tabs,
+        groups=shown,
+        matched=len(matched),
+        breakdown=breakdown,
+        summary=catalogue_summary(groups),
+        languages=[(code, language_name(code)) for code in languages],
+        more_url=more_url,
+        more_count=more_count,
     )
 
 

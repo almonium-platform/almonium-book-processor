@@ -34,7 +34,7 @@ from almonium_book_processor.catalog.ai_translation import (
 )
 from almonium_book_processor.catalog.catalogue import (
     catalogue_groups,
-    catalogue_summary,
+    catalogue_page,
     import_rows,
 )
 from almonium_book_processor.catalog.chapter_analysis import analysis_context, queue_analysis
@@ -119,11 +119,16 @@ from almonium_book_processor.catalog.tasks import (
 
 @staff_member_required
 def dashboard(request: HttpRequest) -> HttpResponse:
-    groups = catalogue_groups(Work.Visibility.PUBLIC)
+    catalogue = catalogue_page(request.GET, catalogue_groups(Work.Visibility.PUBLIC))
     return render(
         request,
         "catalog/dashboard.html",
-        {"groups": groups, "summary": catalogue_summary(groups), "meters": plan_meters()},
+        {
+            "catalogue": catalogue,
+            "groups": catalogue.groups,
+            "summary": catalogue.summary,
+            "meters": plan_meters(),
+        },
     )
 
 
