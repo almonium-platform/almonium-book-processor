@@ -157,3 +157,17 @@ def test_riksmaal_read_as_danish_passes_for_a_norwegian_book(monkeypatch):
         validate_output_language(
             ["Hun gik langsomt opover Via Condotti i den stille søndagsformiddag."], "sv"
         )
+
+
+def test_danish_prose_split_between_danish_and_norwegian_passes_for_a_danish_book(monkeypatch):
+    # Ved Vejen's B2 was refused at "detected da, confidence 0.547": the detectors split Danish
+    # between da and no, so for either language of that pair the split is not a doubt.
+    from almonium_book_processor.ai import output_language
+
+    monkeypatch.setattr(output_language, "_classify", lambda text, expected: ("da", 0.547))
+    validate_output_language(["Hun gik langsomt op ad vejen i den stille formiddag."], "da")
+    monkeypatch.setattr(output_language, "_classify", lambda text, expected: ("no", 0.5))
+    validate_output_language(["Hun gik langsomt op ad vejen i den stille formiddag."], "da")
+    monkeypatch.setattr(output_language, "_classify", lambda text, expected: ("sv", 0.5))
+    with pytest.raises(OutputLanguageError):
+        validate_output_language(["Hun gik langsomt op ad vejen i den stille formiddag."], "da")

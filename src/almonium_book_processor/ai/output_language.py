@@ -29,6 +29,8 @@ MIN_ASSESSABLE_LETTERS = 40
 # together, was English at 1.0. A field in the wrong language is rarely that short; a short
 # one still counts in the text judged together.
 MIN_FIELD_LETTERS = 100
+# Danish and the Norwegian of Undset's day are one written language to the detectors.
+SAME_WRITTEN_PAIR = {"da", "no"}
 # Text set in capitals is a title page, a dedication or a list of names and addresses, not
 # prose: the detector read Candide's English title page ("WORKS OF VOLTAIRE ... PARIS, LEFÈVRE,
 # BOOKSELLER") as French at 0.54 and once as Lao at 0.94, and a second translation of the
@@ -113,6 +115,11 @@ def validate_output_language(
         # book, Danish is the same written language of that time, not the wrong one.
         if expected == "no" and detected == "da":
             detected = "no"
+        # The same pair the other way: Danish prose splits the detectors between da and no, so
+        # Ved Vejen's B2 was refused at "detected da, confidence 0.547". For either language of
+        # that written pair, a reading as either is a reading as the expected one.
+        if expected in SAME_WRITTEN_PAIR and detected in SAME_WRITTEN_PAIR:
+            detected, confidence = expected, max(confidence, 0.8)
         # The gate is against prose in the wrong language. The whole text must be read as
         # the expected language with confidence; one block of it, short and without the
         # letters that tell Ukrainian from Russian, need only be read as that language: a
