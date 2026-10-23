@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
+import sqlite3
 import subprocess
 import tempfile
 import time
@@ -14,6 +16,8 @@ from typing import Any
 from django.conf import settings
 
 from almonium_book_processor.ai.cli_calls import CallFailed, fits_schema, tried_twice
+
+logger = logging.getLogger(__name__)
 
 
 def codex_home(home: str | Path | None = None) -> Path:
@@ -42,6 +46,7 @@ def codex_meter(
     account = codex_home(home)
     workdir = Path(tempfile.gettempdir()) / "almonium-codex-empty"
     workdir.mkdir(parents=True, exist_ok=True)
+    started, log = time.time(), None
     try:
         runner(
             [
@@ -70,11 +75,50 @@ def codex_meter(
             (account / "sessions").glob("*/*/*/rollout-*.jsonl"),
             key=lambda path: path.stat().st_mtime,
         )
-        found = re.findall(r'"primary":\s*(\{[^}]*\})', logs[-1].read_text())
-        plan = re.findall(r'"plan_type":\s*"([^"]*)"', logs[-1].read_text())
+        if logs and logs[-1].stat().st_mtime >= started - 1:
+            log = logs[-1]
+        text = logs[-1].read_text()
+        found = re.findall(r'"primary":\s*(\{[^}]*\})', text)
+        plan = re.findall(r'"plan_type":\s*"([^"]*)"', text)
         return {**json.loads(found[-1]), "plan_type": plan[-1] if plan else ""}
     except Exception:  # a meter that cannot be read must never fail the run it surrounds
         return None
+    finally:
+        if log is not None:
+            forget_thread(account, log)
+
+
+def forget_thread(account: Path, log: Path) -> None:
+    """Remove one session the CLI kept: its rollout and its rows in the CLI's databases.
+
+    The meter's probe is a conversation like any other to the CLI, and by 24 October 2026 the
+    two accounts listed 2,160 of them. The thread id is the tail of the rollout's name, and
+    every table with a ``thread_id`` column is cleared of it, as is the threads table.
+    """
+
+    thread_id = log.stem[-36:]
+    log.unlink(missing_ok=True)
+    for database in account.glob("*.sqlite"):
+        try:
+            with sqlite3.connect(database, timeout=5) as connection:
+                tables = [
+                    row[0]
+                    for row in connection.execute(
+                        "select name from sqlite_master where type = 'table'"
+                    )
+                ]
+                for table in tables:
+                    columns = [
+                        row[1] for row in connection.execute(f'pragma table_info("{table}")')
+                    ]
+                    if "thread_id" in columns:
+                        connection.execute(
+                            f'delete from "{table}" where thread_id = ?', (thread_id,)
+                        )
+                    elif table == "threads" and "id" in columns:
+                        connection.execute("delete from threads where id = ?", (thread_id,))
+        except sqlite3.Error as error:
+            logger.warning("Could not forget Codex thread %s in %s: %s", thread_id, database, error)
 
 
 class CodexProvider:

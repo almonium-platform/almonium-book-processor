@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from almonium_book_processor.ai.codex_provider import CodexProvider, codex_meter
+from almonium_book_processor.ai.codex_provider import CodexProvider, codex_meter, forget_thread
 
 BODY = {
     "model": "gpt-6.1-sol",
@@ -278,3 +278,57 @@ def test_a_usage_limit_refusal_is_an_allowance_used_up_error():
     # refused once: a second call would be refused the same way
     assert len(calls) == 1
     assert refused.value.until == "Oct 30th, 2026 7:43 PM"
+
+
+def test_the_meter_forgets_the_conversation_its_probe_made(tmp_path):
+    import sqlite3
+
+    account = tmp_path / ".codex"
+    day = account / "sessions" / "2026" / "10" / "24"
+    day.mkdir(parents=True)
+    probe = "01a16af2-7ec6-7f53-9c5a-65021fbe71e0"
+    kept = "11111111-2222-7333-8444-555555555555"
+    earlier = day / f"rollout-2026-10-24T00-00-00-{kept}.jsonl"
+    earlier.write_text("{}\n")
+    with sqlite3.connect(account / "state_5.sqlite") as state:
+        state.execute("create table threads (id text primary key, title text)")
+        state.executemany("insert into threads values (?, ?)", [(probe, "ok"), (kept, "real work")])
+        state.execute("create table thread_read_receipts (thread_id text, at integer)")
+        state.executemany("insert into thread_read_receipts values (?, 1)", [(probe,), (kept,)])
+    with sqlite3.connect(account / "thread_history_1.sqlite") as history:
+        history.execute("create table thread_turns (thread_id text, turn_id text)")
+        history.executemany("insert into thread_turns values (?, 't')", [(probe,), (kept,)])
+    limits = {"rate_limits": {"primary": {"used_percent": 98.0}, "plan_type": "prolite"}}
+
+    def runner(command, **kwargs):
+        (day / f"rollout-2026-10-24T01-47-19-{probe}.jsonl").write_text(json.dumps(limits) + "\n")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    assert codex_meter(home=account, binary="codex", runner=runner) == {
+        "used_percent": 98.0,
+        "plan_type": "prolite",
+    }
+
+    assert sorted(path.name for path in day.iterdir()) == [earlier.name]
+    with sqlite3.connect(account / "state_5.sqlite") as state:
+        assert state.execute("select id from threads").fetchall() == [(kept,)]
+        assert state.execute("select thread_id from thread_read_receipts").fetchall() == [(kept,)]
+    with sqlite3.connect(account / "thread_history_1.sqlite") as history:
+        assert history.execute("select thread_id from thread_turns").fetchall() == [(kept,)]
+
+
+def test_a_conversation_is_forgotten_even_without_the_databases(tmp_path):
+    log = (
+        tmp_path
+        / "sessions"
+        / "2026"
+        / "10"
+        / "24"
+        / "rollout-2026-10-24T01-47-19-01a16af2-7ec6-7f53-9c5a-65021fbe71e0.jsonl"
+    )
+    log.parent.mkdir(parents=True)
+    log.write_text("{}\n")
+
+    forget_thread(tmp_path, log)
+
+    assert not log.exists()
