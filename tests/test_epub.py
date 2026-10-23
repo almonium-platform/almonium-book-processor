@@ -583,3 +583,35 @@ def test_a_real_gutenberg_epub_yields_readable_chapters() -> None:
     }
     assert max(sizes.values()) <= max_chars, sizes
     assert not any(w.code == "long_document_unsplit" for w in artifact.warnings)
+
+
+def test_chapters_marked_with_h4_and_titled_with_h5_are_split_at_the_h4(tmp_path) -> None:
+    # Gutenberg's Dom Casmurro (55752) and O Cortiço (69187): a title page of h4/h5 lines, then
+    # every chapter an h4 label with its title in an h5. They came in as one 65,000-word chapter.
+    title_page = (
+        "<h4>DOM CASMURRO</h4><h5>B. L. GARNIER, LIVREIRO-EDITOR</h5>"
+        "<h5>RIO DE JANEIRO</h5><h5>1899</h5>"
+    )
+    content = title_page + "".join(
+        f'<h4 id="c{number}">CAPÍTULO {numeral}</h4><h5>{title}</h5>'
+        f"<p>{_prose(300)}</p><p>{_prose(300)}</p>"
+        for number, (numeral, title) in enumerate(
+            (("I", "Do titulo"), ("II", "Do livro"), ("III", "A denuncia")), start=1
+        )
+    )
+
+    artifact = ingest_epub(
+        _one_document_epub(tmp_path, content), edition_slug="h4-pt-orig", work_slug="h4"
+    )
+
+    chapters = _chapters(artifact)
+    # the title page's headings run straight into the first chapter's, so they are one chapter
+    assert [chapter[0].text for chapter in chapters.values()] == [
+        "DOM CASMURRO",
+        "CAPÍTULO II",
+        "CAPÍTULO III",
+    ]
+    assert "CAPÍTULO I" in [block.text for block in chapters[0]]
+    # the h5 title stays inside its chapter as a heading block, not a chapter of its own
+    assert [block.type for block in chapters[1]][:2] == [BlockType.HEADING, BlockType.HEADING]
+    assert chapters[1][1].text == "Do livro"

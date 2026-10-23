@@ -48,7 +48,10 @@ SHORT_DOCUMENT_CHARS = 3_000
 # A document this long that stays one chapter is reported for a person to see.
 UNSPLIT_DOCUMENT_CHARS = 60_000
 
-CHAPTER_HEADING_TAGS = {"h1", "h2", "h3"}
+# Gutenberg's Portuguese books of 1899 and 1890 (Dom Casmurro, O Cortiço) mark every chapter with an
+# h4 and its title with an h5; the level most chapters use is cut at, so a deeper heading only ever
+# starts a chapter in a document that has no shallower ones.
+CHAPTER_HEADING_TAGS = {"h1", "h2", "h3", "h4", "h5"}
 UNSPLITTABLE_TAGS = {"table", "pre", "blockquote", "ul", "ol", "dl", "aside", "figure"} | SKIP_TAGS
 UNSPLITTABLE_MARKERS = VERSE_MARKERS | FOOTNOTE_MARKERS | LETTER_MARKERS | {"epigraph", "toc"}
 # A paragraph carrying one of these classes is the chapter's heading in styles
