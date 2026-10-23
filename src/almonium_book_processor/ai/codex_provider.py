@@ -171,8 +171,11 @@ class CodexProvider:
                 text = event["item"].get("text", "")
             elif kind == "turn.completed":
                 usage = event.get("usage") or {}
-            elif kind in ("error", "turn.failed"):
-                error = str(event.get("message") or event.get("error"))[:500]
+            elif kind in ("error", "turn.failed") and (
+                said := event.get("message") or event.get("error")
+            ):
+                # the failed turn may say less than the error before it did; keep what was said
+                error = str(said)[:500]
         spent = {
             "usage": {
                 "input_tokens": usage.get("input_tokens") or 0,

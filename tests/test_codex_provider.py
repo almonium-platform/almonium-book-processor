@@ -253,3 +253,28 @@ def test_a_call_that_fails_twice_says_what_both_attempts_used():
 
     assert len(calls) == 2
     assert spent_by(failure.value)["usage"]["output_tokens"] == 1800
+
+
+def test_a_usage_limit_refusal_is_an_allowance_used_up_error():
+    from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+
+    provider, calls = provider_with(
+        stdout=events(
+            {"type": "thread.started"},
+            {
+                "type": "error",
+                "message": (
+                    "You’ve hit your usage limit. Visit https://chatgpt.com/settings/usage to "
+                    "purchase more credits or try again at Oct 30th, 2026 7:43 PM."
+                ),
+            },
+            {"type": "turn.failed"},
+        )
+    )
+
+    with pytest.raises(AllowanceUsedUp) as refused:
+        provider.respond(BODY)
+
+    # refused once: a second call would be refused the same way
+    assert len(calls) == 1
+    assert refused.value.until == "Oct 30th, 2026 7:43 PM"

@@ -24,3 +24,62 @@ def test_a_hold_without_a_logged_error_keeps_the_plain_message():
     state = {"starts": {"book B1": STARTS}, "log": []}
     with pytest.raises(Held, match=r"'book B1' was started \d+ times and did not finish\.$"):
         _started(state, "book B1")
+
+
+@pytest.mark.django_db
+def test_a_job_refused_for_a_used_up_allowance_holds_the_book_without_a_start():
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from almonium_book_processor.catalog.models import Edition, PipelineRun, Work
+    from almonium_book_processor.catalog.production import VERSION, _refused
+
+    work = Work.objects.create(slug="w", title="A book", author="Author")
+    source = Edition.objects.create(work=work, slug="w-en", language="en")
+
+    def job(stage, status, error="", version="chapter-analysis", hours_ago=0.0):
+        created = PipelineRun.objects.create(
+            edition=source,
+            stage=stage,
+            processor_version=version,
+            input_hash="",
+            idempotency_key=f"{stage}-{status}-{error[:12]}-{hours_ago}",
+            status=status,
+            error=error,
+        )
+        PipelineRun.objects.filter(pk=created.pk).update(
+            created_at=timezone.now() - timedelta(hours=hours_ago)
+        )
+        created.refresh_from_db()
+        return created
+
+    # a refusal from before this production is an old story
+    job("chapter_analysis", "failed", "Chapter 0 window 1/1: Allowance used up: old", hours_ago=5)
+    production = job("adapt", "running", version=VERSION, hours_ago=1)
+    state = {"editions": {}, "starts": {}, "log": []}
+    _refused(production, state, "B2")  # nothing this production started was refused
+
+    job(
+        "chapter_analysis",
+        "failed",
+        "Chapter 3 window 1/2: ValueError: the answer did not complete validation.",
+    )
+    _refused(production, state, "B2")  # a failure of its own is for the step's counters
+
+    job(
+        "chapter_analysis",
+        "failed",
+        "Chapter 0 window 1/1: Allowance used up: Codex returned no answer: You’ve hit your usage "
+        "limit. Visit https://chatgpt.com/settings/usage or try again at Oct 30th, 2026 7:43 PM. "
+        "— retry reuses validated windows.",
+    )
+    with pytest.raises(Held) as held:
+        _refused(production, state, "B2")
+    assert str(held.value).startswith(
+        "The plan's allowance is used up, said the 'chapter_analysis' job: Allowance used up"
+    )
+    assert "Oct 30th, 2026 7:43 PM" in str(held.value)
+    assert "retry reuses" not in str(held.value)
+    assert str(held.value).endswith("Start the book again after the reset.")
+    assert state["starts"] == {}

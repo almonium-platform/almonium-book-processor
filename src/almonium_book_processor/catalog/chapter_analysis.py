@@ -36,6 +36,7 @@ from almonium_book_processor.ai.chapter_analysis import (
     ChapterAnalysis,
     OpenAIChapterAnalysisProvider,
 )
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import (
     OutputLanguageError,
@@ -567,7 +568,10 @@ def _attempt(
             )
         data = window["data"]
         where = f"Chapter {data['chapter_sequence']} window {data['window']}/{data['window_count']}"
-        if isinstance(error, (StaleAnalysis, AnalysisRejected, OutputLanguageError)):
+        # a used-up allowance is the plan's state, not the answer's: its message has no book text
+        if isinstance(
+            error, (StaleAnalysis, AnalysisRejected, OutputLanguageError, AllowanceUsedUp)
+        ):
             reason = str(error)
         else:
             reason = f"{type(error).__name__}: the answer did not complete validation."

@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 
 RETRY_PAUSE_SECONDS = 15.0
 _ALLOWANCE_USED_UP = re.compile(r"usage limit|limit reached", re.IGNORECASE)
+# A run's error that holds this text was refused for a used-up allowance, not for its own fault.
+ALLOWANCE_USED_UP = "Allowance used up"
+_TRY_AGAIN = re.compile(r"try again at ([^.\n]+)", re.IGNORECASE)
 
 
 class CallFailed(RuntimeError):
@@ -37,6 +40,28 @@ class CallFailed(RuntimeError):
     def __init__(self, message: str, spent: dict[str, Any] | None = None) -> None:
         super().__init__(message)
         self.spent = spent
+
+
+class AllowanceUsedUp(CallFailed):
+    """The plan's weekly allowance is used up: every call on it fails this way until it turns.
+
+    The message starts with ``ALLOWANCE_USED_UP`` so a job's error says so in the first
+    words, and ``until`` is when the CLI said to try again, when it said.
+    """
+
+    def __init__(self, message: str, spent: dict[str, Any] | None = None) -> None:
+        super().__init__(f"{ALLOWANCE_USED_UP}: {message[:300]}", spent)
+        found = _TRY_AGAIN.search(message)
+        self.until = found.group(1).strip() if found else None
+
+
+def _raise_if_used_up(error: BaseException, earlier: dict[str, Any] | None = None) -> None:
+    """Raise ``AllowanceUsedUp`` when the CLI said the plan's allowance is used up."""
+
+    if isinstance(error, AllowanceUsedUp) or not _ALLOWANCE_USED_UP.search(str(error)):
+        return
+    spent = _together(earlier, spent_by(error) or {}) or None
+    raise AllowanceUsedUp(str(error), spent) from error
 
 
 def spent_by(error: BaseException) -> dict[str, Any] | None:
@@ -79,17 +104,18 @@ def tried_twice(
     try:
         return call()
     except (RuntimeError, subprocess.TimeoutExpired) as error:
-        if _ALLOWANCE_USED_UP.search(str(error)):
-            raise
+        _raise_if_used_up(error)
         first = spent_by(error)
         logger.warning("A plan CLI call failed and is tried once more: %s", str(error)[:300])
     pause(RETRY_PAUSE_SECONDS)
     try:
         return _together(first, call())
     except CallFailed as error:
+        _raise_if_used_up(error, first)
         error.spent = _together(first, error.spent or {})
         raise
     except (RuntimeError, subprocess.TimeoutExpired) as error:
+        _raise_if_used_up(error, first)
         if first:
             raise CallFailed(str(error) or type(error).__name__, first) from error
         raise

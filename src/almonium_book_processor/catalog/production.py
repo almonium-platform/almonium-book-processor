@@ -37,6 +37,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
+from almonium_book_processor.ai.cli_calls import ALLOWANCE_USED_UP
 from almonium_book_processor.catalog.fidelity_audit import backed
 from almonium_book_processor.catalog.models import (
     Edition,
@@ -210,6 +211,7 @@ def _advance_once(run_id, only: set[str] | None = None) -> tuple[bool, set[str]]
         target = track["targets"][track["index"]]
         step = track["step"]
         try:
+            _refused(run, state, target)
             move = STEPS[step](run, state, target)
             if move[0] == "wait" and timezone.now() - parse_datetime(track["since"]) > STEP_TIMEOUT:
                 raise Held(f"Nothing finished '{step}' in {STEP_TIMEOUT}: {move[1]}")
@@ -381,6 +383,38 @@ def _started(state: dict, key: str, limit: int = STARTS) -> None:
         suffix = f" Last: {reason.removesuffix('; trying again')}" if reason else ""
         raise Held(f"'{key}' was started {count} times and did not finish.{suffix}")
     state["starts"][key] = count + 1
+
+
+def _refused(run: PipelineRun, state: dict, target: str) -> None:
+    """Hold the target when a job this production started was refused for a used-up allowance.
+
+    Every call on that plan fails the same way until its week turns, so starting the job
+    again would only use up a start: on 24 October 2026 thirty-nine books did that against
+    two empty Codex meters. The book waits instead, and no start is counted; the owner starts
+    it again after the reset, and the finished reads are reused.
+    """
+
+    editions = [run.edition_id]
+    if level_edition := state.get("editions", {}).get(target):
+        editions.append(level_edition)
+    refused = (
+        PipelineRun.objects.filter(
+            edition_id__in=editions,
+            status=PipelineRun.Status.FAILED,
+            created_at__gte=run.created_at,
+            error__contains=ALLOWANCE_USED_UP,
+        )
+        .exclude(processor_version=VERSION)
+        .order_by("-created_at")
+        .first()
+    )
+    if refused is None:
+        return
+    said = refused.error[refused.error.index(ALLOWANCE_USED_UP) :].split(" — ")[0][:220]
+    raise Held(
+        f"The plan's allowance is used up, said the '{refused.stage}' job: {said} "
+        "Start the book again after the reset."
+    )
 
 
 def _edition(state: dict, level: str) -> Edition:

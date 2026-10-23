@@ -18,6 +18,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from almonium_book_processor.ai.adaptation import pilot_prompt
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
 from almonium_book_processor.catalog.adaptation import (
     B1_VERSION,
     MAX_BLOCKS,
@@ -336,7 +337,11 @@ def run_probe(run_id, *, provider=None, judge=None, auditor=None) -> None:
         PipelineRun.objects.filter(pk=run_id).update(
             status=PipelineRun.Status.FAILED,
             finished_at=timezone.now(),
-            error=str(error)[:1000] if isinstance(error, ValueError) else type(error).__name__,
+            error=(
+                str(error)[:1000]
+                if isinstance(error, (ValueError, AllowanceUsedUp))
+                else type(error).__name__
+            ),
         )
         raise
     refresh_adaptation_floor(source.work)
