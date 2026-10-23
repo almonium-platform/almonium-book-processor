@@ -60,6 +60,21 @@ SHORT_ROLE_LABELS = {
 }
 
 
+def twin_ids(editions) -> set:
+    """Editions of one work that share a language, an edition type and a level with another.
+
+    Two Ukrainian machine translations of the same book read alike in every
+    list, title included, so each list names them by slug instead. A B1 and a
+    B2 adaptation already differ by their level chip.
+    """
+
+    seen: dict[tuple, list] = {}
+    for edition in editions:
+        key = (edition.work_id, edition.language, edition.edition_type, edition.cefr_level)
+        seen.setdefault(key, []).append(edition.id)
+    return {edition_id for ids in seen.values() if len(ids) > 1 for edition_id in ids}
+
+
 def word_count_label(count: int) -> str:
     """A word count as the catalogue prints it: thousands spaced, unit named."""
 
@@ -96,6 +111,9 @@ class EditionRow:
     target_level: str | None = None
     # The stage whose run failed, on a failed edition.
     failed_stage: str = ""
+    # Whether another edition of the work has this one's language, type and level,
+    # so the row names its slug to tell them apart.
+    twin: bool = False
 
     @property
     def status(self) -> str:
@@ -150,6 +168,8 @@ class EditionRow:
         """What a hover over the strip token says: type, role, status, stage."""
 
         parts = [self.type_label, self.role_label, self.status_label]
+        if self.twin:
+            parts.insert(0, self.edition.slug)
         if self.run:
             parts.append(self.run.get_stage_display())
         elif self.failed_stage:
@@ -426,9 +446,11 @@ def catalogue_groups(visibility: str) -> list[WorkGroup]:
         .values_list("edition_id")
         .annotate(Max("created_at"))
     )
+    twins = twin_ids(editions)
     for edition in editions:
         group = groups.setdefault(edition.work_id, WorkGroup(work=edition.work))
         row = _row(edition, runs.get(edition.id))
+        row.twin = edition.id in twins
         state = release[edition.id]
         row.metadata_behind = state.metadata_behind
         row.promotions = state.tokens

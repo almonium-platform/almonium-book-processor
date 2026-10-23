@@ -61,8 +61,8 @@
   <div class="rail-tree">
     <span class="rail-label">In this work</span>
     {% for row in work_tree %}
-      {% if row.current %}<span class="rail-tree-row rail-tree-current"><span><span class="edition-lang">{{ row.language }}</span> {{ row.role_label }}{% if row.edition.cefr_level %} · {{ row.edition.cefr_level }}{% endif %}</span><span class="rail-tree-status rail-tree-this">This edition</span></span>
-      {% else %}<a class="rail-tree-row" href="{{ row.url }}"><span><span class="edition-lang">{{ row.language }}</span> {{ row.role_label }}{% if row.edition.cefr_level %} · {{ row.edition.cefr_level }}{% endif %}</span><span class="rail-tree-status rail-tree-{{ row.edition.status }}">{{ row.edition.get_status_display }}</span></a>{% endif %}
+      {% if row.current %}<span class="rail-tree-row rail-tree-current"><span><span class="edition-lang">{{ row.language }}</span> {{ row.role_label }}{% if row.edition.cefr_level %} · {{ row.edition.cefr_level }}{% endif %}{% if row.slug %}<code class="edition-slug">{{ row.slug }}</code>{% endif %}</span><span class="rail-tree-status rail-tree-this">This edition</span></span>
+      {% else %}<a class="rail-tree-row" href="{{ row.url }}"><span><span class="edition-lang">{{ row.language }}</span> {{ row.role_label }}{% if row.edition.cefr_level %} · {{ row.edition.cefr_level }}{% endif %}{% if row.slug %}<code class="edition-slug">{{ row.slug }}</code>{% endif %}</span><span class="rail-tree-status rail-tree-{{ row.edition.status }}">{{ row.edition.get_status_display }}</span></a>{% endif %}
     {% endfor %}
   </div>
   {% endif %}
@@ -148,7 +148,7 @@
       <td class="release-actions">
         {% if row.target == "here" and row.state == "running" %}<small class="muted">Wait for the publication to land.</small>
         {% elif row.target == "here" and row.state == "unpublished" %}{% if edition.status == "ready" %}<form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit"{% if publish_blocked %} disabled{% endif %}>{% if row.run %}Publish again{% else %}Publish to Almonium{% endif %}</button></form>{% else %}<button class="button" type="button" disabled title="Only reviewed editions are published.">Publish after approval</button>{% endif %}
-        {% elif row.target == "here" %}{% if row.metadata_behind %}<form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit">{% if row.run %}Update again{% else %}Update in Almonium{% endif %}</button></form>{% else %}<small class="muted">Nothing to do.</small>{% endif %}
+        {% elif row.target == "here" %}{% if row.metadata_behind %}<form method="post" action="{% url 'catalog:publish-edition' edition.id %}">{% csrf_token %}<button class="button" type="submit">{% if row.run %}Update again{% else %}Update in Almonium{% endif %}</button></form>{% endif %}{% if edition.status == "published" %}<form method="post" action="{% url 'catalog:unpublish-edition' edition.id %}">{% csrf_token %}<button class="link-button" type="submit"{% if unpublish_blocked %} disabled{% endif %} title="Almonium stops serving this edition; it stays here as ready, with its text and history, and can be published again.">Unpublish</button></form>{% if unpublish_blocked %}<small class="muted">{{ unpublish_blocked }}</small>{% endif %}{% elif not row.metadata_behind %}<small class="muted">Nothing to do.</small>{% endif %}
         {% elif row.state == "running" %}<small class="muted">Wait for the promotion to land.</small>
         {% elif row.state == "behind" or row.state == "never" %}
           {% if promotion_blocked %}<button class="button" type="button" disabled title="{{ promotion_blocked }}">Promote after approval</button>

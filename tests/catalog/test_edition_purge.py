@@ -503,3 +503,56 @@ def test_a_completed_withdrawal_leaves_the_in_flight_list_for_a_tombstone(monkey
     assert "Withdrawals in flight" not in page
     assert "Withdrawn from Almonium" in page
     assert EditionTombstone.objects.get(edition_id=edition.id).was_published is True
+
+
+def test_unpublishing_takes_a_book_off_almonium_and_keeps_it_here(monkeypatch) -> None:
+    edition = build_edition(status=Edition.Status.PUBLISHED, published_book_id=uuid.uuid4())
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.withdraw_from_almonium",
+        lambda target: calls.append(target.slug) or True,
+    )
+    from almonium_book_processor.catalog.tasks import unpublish_edition
+
+    unpublish_edition.run(str(edition.id))
+
+    assert calls == [edition.slug]
+    edition.refresh_from_db()
+    assert edition.status == Edition.Status.READY
+    assert edition.blocks.count() == 1
+    assert not EditionTombstone.objects.exists()
+
+
+def test_a_source_cannot_be_unpublished_under_its_published_translation(monkeypatch) -> None:
+    from django.utils import timezone
+
+    source = build_edition(status=Edition.Status.PUBLISHED, published_at=timezone.now())
+    Edition.objects.create(
+        slug="doomed-uk",
+        work=source.work,
+        title="Приречена книга",
+        author="Ада Автор",
+        language="uk",
+        status=Edition.Status.PUBLISHED,
+        source_edition=source,
+        edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+    )
+    queued: list[str] = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.unpublish_edition.delay",
+        lambda edition_id: queued.append(edition_id),
+    )
+    client = Client()
+    client.force_login(get_user_model().objects.create_user(username="editor", is_staff=True))
+
+    page = client.get(reverse("catalog:edition-detail", args=[source.id])).content.decode()
+    assert "Unpublish the editions generated from it first: doomed-uk." in page
+
+    response = client.post(reverse("catalog:unpublish-edition", args=[source.id]), follow=True)
+    assert "Unpublish the editions generated from it first: doomed-uk." in response.content.decode()
+    assert queued == []
+
+    translation = Edition.objects.get(slug="doomed-uk")
+    client.post(reverse("catalog:unpublish-edition", args=[translation.id]))
+    assert queued == [str(translation.id)]

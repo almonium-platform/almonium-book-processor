@@ -113,6 +113,7 @@ from almonium_book_processor.catalog.tasks import (
     publish_edition,
     retry_source_download,
     translate_edition_inline,
+    unpublish_blocker,
     withdraw_edition,
 )
 
@@ -816,6 +817,9 @@ def _render_edition_detail(
             publication_blocker(edition) if edition.status == Edition.Status.READY else ""
         ),
         "publication_stale": publication_stale(edition),
+        "unpublish_blocked": (
+            unpublish_blocker(edition) if edition.status == Edition.Status.PUBLISHED else ""
+        ),
         "is_parallel_translation": edition.is_parallel_translation,
         "metadata_translation_run": next(
             (run for run in pipeline_runs if run.stage == PipelineRun.Stage.TRANSLATE_METADATA),
@@ -1054,7 +1058,10 @@ def _level_label(edition: Edition | None) -> str:
 
 
 def _compare_choices(options: list[Edition]) -> list[dict]:
-    """Compare-select entries: language · level · type, with the title when two collide."""
+    """Compare-select entries: language · level · type, with the slug when two collide.
+
+    Not the title: two translations of one book into one language usually share it.
+    """
     choices = []
     for option in options:
         level = option.cefr_level or ""
@@ -1066,7 +1073,7 @@ def _compare_choices(options: list[Edition]) -> list[dict]:
         seen[key] = seen.get(key, 0) + 1
     for choice in choices:
         if seen[(choice["language"], choice["label"])] > 1:
-            choice["label"] += f" · {choice['edition'].title}"
+            choice["label"] += f" · {choice['edition'].slug}"
     return choices
 
 
@@ -2023,6 +2030,26 @@ def publish_edition_to_almonium(request: HttpRequest, edition_id: str) -> HttpRe
         messages.success(
             request,
             "Publication queued. It will appear in Almonium after the hand-off succeeds.",
+        )
+    return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def unpublish_edition_view(request: HttpRequest, edition_id: str) -> HttpResponse:
+    """Take an edition off Almonium without removing it from Books."""
+
+    from almonium_book_processor.catalog.tasks import unpublish_edition
+
+    edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
+    if blocked := unpublish_blocker(edition):
+        messages.error(request, blocked)
+    else:
+        unpublish_edition.delay(str(edition.id))
+        messages.success(
+            request,
+            "Unpublish queued. Almonium stops serving it shortly; the edition stays here as "
+            "ready, and readers keep their progress.",
         )
     return redirect("catalog:edition-detail", edition_id=edition.id)
 

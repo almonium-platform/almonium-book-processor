@@ -76,6 +76,7 @@
         <span class="edition-lang">{{ row.language }}</span>
         <a class="edition-title" href="{% url 'catalog:edition-detail' row.edition.id %}">
           {% if row.title is None %}{{ row.type_label }}{% elif row.title %}<span>{{ row.title }}</span><small>{{ row.type_label }}</small>{% else %}<span class="edition-title-pending">Title pending</span><small>{{ row.type_label }}</small>{% endif %}
+          {% if row.twin %}<code class="edition-slug">{{ row.edition.slug }}</code>{% endif %}
         </a>
         <span class="edition-chips"><span class="role-badge role-badge-{{ row.role }}">{{ row.role_label }}</span>{% if row.level_label %}<span class="level-chip">{{ row.level_label }}</span>{% endif %}</span>
         <span class="edition-words{% if row.source_language %} edition-source{% endif %}">{{ row.words_label }}{% if row.warning_count and not row.run %}<span class="edition-warnings{% if row.warnings_urgent %} edition-warnings-urgent{% endif %}"> · {{ row.warnings_label }}</span>{% endif %}</span>

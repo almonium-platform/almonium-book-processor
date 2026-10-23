@@ -500,3 +500,50 @@ def test_a_rollup_of_several_reviews_reads_need_review(frankenstein):
     Edition.objects.filter(language="uk").update(status=Edition.Status.REVIEW)
     (group,) = catalogue_groups(Work.Visibility.PUBLIC)
     assert group.rollup.label == "2 need review"
+
+
+def test_two_editions_of_one_language_and_type_are_named_by_slug(client, staff, frankenstein):
+    original = Edition.objects.get(language="en", edition_type=Edition.EditionType.ORIGINAL)
+    twin = Edition.objects.create(
+        work=original.work,
+        language="uk",
+        status=Edition.Status.REVIEW,
+        slug="frankenstein-uk-sol",
+        title="Франкенштейн, або Сучасний Прометей",
+        author="Мері Шеллі",
+        source_edition=original,
+        edition_type=Edition.EditionType.MACHINE_TRANSLATION,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        cefr_level="C1",
+    )
+
+    (group,) = catalogue_groups(Work.Visibility.PUBLIC)
+    twins = {row.edition.slug for row in group.rows if row.twin}
+    assert twins == {"frankenstein-uk-machine_translation", "frankenstein-uk-sol"}
+    page = client.get(reverse("catalog:dashboard"), {"tab": "all"}).content.decode()
+    assert '<code class="edition-slug">frankenstein-uk-sol</code>' in page
+    assert 'title="frankenstein-uk-sol · Machine translation · Parallel · Needs review"' in page
+    assert page.count('class="edition-slug"') == 2
+
+    detail = client.get(reverse("catalog:edition-detail", args=[twin.id])).content.decode()
+    assert '<code class="edition-slug">frankenstein-uk-machine_translation</code>' in detail
+
+    reader = client.get(reverse("catalog:edition-reader", args=[original.id])).content.decode()
+    assert "UK C1 · Machine translation · frankenstein-uk-sol</option>" in reader
+
+
+def test_adaptations_at_different_levels_need_no_slug(frankenstein):
+    original = Edition.objects.get(language="en", edition_type=Edition.EditionType.ORIGINAL)
+    Edition.objects.create(
+        work=original.work,
+        language="en",
+        slug="frankenstein-en-b1",
+        title=original.title,
+        author=original.author,
+        source_edition=original,
+        edition_type=Edition.EditionType.ADAPTATION,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        cefr_level="B1",
+    )
+    (group,) = catalogue_groups(Work.Visibility.PUBLIC)
+    assert not any(row.twin for row in group.rows)

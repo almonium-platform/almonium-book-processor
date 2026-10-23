@@ -45,6 +45,7 @@ from almonium_book_processor.catalog.promotion import (
 )
 from almonium_book_processor.catalog.promotion_client import PromotionClient
 from almonium_book_processor.catalog.publication import (
+    PublicationError,
     PublicationRefused,
     publish_to_almonium,
     withdraw_from_almonium,
@@ -741,6 +742,41 @@ def withdraw_edition(
         actor = get_user_model().objects.filter(pk=actor_id).first()
     purge_edition(edition, reason=reason, notes=notes, actor=actor, withdrawn=True)
     logger.info("Withdrew and purged edition %s (%s)", edition_id, reason)
+
+
+def unpublish_blocker(edition: Edition) -> str:
+    """Why this edition cannot be taken off Almonium while it stays here, or an empty string."""
+
+    if edition.status != Edition.Status.PUBLISHED:
+        return "Only a published edition can be unpublished."
+    dependants = edition.derived_editions.filter(status=Edition.Status.PUBLISHED)
+    if dependants.exists():
+        slugs = ", ".join(dependants.order_by("slug").values_list("slug", flat=True))
+        return f"Unpublish the editions generated from it first: {slugs}."
+    return ""
+
+
+@shared_task(
+    autoretry_for=(PublicationError,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 5},
+)
+def unpublish_edition(edition_id: str) -> None:
+    """Take a published edition off Almonium and keep it here, ready to publish again.
+
+    The product API stops serving the book and keeps every reader's progress,
+    as for a removal; unlike a removal, the text, its review and its history
+    stay, so a replacement edition can take its place without losing this one.
+    """
+
+    edition = Edition.objects.select_related("work").get(id=edition_id)
+    if blocked := unpublish_blocker(edition):
+        raise ValueError(blocked)
+    withdraw_from_almonium(edition)
+    Edition.objects.filter(id=edition.id).update(
+        status=Edition.Status.READY, updated_at=timezone.now()
+    )
+    logger.info("Unpublished edition %s; it stays here as ready", edition_id)
 
 
 @shared_task(

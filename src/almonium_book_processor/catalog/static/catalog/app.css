@@ -374,6 +374,8 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .edition-title { display: grid; gap: .1rem; min-width: 0; }
 .edition-title small { color: var(--muted); font-size: .8rem; }
 .edition-title-pending { color: var(--muted); font-style: italic; }
+/* Names an edition by slug where another of its language and type would read the same. */
+.edition-slug { display: block; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .7rem; color: var(--muted); overflow-wrap: anywhere; }
 .edition-chips { display: inline-flex; gap: .4rem; align-items: center; }
 .edition-row .level-chip { background: #e9e1d4; color: var(--ink); letter-spacing: 0; }
 .edition-words, .edition-warnings { color: var(--muted); font-size: .82rem; }

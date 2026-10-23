@@ -257,6 +257,11 @@ urlpatterns = [
         name="publish-edition",
     ),
     path(
+        "editions/<uuid:edition_id>/unpublish/",
+        views.unpublish_edition_view,
+        name="unpublish-edition",
+    ),
+    path(
         "editions/<uuid:edition_id>/promote/",
         views.promote_edition_view,
         name="promote-edition",

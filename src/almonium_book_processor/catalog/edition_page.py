@@ -20,7 +20,7 @@ from typing import Any
 
 from django.urls import reverse
 
-from almonium_book_processor.catalog.catalogue import ROLE_ORDER, SHORT_ROLE_LABELS
+from almonium_book_processor.catalog.catalogue import ROLE_ORDER, SHORT_ROLE_LABELS, twin_ids
 from almonium_book_processor.catalog.models import Edition
 
 # The last percentage in a warning message is the confidence it reports.
@@ -157,12 +157,15 @@ def work_tree(edition: Edition) -> list[dict[str, Any]]:
     """Every edition of the work as the rail lists it: canonical, parallels, standalones."""
 
     rows = []
-    for item in Edition.objects.filter(work=edition.work).order_by("language"):
+    editions = list(Edition.objects.filter(work=edition.work).order_by("language"))
+    twins = twin_ids(editions)
+    for item in editions:
         rows.append(
             {
                 "edition": item,
                 "language": item.language.upper(),
                 "role_label": SHORT_ROLE_LABELS[item.parallel_role],
+                "slug": item.slug if item.id in twins else "",
                 "current": item.id == edition.id,
                 "url": reverse("catalog:edition-detail", args=[item.id]),
             }
