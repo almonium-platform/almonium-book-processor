@@ -409,7 +409,9 @@ def persist_artifact(edition: Edition, artifact: BookArtifact, run: PipelineRun)
         chapters[number].title = title
     # the title page, a dedication, a preface: adapted as far as they go, never the level
     roles = chapter_roles(
-        [chapters[number].title for number in chapter_numbers], book_title=edition.title
+        [chapters[number].title for number in chapter_numbers],
+        book_title=edition.title,
+        author=edition.author,
     )
     for number, role in zip(chapter_numbers, roles, strict=True):
         chapters[number].analysis_role = role

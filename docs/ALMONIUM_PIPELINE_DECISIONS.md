@@ -725,5 +725,12 @@ this are over." The rules, with their numbers:
     and Heart of Darkness are three parts, rightly. Short chapters count only
     when more than a quarter of the body is short: Zarathustra's aphorisms are
     the book, the Cambridge Shakespeare's 29 one-line "chapters" of 51 are not.
-    After the fixes the same hundred read 47 sound, 44 suspect, 10 unreadable,
-    the unreadable being audio recordings and texts with no EPUB at all.
+  - A contents, notes or preface page inside the story's span is still matter
+    (Dracula's "Contents" sat between its title page and its first chapter), a
+    page named after the author is a title page, and a title page is never a
+    numbered chapter whatever its letters look like ("D R A C U L A").
+    After the fixes the same hundred read 80 sound, 11 suspect, 10 unreadable.
+    The unreadable are audio recordings and texts with no EPUB at all; of the
+    suspects, Swann's three parts and Shakespeare's collected works are what they
+    are, while Damiano (766,000 characters in two chapters) and Venus im Pelz
+    (one chapter of 96%) are real misses for the splitter to take next.

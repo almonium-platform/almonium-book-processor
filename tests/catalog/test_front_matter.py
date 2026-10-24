@@ -195,3 +195,26 @@ def test_the_gutenberg_editions_note_and_the_title_page_are_front_matter():
         "body",
         "body",
     ]
+
+
+def test_a_matter_page_inside_the_story_span_is_still_matter():
+    # Dracula: a spaced-out title page, the contents, an untitled page, the title again
+    titles = ["D R A C U L A", "Contents", "", "D R A C U L A", "CHAPTER I", "CHAPTER II", "NOTES"]
+    assert chapter_roles(titles, book_title="Dracula", author="Bram Stoker") == [
+        "front",
+        "front",
+        "front",
+        "front",
+        "body",
+        "body",
+        "back",
+    ]
+    # a page named after the author is a title page too
+    assert chapter_roles(
+        ["ALESSANDRO MANZONI", "INTRODUZIONE", "I.", "II."], author="Alessandro Manzoni"
+    ) == [
+        "front",
+        "front",
+        "body",
+        "body",
+    ]

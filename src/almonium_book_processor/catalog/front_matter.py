@@ -35,7 +35,9 @@ MATTER = re.compile(
 )
 
 
-def chapter_roles(titles: list[str], *, book_title: str | None = None) -> list[str]:
+def chapter_roles(
+    titles: list[str], *, book_title: str | None = None, author: str | None = None
+) -> list[str]:
     """A role per chapter title, in order: front matter, the story, back matter.
 
     The story runs from the first to the last chapter with a story title: a numbered one, or
@@ -50,19 +52,21 @@ def chapter_roles(titles: list[str], *, book_title: str | None = None) -> list[s
     """
 
     story = [_is_story(title) for title in titles]
-    # the title page: a chapter named after the book itself, ahead of the story
-    if book_title:
-        for index, title in enumerate(titles):
-            if story[index] and _same_title(title, book_title):
-                story[index] = False
-            elif story[index]:
-                break
+    # the title page: chapters named after the book itself or its author, ahead of the story
+    for index, title in enumerate(titles):
+        if story[index] and any(_same_title(title, name) for name in (book_title, author) if name):
+            story[index] = False
+        elif story[index]:
+            break
     if not any(story):
         return [Chapter.AnalysisRole.BODY] * len(titles)
-    numbered = [bool(NUMBERED.match(title.strip())) for title in titles]
+    # a title page is not a numbered chapter, whatever its letters look like ("D R A C U L A")
+    numbered = [
+        story[index] and bool(NUMBERED.match(title.strip())) for index, title in enumerate(titles)
+    ]
     first = numbered.index(True) if any(numbered) else story.index(True)
     last = len(story) - 1 - story[::-1].index(True)
-    return [
+    roles = [
         Chapter.AnalysisRole.FRONT
         if index < first
         else Chapter.AnalysisRole.BACK
@@ -70,12 +74,27 @@ def chapter_roles(titles: list[str], *, book_title: str | None = None) -> list[s
         else Chapter.AnalysisRole.BODY
         for index in range(len(titles))
     ]
+    # a contents, notes or preface page inside the story's span is still matter: Dracula's
+    # "Contents" sat between its title page and its first chapter
+    for index, title in enumerate(titles):
+        if roles[index] == Chapter.AnalysisRole.BODY and _is_matter(title):
+            roles[index] = (
+                Chapter.AnalysisRole.FRONT
+                if index < (first + last) / 2
+                else Chapter.AnalysisRole.BACK
+            )
+    return roles
+
+
+def _is_matter(title: str) -> bool:
+    title = title.strip()
+    return bool(title) and not NUMBERED.match(title) and bool(MATTER.search(title))
 
 
 def _same_title(title: str, book_title: str) -> bool:
     """Whether a chapter title is the book's own, as a title page carries it."""
 
-    plain = lambda text: re.sub(r"[^\w]+", " ", text).strip().lower()  # noqa: E731
+    plain = lambda text: re.sub(r"[^\w]+", "", text).lower()  # noqa: E731  "D R A C U L A" is Dracula
     chapter, book = plain(title), plain(book_title)
     return bool(chapter) and (
         chapter == book or book.startswith(chapter) or chapter.startswith(book)
@@ -112,7 +131,9 @@ def retag(edition: Edition) -> int:
     if edition.source_edition_id:
         roles = [source_role(edition, chapter.sequence) for chapter in chapters]
     else:
-        roles = chapter_roles([chapter.title for chapter in chapters], book_title=edition.title)
+        roles = chapter_roles(
+            [chapter.title for chapter in chapters], book_title=edition.title, author=edition.author
+        )
     changed = [
         chapter
         for chapter, role in zip(chapters, roles, strict=True)

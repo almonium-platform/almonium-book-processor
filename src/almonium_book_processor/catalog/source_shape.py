@@ -49,7 +49,9 @@ def measure(artifact: BookArtifact) -> dict[str, Any]:
             chapter["chars"] += len(block.text)
     ordered = [chapters[sequence] for sequence in sorted(chapters)]
     roles = chapter_roles(
-        [chapter["title"] for chapter in ordered], book_title=artifact.edition.title
+        [chapter["title"] for chapter in ordered],
+        book_title=artifact.edition.title,
+        author=artifact.edition.author,
     )
     for chapter, role in zip(ordered, roles, strict=True):
         chapter["role"] = role
