@@ -55,3 +55,20 @@ def test_a_passing_failure_is_still_tried_twice():
         return answer
 
     assert tried_twice(call, pause=lambda _: None) == {"ok": True}
+
+
+def test_claudes_session_limit_is_a_used_up_allowance_with_its_reset_time():
+    """On 24 October 2026 this wording was taken for a broken call: tried twice, re-asked, and
+    sixty productions burned their starts in fifteen minutes."""
+
+    def call():
+        raise RuntimeError(
+            'Claude Code exited with 1: {"is_error":true,"result":"You\'ve hit your session '
+            'limit · resets 6:10pm (UTC)"}'
+        )
+
+    with pytest.raises(AllowanceUsedUp) as refused:
+        tried_twice(call, pause=lambda _: None)
+
+    assert str(refused.value).startswith(ALLOWANCE_USED_UP)
+    assert refused.value.until == "6:10pm (UTC)"

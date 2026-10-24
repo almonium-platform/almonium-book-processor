@@ -31,7 +31,9 @@ _ALLOWANCE_USED_UP = re.compile(
 )
 # A run's error that holds this text was refused for a used-up allowance, not for its own fault.
 ALLOWANCE_USED_UP = "Allowance used up"
-_TRY_AGAIN = re.compile(r"try again at ([^.\n]+)", re.IGNORECASE)
+# Codex: "... or try again at Oct 30th, 2026 7:43 PM."; Claude Code: "You've hit your session
+# limit · resets 6:10pm (UTC)" (its weekly limit reads the same way).
+_TRY_AGAIN = re.compile(r"(?:try again at|resets) ([^.\n\"]+)", re.IGNORECASE)
 
 
 class CallFailed(RuntimeError):
