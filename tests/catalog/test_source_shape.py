@@ -76,3 +76,33 @@ def test_many_tiny_chapters_are_a_cut_gone_wrong():
 
 def test_a_book_with_no_body_chapter_is_suspect():
     assert judge(metrics(body_chapters=0, largest_body_share=None))[0] == "suspect"
+
+
+def test_a_shape_report_is_signed_to_almonium_and_never_fails_without_it(monkeypatch):
+    from almonium_book_processor.catalog import source_shape
+
+    monkeypatch.delenv("ALMONIUM_API_URL", raising=False)
+    assert (
+        source_shape.report_shape("https://www.gutenberg.org/ebooks/84.epub3.images", "ok") is False
+    )
+
+    monkeypatch.setenv("ALMONIUM_API_URL", "https://api.example")
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", "secret")
+    posted = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.publication._signed_post",
+        lambda path, payload, failure: posted.append((path, payload)),
+    )
+    assert (
+        source_shape.report_shape("https://www.gutenberg.org/ebooks/84.epub3.images", "suspect")
+        is True
+    )
+    assert posted == [
+        (
+            "/internal/books/sources/shape",
+            {
+                "downloadUrl": "https://www.gutenberg.org/ebooks/84.epub3.images",
+                "verdict": "suspect",
+            },
+        )
+    ]

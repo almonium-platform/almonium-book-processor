@@ -15,7 +15,7 @@ from django.core.management.base import BaseCommand
 from almonium_book_processor import ingest_processor_version
 from almonium_book_processor.catalog.models import SourceShape
 from almonium_book_processor.catalog.source_download import HOSTS, download
-from almonium_book_processor.catalog.source_shape import judge, measure
+from almonium_book_processor.catalog.source_shape import judge, measure, report_shape
 from almonium_book_processor.ingest.epub import ingest_epub
 from almonium_book_processor.ingest.tei import ingest_tei
 
@@ -142,9 +142,13 @@ class Command(BaseCommand):
             row.language = (artifact.edition.language or "")[:16]
             row.metrics = {**row.metrics, **measure(artifact)}
             row.verdict, row.reasons = judge(row.metrics)
+            if not local:
+                report_shape(url, row.verdict)
         except Exception as error:  # a book that cannot be read is a finding too
             row.verdict = SourceShape.Verdict.UNREADABLE
             row.reasons = [f"{type(error).__name__}: {str(error)[:200]}"]
+            if not local:
+                report_shape(url, row.verdict)
         finally:
             if not local:
                 path.unlink(missing_ok=True)

@@ -136,6 +136,8 @@ def record_shape(edition, artifact: BookArtifact, file_sha256: str, run=None):
             "processor_version": ingest_processor_version(),
         },
     )
+    if download and download.download_url:
+        report_shape(download.download_url, verdict)
     QAWarning.objects.create(
         edition=edition,
         pipeline_run=run,
@@ -147,3 +149,32 @@ def record_shape(edition, artifact: BookArtifact, file_sha256: str, run=None):
         ),
     )
     return verdict, reasons
+
+
+def report_shape(download_url: str, verdict: str, checked_at=None) -> bool:
+    """Tell Almonium what shape the file at ``download_url`` has, so it can rank the source.
+
+    Best effort: a catalogue that is not configured or not reachable loses a ranking signal,
+    never a book. Returns whether the report was taken.
+    """
+
+    import logging
+    import os
+
+    from almonium_book_processor.catalog.publication import PublicationError, _signed_post
+
+    if not os.getenv("ALMONIUM_API_URL") or not os.getenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN"):
+        return False
+    payload = {"downloadUrl": download_url[:1000], "verdict": verdict}
+    if checked_at is not None:
+        payload["checkedAt"] = checked_at.isoformat()
+    try:
+        _signed_post(
+            "/internal/books/sources/shape",
+            payload,
+            failure="Almonium did not take the shape report",
+        )
+        return True
+    except PublicationError as error:
+        logging.getLogger(__name__).warning("%s", error)
+        return False

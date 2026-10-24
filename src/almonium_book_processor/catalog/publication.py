@@ -118,7 +118,8 @@ def _signed_post(path: str, payload: dict[str, Any], *, failure: str) -> Any:
     )
     try:
         with urlopen(request, timeout=READ_TIMEOUT_SECONDS) as response:  # noqa: S310
-            return json.loads(response.read())
+            body = response.read()
+            return json.loads(body) if body else None  # a 204 has no body
     except HTTPError as error:
         reason = _response_reason(error)
         if error.code == 409:
