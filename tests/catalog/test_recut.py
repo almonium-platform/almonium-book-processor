@@ -130,3 +130,26 @@ def test_a_book_already_cut_this_way_is_left_alone(tmp_path, settings):
     plan = plan_recut(source)
 
     assert plan.unchanged
+
+
+def test_a_long_run_of_new_text_does_not_leave_later_paragraphs_unmatched(tmp_path, settings):
+    # Pride and Prejudice's illustrated edition: a list of sixty plates the old reader skipped,
+    # then the whole novel; a lookahead of eighty fresh paragraphs lost all but 31 of 2,256
+    from almonium_book_processor.catalog.recut import _match
+
+    source, _ = _stored_as_one_chapter(tmp_path, settings)
+    artifact = ingest_epub(_epub(tmp_path), edition_slug="pride-en", work_slug="pride")
+    plates = [
+        artifact.blocks[1].model_copy(
+            update={"chapter": 0, "block_id": f"c0.pl{n}", "seq": 100 + n, "text": f"Plate {n}"}
+        )
+        for n in range(200)
+    ]
+    padded = artifact.model_copy(
+        update={"blocks": [artifact.blocks[0], *plates, *artifact.blocks[1:]]}
+    )
+
+    plan = _match(source, padded, "sha")
+
+    assert plan.matched == plan.stored_text_blocks == 9
+    assert len(plan.unmatched_fresh) == 200 and not plan.unmatched_stored

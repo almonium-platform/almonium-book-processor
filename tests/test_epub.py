@@ -915,3 +915,34 @@ def test_an_edition_records_the_cut_that_made_it(tmp_path) -> None:
     # the cut is named after the code that made it, the same on every run of the same code
     assert re.fullmatch(r"cut-[0-9a-f]{12}", INGEST_VERSION)
     assert _rules_digest() == _rules_digest()
+
+
+def test_printed_page_numbers_in_loose_text_are_not_words(tmp_path) -> None:
+    # Der Untertan on Gutenberg: "[pg 5]" between the paragraphs, 132 of them
+    source = _book(
+        tmp_path,
+        [
+            '<div><h2>I</h2>\n<span class="pagenum">[pg 5]</span>\n'
+            "Diederich Heßling war ein weiches Kind, das am liebsten träumte.\n\n"
+            '<a id="Page_6"></a>[6]\nEr fürchtete sich vor allem.\n</div>'
+        ],
+    )
+
+    artifact = ingest_epub(source, edition_slug="unt-de", work_slug="unt")
+
+    assert [block.text for block in artifact.blocks] == [
+        "I",
+        "Diederich Heßling war ein weiches Kind, das am liebsten träumte.",
+        "Er fürchtete sich vor allem.",
+    ]
+
+
+def test_a_page_number_set_as_a_paragraph_is_not_a_paragraph(tmp_path) -> None:
+    source = _book(
+        tmp_path,
+        ['<h2>I</h2><p class="pagenum">[pg 10]</p><p>Words.</p><p>[11]</p><p>More words.</p>'],
+    )
+
+    artifact = ingest_epub(source, edition_slug="pg-de", work_slug="pg")
+
+    assert [block.text for block in artifact.blocks] == ["I", "Words.", "More words."]

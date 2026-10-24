@@ -344,6 +344,8 @@ def extract_blocks(
             return
 
         if tag.name in TEXT_TAGS:
+            if markers & PAGE_MARKERS or PAGE_NUMBER_LINE.match(normalize_text(tag)):
+                return  # a printed page number set as its own paragraph
             images = tag.find_all("img")
             if images:
                 for image in images:
@@ -383,6 +385,10 @@ def extract_blocks(
         # with no <p> anywhere (Os Lusíadas: 2,656 <br> and not one paragraph element)
         loose: list = []
         for child in tag.children:
+            if isinstance(child, Tag) and (
+                marker_values(child) & PAGE_MARKERS or child.get("id", "").startswith("Page_")
+            ):
+                continue  # a page number of the printed book, not its words
             if isinstance(child, NavigableString) or (
                 isinstance(child, Tag) and (child.name == "br" or child.name in INLINE_TAGS)
             ):
@@ -435,6 +441,12 @@ INLINE_TAGS = {
 }
 # Lines this short, on the median, are verse; longer ones are prose wrapped at the line.
 VERSE_LINE_CHARS = 60
+# Gutenberg keeps the printed page numbers in the text as "[pg 5]" or "[5]" spans and anchors.
+PAGE_MARKERS = {"pagenum", "pageno", "pagenumber", "page-number", "folio"}
+# A bracketed number, or one that says it is a page; a bare "1" between stanzas is the stanza's.
+PAGE_NUMBER_LINE = re.compile(
+    r"^\[\s*(?:pg\.?|p\.|page)?\s*[0-9ivxlc]+\s*\]$|^(?:pg\.?|page)\s*\d+$", re.IGNORECASE
+)
 
 
 def loose_paragraphs(nodes: list) -> list[list[str]]:
@@ -454,7 +466,7 @@ def loose_paragraphs(nodes: list) -> list[list[str]]:
     paragraphs: list[list[str]] = []
     for chunk in re.split(r"\n[ \t\r\f\v]*\n", text):
         lines = [re.sub(r"\s+", " ", line).strip() for line in chunk.split("\n")]
-        lines = [line for line in lines if line]
+        lines = [line for line in lines if line and not PAGE_NUMBER_LINE.match(line)]
         if lines:
             paragraphs.append(lines)
     return paragraphs

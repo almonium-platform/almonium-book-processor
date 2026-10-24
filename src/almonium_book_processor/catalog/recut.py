@@ -28,10 +28,12 @@ from almonium_book_processor.catalog.models import Chapter, ContentBlock, Editio
 from almonium_book_processor.ingest.epub import ingest_epub
 from almonium_book_processor.models import BlockType, BookArtifact
 
-# A fresh cut that fails to find this share of the stored text, or finds more new text than
-# this, is not the same book cut differently: the file or the reader changed materially.
+# A fresh cut that fails to find this share of the stored paragraphs is not the same book cut
+# differently: the file or the reader changed materially. New paragraphs the old reader skipped
+# (a title page, a list of plates, captions) are allowed up to a larger share; they are
+# matter around the story and the adaptations never had them.
 MATERIAL_CHANGE_SHARE = 0.02
-LOOKAHEAD = 80
+NEW_TEXT_SHARE = 0.05
 
 
 @dataclass
@@ -54,7 +56,7 @@ class RecutPlan:
         stored = max(self.stored_text_blocks, 1)
         return (
             len(self.unmatched_stored) / stored > MATERIAL_CHANGE_SHARE
-            or len(self.unmatched_fresh) / max(self.fresh_text_blocks, 1) > MATERIAL_CHANGE_SHARE
+            or len(self.unmatched_fresh) / max(self.fresh_text_blocks, 1) > NEW_TEXT_SHARE
         )
 
     @property
@@ -96,44 +98,49 @@ def _match(source: Edition, artifact: BookArtifact, file_sha256: str) -> RecutPl
     textless = {BlockType.IMAGE.value, BlockType.SEPARATOR.value}
     stored = list(source.blocks.select_related("chapter").order_by("chapter__sequence", "sequence"))
     fresh = [(block.chapter, _plain(block.text), block.type.value) for block in artifact.blocks]
-    fresh_text = [(index, chapter) for index, (chapter, text, kind) in enumerate(fresh) if text]
+    # every fresh paragraph by its text, in order: a stored paragraph is looked up by text, the
+    # first unused place at or after the previous match preferred, any unused place failing
+    # that, so a long run of new text (an illustrated edition's list of plates) never leaves
+    # the paragraphs after it unmatched
+    places: dict[str, list[int]] = defaultdict(list)
+    for position, (_chapter, text, kind) in enumerate(fresh):
+        if text and kind not in textless:
+            places[text].append(position)
+    fresh_text_blocks = sum(len(positions) for positions in places.values())
     plan = RecutPlan(
         source=source,
         old_chapters=source.chapters.count(),
         new_chapters=len({chapter for chapter, _, _ in fresh}),
         matched=0,
-        stored_text_blocks=sum(1 for b in stored if _plain(b.text)),
-        fresh_text_blocks=len(fresh_text),
+        stored_text_blocks=sum(
+            1 for b in stored if _plain(b.text) and b.block_type not in textless
+        ),
+        fresh_text_blocks=fresh_text_blocks,
         file_sha256=file_sha256,
     )
+    used: set[int] = set()
     cursor = 0
-    taken: set[int] = set()
     current_chapter = fresh[0][0] if fresh else 0
     for block in stored:
         text = _plain(block.text)
         if not text or block.block_type in textless:
             plan.chapter_of_block[block.block_id] = current_chapter
             continue
-        found = next(
-            (
-                position
-                for position in range(cursor, min(cursor + LOOKAHEAD, len(fresh_text)))
-                if fresh[fresh_text[position][0]][1] == text
-            ),
-            None,
-        )
+        candidates = [p for p in places.get(text, []) if p not in used]
+        found = next((p for p in candidates if p >= cursor), candidates[0] if candidates else None)
         if found is None:
             plan.unmatched_stored.append(block.block_id)
             plan.chapter_of_block[block.block_id] = current_chapter
             continue
-        taken.update(range(cursor, found))  # fresh blocks passed over are new text
-        index, chapter = fresh_text[found]
+        used.add(found)
         plan.matched += 1
-        current_chapter = chapter
-        plan.chapter_of_block[block.block_id] = chapter
+        current_chapter = fresh[found][0]
+        plan.chapter_of_block[block.block_id] = current_chapter
         cursor = found + 1
-    plan.unmatched_fresh = [fresh[fresh_text[p][0]][1][:60] for p in sorted(taken)] + [
-        fresh[index][1][:60] for index, _ in fresh_text[cursor:]
+    plan.unmatched_fresh = [
+        fresh[position][1][:60]
+        for position, (_chapter, text, kind) in enumerate(fresh)
+        if text and kind not in textless and position not in used
     ]
     titles: dict[int, str] = {}
     cut_by_size: set[int] = set()
