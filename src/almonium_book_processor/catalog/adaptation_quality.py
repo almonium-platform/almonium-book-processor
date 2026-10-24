@@ -13,6 +13,13 @@ DIFFICULTY_WARNING = "adaptation_difficulty_gate"
 # chapters reach. A chapter both judges read above the target, or one read two levels above,
 # still holds the book.
 SPLIT_CHAPTER_SHARE = 0.10
+# The share of the substantive chapters that may read one level above the target for both
+# judges, once the adapter has had its two tries at each of them (catalog/production.py). A
+# book is its level when four chapters in five hold it; the chapters that do not are shown to
+# the reader at their own level, which every chapter carries anyway. A chapter two levels
+# above, or a larger share, still holds the book: on 24 October 2026 Dubliners' B1 was held
+# on one chapter of sixteen while Arsène Lupin's read B2 in eight of nine.
+ABOVE_CHAPTER_SHARE = 0.20
 
 
 def adaptation_target(edition) -> str | None:
@@ -66,6 +73,7 @@ def adaptation_quality(edition, analysis=None):
     above = []
     below = []
     split = []
+    far = []  # two levels or more above the target: no allowance covers these
     if not analysis.get("chapter_projections"):
         result["adaptation_blocker"] = "Every adaptation chapter needs a current estimate."
         return result
@@ -96,6 +104,8 @@ def adaptation_quality(edition, analysis=None):
                 and max(levels) == LEVELS.index(target) + 1
             )
             (split if disputed else above).append(row["chapter"].sequence)
+            if LEVELS.index(level) >= LEVELS.index(target) + 2:
+                far.append(row["chapter"].sequence)
         if LEVELS.index(row["difficulty"]["cefr_estimate"]) < LEVELS.index(target):
             below.append(row["chapter"].sequence)
     body = sum(
@@ -108,7 +118,10 @@ def adaptation_quality(edition, analysis=None):
     result["adaptation_below_chapters"] = below
     # read a level above the target by one judge and at it by another; within the allowance
     result["adaptation_split_chapters"] = split
-    if above:
+    # read one level above by both judges, few enough to be labelled rather than to hold
+    tolerated = [] if far or len(above) > int(body * ABOVE_CHAPTER_SHARE) else list(above)
+    result["adaptation_tolerated_chapters"] = tolerated
+    if above and not tolerated:
         result["adaptation_blocker"] = (
             f"Target {target} not achieved: {len(above)} chapter(s) contain above-target "
             f"estimates ({', '.join(map(str, above))}). Review the cited passages and revise "

@@ -82,12 +82,47 @@ def _replaced_chapter(edition: Edition, run: PipelineRun | None) -> tuple[int, s
     return chapter.sequence, title
 
 
+def _production_guidance(edition: Edition) -> str | None:
+    """What the production that made ``edition`` is doing about its review, when there is one.
+
+    The fidelity item is the production's own to-do: it closes it when both gates pass, so a
+    person is asked to read only a book no production is looking after.
+    """
+
+    from almonium_book_processor.catalog.production import VERSION
+
+    if not edition.source_edition_id:
+        return None
+    production = (
+        PipelineRun.objects.filter(edition_id=edition.source_edition_id, processor_version=VERSION)
+        .order_by("-created_at")
+        .first()
+    )
+    if production is None:
+        return None
+    if production.status in (PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING):
+        return (
+            "The automatic production is under way and closes this item itself when the "
+            "level and fidelity gates pass. Nothing to read."
+        )
+    if production.status == PipelineRun.Status.FAILED:
+        return (
+            f"The automatic production held this book: {production.error} It closes this "
+            "item itself once it is started again and finishes; a hold by circumstance is "
+            "started again by requeue_held."
+        )
+    return None
+
+
 def review_item(edition: Edition, warning: QAWarning) -> dict:
     """Describe where a staff reviewer should look before resolving ``warning``."""
 
+    guidance = GUIDANCE.get(warning.code, "")
+    if warning.code == FIDELITY_CODE:
+        guidance = _production_guidance(edition) or guidance
     item = {
         "warning": warning,
-        "guidance": GUIDANCE.get(warning.code, ""),
+        "guidance": guidance,
         "links": [],
     }
     if warning.block_id:

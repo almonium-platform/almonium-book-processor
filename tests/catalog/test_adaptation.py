@@ -181,6 +181,29 @@ def test_legacy_review_item_recovers_the_pilot_from_its_message(application):
 
     item = review_item(target, fidelity)
     assert "Run the fidelity audit below" in item["guidance"]
+
+    # once a production looks after the book, the card says what it is doing instead
+    from almonium_book_processor.catalog.models import PipelineRun
+    from almonium_book_processor.catalog.production import VERSION
+
+    production = PipelineRun.objects.create(
+        edition=target.source_edition,
+        stage=PipelineRun.Stage.ADAPT,
+        processor_version=VERSION,
+        status=PipelineRun.Status.RUNNING,
+        input_hash="",
+        idempotency_key="production-of-the-source",
+        summary={},
+    )
+    assert review_item(target, fidelity)["guidance"].startswith(
+        "The automatic production is under way and closes this item itself"
+    )
+    production.status = PipelineRun.Status.FAILED
+    production.error = "B2 held: 'book B2' was started 2 times and did not finish."
+    production.save()
+    guidance = review_item(target, fidelity)["guidance"]
+    assert guidance.startswith("The automatic production held this book: B2 held: 'book B2'")
+    assert "requeue_held" in guidance
     links = {link["label"]: link["url"] for link in item["links"]}
     assert links["Read beside the source"] == f"{reader}?chapter=1&{parallel}"
     assert links["Paired review workspace"] == reverse("catalog:alignment-review", args=[target.id])

@@ -254,7 +254,9 @@ def test_one_chapter_in_ten_may_read_a_level_higher_when_the_judges_disagree(edi
     assert quality["adaptation_above_chapters"] == []
 
 
-def test_a_chapter_both_judges_read_above_the_target_still_holds_the_book(edition, settings):
+def test_one_chapter_both_judges_read_above_the_target_is_above_but_within_the_allowance(
+    edition, settings
+):
     from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
 
     settings.DIFFICULTY_READINGS = 1
@@ -264,7 +266,24 @@ def test_a_chapter_both_judges_read_above_the_target_still_holds_the_book(editio
 
     quality = adaptation_quality(edition)
 
+    # the adapter still gets its tries at chapter 10 (production); the gate does not hold on it
     assert quality["adaptation_above_chapters"] == [10]
+    assert quality["adaptation_tolerated_chapters"] == [10]
+    assert quality["adaptation_blocker"] == ""
+
+
+def test_more_chapters_above_the_target_than_the_allowance_hold_the_book(edition, settings):
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_quality
+
+    settings.DIFFICULTY_READINGS = 1
+    _adaptation_of(edition, 10)
+    judges = ByChapter({"claude-opus-5-5": {8, 9, 10}, "gpt-6.1-sol": {8, 9, 10}})
+    analyze_chapters(str(queue_analysis(str(edition.id)).id), provider=judges)
+
+    quality = adaptation_quality(edition)
+
+    assert quality["adaptation_above_chapters"] == [8, 9, 10]
+    assert quality["adaptation_tolerated_chapters"] == []
     assert "Target B1 not achieved" in quality["adaptation_blocker"]
 
 

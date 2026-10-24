@@ -16,6 +16,7 @@ from almonium_book_processor.catalog.adaptation_floor import (
     probe_sample,
     queue_probe,
     reached_levels,
+    record_unreached,
     refresh_adaptation_floor,
     run_probe,
 )
@@ -1686,3 +1687,18 @@ def test_a_block_read_as_the_right_language_with_modest_confidence_passes_the_ga
         validate_output_language(
             ["This is plain English prose that is not Ukrainian at all, clearly."], "uk"
         )
+
+
+def test_a_level_a_production_dropped_stays_not_reached_on_the_ladder(source):
+    record_unreached(source, "B2", "Chapter(s) 1, 3 still read above B2 after the rewrites.")
+    refresh_adaptation_floor(source.work)
+
+    source.work.refresh_from_db()
+    evidence = source.work.adaptation_evidence["levels"]["B2"]
+    assert evidence["state"] == "not_reached"
+    assert evidence["reasons"] == ["Chapter(s) 1, 3 still read above B2 after the rewrites."]
+    rows = ladder(source)
+    assert rows[0]["state"] == "not_reached" and not rows[0]["can_probe"]
+    assert rows[0]["note"] == "Chapter(s) 1, 3 still read above B2 after the rewrites."
+    assert rows[1]["state"] == "untried" and not rows[1]["can_probe"]
+    assert reached_levels(source.work) == []

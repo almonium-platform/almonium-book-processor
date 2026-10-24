@@ -43,6 +43,7 @@ from almonium_book_processor.catalog.models import (
     Edition,
     PipelineRun,
     QAWarning,
+    RemovalReason,
 )
 
 VERSION = "production-v1"
@@ -140,6 +141,46 @@ def queue_production(
         )
         transaction.on_commit(lambda: produce_edition.delay(str(run.id)))
     return run
+
+
+# What holds a book without saying anything about the book: a step that broke too often, a
+# plan whose allowance ran out, a worker that died under it. These are started again.
+CIRCUMSTANTIAL_HOLDS = ("was started", ALLOWANCE_USED_UP, "Left behind")
+
+
+def requeue_held(*, allowance_only: bool = False, older_than: timedelta = timedelta(minutes=30)):
+    """Start again the productions that were held by circumstance, not by the book.
+
+    A hold names its cause in the run's error. With ``allowance_only`` only the ones a plan's
+    used-up allowance held are started, which the meter's timer does once an account answers
+    again; ``older_than`` keeps a book from being started twice in one bad hour. The sources
+    whose newest production is finished well or under way are left alone. Returns the runs.
+    """
+
+    causes = (ALLOWANCE_USED_UP,) if allowance_only else CIRCUMSTANTIAL_HOLDS
+    cutoff = timezone.now() - older_than
+    started = []
+    newest_by_source: dict = {}
+    for run in PipelineRun.objects.filter(processor_version=VERSION).order_by("-created_at"):
+        newest_by_source.setdefault(run.edition_id, run)
+    for run in newest_by_source.values():
+        if run.status != PipelineRun.Status.FAILED or run.finished_at is None:
+            continue
+        if run.finished_at > cutoff or not any(cause in (run.error or "") for cause in causes):
+            continue
+        state = run.summary
+        started.append(
+            queue_production(
+                run.edition_id,
+                state.get("levels", []),
+                languages=state.get("languages", []),
+                register=state.get("register", ""),
+                sign_off=state.get("sign_off", True),
+                promote_to=state.get("promote_to", ""),
+                publish=state.get("publish", False),
+            )
+        )
+    return started
 
 
 def _fresh_tracks(levels: list[str], languages: list[str]) -> dict:
@@ -256,6 +297,19 @@ def _apply(state: dict, track: dict, target: str, step: str, move: tuple) -> Non
         state["outcomes"][target] = {"outcome": "not needed", "note": move[1]}
         _log(state, target, step, f"NOT NEEDED: {move[1]}")
         following = track["index"] + 1
+    elif kind == "dropped":
+        # a verdict, not a failure: the book does not come down to this level, and the levels
+        # below it are further still
+        state["outcomes"][target] = {"outcome": "not reached", "reasons": [move[1]]}
+        _log(state, target, step, f"NOT REACHED: {move[1]}")
+        following = track["index"] + 1
+        if target in state["levels"]:
+            for below in track["targets"][track["index"] + 1 :]:
+                state["outcomes"][below] = {
+                    "outcome": "not reached",
+                    "reasons": [f"{target}, the level above, was not reached."],
+                }
+            following = len(track["targets"])
     else:
         reasons = move[1]
         state["outcomes"][target] = {"outcome": "held", "reasons": reasons}
@@ -279,7 +333,7 @@ def _finish(run: PipelineRun, state: dict) -> None:
     unfinished = [
         f"{target} {outcome['outcome']}: {' '.join(outcome.get('reasons', []))}"
         for target, outcome in state["outcomes"].items()
-        if outcome["outcome"] not in ("ready", "not needed")
+        if outcome["outcome"] not in ("ready", "not needed", "not reached")
     ]
     # a held book is a verdict, and it is shown where a failed job is: it needs a person
     run.status = PipelineRun.Status.FAILED if unfinished else PipelineRun.Status.SUCCEEDED
@@ -513,8 +567,10 @@ def _probe(run: PipelineRun, state: dict, level: str) -> tuple:
         return ("goto", "write", "The probe passed.")
     if row["state"] == "probing":
         return ("wait", "The probe is running.")
+    if row["state"] == "not_reached":
+        return ("dropped", f"{level} was tried before and not reached: {row['note']}")
     if row["state"] == "probe_failed":
-        raise Held(f"The {level} probe failed: {row['note']}")
+        return ("dropped", f"The {level} probe failed: {row['note']}")
     if not row["can_probe"]:
         raise Held(f"{level} cannot be probed: {row['note']}")
     _started(state, f"probe {level}")
@@ -574,7 +630,10 @@ def _mend(run: PipelineRun, state: dict, level: str) -> tuple:
 
     edition = _edition(state, level)
     quality = adaptation_quality(edition)
-    if not quality.get("adaptation_blocker"):
+    above = quality.get("adaptation_above_chapters") or []
+    if not above:
+        if quality.get("adaptation_blocker"):
+            raise Held(quality["adaptation_blocker"])
         split = quality.get("adaptation_split_chapters") or []
         note = "Every chapter holds the level."
         if split:
@@ -583,9 +642,6 @@ def _mend(run: PipelineRun, state: dict, level: str) -> tuple:
                 "within the allowance."
             )
         return ("goto", "audit", note)
-    above = quality.get("adaptation_above_chapters") or []
-    if not above:
-        raise Held(quality["adaptation_blocker"])
     mended = state["mended"].setdefault(level, {})
     for sequence in above:
         done = mended.setdefault(str(sequence), [])
@@ -604,10 +660,49 @@ def _mend(run: PipelineRun, state: dict, level: str) -> tuple:
             outcome = revise_chapter(edition, chapter, check_chapter(edition, chapter))
             if outcome["applied"]:
                 return ("goto", "levels", f"Chapter {sequence}: rewritten whole and applied.")
-    raise Held(
+    # the adapter has had both its tries at every chapter above the target
+    tolerated = quality.get("adaptation_tolerated_chapters") or []
+    if sorted(tolerated) == sorted(above):
+        return (
+            "goto",
+            "audit",
+            f"Chapter(s) {_list(above)} read one level above {level} after the cited "
+            "paragraphs and the whole chapter were each rewritten once; within the "
+            "allowance, each is shown to the reader at its own level.",
+        )
+    return _drop(
+        run,
+        state,
+        level,
+        edition,
         f"Chapter(s) {_list(above)} still read above {level} after the cited paragraphs and "
-        "the whole chapter were each rewritten once."
+        "the whole chapter were each rewritten once.",
     )
+
+
+def _drop(run: PipelineRun, state: dict, level: str, edition: Edition, reason: str) -> tuple:
+    """The book does not come down to ``level``: its edition goes, and the ladder remembers.
+
+    Holding it would ask a person to read what the adapter could not bring down, and nobody
+    reads the books at the scale they are made. The record on the source keeps the level
+    from being tried again; a person who disagrees purges the record and starts the book.
+    """
+
+    from almonium_book_processor.catalog.adaptation_floor import (
+        record_unreached,
+        refresh_adaptation_floor,
+    )
+    from almonium_book_processor.catalog.purge import purge_edition
+
+    record_unreached(run.edition, level, reason, production=run)
+    purge_edition(
+        edition,
+        reason=RemovalReason.OTHER,
+        notes=f"The production {run.id} dropped {level}: {reason}",
+    )
+    state["editions"].pop(level, None)
+    refresh_adaptation_floor(run.edition.work)
+    return ("dropped", reason)
 
 
 def _list(numbers: list) -> str:

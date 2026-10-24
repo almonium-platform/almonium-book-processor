@@ -29,6 +29,8 @@ class World:
         self.analysis_runs = {}  # edition id -> the analysis run, where one is under way
         self.ladder = {"B2": "untried", "B1": "untried"}
         self.above = []  # chapters the judges read above the target, per reading of the gate
+        self.tolerated = []  # of those, the ones the allowance covers, per reading of the gate
+        self.dropped = []  # (edition slug, level, reason) of the levels the production dropped
         self.audit = "none"
         self.audit_touched = timezone.now()
         self.findings = []
@@ -107,13 +109,24 @@ def world(monkeypatch):
 
     def quality(edition, analysis=None):
         above = world.above.pop(0) if world.above else []
+        tolerated = world.tolerated.pop(0) if world.tolerated else []
         return {
             "adaptation_target": "B2",
-            "adaptation_blocker": "Target not achieved." if above else "",
+            "adaptation_blocker": "Target not achieved." if above and not tolerated else "",
             "adaptation_above_chapters": above,
+            "adaptation_tolerated_chapters": tolerated,
         }
 
     patch("adaptation_quality.adaptation_quality", quality)
+    patch(
+        "adaptation_floor.record_unreached",
+        lambda source, level, reason, production=None: world.dropped.append((level, reason)),
+    )
+    patch("adaptation_floor.refresh_adaptation_floor", lambda work: work)
+    patch(
+        "purge.purge_edition",
+        lambda edition, **kwargs: world.calls.append(f"purge {edition.slug}") or edition.delete(),
+    )
     patch("adaptation_quality.adaptation_target", lambda edition: "B2")
 
     def changed(edition, what):
@@ -290,21 +303,67 @@ def test_the_adaptations_own_review_items_are_closed_and_another_kind_holds_the_
     assert "another kind are open: unsupported_markup" in other.error
 
 
-def test_a_failed_probe_holds_the_level_and_the_levels_below_are_not_attempted(world):
+def test_a_failed_probe_is_a_verdict_the_level_and_the_ones_below_are_not_reached(world):
     world.ladder["B2"] = "probe_failed"
 
     run = run_to_the_end(queue_production(world.source.id, ["B1", "B2"]))
 
     assert run.summary["levels"] == ["B2", "B1"]  # down the ladder, whatever order was asked
-    assert run.status == "failed" and run.error.startswith("B2 held: The B2 probe failed")
-    assert run.summary["outcomes"]["B1"]["outcome"] == "not attempted"
+    # nobody is asked to read what the probe showed: the production finishes with its verdict
+    assert run.status == "succeeded" and run.error == ""
+    assert run.summary["outcomes"]["B2"] == {
+        "outcome": "not reached",
+        "reasons": ["The B2 probe failed: it says"],
+    }
+    assert run.summary["outcomes"]["B1"] == {
+        "outcome": "not reached",
+        "reasons": ["B2, the level above, was not reached."],
+    }
     assert "book B2" not in world.calls
 
 
-def test_a_chapter_above_the_target_is_mended_by_paragraph_then_whole_then_holds_the_book(
+def test_a_level_the_ladder_remembers_as_not_reached_is_not_tried_again(world):
+    world.ladder["B2"] = "not_reached"
+
+    run = run_to_the_end(queue_production(world.source.id, ["B2"]))
+
+    assert run.status == "succeeded"
+    assert run.summary["outcomes"]["B2"]["reasons"] == [
+        "B2 was tried before and not reached: it says"
+    ]
+    assert "probe B2" not in world.calls
+
+
+def test_a_chapter_above_the_target_is_mended_by_paragraph_then_whole_then_the_level_is_dropped(
     world,
 ):
     world.above = [[2], [2], [2]]
+
+    run = run_to_the_end(queue_production(world.source.id, ["B2", "B1"]))
+
+    assert [call for call in world.calls if call.startswith(("paragraphs", "chapter"))] == [
+        "paragraphs 2",
+        "chapter 2",
+    ]
+    # every change sends the edition back to the judges before anything else looks at it
+    assert world.calls.count("analysis") == 3
+    # the book does not come down to B2: the edition goes, the ladder remembers, B1 is not tried
+    assert run.status == "succeeded"
+    reason = (
+        "Chapter(s) 2 still read above B2 after the cited paragraphs and the whole chapter "
+        "were each rewritten once."
+    )
+    assert run.summary["outcomes"]["B2"] == {"outcome": "not reached", "reasons": [reason]}
+    assert world.dropped == [("B2", reason)]
+    assert "purge book-b2" in world.calls
+    assert run.summary["outcomes"]["B1"]["outcome"] == "not reached"
+    assert "probe B1" not in world.calls
+
+
+def test_a_few_chapters_one_level_above_are_rewritten_then_labelled_within_the_allowance(world):
+    # Dubliners' B1: one chapter of sixteen read B2 by both judges after both rewrites
+    world.above = [[2], [2], [2]]
+    world.tolerated = [[], [], [2]]
 
     run = run_to_the_end(queue_production(world.source.id, ["B2"]))
 
@@ -312,10 +371,14 @@ def test_a_chapter_above_the_target_is_mended_by_paragraph_then_whole_then_holds
         "paragraphs 2",
         "chapter 2",
     ]
-    assert run.status == "failed"
-    assert "Chapter(s) 2 still read above B2" in run.error
-    # every change sends the edition back to the judges before anything else looks at it
-    assert world.calls.count("analysis") == 3
+    assert run.status == "succeeded"
+    assert run.summary["outcomes"]["B2"]["outcome"] == "ready"
+    notes = [entry["note"] for entry in run.summary["log"]]
+    assert any(
+        "Chapter(s) 2 read one level above B2" in note and "within the allowance" in note
+        for note in notes
+    )
+    assert world.dropped == []
 
 
 def test_corrections_both_models_stand_behind_are_written_in_and_the_audit_reads_again(world):
@@ -522,7 +585,7 @@ def test_a_serious_finding_both_editors_stand_behind_that_cannot_be_placed_holds
     assert edition.status == Edition.Status.REVIEW
 
 
-def test_a_held_level_does_not_stop_the_translations(translating):
+def test_a_level_not_reached_does_not_stop_the_translations(translating):
     world = translating
     world.ladder["B2"] = "probe_failed"
     run = queue_production(world.source.id, ["B2", "B1"], languages=["uk"])
@@ -534,8 +597,8 @@ def test_a_held_level_does_not_stop_the_translations(translating):
     run = run_to_the_end(run)
 
     outcomes = {target: o["outcome"] for target, o in run.summary["outcomes"].items()}
-    assert outcomes == {"B2": "held", "B1": "not attempted", "uk": "ready"}
-    assert run.status == "failed" and "uk" not in run.error
+    assert outcomes == {"B2": "not reached", "B1": "not reached", "uk": "ready"}
+    assert run.status == "succeeded" and run.error == ""
 
 
 def test_a_level_the_book_already_reads_at_is_not_needed_and_the_rung_below_is_made(world):
@@ -598,3 +661,38 @@ def test_a_translation_is_made_beside_the_levels_not_after_them(translating):
     assert "uk" in run.summary["editions"]
     # the step that only waited is not asked again while the other track catches up
     assert run.summary["starts"] == {"translation uk": 1}
+
+
+def test_productions_held_by_circumstance_are_started_again_and_the_rest_left_alone(world):
+    from almonium_book_processor.catalog.production import VERSION, requeue_held
+
+    def held(slug, error, minutes_ago=90):
+        work = Work.objects.create(slug=f"held-{slug}", title=slug, author="Author")
+        source = Edition.objects.create(work=work, slug=f"held-{slug}-en", language="en")
+        return PipelineRun.objects.create(
+            edition=source,
+            stage=PipelineRun.Stage.ADAPT,
+            processor_version=VERSION,
+            status=PipelineRun.Status.FAILED,
+            input_hash="",
+            idempotency_key=f"{slug}:production",
+            error=error,
+            finished_at=timezone.now() - timedelta(minutes=minutes_ago),
+            summary={"levels": ["B2", "B1"], "languages": [], "register": "", "sign_off": True},
+        )
+
+    held("counter", "B2 held: 'book B2' was started 2 times and did not finish.")
+    allowance = held("allowance", "B2 held: Allowance used up: Codex returned no answer.")
+    held("left", "Left behind: nothing worked on this job for over 2 hours.")
+    fresh = held("fresh", "B2 held: Allowance used up: just now.", minutes_ago=5)
+    book = held("book", "B1 held: Chapter(s) 2 still read above B1 after the rewrites.")
+
+    only_allowance = requeue_held(allowance_only=True)
+    assert [run.edition for run in only_allowance] == [allowance.edition]
+
+    every = requeue_held()
+    # the allowance hold's source now has a production under way, so it is not started twice
+    assert sorted(run.edition.slug for run in every) == ["held-counter-en", "held-left-en"]
+    assert all(run.summary["levels"] == ["B2", "B1"] for run in every)
+    for untouched in (fresh, book):
+        assert untouched.edition.pipeline_runs.filter(processor_version=VERSION).count() == 1

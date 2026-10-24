@@ -11,6 +11,7 @@ judge or audit version, never by rolling the same judge until it passes.
 
 from __future__ import annotations
 
+import uuid
 from decimal import Decimal
 
 from django.conf import settings
@@ -363,6 +364,34 @@ def judge_standalone_pilot(pilot_id, *, judge=None, auditor=None) -> None:
 # What a level's evidence says, and the floor that follows from it.
 
 
+OUTCOME_VERSION = "level-outcome-v1"
+
+
+def record_unreached(source: Edition, level: str, reason: str, *, production=None) -> PipelineRun:
+    """Keep that ``level`` was tried for ``source`` and not reached, after its edition is gone.
+
+    The ladder reads this record like a probe's verdict, so no production tries the level
+    again and the factory never queues it; a person can purge the record to try once more.
+    """
+
+    return PipelineRun.objects.create(
+        edition=source,
+        stage=PipelineRun.Stage.ADAPT,
+        processor_version=OUTCOME_VERSION,
+        status=PipelineRun.Status.SUCCEEDED,
+        input_hash="",
+        idempotency_key=f"{source.id}:not-reached:{level}:{uuid.uuid4().hex}",
+        progress=100,
+        finished_at=timezone.now(),
+        summary={
+            "target_level": level,
+            "outcome": "not_reached",
+            "reasons": [reason],
+            "production_id": str(production.id) if production is not None else None,
+        },
+    )
+
+
 def edition_gates(edition: Edition) -> dict:
     """Both gates for one adaptation, as they stand for its current text."""
 
@@ -448,6 +477,22 @@ def refresh_adaptation_floor(work: Work) -> Work:
             "spec": probe.summary["spec"],
             "recorded_at": probe.finished_at.isoformat() if probe.finished_at else None,
         }
+    outcomes = PipelineRun.objects.filter(
+        edition__work=work,
+        processor_version=OUTCOME_VERSION,
+        status=PipelineRun.Status.SUCCEEDED,
+    ).order_by("created_at")
+    for outcome in outcomes:
+        level = outcome.summary["target_level"]
+        if levels.get(level, {}).get("state") == "reached":
+            continue
+        levels[level] = {
+            "state": "not_reached",
+            "level": level,
+            "outcome_id": str(outcome.id),
+            "reasons": outcome.summary.get("reasons", []),
+            "recorded_at": outcome.finished_at.isoformat() if outcome.finished_at else None,
+        }
     reached_levels = [level for level, entry in levels.items() if entry["state"] == "reached"]
     adapts_to = min(reached_levels, key=LEVELS.index) if reached_levels else None
     if work.adapts_to != adapts_to or (work.adaptation_evidence.get("levels") or {}) != levels:
@@ -514,6 +559,8 @@ def ladder(edition: Edition, analysis: dict | None = None) -> list[dict]:
         )
         if record.get("state") == "reached" or any(e["reached"] for e in editions):
             state, note = "reached", "Both gates passed."
+        elif record.get("state") == "not_reached":
+            state, note = "not_reached", "; ".join(record.get("reasons") or ["Not reached."])
         elif probe and probe.status in (PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING):
             state, note = "probing", "Probe running."
         elif probe and probe.status == PipelineRun.Status.FAILED:

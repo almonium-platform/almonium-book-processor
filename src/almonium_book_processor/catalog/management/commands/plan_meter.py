@@ -20,6 +20,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         record = options["record"]
+        answering = False
         for home in settings.CODEX_HOMES or [None]:
             account = codex_home(home)
             meter = codex_meter(home=account)
@@ -29,6 +30,7 @@ class Command(BaseCommand):
                 )
                 continue
             used = int(meter["used_percent"])
+            answering = answering or used < 100
             spent = PLAN_WEEK_USD["codex"] * used / 100
             resets = datetime.fromtimestamp(meter["resets_at"], UTC)
             self.stdout.write(
@@ -68,3 +70,9 @@ class Command(BaseCommand):
                     session_percent=claude.get("session_percent"),
                     fable_week_percent=fable,
                 )
+        if record and answering:
+            # a Codex account answers: the books its used-up allowance held can go on
+            from almonium_book_processor.catalog.production import requeue_held
+
+            for run in requeue_held(allowance_only=True):
+                self.stdout.write(f"{run.edition.slug}: started again after the allowance hold")
