@@ -48,6 +48,15 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   alone, which the meter timer does once an account answers). Never restart a
   plan worker with a production under way; look at `catalog_pipelinerun`, not
   at Celery, to know.
+- **Restarting a plan worker.** `./plan-service restart` refuses while
+  `manage.py running_plan_jobs` lists a job a worker is running (a restart
+  kills the calls in flight and leaves their runs running for ever). Pause the
+  queue (`cancel_consumer plans`), wait for the list to empty, restart, then
+  `add_consumer`. `./plan-service restart <name> --force` overrides it.
+- **Purging a failed adaptation.** The edition page refuses to purge an
+  adaptation that was never written out but whose chapters were paid for:
+  queue the book again and the write takes those chapters. A copyright claim
+  purges regardless.
 - **A production that died after writing its book.** Queue the source again
   (`requeue_held`, or the production form); the new production adopts the
   finished adaptation it finds in review at that level and judges it, so the

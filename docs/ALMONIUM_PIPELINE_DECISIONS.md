@@ -891,3 +891,89 @@ this are over." The rules, with their numbers:
   production's step on the row ("Production · audit (B2)"), and does not count
   towards the works needing attention. Review is for a person; a production's
   own checks are not.
+
+### 17.x Where money was paid twice, and what now stops it (2026-10-24)
+
+A review of the pipeline after the duplicate writes, with the call ledger as
+evidence (31,669 recorded requests; 7,488 identical requests had been paid for
+more than once, 13,676 extra calls, about $40 at API-equivalent prices). Each
+rule below names its constant or function.
+
+- **A mend try counts once the adapter has answered** (`production._mend`). A
+  rewrite that broke on the way (timeout, refused plan, lost worker) is made
+  again and is never the reason a written book is dropped; a chapter too long
+  to rewrite whole holds the book instead of dropping it; a revision pilot
+  that did not come back is tried again, not counted. `_drop` purges the
+  edition before it records the level as not reached, so a refused purge
+  leaves no false record. Before this, two broken calls purged a finished
+  adaptation and marked the level unreachable for the work.
+- **A re-queued production keeps its mend history**
+  (`queue_production(carried=)`, used by `requeue_held`): `mended`,
+  `repaired` and `settled` travel to the new run, so no chapter gets two more
+  paid rewrites and the settle rounds do not start again from zero.
+- **"Nothing finished" is a circumstantial hold** (`CIRCUMSTANTIAL_HOLDS`): a
+  step that outlasted `STEP_TIMEOUT` is a slow job, and what it made is
+  adopted when the production starts again.
+- **A write resumes into its own edition** (`book_adaptation._stranded`): a
+  failed write's edition, with no text, is written into again when the plan
+  hash has moved (a title corrected, a chapter's role set), instead of a twin
+  edition being made.
+- **An answer to the same text is never bought twice**
+  (`adaptation.text_identity`, `_paid_answer`): a pilot window is identified
+  by its blocks, level, language, prompt and feedback, not by the chapter or
+  work title or the source digest. Before a call, the newest paid answer to
+  that identity under the same source (a twin, a probe, a staff pilot) is
+  taken, recorded as an AI run with `reused_from` and no cost. Answers made
+  before the identity was kept are compared by their text.
+- **Prices are not part of what was asked** (`chapter_analysis.spec_identity`,
+  used by `judge_text`, `_standing`, `snapshot`, the projections): the price
+  table changed five times in October and each change re-read every chapter
+  with both judges. Readings kept under the old price-bearing keys still stand
+  (`judge_text` looks them up by the legacy key; `_attempt` accepts a window's
+  `legacy_hash`), so the change itself re-reads nothing.
+- **A judge window is re-asked only for a bad citation**
+  (`chapter_analysis.CitationRejected`, `pilot_difficulty._read`): a schema or
+  transport failure was already tried twice on its way up and was asked twice
+  more here, eight paid calls per window over two starts.
+- **A used-up allowance is named wherever a job fails** (`AllowanceUsedUp`
+  recorded in full by `run_pilot`, `_ask_spot_fix`, `judge_text`,
+  `analyze_chapters`), and `production._refused` matches by `finished_at`, so
+  a refused job holds the book without a start instead of burning its starts.
+- **A CLI timeout is not retried in the same call** (`cli_calls.tried_twice`):
+  the model may have finished and the plan paid; the window fails and the next
+  attempt reuses every kept answer. The direct OpenAI path sends one request
+  with `max_retries=0` and `DIRECT_TIMEOUT_SECONDS` (the SDK retried a slow
+  request twice on its own, each generation billed).
+- **A probe's chapters survive a judge or auditor change**
+  (`book_adaptation._generation`): only the generation keys of the probe spec
+  must match for the book to take the three written chapters.
+- **A paid partial write is not purged by hand** (`purge_edition(force=)`): an
+  adaptation with no text whose windows were paid for is refused unless forced
+  or removed for copyright; `reingest_source` forces.
+- **Long jobs keep their run alive** (`catalog/heartbeat.py`, around
+  `adapt_book` and `audit_edition_fidelity`): a run touched every minute is
+  not taken for dead at `STALL` and queued a second time beside itself.
+  `_busy` counts a queued job as busy whatever its age; `_stalled` applies to
+  running jobs only.
+- **One tick per production** (`production._one_tick`): a PostgreSQL advisory
+  lock for the length of a tick, so a redelivered or doubled tick does not
+  read the same state and start the same paid steps beside the first.
+- **Translation jobs claim their run** (`ai_translation.DIRECT_RUN_STALL`,
+  `translation_review.REVIEW_STALL`): a direct translation or a review another
+  worker is making is left to it; one silent for 45 minutes is taken over.
+- **The worker layer** (`config/settings.py`, `config/celery.py`,
+  `plan-service`): `CELERY_TASK_TIME_LIMIT` 18000 s (a hard limit kills the
+  job and acks its message, so it must outlast `STEP_TIMEOUT`),
+  `CELERY_WORKER_PREFETCH_MULTIPLIER` 1, the startup sweep runs only in a
+  worker that takes from the plans queue, `plan-service restart` refuses while
+  `manage.py running_plan_jobs` lists a running job (add `--force`), and the
+  janitor's silence window grows with the CLI timeouts
+  (`janitor.abandoned_after`).
+- **The Codex meter reads a recent log before it probes**
+  (`codex_provider.METER_FRESH_SECONDS`, 300 s): a probe is a real plan turn.
+- **Not done, on purpose**: the fidelity audit's identity still carries chapter
+  sequence and title, so a re-cut re-audits the chapters after the cut; and
+  the single-model analysis is still re-paid after a title or sequence change
+  when queued directly. Both are bounded to re-cuts and metadata edits and
+  wait for a quiet week.
+
