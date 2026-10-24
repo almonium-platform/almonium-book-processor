@@ -162,8 +162,11 @@ def review_edition_translation(edition_id: str) -> None:
 @shared_task(acks_late=True)
 def adapt_book(run_id: str) -> None:
     from almonium_book_processor.catalog.book_adaptation import run_book
+    from almonium_book_processor.catalog.heartbeat import heartbeat
 
-    run_book(run_id)
+    # a batch of windows on a plan can run for an hour between saves; the run says it lives
+    with heartbeat(run_id):
+        run_book(run_id)
 
 
 @shared_task(acks_late=True)
@@ -202,8 +205,12 @@ def run_floor_probe(run_id: str) -> None:
 @shared_task(acks_late=True)
 def audit_edition_fidelity(run_id: str) -> None:
     from almonium_book_processor.catalog.fidelity_audit import run_edition_audit
+    from almonium_book_processor.catalog.heartbeat import heartbeat
 
-    run_edition_audit(run_id)
+    # two auditors over one long chapter are silent for longer than production.STALL; a run
+    # taken for dead was queued a second time beside the first and paid twice
+    with heartbeat(run_id):
+        run_edition_audit(run_id)
 
 
 @shared_task(acks_late=True)

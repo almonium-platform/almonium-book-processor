@@ -39,6 +39,17 @@ WORKED_BY_ONE_PROCESS = (
 )
 
 
+def abandoned_after(after: timedelta = ABANDONED_AFTER) -> timedelta:
+    """How long a running job may be silent: ``after``, or longer when one plan CLI call may
+    take longer than that (its timeout, tried twice, with a margin)."""
+
+    one_call = max(
+        int(getattr(settings, "CODEX_TIMEOUT_SECONDS", 0) or 0),
+        int(getattr(settings, "CLAUDE_CODE_TIMEOUT_SECONDS", 0) or 0),
+    )
+    return max(after, timedelta(seconds=2 * one_call + 900))
+
+
 def abandoned_runs(after: timedelta = ABANDONED_AFTER):
     """Runs a worker took and then went silent on. A queued run is not one of them: its
     message waits in the broker for a free worker, however long the queue is."""
@@ -46,7 +57,7 @@ def abandoned_runs(after: timedelta = ABANDONED_AFTER):
     return PipelineRun.objects.filter(
         stage__in=WORKED_BY_ONE_PROCESS,
         status=PipelineRun.Status.RUNNING,
-        updated_at__lt=timezone.now() - after,
+        updated_at__lt=timezone.now() - abandoned_after(after),
     )
 
 

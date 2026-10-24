@@ -14,14 +14,23 @@ app.conf.imports = ("almonium_book_processor.catalog.sentence_alignment",)
 
 
 @worker_ready.connect
-def _close_what_the_last_worker_left(**_) -> None:
-    """A worker that starts closes the jobs a stopped one left behind (catalog/janitor.py)."""
+def _close_what_the_last_worker_left(sender=None, **_) -> None:
+    """A plans worker that starts closes the jobs a stopped one left behind (catalog/janitor.py).
+
+    Only a worker that takes from the plans queue sweeps: the jobs the sweep closes run
+    there, and a container worker rebuilt after a code change knows nothing about them.
+    """
 
     import logging
 
     try:
+        from django.conf import settings
+
         from almonium_book_processor.catalog.janitor import close_abandoned_runs
 
+        taken = getattr(getattr(sender, "task_consumer", None), "queues", None) or []
+        if not any(getattr(queue, "name", None) == settings.PLAN_QUEUE for queue in taken):
+            return
         closed = close_abandoned_runs()
         if closed:
             logging.getLogger(__name__).warning("Closed %s abandoned job(s).", closed)
