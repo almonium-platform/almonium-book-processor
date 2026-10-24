@@ -185,7 +185,9 @@ def test_source_edit_during_generation_prevents_materialization(source):
     with pytest.raises(ValueError, match="Source changed"):
         run_book(run.id, provider=Provider(hook=edit))
     assert not run.edition.blocks.exists()
-    assert queue_book(source.id).edition_id != run.edition_id
+    # the write starts over under a new identity, into the same edition: no twin is made
+    again = queue_book(source.id)
+    assert again.id != run.id and again.edition_id == run.edition_id
 
 
 def test_private_and_oversized_sources_fail_before_creating_target(source):
@@ -271,3 +273,44 @@ def test_b1_failed_staff_retry_preserves_target(client, source):
     run.refresh_from_db()
     assert run.status == "queued" and run.summary["target_level"] == "B1"
     assert source.derived_editions.count() == 1
+
+
+def test_a_plan_change_after_a_failed_write_resumes_the_same_edition_and_its_paid_chapters(
+    source,
+):
+    """A corrected chapter title used to give the write a new identity and a new edition."""
+
+    run = queue_book(source.id, target_level="B2")
+    with pytest.raises(ValueError):
+        run_book(run.id, provider=Provider(fail=2))
+    assert not run.edition.blocks.exists()
+    Chapter.objects.filter(edition=source, sequence=1).update(title="Chapter One")
+
+    again = queue_book(source.id, target_level="B2")
+
+    assert again.id != run.id and again.edition_id == run.edition_id
+    retry = Provider()
+    run_book(again.id, provider=retry)
+    # the first chapter's answer was bought before the title changed; it is taken, not bought
+    assert retry.calls == 3
+    assert again.edition.blocks.count() == 4
+    assert AIRun.objects.filter(request_payload__reused_from__isnull=False).count() == 1
+    assert Edition.objects.filter(source_edition=source).count() == 1
+
+
+def test_a_text_answered_for_one_edition_of_the_source_is_not_bought_for_another(source):
+    first = queue_book(source.id, target_level="B2")
+    run_book(first.id, provider=Provider())
+    assert first.edition.blocks.count() == 4
+    source.title = "Novel, corrected"
+    source.save(update_fields=["title", "updated_at"])
+
+    second = queue_book(source.id, target_level="B2")
+
+    assert second.edition_id != first.edition_id
+    nothing = Provider()
+    run_book(second.id, provider=nothing)
+    assert nothing.calls == 0
+    assert second.edition.blocks.count() == 4
+    reused = AIRun.objects.filter(edition=second.edition)
+    assert reused.count() == 4 and all(r.estimated_cost_usd in (None, 0) for r in reused)

@@ -8,12 +8,14 @@ import uuid
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from almonium_book_processor.ai.adaptation import (
     ChapterAdaptation,
     pilot_prompt,
 )
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
 from almonium_book_processor.ai.pricing import call_cost, plan_priced
@@ -237,17 +239,16 @@ def queue_pilot(
     if not created and run.status != PipelineRun.Status.FAILED:
         return run
     previous = run.ai_runs.order_by("-created_at").first()
-    reusable = False
-    if previous and previous.response_payload.get("raw", {}).get("status") == "completed":
-        try:
-            result = ChapterAdaptation.model_validate_json(
-                response_output_text(previous.response_payload["raw"])
-            )
-            validate_result(result, source)
-            validate_language(result, source)
-            reusable = True
-        except ValueError:
-            pass
+    reusable = _answers(previous, source)
+    identity = text_identity(
+        source,
+        processor_version=processor_version,
+        prompt_version=prompt.version,
+        feedback=editorial_feedback,
+    )
+    # the same text at the same level, answered already for another edition of this source
+    # (a twin, a probe, a staff pilot): its answer is taken, and nothing is bought again
+    paid = None if reusable else _paid_answer(edition, identity, source, processor_version)
     ai = (
         previous
         if reusable
@@ -262,7 +263,12 @@ def queue_pilot(
                 "body": body,
                 "source": source,
                 "processor_version": processor_version,
+                "text_hash": identity,
+                **({"reused_from": str(paid.id)} if paid else {}),
             },
+            response_payload=(
+                {"raw": paid.response_payload["raw"], "reused_from": str(paid.id)} if paid else {}
+            ),
         )
     )
     run.status = PipelineRun.Status.QUEUED
@@ -273,6 +279,74 @@ def queue_pilot(
     if dispatch:
         transaction.on_commit(lambda: adapt_chapter_pilot.delay(str(run.id)))
     return run
+
+
+def text_identity(
+    source: dict, *, processor_version: str, prompt_version: str, feedback: str
+) -> str:
+    """What an adaptation's answer depends on: the text, the level and the prompt.
+
+    Not the chapter's title, the work's title or author, or the source file's digest, which
+    the request also carries: a corrected title does not change how a paragraph reads.
+    """
+
+    return digest(
+        {
+            "blocks": [[b["block_id"], b["type"], b["text"]] for b in source["blocks"]],
+            "level": source["target_level"],
+            "language": source["language"],
+            "processor": processor_version,
+            "prompt": prompt_version,
+            "feedback": feedback,
+        }
+    )
+
+
+def _answers(ai, source: dict) -> bool:
+    """Whether this AI run holds a complete answer that is valid for ``source`` as it stands."""
+
+    if ai is None or (ai.response_payload.get("raw") or {}).get("status") != "completed":
+        return False
+    try:
+        result = ChapterAdaptation.model_validate_json(
+            response_output_text(ai.response_payload["raw"])
+        )
+        validate_result(result, source)
+        validate_language(result, source)
+    except ValueError:
+        return False
+    return True
+
+
+def _paid_answer(source_edition, identity: str, source: dict, processor_version: str):
+    """A paid answer to the same text at the same level under this source, or None.
+
+    Looked for among the source's own pilots and probes and every adaptation made from it.
+    Answers recorded before the text identity was kept are compared by their text.
+    """
+
+    family = Q(edition=source_edition) | Q(edition__source_edition=source_edition)
+    paid = AIRun.objects.filter(family, status=AIRun.Status.SUCCEEDED).filter(
+        request_payload__processor_version=processor_version
+    )
+    for ai in paid.filter(request_payload__text_hash=identity).order_by("-created_at")[:3]:
+        if _answers(ai, source):
+            return ai
+    legacy = paid.filter(
+        request_payload__text_hash__isnull=True,
+        request_payload__source__target_level=source["target_level"],
+    ).select_related("prompt_template", "pipeline_run")
+    for ai in legacy.order_by("-created_at").iterator():
+        run = ai.pipeline_run
+        same = text_identity(
+            ai.request_payload["source"],
+            processor_version=processor_version,
+            prompt_version=ai.prompt_template.version,
+            feedback=(run.summary.get("editorial_feedback", "") if run else ""),
+        )
+        if same == identity and _answers(ai, source):
+            return ai
+    return None
 
 
 def validate_result(result, source):
@@ -415,7 +489,13 @@ def run_pilot(run_id, *, provider=None):
         )
         PipelineRun.objects.filter(pk=run_id).update(
             status=PipelineRun.Status.FAILED,
-            error=str(error)[:1000] if isinstance(error, ValueError) else type(error).__name__,
+            # a used-up allowance is the plan's state, named so the production can tell it
+            # from a failure of the book; other errors may carry book text and are typed only
+            error=(
+                str(error)[:1000]
+                if isinstance(error, (ValueError, AllowanceUsedUp))
+                else type(error).__name__
+            ),
             finished_at=timezone.now(),
         )
         raise

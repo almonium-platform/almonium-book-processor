@@ -109,6 +109,33 @@ def book_plan(source):
     return {"chapters": chapters, "windows": windows, "blocks": count, "source_hash": source_hash}
 
 
+def _stranded(source, target_level: str, modernisation: bool):
+    """An edition this operation began earlier and never finished: written into again.
+
+    A write that failed leaves an edition with no text. The plan may have moved since (a
+    title corrected, a chapter's role set), which gives the write a new identity; the edition
+    stays the same one, so its paid windows are found under it and no twin is made.
+    """
+
+    register = Edition.LiteraryRegister.LIGHTLY_MODERNISED if modernisation else ""
+    stranded = source.work.editions.filter(
+        edition_type=Edition.EditionType.ADAPTATION,
+        source_edition=source,
+        literary_register=register,
+        status=Edition.Status.FAILED,
+        withdrawal_requested_at__isnull=True,
+    ).order_by("-created_at")
+    for edition in stranded:
+        if edition.blocks.exists():
+            continue
+        books = edition.pipeline_runs.filter(
+            stage=PipelineRun.Stage.ADAPT, summary__target_level=target_level
+        ).filter(summary__has_key="plan")
+        if books.exists() and not books.filter(status=PipelineRun.Status.SUCCEEDED).exists():
+            return edition
+    return None
+
+
 @transaction.atomic
 def queue_book(source_id, *, target_level=TARGET_LEVEL):
     from almonium_book_processor.catalog.tasks import adapt_book
@@ -128,7 +155,7 @@ def queue_book(source_id, *, target_level=TARGET_LEVEL):
     key = f"{source.id}:{operation}:{input_hash}"
     run = PipelineRun.objects.filter(idempotency_key=key).select_related("edition").first()
     if run is None:
-        edition = Edition.objects.create(
+        edition = _stranded(source, target_level, modernisation) or Edition.objects.create(
             work=source.work,
             source_edition=source,
             slug=_unique_slug(
@@ -178,6 +205,10 @@ def queue_book(source_id, *, target_level=TARGET_LEVEL):
     return run
 
 
+def _generation(spec: dict) -> dict:
+    return {k: v for k, v in spec.items() if k == "target_level" or k.startswith("generation_")}
+
+
 def probe_chapters(source, target_level) -> dict[str, dict]:
     """The chapters the level's passed probe wrote, by chapter and block: the book takes them.
 
@@ -199,7 +230,11 @@ def probe_chapters(source, target_level) -> dict[str, dict]:
         .order_by("-created_at")
         .first()
     )
-    if probe is None or probe.summary["spec"] != probe_spec(target_level, source.language):
+    # what the probe wrote depends on the adapter and its prompt, not on who judged or audited
+    # it: a new judge prompt or auditor seat does not make three written chapters worthless
+    if probe is None or _generation(probe.summary["spec"]) != _generation(
+        probe_spec(target_level, source.language)
+    ):
         return {}
     written = {}
     for result in probe.summary.get("results", []):
