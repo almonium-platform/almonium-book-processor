@@ -740,7 +740,9 @@ this are over." The rules, with their numbers:
     before it included (`chapter_split.split_by_size`). The parts carry
     `cut: size` and the chapter roles take them for the story wherever they fall;
     a closing word ("FINE.", "THE END") is back matter. Damiano reads 39
-    chapters, 37 of them story; Venus im Pelz 13 and 11.
+    chapters, 37 of them story; Venus im Pelz 13 and 11. With this the hundred
+    read 90 sound, 1 suspect (the Cambridge Shakespeare, a collected works) and
+    10 unreadable, which are the audio recordings and texts with no EPUB.
   - *Standard Ebooks is a second source.* Its files are one chapter per
     document with a complete table of contents: ten titles measured sound
     without a finding. The processor downloads from standardebooks.org
