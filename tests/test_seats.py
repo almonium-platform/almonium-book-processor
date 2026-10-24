@@ -33,6 +33,9 @@ def test_a_malformed_seat_is_refused_before_any_call(setting, message):
 
 
 def test_each_provider_gets_its_own_caller(settings):
+    pytest.importorskip(
+        "openai"
+    )  # a worker dependency; the build's test image has only the dev extras
     settings.OPENAI_API_KEY = "test-key"
     assert isinstance(provider_for("codex", "gpt-6-astra"), CodexProvider)
     assert isinstance(provider_for("openai", "gpt-5.6-terra"), OpenAIBatchProvider)
