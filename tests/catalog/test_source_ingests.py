@@ -455,3 +455,22 @@ def test_a_gutenberg_book_with_no_epub_at_all_is_refused_as_before(monkeypatch):
 
     with pytest.raises(source_download.DownloadRefused, match="HTTP 404"):
         source_download.download(GUTENBERG_EPUB, "gutenberg")
+
+
+def test_a_gutenberg_images_build_too_large_for_its_pictures_falls_back_to_the_plain_build(
+    monkeypatch,
+):
+    plain = "https://www.gutenberg.org/ebooks/84.epub.noimages"
+    seen = fake_web(
+        monkeypatch,
+        {
+            GUTENBERG_EPUB: FakeResponse(EPUB_BYTES, {"Content-Length": str(82 * 1024 * 1024)}),
+            plain: FakeResponse(EPUB_BYTES),
+        },
+    )
+
+    fetched = source_download.download(GUTENBERG_EPUB, "gutenberg")
+
+    assert fetched.final_url == plain
+    assert len(seen) == 3
+    fetched.path.unlink()

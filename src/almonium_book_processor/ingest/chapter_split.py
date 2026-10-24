@@ -26,6 +26,7 @@ that opening to the chapter the previous file ended in.
 from __future__ import annotations
 
 import re
+from collections import Counter
 
 from bs4 import NavigableString, Tag
 
@@ -137,21 +138,45 @@ def split_by_size(root: Tag, target: int = SIZE_SPLIT_TARGET_CHARS) -> list[Tag]
     if document_length(root) < 2 * target:
         return [root]
     container = root
+    total = document_length(root)
     while True:
+        # the element holding the text is the container, whatever it is called and whatever
+        # stands beside it: a div, a section, or the table, body and rows a book was laid out
+        # in (the Greek Iliad: a title page, then a table of 13,989 rows, one line each)
         children = [child for child in container.children if isinstance(child, Tag)]
-        if len(children) == 1 and children[0].name in ("div", "section", "body", "article"):
-            container = children[0]
-            continue
-        break
+        dominant = next(
+            (
+                child
+                for child in children
+                if child.name not in ("p", "pre")
+                and document_length(child) >= LAYOUT_TABLE_SHARE * total
+            ),
+            None,
+        )
+        if dominant is None:
+            break
+        container = dominant
     parts: list[list] = [[]]
     size = 0
+    previous = None  # the last child that was not whitespace
     for child in list(container.children):
-        length = len(child.get_text(" ", strip=True)) if isinstance(child, Tag) else 0
-        if parts[-1] and size + length > target and length:
+        # loose text counts too (the Iliad is 630,000 characters of verse parted by <br>), and
+        # a run of it is cut only where a paragraph ends: at a blank line or a double <br>; a
+        # part twice the target with no such place is cut at the next line
+        if isinstance(child, Tag):
+            length = len(child.get_text(" ", strip=True))
+            after_break = isinstance(previous, Tag) and previous.name == "br"
+            boundary = child.name != "br" or after_break or size > 2 * target
+        else:
+            length = len(str(child).strip())
+            boundary = bool(re.search(r"\n[ \t]*\n", str(child)))
+        if parts[-1] and size + length > target and boundary:
             parts.append([])
             size = 0
         parts[-1].append(child)
         size += length
+        if isinstance(child, Tag) or str(child).strip():
+            previous = child
     if len(parts) < 2:
         return [root]
     segments: list[Tag] = []
@@ -182,6 +207,11 @@ def opens_without_heading(root: Tag) -> bool:
     return False
 
 
+# A heading text that comes back this often in one document names a speaker in a play, not a
+# chapter: Palvelusväkeä came in as 307 chapters called PEKKA and HANNA.
+REPEATED_HEADING_TIMES = 3
+
+
 def chapter_headings(root: Tag) -> list[Tag]:
     """The elements a chapter may start at, in document order."""
 
@@ -194,16 +224,29 @@ def chapter_headings(root: Tag) -> list[Tag]:
                 found.append(tag)
         elif _is_label(tag):
             found.append(tag)
-    return found
+    times = Counter(normalize_text(tag).casefold() for tag in found)
+    return [tag for tag in found if times[normalize_text(tag).casefold()] < REPEATED_HEADING_TIMES]
+
+
+# A table holding this share of a document's text is its layout, not a table of data: R.U.R.
+# on Gutenberg is a whole play inside one centred table, chapter headings and all.
+LAYOUT_TABLE_SHARE = 0.8
 
 
 def _inside_unsplittable(tag: Tag, root: Tag) -> bool:
     for parent in tag.parents:
         if parent is root or not isinstance(parent, Tag):
             break
+        if parent.name == "table" and _is_layout_table(parent, root):
+            continue
         if parent.name in UNSPLITTABLE_TAGS or has_marker(parent, UNSPLITTABLE_MARKERS):
             return True
     return False
+
+
+def _is_layout_table(table: Tag, root: Tag) -> bool:
+    total = document_length(root)
+    return total > 0 and document_length(table) / total >= LAYOUT_TABLE_SHARE
 
 
 def _is_label(tag: Tag) -> bool:

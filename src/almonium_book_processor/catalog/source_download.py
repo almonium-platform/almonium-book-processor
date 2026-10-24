@@ -178,15 +178,21 @@ def download(url: str, source_kind: str, *, urlopen=None) -> Downloaded:
     try:
         return _download(url, source_kind, urlopen=urlopen)
     except DownloadRefused as refused:
-        if "HTTP 404" not in str(refused) or source_kind != SourceDownload.Kind.GUTENBERG:
+        if not _another_build_may_do(refused) or source_kind != SourceDownload.Kind.GUTENBERG:
             raise
         for alternate in gutenberg_alternates(url):
             try:
                 return _download(alternate, source_kind, urlopen=urlopen)
             except DownloadRefused as also_refused:
-                if "HTTP 404" not in str(also_refused):
+                if not _another_build_may_do(also_refused):
                     raise
         raise refused
+
+
+def _another_build_may_do(refused: DownloadRefused) -> bool:
+    """A missing build, or one too large for its pictures: the plain build may still do."""
+
+    return "HTTP 404" in str(refused) or "MB" in str(refused)
 
 
 def _download(url: str, source_kind: str, *, urlopen=None) -> Downloaded:

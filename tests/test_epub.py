@@ -785,3 +785,120 @@ def test_wolne_lektury_pages_are_dropped_and_the_footnotes_stay(tmp_path) -> Non
     ]
     assert artifact.blocks[0].attributes.get("part") is True  # the bare title page is a label
     assert "wolne_lektury_matter_trimmed" in [w.code for w in artifact.warnings]
+
+
+def test_verse_set_with_line_breaks_and_no_paragraphs_is_read_as_stanzas(tmp_path) -> None:
+    # Os Lusíadas on Gutenberg: a <div> with 2,656 <br> and not one <p>; it came in as 300 chars
+    source = _book(
+        tmp_path,
+        [
+            "<div><h3>Canto Sétimo</h3><br/> 1<br/> Já se viam chegados junto à terra,<br/>"
+            " Que desejada já de tantos fora,<br/> Que entre as correntes Indicas se encerra,<br/>"
+            "<br/> 2<br/> A vós, ó geração de Luso, digo,<br/> Que tão pequena parte sois no mundo;"
+            "<br/> Não digo ainda no mundo, mas no amigo<br/></div>"
+        ],
+    )
+
+    artifact = ingest_epub(source, edition_slug="lus-pt", work_slug="lus")
+
+    assert [block.type for block in artifact.blocks] == [
+        BlockType.HEADING,
+        BlockType.VERSE_STANZA,
+        BlockType.VERSE_STANZA,
+    ]
+    assert artifact.blocks[1].text.split("\n") == [
+        "1",
+        "Já se viam chegados junto à terra,",
+        "Que desejada já de tantos fora,",
+        "Que entre as correntes Indicas se encerra,",
+    ]
+
+
+def test_plain_text_born_prose_with_blank_lines_is_read_as_paragraphs(tmp_path) -> None:
+    long = "Toto je dlouhý řádek prózy, který se láme na konci řádku jako v textovém souboru. "
+    source = _book(
+        tmp_path,
+        [f"<div><h2>I</h2>\n{long}\n{long}\n\n{long}\n{long}\n</div>"],
+    )
+
+    artifact = ingest_epub(source, edition_slug="rur-cs", work_slug="rur")
+
+    assert [block.type for block in artifact.blocks] == [
+        BlockType.HEADING,
+        BlockType.PARAGRAPH,
+        BlockType.PARAGRAPH,
+    ]
+    assert artifact.blocks[1].text == f"{long.strip()} {long.strip()}"
+
+
+def test_a_play_is_not_cut_at_every_speaker(tmp_path) -> None:
+    # Palvelusväkeä: 307 chapters called PEKKA and HANNA
+    speeches = "".join(f"<h3>{name}</h3><p>{_prose(40)}</p>" for name in ["PEKKA", "HANNA"] * 40)
+    source = _book(
+        tmp_path, [f"<h2>ENSIMMÄINEN NÄYTÖS</h2>{speeches}<h2>TOINEN NÄYTÖS</h2>{speeches}"]
+    )
+
+    artifact = ingest_epub(source, edition_slug="play-fi", work_slug="play")
+
+    assert len({block.chapter for block in artifact.blocks}) == 2
+
+
+def test_a_book_laid_out_in_one_table_is_still_cut_at_its_headings(tmp_path) -> None:
+    # R.U.R. on Gutenberg: the whole play inside a centred table
+    acts = "".join(
+        f"<h2>{name}</h2>" + "".join(f"<p>{_prose(60)}</p>" for _ in range(30))
+        for name in ("PŘEDEHRA", "DĚJSTVÍ PRVNÍ", "DĚJSTVÍ DRUHÉ")
+    )
+    source = _book(tmp_path, [f"<div><table><tbody><tr><td>{acts}</td></tr></tbody></table></div>"])
+
+    artifact = ingest_epub(source, edition_slug="rur-cs", work_slug="rur")
+
+    chapters = _chapters(artifact)
+    assert [blocks[0].text for blocks in chapters.values()] == [
+        "PŘEDEHRA",
+        "DĚJSTVÍ PRVNÍ",
+        "DĚJSTVÍ DRUHÉ",
+    ]
+
+
+def test_loose_verse_of_a_whole_book_is_cut_by_size_between_stanzas(tmp_path) -> None:
+    # the Greek Iliad: 630,000 characters of verse parted by <br>, no paragraphs, two headings
+    stanza = "<br/>".join(
+        f"Line {n} of the song of wrath and of the shining helmets" for n in range(8)
+    )
+    text = "<br/><br/>".join(stanza for _ in range(260))  # about 130,000 characters
+    source = _book(tmp_path, [f"<div><h2>ΡΑΨΩΔΙΑ Α</h2><br/>{text}</div>"])
+
+    artifact = ingest_epub(source, edition_slug="iliad-el", work_slug="iliad")
+
+    chapters = _chapters(artifact)
+    sizes = [sum(len(block.text) for block in blocks) for blocks in chapters.values()]
+    assert len(chapters) >= 5 and max(sizes) < 25_000
+    assert all(
+        block.type in (BlockType.HEADING, BlockType.VERSE_STANZA) for block in artifact.blocks
+    )
+    # no stanza was torn: every stanza block still has its eight lines
+    assert all(
+        block.attributes.get("line_count") == 8
+        for block in artifact.blocks
+        if block.type == BlockType.VERSE_STANZA
+    )
+
+
+def test_a_poem_laid_out_as_a_numbered_table_is_read_line_by_line_and_cut_by_size(tmp_path) -> None:
+    # the Greek Iliad on Gutenberg: a title page, then one table of 13,989 rows, a number and a line
+    verse = "of the song of wrath and shining helms"
+    rows = "".join(
+        f"<tr><td>{n if n % 5 == 0 else ''}</td><td>Line {n} {verse}</td></tr>"
+        for n in range(1, 2001)
+    )
+    source = _book(tmp_path, [f"<h1>ΙΛΙΑΔΑ</h1><p>ΤΟΥ</p><table><tbody>{rows}</tbody></table>"])
+
+    artifact = ingest_epub(source, edition_slug="iliad-el", work_slug="iliad")
+
+    lines = [block for block in artifact.blocks if block.type == BlockType.VERSE_LINE]
+    assert len(lines) == 2000
+    assert lines[4].text == f"Line 5 {verse}"  # the number is dropped
+    chapters = _chapters(artifact)
+    assert len(chapters) >= 4
+    assert max(sum(len(block.text) for block in blocks) for blocks in chapters.values()) < 25_000

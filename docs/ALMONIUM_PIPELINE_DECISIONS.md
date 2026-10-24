@@ -795,3 +795,30 @@ this are over." The rules, with their numbers:
   check marked suspect sinks below the rest, then a file measured sound comes
   before one never measured. The backend orders; the processor has to report
   its verdicts to it. Not built yet.
+
+- **A second hundred, ten books each in pt, nl, sv, da, fi, pl, hu, ru, cs and
+  el, on 2026-10-24**: 73 sound, 20 suspect, 6 unreadable before the fixes it
+  brought, which were all shapes the first hundred had not shown:
+  - *Text with no paragraph elements at all.* Gutenberg's verse and its
+    plain-text-born books put the words straight into a `<div>`, lines parted by
+    `<br>` and paragraphs by a blank line (Os Lusíadas: 2,656 `<br>` and not one
+    `<p>`; five Portuguese books came in as a few hundred characters each). The
+    extractor reads a container's own text now: a paragraph ends at a blank
+    line or a double break, and lines under 60 characters on the median are a
+    stanza, longer ones prose (`ingest/common.py`, `loose_paragraphs`).
+  - *A whole book inside one layout table* (R.U.R.: a play in a centred table,
+    chapter headings and all). A table holding 80% or more of a document's text
+    is its layout, not data: headings inside it start chapters and the size cut
+    descends into it (`LAYOUT_TABLE_SHARE`).
+  - *A poem as a numbered table*, one line a row (the Greek Iliad: 13,989 rows,
+    629,000 characters, two headings). The size cut follows the dominant child
+    through table, body and rows, and a row is read as one line with a cell
+    that is only a number dropped; rows under 60 characters are verse lines.
+    The Iliad reads 32 chapters now, the Odyssey volumes 9 each.
+  - *Plays cut at every speaker* (Palvelusväkeä: 307 chapters called PEKKA and
+    HANNA). A heading text that comes back three times or more in one document
+    names a speaker, not a chapter (`REPEATED_HEADING_TIMES`).
+  - *An images build too large to download* (82 MB against the 60 MB limit)
+    falls back to the plain build like a missing one.
+  What stays suspect is what it is: collections of folk tales, prayers or
+  nursery rhymes with many short pieces, and a Greek lexicon.

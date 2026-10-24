@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import posixpath
 import re
+import statistics
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -241,6 +242,27 @@ def extract_blocks(
                 source_ref=source_ref,
             )
             return
+        if tag.name == "tr":
+            # a row of a book laid out as a table: its cells are one line, a cell that is only
+            # a number is the line number of a poem and not its words
+            cells = [normalize_text(cell) for cell in tag.find_all(["td", "th"], recursive=False)]
+            words = [
+                cell for cell in cells if cell and not re.fullmatch(r"[\d.,;:()\[\]\s-]+", cell)
+            ]
+            if words:
+                line = " ".join(words)
+                builder.add(
+                    chapter=chapter,
+                    block_type=BlockType.VERSE_LINE
+                    if len(line) < VERSE_LINE_CHARS
+                    else BlockType.PARAGRAPH,
+                    text=line,
+                    source_ref=source_ref,
+                )
+            else:
+                for image in tag.find_all("img"):
+                    visit(image)
+            return
 
         if tag.name in HEADING_TAGS:
             builder.add(
@@ -327,11 +349,92 @@ def extract_blocks(
             )
             return
 
+        # a container's own text: Gutenberg's verse and its plain-text-born books put the
+        # words straight into a <div>, lines parted by <br> and paragraphs by a blank line,
+        # with no <p> anywhere (Os Lusíadas: 2,656 <br> and not one paragraph element)
+        loose: list = []
         for child in tag.children:
+            if isinstance(child, NavigableString) or (
+                isinstance(child, Tag) and (child.name == "br" or child.name in INLINE_TAGS)
+            ):
+                loose.append(child)
+                continue
+            emit_loose(loose, tag)
+            loose = []
             if isinstance(child, Tag):
                 visit(child)
+        emit_loose(loose, tag)
+
+    def emit_loose(nodes: list, parent: Tag) -> None:
+        for lines in loose_paragraphs(nodes):
+            if not lines:
+                continue
+            if looks_like_verse(lines):
+                builder.add(
+                    chapter=chapter,
+                    block_type=BlockType.VERSE_STANZA,
+                    text="\n".join(lines),
+                    source_ref=reference(parent),
+                    attributes={"line_count": len(lines)},
+                )
+            else:
+                builder.add(
+                    chapter=chapter,
+                    block_type=BlockType.PARAGRAPH,
+                    text=" ".join(lines),
+                    source_ref=reference(parent),
+                )
 
     visit(root)
+
+
+INLINE_TAGS = {
+    "a",
+    "abbr",
+    "b",
+    "cite",
+    "code",
+    "em",
+    "i",
+    "q",
+    "small",
+    "span",
+    "strong",
+    "sub",
+    "sup",
+    "u",
+}
+# Lines this short, on the median, are verse; longer ones are prose wrapped at the line.
+VERSE_LINE_CHARS = 60
+
+
+def loose_paragraphs(nodes: list) -> list[list[str]]:
+    """The paragraphs in a run of text nodes, <br> and inline tags: lists of lines.
+
+    A paragraph ends at two line breaks in a row or at a blank line in the text itself; a
+    line ends at a <br> or at a newline. Comments and whitespace-only runs give nothing.
+    """
+
+    pieces: list[str] = []
+    for node in nodes:
+        if isinstance(node, Tag):
+            pieces.append("\n" if node.name == "br" else node.get_text(" "))
+        elif type(node) is NavigableString:
+            pieces.append(str(node))
+    text = "".join(pieces)
+    paragraphs: list[list[str]] = []
+    for chunk in re.split(r"\n[ \t\r\f\v]*\n", text):
+        lines = [re.sub(r"\s+", " ", line).strip() for line in chunk.split("\n")]
+        lines = [line for line in lines if line]
+        if lines:
+            paragraphs.append(lines)
+    return paragraphs
+
+
+def looks_like_verse(lines: list[str]) -> bool:
+    if len(lines) < 2:
+        return False
+    return statistics.median(len(line) for line in lines) < VERSE_LINE_CHARS
 
 
 def epub_image_resolver(document_name: str) -> Callable[[str], str]:
