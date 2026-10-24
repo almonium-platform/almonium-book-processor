@@ -7,7 +7,7 @@ from pathlib import Path
 from bs4 import Tag
 from ebooklib import ITEM_COVER, ITEM_DOCUMENT, epub
 
-from almonium_book_processor import __version__
+from almonium_book_processor import ingest_processor_version
 from almonium_book_processor.ingest.chapter_split import (
     LONG_DOCUMENT_CHARS,
     SIZE_SPLIT_TARGET_CHARS,
@@ -263,7 +263,7 @@ def ingest_epub(
         )
 
     return BookArtifact(
-        processor_version=__version__,
+        processor_version=ingest_processor_version(),
         edition=EditionMetadata(
             edition_slug=edition_slug,
             work_slug=work_slug,

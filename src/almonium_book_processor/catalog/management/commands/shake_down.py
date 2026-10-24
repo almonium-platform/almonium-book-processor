@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 import requests
 from django.core.management.base import BaseCommand
 
+from almonium_book_processor import ingest_processor_version
 from almonium_book_processor.catalog.models import SourceShape
 from almonium_book_processor.catalog.source_download import HOSTS, download
 from almonium_book_processor.catalog.source_shape import judge, measure
@@ -23,7 +24,6 @@ GUTENBERG_SEARCH = (
 )
 GUTENBERG_EPUB = "https://www.gutenberg.org/ebooks/{id}.epub3.images"
 _IDS = re.compile(r'href="/ebooks/(\d+)"')
-VERSION = "shake-down-v1"
 
 
 class Command(BaseCommand):
@@ -112,7 +112,11 @@ class Command(BaseCommand):
         host = urlsplit(url).hostname or ""
         kind = next((kind for kind, hosts in HOSTS.items() if host in hosts), None)
         label = str(kind) if kind else ("file" if url.startswith("file://") else f"trial:{host}")
-        row = SourceShape(source_url=url[:500], source_kind=label[:40], processor_version=VERSION)
+        row = SourceShape(
+            source_url=url[:500],
+            source_kind=label[:40],
+            processor_version=ingest_processor_version(),
+        )
         local = url.startswith("file://")
         try:
             if local:

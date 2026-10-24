@@ -822,3 +822,14 @@ this are over." The rules, with their numbers:
     falls back to the plain build like a missing one.
   What stays suspect is what it is: collections of folk tales, prayers or
   nursery rhymes with many short pieces, and a Greek lexicon.
+
+- **An edition says which cut made it.** Its ingest run's `processor_version` is
+  the package version and `ingest/common.py`'s `INGEST_VERSION`, a date bumped
+  with every change to the splitter, the extractor, a library's trimming or the
+  chapter roles (first value `cut-2026-10-24`). Until then every edition carried
+  0.2.0 alone, which never changed, so nothing said whether the old splitter or
+  the new one had cut a book. The editions an older cut made are the ones to
+  re-cut; a re-cut costs their derived editions today, about $8 for the ten
+  damaged originals of 2026-10-24, and a re-chapter that regroups blocks and
+  aligned adaptations without rewriting is the day of work to spend the first
+  time a bad split is found under several finished levels.

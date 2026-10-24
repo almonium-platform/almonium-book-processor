@@ -28,6 +28,13 @@ BLOCK_PREFIX = {
     BlockType.SEPARATOR: "sep",
 }
 
+# Which rules cut and read a book. Bump the date with every change to the splitter, the
+# extractor, a library's trimming or the chapter roles, so an edition says which cut made it
+# (its ingest run's processor_version) and the ones an older cut made can be found and
+# re-cut. Until 2026-10-24 every edition carried the package version alone, 0.2.0, which
+# never changed.
+INGEST_VERSION = "cut-2026-10-24"
+
 SKIP_TAGS = {"script", "style", "nav", "noscript", "svg"}
 HEADING_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
 TEXT_TAGS = {"p", "li", "pre", "figcaption", "dt", "dd"}

@@ -9,7 +9,7 @@ from xml.etree.ElementTree import Element
 
 from defusedxml import ElementTree
 
-from almonium_book_processor import __version__
+from almonium_book_processor import ingest_processor_version
 from almonium_book_processor.ingest.common import BlockBuilder, sha256_file
 from almonium_book_processor.models import (
     BlockType,
@@ -309,7 +309,7 @@ def ingest_tei(
         )
 
     return BookArtifact(
-        processor_version=__version__,
+        processor_version=ingest_processor_version(),
         edition=EditionMetadata(
             edition_slug=edition_slug,
             work_slug=work_slug,

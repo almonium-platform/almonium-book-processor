@@ -902,3 +902,11 @@ def test_a_poem_laid_out_as_a_numbered_table_is_read_line_by_line_and_cut_by_siz
     chapters = _chapters(artifact)
     assert len(chapters) >= 4
     assert max(sum(len(block.text) for block in blocks) for blocks in chapters.values()) < 25_000
+
+
+def test_an_edition_records_the_cut_that_made_it(tmp_path) -> None:
+    from almonium_book_processor.ingest.common import INGEST_VERSION
+
+    source = _book(tmp_path, ["<h2>I</h2><p>Words.</p>"])
+    artifact = ingest_epub(source, edition_slug="cut-de", work_slug="cut")
+    assert artifact.processor_version.endswith(f"+{INGEST_VERSION}")

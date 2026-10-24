@@ -14,7 +14,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
-from almonium_book_processor import __version__
+from almonium_book_processor import __version__, ingest_processor_version
 from almonium_book_processor.catalog.import_events import send_private_import_event
 from almonium_book_processor.catalog.metadata import (
     adopt_source_metadata,
@@ -234,14 +234,15 @@ def _copy_source_to_temporary_file(edition: Edition) -> tuple[Path, str]:
 def process_source_edition(self, edition_id: str) -> None:
     edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
     temporary_path, source_hash = _copy_source_to_temporary_file(edition)
-    idempotency_key = f"{edition.id}:{source_hash}:ingest:{__version__}"
+    cut = ingest_processor_version()
+    idempotency_key = f"{edition.id}:{source_hash}:ingest:{cut}"
     run, _ = PipelineRun.objects.get_or_create(
         idempotency_key=idempotency_key,
         defaults={
             "edition": edition,
             "stage": PipelineRun.Stage.INGEST,
             "status": PipelineRun.Status.QUEUED,
-            "processor_version": __version__,
+            "processor_version": cut,
             "input_hash": source_hash,
         },
     )
