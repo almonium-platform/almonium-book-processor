@@ -140,7 +140,7 @@ def test_header_only_upload_adopts_file_metadata(tmp_path, monkeypatch, settings
             "source_file": SimpleUploadedFile("private.epub", epub_bytes(tmp_path)),
         },
         format="multipart",
-        HTTP_X_ALMONIUM_BOOKS_TOKEN=SECRET,
+        HTTP_X_ALMONIUM_BOOKS_SECRET=SECRET,
     )
 
     assert response.status_code == 202, response.data
@@ -175,7 +175,7 @@ def test_header_only_upload_adopts_file_metadata(tmp_path, monkeypatch, settings
     detail = client.get(
         f"/api/v1/internal/imports/{edition.id}/",
         {"owner_id": str(owner_id)},
-        HTTP_X_ALMONIUM_BOOKS_TOKEN=SECRET,
+        HTTP_X_ALMONIUM_BOOKS_SECRET=SECRET,
     )
     assert detail.data["metadata"]["detected"] is True
     assert detail.data["metadata"]["language"] == "de"
@@ -321,7 +321,7 @@ def test_owner_confirmation_updates_fields_and_requeues_nlp_on_language_change(
                 "publication_year": None,
             },
             format="json",
-            HTTP_X_ALMONIUM_BOOKS_TOKEN=SECRET,
+            HTTP_X_ALMONIUM_BOOKS_SECRET=SECRET,
         )
 
     assert response.status_code == 200, response.data
@@ -346,7 +346,7 @@ def test_owner_confirmation_updates_fields_and_requeues_nlp_on_language_change(
         f"/api/v1/internal/imports/{edition.id}/metadata/?owner_id={uuid.uuid4()}",
         {"title": "Hijacked"},
         format="json",
-        HTTP_X_ALMONIUM_BOOKS_TOKEN=SECRET,
+        HTTP_X_ALMONIUM_BOOKS_SECRET=SECRET,
     )
     assert forbidden.status_code == 404
 

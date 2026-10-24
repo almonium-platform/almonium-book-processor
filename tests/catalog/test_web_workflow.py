@@ -268,7 +268,7 @@ def test_internal_private_import_is_owner_scoped(tmp_path, monkeypatch) -> None:
             "source_file": SimpleUploadedFile("private.epub", epub_bytes(tmp_path)),
         },
         format="multipart",
-        HTTP_X_ALMONIUM_BOOKS_TOKEN="test-shared-secret",
+        HTTP_X_ALMONIUM_BOOKS_SECRET="test-shared-secret",
     )
 
     assert response.status_code == 202
@@ -281,7 +281,7 @@ def test_internal_private_import_is_owner_scoped(tmp_path, monkeypatch) -> None:
     hidden = client.get(
         f"/api/v1/internal/imports/{edition.id}/",
         {"owner_id": str(uuid.uuid4())},
-        HTTP_X_ALMONIUM_BOOKS_TOKEN="test-shared-secret",
+        HTTP_X_ALMONIUM_BOOKS_SECRET="test-shared-secret",
     )
     assert hidden.status_code == 404
 

@@ -24,7 +24,7 @@ from almonium_book_processor.catalog.source_download import (
 pytestmark = pytest.mark.django_db
 
 SECRET = "test-shared-secret"
-HEADERS = {"HTTP_X_ALMONIUM_BOOKS_TOKEN": SECRET}
+HEADERS = {"HTTP_X_ALMONIUM_BOOKS_SECRET": SECRET}
 ENDPOINT = "/api/v1/internal/source-ingests/"
 GUTENBERG_EPUB = "https://www.gutenberg.org/ebooks/84.epub3.images"
 GUTENBERG_CACHE = "https://www.gutenberg.org/cache/epub/84/pg84-images-3.epub"

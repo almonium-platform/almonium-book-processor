@@ -119,7 +119,7 @@ class PipelineRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
 class InternalBooksPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         expected = os.getenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", "")
-        provided = request.headers.get("X-Almonium-Books-Token", "")
+        provided = request.headers.get("X-Almonium-Books-Secret", "")
         return bool(expected and provided and hmac.compare_digest(expected, provided))
 
 

@@ -38,7 +38,7 @@ from almonium_book_processor.catalog.translation_jobs import (
 pytestmark = pytest.mark.django_db
 
 SECRET = "test-shared-secret"
-HEADERS = {"HTTP_X_ALMONIUM_BOOKS_TOKEN": SECRET}
+HEADERS = {"HTTP_X_ALMONIUM_BOOKS_SECRET": SECRET}
 CHAPTER_TEXTS = (("Chapter I", "It was a dark and stormy night."), ("Chapter II", "The end."))
 
 

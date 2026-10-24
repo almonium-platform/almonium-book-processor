@@ -302,7 +302,7 @@ def test_an_owner_can_delete_their_own_private_import(monkeypatch) -> None:
 
     response = APIClient().delete(
         f"/api/v1/internal/imports/{edition.id}/?owner_id={owner_id}",
-        HTTP_X_ALMONIUM_BOOKS_TOKEN=SECRET,
+        HTTP_X_ALMONIUM_BOOKS_SECRET=SECRET,
     )
 
     assert response.status_code == 204
@@ -316,7 +316,7 @@ def test_one_owner_cannot_delete_another_owners_import(monkeypatch) -> None:
 
     response = APIClient().delete(
         f"/api/v1/internal/imports/{edition.id}/?owner_id={uuid.uuid4()}",
-        HTTP_X_ALMONIUM_BOOKS_TOKEN=SECRET,
+        HTTP_X_ALMONIUM_BOOKS_SECRET=SECRET,
     )
 
     assert response.status_code == 404

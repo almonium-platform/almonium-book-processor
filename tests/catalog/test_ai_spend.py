@@ -147,14 +147,14 @@ def test_internal_endpoint_needs_the_shared_token_and_an_aware_window(monkeypatc
     naive = client.get(
         "/api/v1/internal/ai-spend/",
         {"since": "2026-09-01T00:00:00"},
-        HTTP_X_ALMONIUM_BOOKS_TOKEN=SECRET,
+        HTTP_X_ALMONIUM_BOOKS_SECRET=SECRET,
     )
     assert naive.status_code == 400
 
     response = client.get(
         "/api/v1/internal/ai-spend/",
         {"since": since},
-        HTTP_X_ALMONIUM_BOOKS_TOKEN=SECRET,
+        HTTP_X_ALMONIUM_BOOKS_SECRET=SECRET,
     )
     assert response.status_code == 200
     assert response.json()["since"] == since
