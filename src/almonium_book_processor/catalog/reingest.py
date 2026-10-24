@@ -67,6 +67,7 @@ def _purge_derived(edition: Edition) -> list[str]:
             derived,
             reason=RemovalReason.MISTAKE,
             notes=f"Removed by reingest_source to rebuild {edition.slug} from its file.",
+            force=True,
         )
         purged.append(derived.slug)
     return purged

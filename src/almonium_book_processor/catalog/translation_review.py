@@ -22,10 +22,12 @@ from __future__ import annotations
 
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from typing import Literal
 
 from django.conf import settings
 from django.db import connection, transaction
+from django.db.models import Q
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
@@ -87,6 +89,10 @@ SYSTEM_PROMPT = (
     "uncertain means the point turns on an interpretation a person should decide. Do not "
     "report minor points."
 )
+
+
+# A review window is one call per reviewer; a run silent this long was left by a dead worker.
+REVIEW_STALL = timedelta(minutes=45)
 
 
 class Issue(BaseModel):
@@ -611,8 +617,25 @@ def review_translation(
     )
     if run.status == PipelineRun.Status.SUCCEEDED:
         return run
-    run.status, run.started_at, run.error = PipelineRun.Status.RUNNING, timezone.now(), ""
-    run.save(update_fields=["status", "started_at", "error", "updated_at"])
+    # one reviewer at a time: a run another worker is reading now is left to it, one left
+    # running by a worker that died (silent longer than a window takes) is taken over
+    claimed = (
+        PipelineRun.objects.filter(pk=run.id)
+        .filter(
+            Q(status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.FAILED])
+            | Q(status=PipelineRun.Status.RUNNING, updated_at__lt=timezone.now() - REVIEW_STALL)
+        )
+        .update(
+            status=PipelineRun.Status.RUNNING,
+            started_at=timezone.now(),
+            error="",
+            updated_at=timezone.now(),
+        )
+    )
+    if not claimed:
+        run.refresh_from_db()
+        return run
+    run.refresh_from_db()
     try:
         issues = []
 

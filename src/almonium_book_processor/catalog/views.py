@@ -2083,7 +2083,11 @@ def purge_edition_view(request: HttpRequest, edition_id: str) -> HttpResponse:
         )
         return redirect("catalog:removed-books")
     title = edition.title
-    purge_edition(edition, reason=reason, notes=notes, actor=request.user)
+    try:
+        purge_edition(edition, reason=reason, notes=notes, actor=request.user)
+    except ValueError as error:
+        messages.error(request, str(error))
+        return redirect("catalog:edition-detail", edition_id=edition.id)
     messages.success(request, f"Purged {title}. The AI spend ledger kept its rows.")
     return redirect("catalog:removed-books")
 

@@ -14,6 +14,7 @@ import json
 import logging
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -83,6 +84,10 @@ logger = logging.getLogger(__name__)
 LANGUAGE_NAMES = {language.code: language.name for language in LANGUAGES}
 
 REGISTER_CHOICES = Edition.LiteraryRegister.choices
+
+
+# A direct translation call silent this long was left by a worker that died.
+DIRECT_RUN_STALL = timedelta(minutes=45)
 
 
 def language_name(code: str) -> str:
@@ -276,14 +281,13 @@ def _prepare_translation_run(
     )
     if not created and ai_run.status == AIRun.Status.SUCCEEDED:
         return ai_run
-    # Only a Batch run has work in flight at the provider worth protecting. A
-    # direct run left "submitted" by a crashed worker must stay restartable.
-    if (
-        not created
-        and ai_run.status == AIRun.Status.SUBMITTED
-        and (ai_run.request_payload or {}).get("execution") != "direct"
-    ):
-        return ai_run
+    # A Batch run has work in flight at the provider worth protecting. A direct run that is
+    # "submitted" is being made by another worker right now, unless nothing has touched it for
+    # longer than a chapter takes: only then was its worker lost and may it be made again.
+    if not created and ai_run.status == AIRun.Status.SUBMITTED:
+        direct = (ai_run.request_payload or {}).get("execution") == "direct"
+        if not direct or ai_run.updated_at > timezone.now() - DIRECT_RUN_STALL:
+            return ai_run
 
     year = source.work.publication_year
     system_prompt = prompt_template.system_prompt.format(

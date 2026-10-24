@@ -492,9 +492,18 @@ def test_interrupted_direct_run_can_restart(monkeypatch) -> None:
     # A batch genuinely in flight must not be resubmitted.
     assert isinstance(_prepare_translation_run(str(edition.id), tier="quality"), AIRun)
 
-    # The same run left "submitted" by a crashed direct worker must restart.
+    # A direct run another worker is making right now is left to it.
     ai_run.request_payload = {**ai_run.request_payload, "execution": "direct"}
     ai_run.save(update_fields=["request_payload"])
+    assert isinstance(_prepare_translation_run(str(edition.id), tier="quality"), AIRun)
+
+    # The same run left "submitted" by a crashed direct worker, silent for longer than a
+    # chapter takes, must restart.
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    AIRun.objects.filter(pk=ai_run.pk).update(updated_at=timezone.now() - timedelta(minutes=50))
     prepared = _prepare_translation_run(str(edition.id), tier="quality")
     assert isinstance(prepared, tuple)
     assert len(prepared[1]) == 1

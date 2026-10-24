@@ -23,6 +23,7 @@ from almonium_book_processor.catalog.models import (
     AIRun,
     Edition,
     EditionTombstone,
+    RemovalReason,
 )
 
 if TYPE_CHECKING:
@@ -45,17 +46,33 @@ def purge_edition(
     notes: str = "",
     actor: AbstractBaseUser | None = None,
     withdrawn: bool = False,
+    force: bool = False,
 ) -> EditionTombstone:
     """Destroy an edition's content and leave an auditable tombstone.
 
     A published edition must be withdrawn from the product API first: deleting
     the text under a live book would leave readers with a catalogue entry whose
     content endpoint fails. ``withdrawn`` is the withdrawal task's statement
-    that the API has already released it.
+    that the API has already released it. An adaptation that was never written
+    out but whose chapters were paid for is refused unless ``force`` (or a
+    copyright claim) says so: the next write of the book takes those chapters.
     """
 
     if edition.status == Edition.Status.PUBLISHED and not withdrawn:
         raise ValueError("Withdraw this edition from Almonium before purging it.")
+    if (
+        not force
+        and reason != RemovalReason.COPYRIGHT
+        and edition.edition_type == Edition.EditionType.ADAPTATION
+        and not edition.blocks.exists()
+        and AIRun.objects.filter(edition=edition, status=AIRun.Status.SUCCEEDED)
+        .exclude(response_payload={})
+        .exists()
+    ):
+        raise ValueError(
+            "This adaptation was never written out, but chapters of it were paid for and the "
+            "next write of the book takes them. Queue the book again instead of purging it."
+        )
     derived = blocking_derived_editions(edition)
     if derived:
         titles = ", ".join(f"{item.title} ({item.language.upper()})" for item in derived)
