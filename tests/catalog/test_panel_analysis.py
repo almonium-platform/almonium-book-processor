@@ -335,3 +335,60 @@ def test_a_chapter_the_judges_disagree_about_is_read_three_times_by_each(edition
     for chapter in edition.chapters.order_by("sequence"):
         check_chapter(edition, chapter, provider=judges)
     assert len(judges.bodies) == 8
+
+
+def test_a_price_change_does_not_make_the_judges_read_again(edition, monkeypatch):
+    """The price table changed five times in October 2026; each time every chapter was re-read."""
+
+    from almonium_book_processor.catalog import pilot_difficulty
+
+    judges = Judges({"claude-opus-5-5": "B2", "gpt-6.1-sol": "C1"})
+    analyze_chapters(str(queue_analysis(str(edition.id)).id), provider=judges)
+    read = len(judges.bodies)
+
+    monkeypatch.setattr(
+        pilot_difficulty,
+        "seat_prices",
+        lambda provider, model: {"input": "99", "cached_input": "9", "output": "999"},
+    )
+    again = queue_analysis(str(edition.id))
+    analyze_chapters(str(again.id), provider=judges)
+
+    assert len(judges.bodies) == read
+    assert analysis_context(edition)["projection_state"] == "complete"
+
+
+def test_readings_kept_under_the_old_price_bearing_identity_still_stand(edition):
+    """What the judges read before prices left the identity is not read again after it."""
+
+    from almonium_book_processor.catalog.chapter_analysis import _hash, spec_identity
+
+    judges = Judges({"claude-opus-5-5": "B2", "gpt-6.1-sol": "C1"})
+    first = queue_analysis(str(edition.id))
+    analyze_chapters(str(first.id), provider=judges)
+    read = len(judges.bodies)
+    # move every reading and the analysis itself back to the keys the old code used
+    for run in PipelineRun.objects.filter(edition=edition).exclude(pk=first.pk):
+        summary = run.summary
+        seed = summary["text_hash"]
+        spec = summary["spec"]
+        blocks = None
+        key, _, _ = run.idempotency_key.rpartition(":")
+        from almonium_book_processor.catalog.chapter_analysis import chapter_blocks
+
+        chapter = edition.chapters.get(pk=summary["chapter_id"])
+        blocks = chapter_blocks(chapter)
+        count = summary.get("readings")
+        legacy = _hash([seed, spec, blocks]) if count == 1 else _hash([seed, spec, blocks, count])
+        run.idempotency_key = f"{key}:{legacy}"
+        run.save(update_fields=["idempotency_key"])
+    # the old analysis itself is gone (its plan hash carried the prices too)
+    first.delete()
+    assert analysis_context(edition)["projection_state"] == "pending"
+
+    again = queue_analysis(str(edition.id))
+    analyze_chapters(str(again.id), provider=judges)
+
+    assert len(judges.bodies) == read
+    assert analysis_context(edition)["projection_state"] == "complete"
+    assert spec_identity(edition_spec(edition)["panel"][0]).get("pricing_per_million") is None

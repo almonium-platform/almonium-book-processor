@@ -17,17 +17,24 @@ from __future__ import annotations
 
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db import connection, transaction
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
 from almonium_book_processor.ai.pricing import call_cost, has_price, plan_priced
 from almonium_book_processor.ai.seats import provider_for
-from almonium_book_processor.catalog.chapter_analysis import _hash, _json, chapter_blocks
+from almonium_book_processor.catalog.chapter_analysis import (
+    _hash,
+    _json,
+    chapter_blocks,
+    spec_identity,
+)
 from almonium_book_processor.catalog.chapter_projections import LEVELS
 from almonium_book_processor.catalog.models import (
     AIRun,
@@ -97,7 +104,14 @@ def _standing(seen: list, specs: list[dict], count: int) -> list[dict | None]:
     """Each judge's finished verdict from ``count`` readings of a text, None where it has none."""
 
     return [
-        next((a for spec_read, made, a in seen if spec_read == spec and made == count), None)
+        next(
+            (
+                a
+                for spec_read, made, a in seen
+                if spec_identity(spec_read) == spec_identity(spec) and made == count
+            ),
+            None,
+        )
         for spec in specs
     ]
 
@@ -279,6 +293,10 @@ AUTOMATIC_NOTE = (
 )
 
 
+# A revision pilot is one call; a pilot silent this long was left running by a worker that died.
+ORPHANED_PILOT = timedelta(minutes=45)
+
+
 def revise_chapter(
     edition: Edition, chapter: Chapter, verdict: dict, *, provider=None, judge=None
 ) -> dict:
@@ -307,6 +325,15 @@ def revise_chapter(
     except ValueError as error:
         # a chapter too long for one pilot cannot be revised whole
         return {"applied": False, "reason": str(error)}
+    if pilot.status == PipelineRun.Status.RUNNING:
+        # a worker that died mid-call leaves the pilot running for ever; one silent this long
+        # is taken back and made again, so the chapter is not given up on nothing
+        PipelineRun.objects.filter(
+            pk=pilot.id,
+            status=PipelineRun.Status.RUNNING,
+            updated_at__lt=timezone.now() - ORPHANED_PILOT,
+        ).update(status=PipelineRun.Status.QUEUED, updated_at=timezone.now())
+        pilot.refresh_from_db()
     if pilot.status == PipelineRun.Status.QUEUED:
         run_pilot(pilot.id, provider=provider)
     pilot.refresh_from_db()
@@ -521,7 +548,11 @@ def _ask_spot_fix(
         PipelineRun.objects.filter(pk=run.id).update(
             status=PipelineRun.Status.FAILED,
             finished_at=timezone.now(),
-            error=str(error)[:1000] if isinstance(error, ValueError) else type(error).__name__,
+            error=(
+                str(error)[:1000]
+                if isinstance(error, (ValueError, AllowanceUsedUp))
+                else type(error).__name__
+            ),
         )
         raise
 

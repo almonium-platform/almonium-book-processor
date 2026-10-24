@@ -70,12 +70,30 @@ class AnalysisRejected(ValueError):
     """A validated-but-unacceptable model answer; the message never contains book text."""
 
 
+class CitationRejected(AnalysisRejected):
+    """The judge cited words that are not in the text: one bad answer, asked for once more."""
+
+
 def _json(value) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _hash(value) -> str:
     return hashlib.sha256(_json(value).encode()).hexdigest()
+
+
+def spec_identity(spec: dict) -> dict:
+    """What a reading depends on: the spec without its prices.
+
+    A price is what a call cost, not what was asked; the price table changed five times in
+    October 2026 and each change made every chapter read again.
+    """
+
+    if isinstance(spec, dict):
+        return {k: spec_identity(v) for k, v in spec.items() if k != "pricing_per_million"}
+    if isinstance(spec, list):
+        return [spec_identity(item) for item in spec]
+    return spec
 
 
 def analysis_spec(language: str = "en") -> dict:
@@ -238,14 +256,25 @@ def snapshot(edition: Edition, spec: dict) -> dict:
             }
             if len(_json(data).encode()) > spec["request_bytes"]:
                 raise ValueError("Chapter metadata exceeds the analysis request limit.")
-            windows.append({"hash": _hash([spec, digest, data]), "data": data})
+            windows.append(
+                {
+                    "hash": _hash([spec_identity(spec), digest, data]),
+                    # the hash a reading of this window was kept under before prices left it
+                    "legacy_hash": _hash([spec, digest, data]),
+                    "data": data,
+                }
+            )
             if len(windows) > spec["max_windows"]:
                 raise ValueError(
                     f"Analysis is limited to {spec['max_windows']} windows per edition."
                 )
     if not windows:
         raise ValueError("No chapter text is available to analyze.")
-    return {"hash": _hash([spec, chapters]), "chapters": chapters, "windows": windows}
+    return {
+        "hash": _hash([spec_identity(spec), chapters]),
+        "chapters": chapters,
+        "windows": windows,
+    }
 
 
 def queue_analysis(edition_id: str) -> PipelineRun:
@@ -422,7 +451,7 @@ def _verify_citations(result: ChapterAnalysis, data: dict) -> tuple[ChapterAnaly
             keep.append(item.model_copy(update={field: exact}))
             spans.append({"block_id": item.block_id, "start": start, "end": end})
     if not evidence:
-        raise AnalysisRejected("No cited evidence occurs in the analyzed text.")
+        raise CitationRejected("No cited evidence occurs in the analyzed text.")
     if any(len(s) > 100 for s in [*result.themes, *result.characters, *result.content_flags]):
         raise AnalysisRejected("Analysis labels exceed the output limit.")
     unsupported = []
@@ -486,7 +515,7 @@ def _attempt(
     cached = (
         AIRun.objects.filter(
             edition_id=run.edition_id,
-            input_hash=window["hash"],
+            input_hash__in=[h for h in (window["hash"], window.get("legacy_hash")) if h],
             status=AIRun.Status.SUCCEEDED,
             prompt_template=prompt,
             model_configuration=configuration,
@@ -570,7 +599,14 @@ def _attempt(
         where = f"Chapter {data['chapter_sequence']} window {data['window']}/{data['window_count']}"
         # a used-up allowance is the plan's state, not the answer's: its message has no book text
         if isinstance(
-            error, (StaleAnalysis, AnalysisRejected, OutputLanguageError, AllowanceUsedUp)
+            error,
+            (
+                StaleAnalysis,
+                AnalysisRejected,
+                CitationRejected,
+                OutputLanguageError,
+                AllowanceUsedUp,
+            ),
         ):
             reason = str(error)
         else:
@@ -581,9 +617,22 @@ def _attempt(
             finished_at=timezone.now(),
             updated_at=timezone.now(),
         )
-        if isinstance(error, StaleAnalysis):
+        # each of these is handled by name above: a stale plan stops the run, a used-up
+        # allowance holds the book without a start, a bad citation is asked for once more
+        if isinstance(error, (StaleAnalysis, AllowanceUsedUp)):
             raise
+        if isinstance(error, CitationRejected):
+            raise CitationRejected(f"{where}: {reason}") from None
         raise AnalysisRejected(f"{where}: {reason}") from None
+
+
+def _named(error: Exception) -> str:
+    """An error as a run records it: our own messages and a used-up allowance in full, since
+    they carry no book text; anything else by type only."""
+
+    if isinstance(error, (AnalysisRejected, AllowanceUsedUp)):
+        return str(error)
+    return type(error).__name__
 
 
 def analyze_chapters(run_id: str, *, provider=None) -> None:
@@ -637,8 +686,7 @@ def analyze_chapters(run_id: str, *, provider=None) -> None:
             error=(
                 str(error)
                 if isinstance(error, StaleAnalysis)
-                else f"{error if isinstance(error, AnalysisRejected) else type(error).__name__}"
-                " — retry reuses validated windows."
+                else (f"{_named(error)} — retry reuses validated windows.")
             ),
             finished_at=timezone.now(),
             updated_at=timezone.now(),

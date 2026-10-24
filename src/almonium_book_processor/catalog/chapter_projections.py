@@ -183,6 +183,7 @@ def refresh_projections(run_id: str, *, token: str | None = None) -> None:
         _hash,
         edition_spec,
         snapshot,
+        spec_identity,
     )
 
     # Lock source blocks as well as the edition: normal text revisions lock the
@@ -234,7 +235,7 @@ def refresh_projections(run_id: str, *, token: str | None = None) -> None:
         retained = []
 
         def persist(kind, payload, chapter_id=None):
-            payload = {**payload, "analysis_spec_hash": _hash(spec)}
+            payload = {**payload, "analysis_spec_hash": _hash(spec_identity(spec))}
             version = (
                 BOOK_VERSION
                 if chapter_id is None
@@ -313,7 +314,7 @@ def apply_analysis_level(edition: Edition, book: dict | None) -> bool:
 
 
 def projection_context(edition: Edition, analysis: dict) -> dict:
-    from almonium_book_processor.catalog.chapter_analysis import _hash, edition_spec
+    from almonium_book_processor.catalog.chapter_analysis import _hash, edition_spec, spec_identity
 
     state = "pending"
     run = analysis.get("chapter_analysis_run")
@@ -335,7 +336,8 @@ def projection_context(edition: Edition, analysis: dict) -> dict:
                     a
                     for a in candidates
                     if a.payload.get("analysis_input_hash") == run.input_hash
-                    and a.payload.get("analysis_spec_hash") == _hash(edition_spec(edition))
+                    and a.payload.get("analysis_spec_hash")
+                    == _hash(spec_identity(edition_spec(edition)))
                     and a.payload.get("roles") == dict(_roles(edition))
                 ),
                 None,

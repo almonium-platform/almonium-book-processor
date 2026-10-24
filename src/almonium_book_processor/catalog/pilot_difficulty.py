@@ -12,11 +12,12 @@ from almonium_book_processor.ai.chapter_analysis import (
     WORDING_NOTE,
     WORDING_PROMPT_VERSION,
 )
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
 from almonium_book_processor.ai.pricing import has_price, seat_prices
 from almonium_book_processor.ai.seats import parse_seat, provider_for
 from almonium_book_processor.catalog.adaptation import PILOT_VERSIONS
 from almonium_book_processor.catalog.chapter_analysis import (
-    AnalysisRejected,
+    CitationRejected,
     _attempt,
     _configuration,
     _hash,
@@ -24,6 +25,7 @@ from almonium_book_processor.catalog.chapter_analysis import (
     analysis_spec,
     judged_blocks,
     snapshot,
+    spec_identity,
 )
 from almonium_book_processor.catalog.chapter_projections import LEVELS, percentile
 from almonium_book_processor.catalog.models import AIRun, PipelineRun
@@ -148,7 +150,9 @@ def _read(run, window, spec, configuration, prompt, provider, reader_facing=Fals
         return _attempt(
             run, window, spec, configuration, prompt, provider, reader_facing=reader_facing
         )
-    except AnalysisRejected:
+    except CitationRejected:
+        # only a bad citation is asked for again here; a broken call was already tried twice
+        # on its way up, and a used-up allowance would refuse the same way
         return _attempt(
             run, window, spec, configuration, prompt, provider, reader_facing=reader_facing
         )
@@ -196,9 +200,17 @@ def judge_text(
     if not parts:
         raise ValueError("No text to assess.")
     plan = snapshot(edition, spec)
+    asked = spec_identity(spec)
     # A single reading keeps the identity past assessments were saved under.
-    first = _hash([seed, spec, blocks])
-    identity = first if readings == 1 else _hash([seed, spec, blocks, readings])
+    first = _hash([seed, asked, blocks])
+    identity = first if readings == 1 else _hash([seed, asked, blocks, readings])
+    # readings made while prices were part of the identity stand, at the prices of their day
+    legacy = _hash([seed, spec, blocks]) if readings == 1 else _hash([seed, spec, blocks, readings])
+    standing = PipelineRun.objects.filter(
+        idempotency_key=f"{key}:{legacy}", status=PipelineRun.Status.SUCCEEDED
+    ).first()
+    if standing is not None:
+        return standing.summary["assessment"]
     run, _ = PipelineRun.objects.get_or_create(
         idempotency_key=f"{key}:{identity}",
         defaults={
@@ -276,11 +288,15 @@ def judge_text(
         run.finished_at = timezone.now()
         run.save(update_fields=["summary", "status", "finished_at", "updated_at"])
         return assessment
-    except Exception:
+    except Exception as error:
         PipelineRun.objects.filter(pk=run.id).update(
             status=PipelineRun.Status.FAILED,
             finished_at=timezone.now(),
-            error="Pilot assessment failed; inspect AI ledger.",
+            error=(
+                str(error)[:1000]
+                if isinstance(error, AllowanceUsedUp)
+                else "Pilot assessment failed; inspect AI ledger."
+            ),
         )
         raise
 
