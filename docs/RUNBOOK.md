@@ -53,7 +53,9 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   per language, cuts each as ingest would, judges the shape
   (`catalog/source_shape.py`) and records the verdict in `SourceShape`; the
   file is deleted and no edition or AI call is made. `--ids 46,2650` looks at
-  named books; `--again` measures recorded ones once more.
+  named books, `--urls` at EPUB addresses on any library host (Standard Ebooks
+  addresses end in `?source=download`); `--again` measures recorded ones once
+  more.
 - **One worker per pair of accounts.** A worker works on the Codex account
   its `CODEX_HOME` names and the Claude account its `CLAUDE_CONFIG_DIR`
   names, which is how the CLIs themselves choose an account. A second plan

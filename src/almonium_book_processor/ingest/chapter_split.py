@@ -47,6 +47,11 @@ LONG_DOCUMENT_CHARS = 25_000
 SHORT_DOCUMENT_CHARS = 3_000
 # A document this long that stays one chapter is reported for a person to see.
 UNSPLIT_DOCUMENT_CHARS = 60_000
+# A document longer than UNSPLIT_DOCUMENT_CHARS with no heading to cut at is cut by size
+# instead, at block boundaries, into parts of about this many characters: Damiano (766,000
+# characters in two files) and Venus im Pelz (241,000 in one) have no chapters at all, and
+# neither a judge nor an adapter nor a reader takes a book in one piece.
+SIZE_SPLIT_TARGET_CHARS = 20_000
 
 # Gutenberg's Portuguese books of 1899 and 1890 (Dom Casmurro, O Cortiço) mark every chapter with an
 # h4 and its title with an h5; the level most chapters use is cut at, so a deeper heading only ever
@@ -118,6 +123,43 @@ def split_at_chapter_headings(root: Tag) -> list[Tag]:
         # with the first chapter rather than losing an image that sits there.
         for child in reversed(list(root.children)):
             segments[0].insert(0, child.extract())
+    return segments
+
+
+def split_by_size(root: Tag, target: int = SIZE_SPLIT_TARGET_CHARS) -> list[Tag]:
+    """Cut a document with no chapter headings into parts of about ``target`` characters.
+
+    The cut falls between the document's blocks, never inside one, so a paragraph is never
+    torn. The parts have no title; the chapter roles treat an untitled book as all story.
+    ``[root]`` comes back unchanged when the document would not make two parts.
+    """
+
+    if document_length(root) < 2 * target:
+        return [root]
+    container = root
+    while True:
+        children = [child for child in container.children if isinstance(child, Tag)]
+        if len(children) == 1 and children[0].name in ("div", "section", "body", "article"):
+            container = children[0]
+            continue
+        break
+    parts: list[list] = [[]]
+    size = 0
+    for child in list(container.children):
+        length = len(child.get_text(" ", strip=True)) if isinstance(child, Tag) else 0
+        if parts[-1] and size + length > target and length:
+            parts.append([])
+            size = 0
+        parts[-1].append(child)
+        size += length
+    if len(parts) < 2:
+        return [root]
+    segments: list[Tag] = []
+    for group in parts:
+        segment = Tag(name="div")
+        for child in group:
+            segment.append(child.extract())
+        segments.append(segment)
     return segments
 
 

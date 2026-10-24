@@ -41,7 +41,9 @@ def measure(artifact: BookArtifact) -> dict[str, Any]:
 
     chapters: dict[int, dict[str, Any]] = {}
     for block in artifact.blocks:
-        chapter = chapters.setdefault(block.chapter, {"title": "", "chars": 0})
+        chapter = chapters.setdefault(block.chapter, {"title": "", "chars": 0, "cut": False})
+        if block.attributes.get("cut") == "size":
+            chapter["cut"] = True
         if block.type == BlockType.HEADING and not chapter["title"]:
             if not block.attributes.get("part"):
                 chapter["title"] = block.text.strip()
@@ -52,6 +54,7 @@ def measure(artifact: BookArtifact) -> dict[str, Any]:
         [chapter["title"] for chapter in ordered],
         book_title=artifact.edition.title,
         author=artifact.edition.author,
+        cut_by_size={index for index, chapter in enumerate(ordered) if chapter["cut"]},
     )
     for chapter, role in zip(ordered, roles, strict=True):
         chapter["role"] = role

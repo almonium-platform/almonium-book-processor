@@ -730,7 +730,26 @@ this are over." The rules, with their numbers:
     page named after the author is a title page, and a title page is never a
     numbered chapter whatever its letters look like ("D R A C U L A").
     After the fixes the same hundred read 80 sound, 11 suspect, 10 unreadable.
-    The unreadable are audio recordings and texts with no EPUB at all; of the
-    suspects, Swann's three parts and Shakespeare's collected works are what they
-    are, while Damiano (766,000 characters in two chapters) and Venus im Pelz
-    (one chapter of 96%) are real misses for the splitter to take next.
+    The unreadable are audio recordings and texts with no EPUB at all.
+  - *A text with no chapters at all is cut by size.* Damiano (766,000 characters
+    in four files with a heading or two) and Venus im Pelz (241,000 in one) have
+    no chapter marks, and their tables of contents are as bare as their headings,
+    so the EPUB's own navigation would not have helped. Any chapter longer than
+    `UNSPLIT_DOCUMENT_CHARS` (60,000) is now cut between its blocks into parts of
+    about `SIZE_SPLIT_TARGET_CHARS` (20,000), a file that continues the chapter
+    before it included (`chapter_split.split_by_size`). The parts carry
+    `cut: size` and the chapter roles take them for the story wherever they fall;
+    a closing word ("FINE.", "THE END") is back matter. Damiano reads 39
+    chapters, 37 of them story; Venus im Pelz 13 and 11.
+  - *Standard Ebooks is a second source.* Its files are one chapter per
+    document with a complete table of contents: ten titles measured sound
+    without a finding. The processor downloads from standardebooks.org
+    (`SourceDownload.Kind.STANDARD_EBOOKS`; the address needs
+    `?source=download`, without it the site answers a page). Offering its
+    catalogue beside Gutenberg's is backend work still to do: the OPDS feed is
+    for patrons, the HTML listing (about 128 pages) is public, and a title has
+    to be matched to a catalogue work by author and title. The backend ranks a
+    work's sources by rights, then whole edition before page, then original
+    before translation, then by the kind's name, which puts Gutenberg before
+    Wikisource by the alphabet, not by quality; a source's recorded shape is
+    the quality signal that ordering lacks.

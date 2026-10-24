@@ -44,11 +44,18 @@ EPUB_MAGIC = b"PK\x03\x04"
 
 GUTENBERG_HOSTS = frozenset({"www.gutenberg.org", "gutenberg.org"})
 WIKISOURCE_EXPORT_HOSTS = frozenset({"ws-export.wmcloud.org"})
+STANDARD_EBOOKS_HOSTS = frozenset({"standardebooks.org"})
 HOSTS = {
     SourceDownload.Kind.GUTENBERG: GUTENBERG_HOSTS,
     SourceDownload.Kind.WIKISOURCE: WIKISOURCE_EXPORT_HOSTS,
+    SourceDownload.Kind.STANDARD_EBOOKS: STANDARD_EBOOKS_HOSTS,
 }
-ALLOWED_HOSTS = GUTENBERG_HOSTS | WIKISOURCE_EXPORT_HOSTS
+ALLOWED_HOSTS = GUTENBERG_HOSTS | WIKISOURCE_EXPORT_HOSTS | STANDARD_EBOOKS_HOSTS
+# standardebooks.org/ebooks/<author>/<title>/downloads/<author>_<title>.epub; without
+# ?source=download the site answers a page that says the download has started
+STANDARD_EBOOKS_EPUB_PATH = re.compile(
+    r"^/ebooks/[a-z0-9-]+/[a-z0-9-]+(?:/[a-z0-9-]+)*/downloads/[a-z0-9_.-]+\.epub$"
+)
 
 GUTENBERG_EPUB_PATHS = (
     re.compile(r"^/ebooks/\d+\.epub3?\.(?:images|noimages)$"),
@@ -96,6 +103,13 @@ def check_download_url(url: str, source_kind: str) -> None:
             )
         return
     query = parse_qs(parts.query)
+    if source_kind == SourceDownload.Kind.STANDARD_EBOOKS:
+        if not STANDARD_EBOOKS_EPUB_PATH.match(parts.path) or query.get("source") != ["download"]:
+            raise DownloadRefused(
+                "A Standard Ebooks link is /ebooks/<author>/<title>/downloads/<file>.epub"
+                "?source=download."
+            )
+        return
     if parts.path not in ("", "/"):
         raise DownloadRefused("A Wikisource export link is the exporter's root with a query.")
     if not query.get("lang") or not query.get("page"):

@@ -96,6 +96,16 @@ class BlockBuilder:
         self.warnings: list[IngestionWarning] = []
         self._sequence_by_chapter: dict[int, int] = {}
 
+    def mark(self, chapter: int, *, since: int, **attributes: Any) -> None:
+        """Give the blocks added since ``since`` to ``chapter`` these attributes."""
+
+        for index in range(since, len(self.blocks)):
+            block = self.blocks[index]
+            if block.chapter == chapter:
+                self.blocks[index] = block.model_copy(
+                    update={"attributes": {**block.attributes, **attributes}}
+                )
+
     def add(
         self,
         *,

@@ -160,6 +160,9 @@ class IngestionWarningCode(StrEnum):
     WIKISOURCE_MATTER_TRIMMED = "wikisource_matter_trimmed"
     SPINE_DOCUMENT_SPLIT = "spine_document_split"
     LONG_DOCUMENT_UNSPLIT = "long_document_unsplit"
+    LONG_DOCUMENT_SPLIT_BY_SIZE = "long_document_split_by_size"
+    HEADING_ONLY_CHAPTERS_FOLDED = "heading_only_chapters_folded"
+    AUTHOR_MISSING = "author_missing"
     EMPTY_TEI_SECTION = "empty_tei_section"
     BLANK_TEI_SECTION = "blank_tei_section"
     UNEXPECTED_CHAPTER_COUNT = "unexpected_chapter_count"
@@ -179,6 +182,8 @@ INGESTION_WARNING_SEVERITIES: dict[str, IngestionWarningSeverity] = {
     IngestionWarningCode.GUTENBERG_BOILERPLATE_TRIMMED: IngestionWarningSeverity.INFO,
     IngestionWarningCode.WIKISOURCE_MATTER_TRIMMED: IngestionWarningSeverity.INFO,
     IngestionWarningCode.SPINE_DOCUMENT_SPLIT: IngestionWarningSeverity.INFO,
+    IngestionWarningCode.LONG_DOCUMENT_SPLIT_BY_SIZE: IngestionWarningSeverity.INFO,
+    IngestionWarningCode.HEADING_ONLY_CHAPTERS_FOLDED: IngestionWarningSeverity.INFO,
     IngestionWarningCode.LONG_DOCUMENT_UNSPLIT: IngestionWarningSeverity.WARNING,
     IngestionWarningCode.EMPTY_TEI_SECTION: IngestionWarningSeverity.WARNING,
     IngestionWarningCode.BLANK_TEI_SECTION: IngestionWarningSeverity.INFO,

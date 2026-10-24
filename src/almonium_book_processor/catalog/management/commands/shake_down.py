@@ -34,25 +34,30 @@ class Command(BaseCommand):
         parser.add_argument("--languages", default="en,fr,de,es,it")
         parser.add_argument("--per-language", type=int, default=20)
         parser.add_argument("--ids", default="", help="Gutenberg ids instead of the popular lists")
+        parser.add_argument(
+            "--urls", default="", help="EPUB addresses on any library host, comma-separated"
+        )
         parser.add_argument("--limit", type=int, default=0)
         parser.add_argument("--again", action="store_true", help="measure books already recorded")
 
     def handle(self, *args, **options):
         session = requests.Session()
         session.headers["User-Agent"] = "almonium-book-processor shake-down (owner's machine)"
-        ids = [int(i) for i in options["ids"].split(",") if i.strip()] or self._popular(
-            session, options["languages"].split(","), options["per_language"]
-        )
+        urls = [u.strip() for u in options["urls"].split(",") if u.strip()]
+        if not urls:
+            ids = [int(i) for i in options["ids"].split(",") if i.strip()] or self._popular(
+                session, options["languages"].split(","), options["per_language"]
+            )
+            urls = [GUTENBERG_EPUB.format(id=book_id) for book_id in ids]
         if options["limit"]:
-            ids = ids[: options["limit"]]
+            urls = urls[: options["limit"]]
         verdicts: Counter = Counter()
         reasons: Counter = Counter()
         with tempfile.TemporaryDirectory(prefix="shake-down-") as folder:
-            for number, book_id in enumerate(ids, 1):
-                url = GUTENBERG_EPUB.format(id=book_id)
+            for number, url in enumerate(urls, 1):
                 if not options["again"] and SourceShape.objects.filter(source_url=url).exists():
                     continue
-                row = self._look(session, url, Path(folder) / f"{book_id}.epub")
+                row = self._look(session, url, Path(folder) / f"{number}.epub")
                 verdicts[row.verdict] += 1
                 for reason in row.reasons:
                     reasons[reason.split(":")[0].split(" is ")[0]] += 1
@@ -61,7 +66,7 @@ class Command(BaseCommand):
                     f"ch={metrics.get('chapters', '?')} body={metrics.get('body_chapters', '?')}"
                 )
                 self.stdout.write(
-                    f"{number:3}/{len(ids)} {row.verdict:10} {row.language:3} {row.title[:44]:44} "
+                    f"{number:3}/{len(urls)} {row.verdict:10} {row.language:3} {row.title[:44]:44} "
                     f"{shape} " + "; ".join(row.reasons)
                 )
         self.stdout.write(f"\n{dict(verdicts)}")
@@ -90,9 +95,14 @@ class Command(BaseCommand):
         return ids
 
     def _look(self, session, url: str, path: Path) -> SourceShape:
-        row = SourceShape(source_url=url, source_kind="gutenberg", processor_version=VERSION)
+        kind = (
+            SourceDownload.Kind.STANDARD_EBOOKS
+            if "standardebooks.org" in url
+            else SourceDownload.Kind.GUTENBERG
+        )
+        row = SourceShape(source_url=url, source_kind=kind, processor_version=VERSION)
         try:
-            fetched = download(url, SourceDownload.Kind.GUTENBERG)
+            fetched = download(url, kind)
             path = fetched.path
             row.source_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
             if any(fetched.final_url.endswith(build) for build in ("epub.images", "epub.noimages")):

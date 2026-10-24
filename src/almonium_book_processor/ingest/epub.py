@@ -10,10 +10,12 @@ from ebooklib import ITEM_COVER, ITEM_DOCUMENT, epub
 from almonium_book_processor import __version__
 from almonium_book_processor.ingest.chapter_split import (
     LONG_DOCUMENT_CHARS,
+    SIZE_SPLIT_TARGET_CHARS,
     UNSPLIT_DOCUMENT_CHARS,
     document_length,
     opens_without_heading,
     split_at_chapter_headings,
+    split_by_size,
 )
 from almonium_book_processor.ingest.common import (
     BlockBuilder,
@@ -157,15 +159,35 @@ def ingest_epub(
         continues = previous_was_long and chapter > 0 and opens_without_heading(root)
         previous_was_long = length > LONG_DOCUMENT_CHARS
         segments = split_at_chapter_headings(root)
+        # a chapter longer than a long document is cut by size, headings or none: Damiano's
+        # four files of 170,000 characters each had a heading or two and no chapters
+        sized: list[Tag] = []
+        cut_by_size: set[int] = set()
+        by_size = 0
+        for segment in segments:
+            parts = (
+                split_by_size(segment)
+                if document_length(segment) > UNSPLIT_DOCUMENT_CHARS
+                else [segment]
+            )
+            by_size += len(parts) - 1
+            if len(parts) > 1:
+                cut_by_size.update(range(len(sized), len(sized) + len(parts)))
+            sized.extend(parts)
+        segments = sized
         for index, segment in enumerate(segments):
             previous_count = len(builder.blocks)
+            target_chapter = chapter - 1 if continues and index == 0 else chapter
             extract_blocks(
                 segment,
-                chapter=chapter - 1 if continues and index == 0 else chapter,
+                chapter=target_chapter,
                 source_name=document_name,
                 builder=builder,
                 resolve_image=epub_image_resolver(document_name),
             )
+            if index in cut_by_size:
+                # the parts of a text cut by size are the story, whatever they are called
+                builder.mark(target_chapter, since=previous_count, cut="size")
             if len(builder.blocks) > previous_count and not (continues and index == 0):
                 chapter += 1
         produced = chapter - first_chapter
@@ -178,6 +200,19 @@ def ingest_epub(
                     message="Spine document contained no supported content blocks",
                     source_ref=document_name,
                     chapter=chapter,
+                )
+            )
+        elif by_size and produced:
+            builder.warnings.append(
+                IngestionWarning(
+                    code="long_document_split_by_size",
+                    message=(
+                        f"Cut a {length:,}-character document into {produced} chapters, "
+                        f"{by_size} of them by size at about {SIZE_SPLIT_TARGET_CHARS:,} "
+                        "characters where no chapter heading was found"
+                    ),
+                    source_ref=document_name,
+                    chapter=first_chapter,
                 )
             )
         elif len(segments) > 1:

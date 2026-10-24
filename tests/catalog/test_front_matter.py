@@ -218,3 +218,32 @@ def test_a_matter_page_inside_the_story_span_is_still_matter():
         "body",
         "body",
     ]
+
+
+def test_untitled_parts_cut_by_size_are_the_story_wherever_they_fall():
+    # Damiano: a title page, the story in parts, the last file cut into untitled parts
+    # the closing word is back matter, as a page of notes would be
+    assert chapter_roles(["DAMIANO", "A SUO ZIO", "", "", "", "FINE."], book_title="Damiano") == [
+        "front",
+        "body",
+        "body",
+        "body",
+        "body",
+        "back",
+    ]
+    # the real Damiano: untitled parts before any title the rules would take for the story
+    titles = ["", "DAMIANO", "", "", "", "DAMIANO", "", "", "I H S.", "", "", "FINE."]
+    cut = {2, 3, 4, 6, 7, 9, 10}
+    assert chapter_roles(titles, book_title="Damiano", cut_by_size=cut) == [
+        "front",
+        "front",
+        *["body"] * 9,
+        "back",
+    ]
+    # Venus im Pelz: nothing but a title page, a preface and untitled parts
+    assert chapter_roles(
+        ["Venus im Pelz", "Vorwort", "Venus im Pelz", "", "", ""], book_title="Venus im Pelz"
+    ) == ["front", "front", "front", "body", "body", "body"]
+    # The Time Machine still: notes after the epilogue are back matter
+    titles = ["", "", "", "I INTRODUCTION", "II", "XV", "Epilogue", "NOTES"]
+    assert chapter_roles(titles) == ["front"] * 3 + ["body"] * 4 + ["back"]

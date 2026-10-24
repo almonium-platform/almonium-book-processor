@@ -336,6 +336,7 @@ class SourceDownload(TimestampedModel):
     class Kind(models.TextChoices):
         GUTENBERG = "gutenberg", "Project Gutenberg"
         WIKISOURCE = "wikisource", "Wikisource"
+        STANDARD_EBOOKS = "standard_ebooks", "Standard Ebooks"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Downloading"

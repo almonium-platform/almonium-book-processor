@@ -34,9 +34,16 @@ MATTER = re.compile(
     re.IGNORECASE,
 )
 
+# A closing word is the whole title, so "LA FIN DU MONDE" stays a story title.
+CLOSING = re.compile(r"^\W*(fin|fine|the end|ende|finis|конец|кінець)\W*$", re.IGNORECASE)
+
 
 def chapter_roles(
-    titles: list[str], *, book_title: str | None = None, author: str | None = None
+    titles: list[str],
+    *,
+    book_title: str | None = None,
+    author: str | None = None,
+    cut_by_size: set[int] | frozenset[int] = frozenset(),
 ) -> list[str]:
     """A role per chapter title, in order: front matter, the story, back matter.
 
@@ -51,21 +58,40 @@ def chapter_roles(
     count as the story and be held to its level.
     """
 
-    story = [_is_story(title) for title in titles]
+    # a part of a text that ingest cut by size is the story, whatever it is called:
+    # Damiano's untitled parts stood before any title the rules would take for the story
+    story = [index in cut_by_size or _is_story(title) for index, title in enumerate(titles)]
     # the title page: chapters named after the book itself or its author, ahead of the story
     for index, title in enumerate(titles):
-        if story[index] and any(_same_title(title, name) for name in (book_title, author) if name):
+        if (
+            story[index]
+            and index not in cut_by_size
+            and any(_same_title(title, name) for name in (book_title, author) if name)
+        ):
             story[index] = False
         elif story[index]:
             break
+    untitled = [
+        not title.strip() and index not in cut_by_size for index, title in enumerate(titles)
+    ]
     if not any(story):
-        return [Chapter.AnalysisRole.BODY] * len(titles)
+        # Venus im Pelz: a title page, a "Vorwort" and the text cut by size into untitled
+        # parts: the parts are the story, the titled pages the matter around it
+        if any(untitled) and not all(untitled):
+            story = untitled
+        else:
+            return [Chapter.AnalysisRole.BODY] * len(titles)
     # a title page is not a numbered chapter, whatever its letters look like ("D R A C U L A")
     numbered = [
         story[index] and bool(NUMBERED.match(title.strip())) for index, title in enumerate(titles)
     ]
     first = numbered.index(True) if any(numbered) else story.index(True)
-    last = len(story) - 1 - story[::-1].index(True)
+    if cut_by_size:
+        first = min(first, min(index for index in cut_by_size if index < len(titles)))
+    # an untitled chapter after the last titled one is the story's too: Damiano's last file is
+    # 170,000 characters of story cut by size into untitled parts
+    story_or_untitled = [story[i] or (untitled[i] and i > first) for i in range(len(titles))]
+    last = len(titles) - 1 - story_or_untitled[::-1].index(True)
     roles = [
         Chapter.AnalysisRole.FRONT
         if index < first
@@ -88,7 +114,9 @@ def chapter_roles(
 
 def _is_matter(title: str) -> bool:
     title = title.strip()
-    return bool(title) and not NUMBERED.match(title) and bool(MATTER.search(title))
+    return bool(title) and (
+        bool(CLOSING.match(title)) or (not NUMBERED.match(title) and bool(MATTER.search(title)))
+    )
 
 
 def _same_title(title: str, book_title: str) -> bool:
@@ -104,6 +132,8 @@ def _same_title(title: str, book_title: str) -> bool:
 def _is_story(title: str) -> bool:
     title = title.strip()
     if not title:
+        return False
+    if CLOSING.match(title):
         return False
     return bool(NUMBERED.match(title)) or not MATTER.search(title)
 

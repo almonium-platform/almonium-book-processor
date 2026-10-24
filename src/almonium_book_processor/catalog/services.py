@@ -408,10 +408,14 @@ def persist_artifact(edition: Edition, artifact: BookArtifact, run: PipelineRun)
     for number, title in headings.items():
         chapters[number].title = title
     # the title page, a dedication, a preface: adapted as far as they go, never the level
+    cut_by_size = {
+        block.chapter for block in artifact.blocks if block.attributes.get("cut") == "size"
+    }
     roles = chapter_roles(
         [chapters[number].title for number in chapter_numbers],
         book_title=edition.title,
         author=edition.author,
+        cut_by_size={chapter_numbers.index(n) for n in cut_by_size if n in chapter_numbers},
     )
     for number, role in zip(chapter_numbers, roles, strict=True):
         chapters[number].analysis_role = role

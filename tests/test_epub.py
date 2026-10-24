@@ -546,17 +546,25 @@ def test_a_file_cut_mid_chapter_continues_the_previous_chapter(tmp_path) -> None
     assert chapters[1][-1].source_ref == "h-1.xhtml"
 
 
-def test_a_long_document_without_headings_is_reported(tmp_path) -> None:
+def test_a_long_document_without_headings_is_cut_by_size(tmp_path) -> None:
+    # Damiano: 766,000 characters in two files with no chapter marks; Venus im Pelz: 241,000 in one
     content = "".join(f"<p>{_prose(1200)}</p>" for _ in range(8))
-
     artifact = ingest_epub(
         _one_document_epub(tmp_path, content), edition_slug="long-es-orig", work_slug="long"
     )
-
-    assert {block.chapter for block in artifact.blocks} == {0}
-    unsplit = [w for w in artifact.warnings if w.code == "long_document_unsplit"]
-    assert len(unsplit) == 1 and unsplit[0].source_ref == "book.xhtml"
-    assert ingestion_warning_severity("long_document_unsplit") == IngestionWarningSeverity.WARNING
+    chapters = _chapters(artifact)
+    sizes = [sum(len(block.text) for block in blocks) for blocks in chapters.values()]
+    assert len(chapters) >= 3
+    # a cut falls between paragraphs: no paragraph is torn and every part is near the target
+    assert all(block.type == BlockType.PARAGRAPH for block in artifact.blocks)
+    assert max(sizes) < 20_000 + max(len(block.text) for block in artifact.blocks)
+    assert sum(sizes) == sum(len(block.text) for block in artifact.blocks)
+    cut = [w for w in artifact.warnings if w.code == "long_document_split_by_size"]
+    assert len(cut) == 1 and cut[0].source_ref == "book.xhtml"
+    assert (
+        ingestion_warning_severity("long_document_split_by_size") == IngestionWarningSeverity.INFO
+    )
+    assert not any(w.code == "long_document_unsplit" for w in artifact.warnings)
 
 
 @pytest.mark.skipif(
@@ -679,3 +687,36 @@ def test_a_book_without_an_author_is_still_a_book(tmp_path) -> None:
 
     assert artifact.edition.author == "Unknown"
     assert "author_missing" in [w.code for w in artifact.warnings]
+
+
+def test_a_long_chapter_after_a_heading_and_a_continuing_file_are_cut_by_size(tmp_path) -> None:
+    # Venus im Pelz: one heading, then 116,000 characters; the next file of 88,000 opens in
+    # prose and continued the chapter. Both come out in parts of about 20,000.
+    source = tmp_path / "book.epub"
+    book = epub.EpubBook()
+    book.set_identifier("urn:test:venus")
+    book.set_title("Venus im Pelz")
+    book.set_language("de")
+    book.add_author("Leopold von Sacher-Masoch")
+    first = epub.EpubHtml(title="a", file_name="text/a.xhtml", lang="de")
+    first.content = "<h2>Venus im Pelz</h2>" + "".join(f"<p>{_prose(1200)}</p>" for _ in range(8))
+    second = epub.EpubHtml(title="b", file_name="text/b.xhtml", lang="de")
+    second.content = "".join(f"<p>{_prose(1200)}</p>" for _ in range(6))
+    for item in (first, second, epub.EpubNcx(), epub.EpubNav()):
+        book.add_item(item)
+    book.spine = ["nav", first, second]
+    epub.write_epub(source, book)
+
+    artifact = ingest_epub(source, edition_slug="venus-de", work_slug="venus")
+
+    chapters = _chapters(artifact)
+    sizes = [sum(len(block.text) for block in blocks) for blocks in chapters.values()]
+    longest_paragraph = max(len(block.text) for block in artifact.blocks)
+    assert len(chapters) >= 5
+    assert max(sizes) < 20_000 + longest_paragraph
+    assert (
+        artifact.blocks[0].text == "Venus im Pelz" and artifact.blocks[0].type == BlockType.HEADING
+    )
+    assert sum(1 for w in artifact.warnings if w.code == "long_document_split_by_size") == 2
+    # every part carries the mark that makes it the story for the chapter roles
+    assert all(block.attributes.get("cut") == "size" for block in artifact.blocks)
