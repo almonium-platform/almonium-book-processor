@@ -905,8 +905,13 @@ def test_a_poem_laid_out_as_a_numbered_table_is_read_line_by_line_and_cut_by_siz
 
 
 def test_an_edition_records_the_cut_that_made_it(tmp_path) -> None:
-    from almonium_book_processor.ingest.common import INGEST_VERSION
+    import re
+
+    from almonium_book_processor.ingest.common import INGEST_VERSION, _rules_digest
 
     source = _book(tmp_path, ["<h2>I</h2><p>Words.</p>"])
     artifact = ingest_epub(source, edition_slug="cut-de", work_slug="cut")
     assert artifact.processor_version.endswith(f"+{INGEST_VERSION}")
+    # the cut is named after the code that made it, the same on every run of the same code
+    assert re.fullmatch(r"cut-[0-9a-f]{12}", INGEST_VERSION)
+    assert _rules_digest() == _rules_digest()

@@ -824,9 +824,11 @@ this are over." The rules, with their numbers:
   nursery rhymes with many short pieces, and a Greek lexicon.
 
 - **An edition says which cut made it.** Its ingest run's `processor_version` is
-  the package version and `ingest/common.py`'s `INGEST_VERSION`, a date bumped
-  with every change to the splitter, the extractor, a library's trimming or the
-  chapter roles (first value `cut-2026-10-24`). Until then every edition carried
+  the package version and `ingest/common.py`'s `INGEST_VERSION`, `cut-` and a
+  digest of the code that cuts and reads a book (the ingest package and the
+  chapter roles, taken from the syntax tree without docstrings), so it changes by
+  itself with any change to the splitter, the extractor, a library's trimming or
+  the roles, and nobody bumps anything. Until 2026-10-24 every edition carried
   0.2.0 alone, which never changed, so nothing said whether the old splitter or
   the new one had cut a book. The editions an older cut made are the ones to
   re-cut; a re-cut costs their derived editions today, about $8 for the ten

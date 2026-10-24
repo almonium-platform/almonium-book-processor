@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import posixpath
 import re
@@ -28,12 +29,33 @@ BLOCK_PREFIX = {
     BlockType.SEPARATOR: "sep",
 }
 
-# Which rules cut and read a book. Bump the date with every change to the splitter, the
-# extractor, a library's trimming or the chapter roles, so an edition says which cut made it
-# (its ingest run's processor_version) and the ones an older cut made can be found and
-# re-cut. Until 2026-10-24 every edition carried the package version alone, 0.2.0, which
-# never changed.
-INGEST_VERSION = "cut-2026-10-24"
+
+def _rules_digest() -> str:
+    """A digest of the code that cuts and reads a book: the ingest package and the chapter roles.
+
+    Taken from the syntax tree with docstrings dropped, so comments and formatting do not
+    count and nobody has to remember to bump anything: two different cuts on one day are two
+    different versions, the same code on two machines is one.
+    """
+
+    here = Path(__file__).parent
+    files = sorted(here.glob("*.py")) + [here.parent / "catalog" / "front_matter.py"]
+    digest = hashlib.sha256()
+    for file in files:
+        tree = ast.parse(file.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            documented = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+            if isinstance(node, documented) and ast.get_docstring(node, clean=False) is not None:
+                node.body = node.body[1:] or [ast.Pass()]
+        digest.update(file.name.encode())
+        digest.update(ast.dump(tree).encode())
+    return digest.hexdigest()[:12]
+
+
+# Which rules cut and read a book: an edition says which cut made it (its ingest run's
+# processor_version), and the ones an older cut made can be found and re-cut. Until 2026-10-24
+# every edition carried the package version alone, 0.2.0, which never changed.
+INGEST_VERSION = f"cut-{_rules_digest()}"
 
 SKIP_TAGS = {"script", "style", "nav", "noscript", "svg"}
 HEADING_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
