@@ -30,6 +30,10 @@ from almonium_book_processor.ingest.wikisource import (
     is_wikisource_export,
     trim_wikisource_matter,
 )
+from almonium_book_processor.ingest.wolne_lektury import (
+    is_wolne_lektury,
+    trim_wolne_lektury_matter,
+)
 from almonium_book_processor.models import (
     BookArtifact,
     EditionMetadata,
@@ -137,6 +141,9 @@ def ingest_epub(
     builder.warnings.extend(notices)
     if is_wikisource_export(book):
         documents, notices = trim_wikisource_matter(documents)
+        builder.warnings.extend(notices)
+    if is_wolne_lektury(book):
+        documents, notices = trim_wolne_lektury_matter(documents)
         builder.warnings.extend(notices)
     chapter = 0
     cover_images = _cover_image_names(book)

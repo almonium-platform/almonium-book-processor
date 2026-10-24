@@ -766,8 +766,12 @@ this are over." The rules, with their numbers:
     about twenty European languages under CC BY.
   - Wolne Lektury (pl, open API, 7,665 titles): the text is one file with
     proper headings; the "suspects" were their fundraising pages between the
-    chapters and the footnotes file, which an ingest must trim as it trims
-    Gutenberg's header. Still to do before it is a source.
+    chapters. Ingest now drops the library's own pages (title, `fund*`,
+    support, editorial; `ingest/wolne_lektury.py`, recognised by the publisher
+    or the identifier's host) and keeps the footnotes ("Przypisy") as back
+    matter; the downloader takes `wolnelektury.pl/media/book/epub/<slug>.epub`
+    (`SourceDownload.Kind.WOLNE_LEKTURY`). Measured again: 11 of 12 sound, the
+    twelfth a diary of nine hundred dated entries.
   - Bibliothèque électronique du Québec (fr): 8 of 10 sound; the two are
     collections of short tales.
   - Ebooks libres et gratuits (fr): 7 of 10 sound; three downloads came back

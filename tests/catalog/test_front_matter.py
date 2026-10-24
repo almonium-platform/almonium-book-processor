@@ -255,3 +255,7 @@ def test_a_word_of_roman_letters_is_not_a_chapter_number():
     assert chapter_roles(titles) == ["front", "body", "body", "body", "body", "body", "back"]
     assert chapter_roles(["", "I", "II", "III"]) == ["front", "body", "body", "body"]
     assert chapter_roles(["", "XIV.", "XV."]) == ["front", "body", "body"]
+
+
+def test_polish_footnotes_are_back_matter():
+    assert chapter_roles(["Rozdział I", "Rozdział II", "Przypisy:"]) == ["body", "body", "back"]

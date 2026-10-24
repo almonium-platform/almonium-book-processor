@@ -42,7 +42,7 @@ MATTER = re.compile(
     r"|widmung|zueignung|присвята|contents|table des matières|sommaire|inhalt(sverzeichnis)?"
     r"|[íi]ndice|зміст|illustrations?|afterword|nachwort|післямова|appendix|appendice|anhang"
     r"|додаток"
-    r"|notes?|notas?|anmerkungen|примітки|avvertenza|advertencia|glossary|glossaire|glossar"
+    r"|notes?|notas?|anmerkungen|przypisy|примітки|avvertenza|advertencia|glossary|glossaire|glossar"
     r"|глосарій|bibliography|bibliographie|бібліографія|acknowledg\w*|transcriber"
     r"|about the author|über den autor|про автора|colophon|advertisements?|errata"
     r"|there are several editions of this ebook)\b",

@@ -737,3 +737,51 @@ def test_a_closing_word_ends_the_last_chapter_instead_of_opening_one(tmp_path) -
 
     assert [block.chapter for block in artifact.blocks] == [0, 0, 1, 1, 1]
     assert artifact.blocks[-1].text == "FINE." and artifact.blocks[-1].attributes.get("part")
+
+
+def test_wolne_lektury_pages_are_dropped_and_the_footnotes_stay(tmp_path) -> None:
+    # wolnelektury.pl: the text in one file, fundraising pages between the chapters
+    source = tmp_path / "wolne.epub"
+    book = epub.EpubBook()
+    book.set_identifier("http://wolnelektury.pl/katalog/lektura/balzac-gabinet-starozytnosci")
+    book.set_title("Gabinet Starożytności")
+    book.set_language("pl")
+    book.add_author("Honoré de Balzac")
+    book.add_metadata("DC", "publisher", "Fundacja Wolne Lektury")
+    pages = {
+        "title.xhtml": "<h2>Strona tytułowa</h2><p>Ta lektura jest dostępna on-line.</p>",
+        "fund0.xhtml": "<p>Książka, którą czytasz, pochodzi z biblioteki Wolne Lektury.</p>",
+        "part1.xhtml": "<h2>Gabinet Starożytności</h2>",
+        "part2.xhtml": "<h2>Rozdział I</h2><p>Pierwszy.</p><h2>Rozdział II</h2><p>Drugi.</p>",
+        "fund1.xhtml": "<p>Wesprzyj naszą zbiórkę!</p>",
+        "annotations.xhtml": "<h2>Przypisy:</h2><p>1. Objaśnienie.</p>",
+        "support.xhtml": "<h2>Wesprzyj Wolne Lektury!</h2><p>Co roku...</p>",
+        "last.xhtml": "<h2>Strona redakcyjna</h2><p>Licencja.</p>",
+    }
+    items = []
+    for name, content in pages.items():
+        item = epub.EpubHtml(title=name, file_name=f"EPUB/{name}", lang="pl")
+        item.content = content
+        book.add_item(item)
+        items.append(item)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", *items]
+    epub.write_epub(source, book)
+
+    artifact = ingest_epub(source, edition_slug="gabinet-pl", work_slug="gabinet")
+
+    texts = [block.text for block in artifact.blocks]
+    assert "Wesprzyj naszą zbiórkę!" not in texts and "Licencja." not in texts
+    assert "Ta lektura jest dostępna on-line." not in texts
+    assert texts == [
+        "Gabinet Starożytności",
+        "Rozdział I",
+        "Pierwszy.",
+        "Rozdział II",
+        "Drugi.",
+        "Przypisy:",
+        "1. Objaśnienie.",
+    ]
+    assert artifact.blocks[0].attributes.get("part") is True  # the bare title page is a label
+    assert "wolne_lektury_matter_trimmed" in [w.code for w in artifact.warnings]

@@ -45,12 +45,18 @@ EPUB_MAGIC = b"PK\x03\x04"
 GUTENBERG_HOSTS = frozenset({"www.gutenberg.org", "gutenberg.org"})
 WIKISOURCE_EXPORT_HOSTS = frozenset({"ws-export.wmcloud.org"})
 STANDARD_EBOOKS_HOSTS = frozenset({"standardebooks.org"})
+WOLNE_LEKTURY_HOSTS = frozenset({"wolnelektury.pl"})
 HOSTS = {
     SourceDownload.Kind.GUTENBERG: GUTENBERG_HOSTS,
     SourceDownload.Kind.WIKISOURCE: WIKISOURCE_EXPORT_HOSTS,
     SourceDownload.Kind.STANDARD_EBOOKS: STANDARD_EBOOKS_HOSTS,
+    SourceDownload.Kind.WOLNE_LEKTURY: WOLNE_LEKTURY_HOSTS,
 }
-ALLOWED_HOSTS = GUTENBERG_HOSTS | WIKISOURCE_EXPORT_HOSTS | STANDARD_EBOOKS_HOSTS
+ALLOWED_HOSTS = (
+    GUTENBERG_HOSTS | WIKISOURCE_EXPORT_HOSTS | STANDARD_EBOOKS_HOSTS | WOLNE_LEKTURY_HOSTS
+)
+# wolnelektury.pl/media/book/epub/<slug>.epub, as the open API's "epub" field names it
+WOLNE_LEKTURY_EPUB_PATH = re.compile(r"^/media/book/epub/[a-z0-9-]+\.epub$")
 # standardebooks.org/ebooks/<author>/<title>/downloads/<author>_<title>.epub; without
 # ?source=download the site answers a page that says the download has started
 STANDARD_EBOOKS_EPUB_PATH = re.compile(
@@ -103,6 +109,10 @@ def check_download_url(url: str, source_kind: str) -> None:
             )
         return
     query = parse_qs(parts.query)
+    if source_kind == SourceDownload.Kind.WOLNE_LEKTURY:
+        if not WOLNE_LEKTURY_EPUB_PATH.match(parts.path):
+            raise DownloadRefused("A Wolne Lektury link is /media/book/epub/<slug>.epub.")
+        return
     if source_kind == SourceDownload.Kind.STANDARD_EBOOKS:
         if not STANDARD_EBOOKS_EPUB_PATH.match(parts.path) or query.get("source") != ["download"]:
             raise DownloadRefused(
