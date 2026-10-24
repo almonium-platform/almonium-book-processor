@@ -266,6 +266,7 @@ urlpatterns = [
         name="promote-edition",
     ),
     path("promote-behind/", views.promote_behind_view, name="promote-behind"),
+    path("spend-guard/run/", views.run_spend_guard_view, name="run-spend-guard"),
     path(
         "editions/<uuid:edition_id>/purge/",
         views.purge_edition_view,

@@ -54,6 +54,40 @@ Cross-service integration uses an explicit HTTP or messaging contract.
   `catalog/promotion.py`, and a manifest change bumps the bundle schema
   version.
 
+## Spending discipline
+
+Every AI call here costs money or weekly plan allowance, and the pipeline
+runs where network calls fail, plan sessions hit their limits mid-batch and
+workers get restarted. The owner cannot follow dozens of books through it and
+will not notice that a book was written twice or a chapter re-judged on every
+tick. Between 14 and 24 October 2026 eight books were written twice, five more
+duplicate writes were under way, and thousands of identical judge requests
+were paid again, because each component was idempotent on its own and the
+seams between them were not.
+
+- Every paid unit (a pilot window, a judge's reading, an audit window, a
+  probe) is bought once and found again by its content, never by a run id,
+  an edition id, a chapter title or a price. Before adding a call, name the
+  identity it is cached under and what makes that identity move.
+- A retry resumes; it does not restart. A production killed at any step must
+  adopt what exists when it is started again (`production._written`,
+  `book_adaptation._stranded`, `adaptation._paid_answer`). Never count an
+  attempt that broke on the way as the model's answer.
+- A refused allowance is a hold without a start, never a failure of the
+  book; recognise the CLI's wording (`ai/cli_calls._ALLOWANCE_USED_UP`) and
+  add any new one with a test.
+- Never purge text that was paid for unless the owner asks or a copyright
+  claim requires it; a dropped level is a verdict, a broken call is not.
+- Before and after any change to how calls are keyed, judged, retried or
+  re-queued, run `./plan-manage spend_guard` and read its numbers. Keep the
+  dashboard's guard line green. A design that cannot be checked by that
+  query is not finished.
+- Do not run heavy work of your own (several subagents, headless writers)
+  on the Claude or Codex plan while productions are running: the judges and
+  your agents share one session meter, and a wall hit by you holds every book.
+- When a worker must be restarted, use `./plan-service restart`; it refuses
+  while jobs are running. Do not kill workers by hand.
+
 ## Working agreement
 
 - Preserve pre-existing and user-provided worktree changes. Resolve exact

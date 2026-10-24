@@ -96,6 +96,7 @@ from almonium_book_processor.catalog.services import (
     revise_block_text,
     translate_coverage_gap,
 )
+from almonium_book_processor.catalog.spend_guard import latest_report, summary_line
 from almonium_book_processor.catalog.tasks import (
     align_edition_to_source,
     analyze_edition_lexicon,
@@ -127,8 +128,18 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "groups": catalogue.groups,
             "summary": catalogue.summary,
             "meters": plan_meters(),
+            "guard": _guard_context(),
         },
     )
+
+
+def _guard_context() -> dict | None:
+    """The newest spend-guard report for the dashboard line, or None before the first run."""
+
+    report = latest_report()
+    if report is None:
+        return None
+    return {"report": report, "line": summary_line(report), "clean": report.clean}
 
 
 @staff_member_required
@@ -1966,6 +1977,18 @@ def promote_edition_view(request: HttpRequest, edition_id: str) -> HttpResponse:
             + (" and whether publication was queued there." if publish else "."),
         )
     return redirect("catalog:edition-detail", edition_id=edition.id)
+
+
+@staff_member_required
+@require_POST
+def run_spend_guard_view(request: HttpRequest) -> HttpResponse:
+    """Read the ledger for money paid twice, now, from the dashboard."""
+
+    from almonium_book_processor.catalog.tasks import run_spend_guard
+
+    run_spend_guard.delay()
+    messages.info(request, "The spend guard is reading the ledger; the line updates in a minute.")
+    return redirect("catalog:dashboard")
 
 
 @staff_member_required

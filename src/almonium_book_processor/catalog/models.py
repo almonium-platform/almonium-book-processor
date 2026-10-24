@@ -1183,3 +1183,40 @@ class SourceShape(TimestampedModel):
 
     def __str__(self) -> str:
         return f"{self.title or self.source_url}: {self.verdict}"
+
+
+class SpendGuardReport(TimestampedModel):
+    """One run of the spend guard (``catalog/spend_guard.py``): where money went twice.
+
+    The host's daily timer, the dashboard's button and ``manage.py spend_guard --record``
+    all leave one of these; the dashboard shows the newest.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    window_hours = models.PositiveSmallIntegerField(default=24)
+    checked_runs = models.PositiveIntegerField(default=0)
+    new_duplicate_calls = models.PositiveIntegerField(default=0)
+    new_duplicate_usd = models.DecimalField(max_digits=12, decimal_places=4, default=Decimal("0"))
+    total_duplicate_calls = models.PositiveIntegerField(default=0)
+    total_duplicate_usd = models.DecimalField(max_digits=12, decimal_places=4, default=Decimal("0"))
+    twin_editions = models.PositiveIntegerField(default=0)
+    reasked_windows = models.PositiveIntegerField(default=0)
+    purged_usd = models.DecimalField(max_digits=12, decimal_places=4, default=Decimal("0"))
+    report = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @property
+    def clean(self) -> bool:
+        """Nothing new was paid twice, no twin stands, and nothing paid was purged."""
+
+        return not (
+            self.new_duplicate_calls
+            or self.twin_editions
+            or self.reasked_windows
+            or self.purged_usd > 0
+        )
+
+    def __str__(self) -> str:
+        return f"Spend guard {self.created_at:%Y-%m-%d %H:%M}: {'clean' if self.clean else 'waste'}"

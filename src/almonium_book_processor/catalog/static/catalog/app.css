@@ -807,3 +807,7 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .plan-meter-figures { color: var(--muted); }
 .plan-meter-stale .run-bar span { background: var(--muted); }
 .plan-meter-stale .plan-meter-figures::after { content: " · stale"; color: var(--amber); font-weight: 700; }
+
+/* The spend guard's line: quiet when clean, red when anything was paid twice. */
+.spend-guard { color: var(--muted, #6b7280); }
+.spend-guard-waste { color: var(--danger, #b91c1c); font-weight: 600; }

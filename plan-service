@@ -91,6 +91,29 @@ WorkingDirectory=$repo
 Environment=PATH=$PATH
 ExecStart=$repo/plan-manage factory_tick
 UNIT
+    # once a day the ledger is read for money paid twice (catalog/spend_guard.py); the
+    # dashboard shows the newest report
+    cat > "$config/systemd/user/almonium-spend-guard.service" <<UNIT
+[Unit]
+Description=Almonium book processor: read the ledger for money paid twice
+
+[Service]
+Type=oneshot
+WorkingDirectory=$repo
+Environment=PATH=$PATH
+ExecStart=$repo/plan-manage spend_guard --record
+UNIT
+    cat > "$config/systemd/user/almonium-spend-guard.timer" <<UNIT
+[Unit]
+Description=Almonium book processor: run the spend guard every morning
+
+[Timer]
+OnCalendar=*-*-* 06:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
     cat > "$config/systemd/user/almonium-factory.timer" <<UNIT
 [Unit]
 Description=Almonium book processor: run the factory every 15 minutes
@@ -103,7 +126,7 @@ OnUnitActiveSec=15min
 WantedBy=timers.target
 UNIT
     systemctl --user daemon-reload
-    systemctl --user enable --now "$unit" almonium-plan-meter.timer almonium-factory.timer
+    systemctl --user enable --now "$unit" almonium-plan-meter.timer almonium-factory.timer almonium-spend-guard.timer
     # without lingering, a user's services start at login and stop at logout
     loginctl show-user "$USER" -p Linger | grep -q "=yes" ||
       echo "Starts at login. To start it at boot: sudo loginctl enable-linger $USER"
@@ -114,17 +137,18 @@ UNIT
     systemctl --user disable --now "$unit" || true
     rm -f "$config/almonium/plan-worker-$name.env"
     if [ -z "$(units)" ]; then
-      systemctl --user disable --now almonium-plan-meter.timer almonium-factory.timer || true
+      systemctl --user disable --now almonium-plan-meter.timer almonium-factory.timer almonium-spend-guard.timer || true
       rm -f "$file" "$config/systemd/user/almonium-plan-meter.service" \
         "$config/systemd/user/almonium-plan-meter.timer" \
-        "$config/systemd/user/almonium-factory.service" "$config/systemd/user/almonium-factory.timer"
+        "$config/systemd/user/almonium-factory.service" "$config/systemd/user/almonium-factory.timer" \
+        "$config/systemd/user/almonium-spend-guard.service" "$config/systemd/user/almonium-spend-guard.timer"
     fi
     systemctl --user daemon-reload
     ;;
   restart)
     # a restart kills the calls in flight and leaves their runs running for ever; it waits
     # for a quiet moment unless forced
-    if [ "${3:-}" != "--force" ] && busy="$(.venv/bin/python manage.py running_plan_jobs 2>/dev/null)" && [ -n "$busy" ]; then
+    if [ "${3:-}" != "--force" ] && busy="$("$repo"/plan-manage running_plan_jobs 2>/dev/null)" && [ -n "$busy" ]; then
       echo "Not restarting: plan jobs are running. Pause the queue and wait, or add --force:"
       echo "$busy"
       exit 3

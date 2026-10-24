@@ -48,6 +48,13 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   alone, which the meter timer does once an account answers). Never restart a
   plan worker with a production under way; look at `catalog_pipelinerun`, not
   at Celery, to know.
+- **Reading the ledger for waste.** The dashboard's "Spend guard" line is the
+  host's daily reading (`almonium-spend-guard.timer`, 06:30); "Run now" reads
+  it again, `./plan-manage spend_guard` prints it. A red line means something
+  was paid twice in the last day, a twin edition stands, a window is asked on
+  every tick, or paid text was purged: open the newest report
+  (`SpendGuardReport.report`) for the stage, model and count behind each
+  number before queueing more books.
 - **Restarting a plan worker.** `./plan-service restart` refuses while
   `manage.py running_plan_jobs` lists a job a worker is running (a restart
   kills the calls in flight and leaves their runs running for ever). Pause the

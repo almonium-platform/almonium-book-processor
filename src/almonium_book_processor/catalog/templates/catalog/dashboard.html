@@ -48,6 +48,10 @@
     <input class="catalogue-search" type="search" name="q" value="{{ catalogue.search }}" placeholder="Title or author" aria-label="Search title or author">
   </form>
 
+  <div class="catalogue-line spend-guard{% if guard and not guard.clean %} spend-guard-waste{% endif %}">
+    <span title="The ledger read for money paid twice: identical requests, twin editions, windows re-asked, paid text purged. The host runs it daily.">Spend guard{% if guard %} · {{ guard.report.created_at|timesince }} ago · {{ guard.line }}{% else %} · not run yet{% endif %}</span>
+    <form method="post" action="{% url 'catalog:run-spend-guard' %}">{% csrf_token %}<button class="button button-small button-secondary" type="submit">Run now</button></form>
+  </div>
   <div class="catalogue-line">
     <span>{{ catalogue.breakdown }}</span>
     {% for rollup in summary.promotable %}

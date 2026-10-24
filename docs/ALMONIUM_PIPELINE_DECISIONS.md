@@ -977,3 +977,13 @@ rule below names its constant or function.
   when queued directly. Both are bounded to re-cuts and metadata edits and
   wait for a quiet week.
 
+- **The spend guard** (`catalog/spend_guard.py`, `manage.py spend_guard
+  --record`, the dashboard's "Spend guard" line and its "Run now" button, the
+  host's `almonium-spend-guard.timer` at 06:30 daily). The ledger is read for
+  the ways money has gone twice before: identical requests (same payload, same
+  model, same input hash; a judge's deliberate second reading carries another
+  hash and is not counted), two adaptations of one source at one level, a
+  window asked more than twice with the same failure, and paid text purged in
+  the window. The dashboard line turns red when any number in the last 24 h is
+  not zero. Nobody watches sixty books; this does.
+

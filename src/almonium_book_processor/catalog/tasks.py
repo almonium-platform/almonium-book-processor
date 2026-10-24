@@ -159,6 +159,15 @@ def review_edition_translation(edition_id: str) -> None:
     review_translation(edition_id, workers=settings.TRANSLATION_REVIEW_WORKERS)
 
 
+@shared_task
+def run_spend_guard() -> None:
+    """Read the ledger for money paid twice and keep the report (catalog/spend_guard.py)."""
+
+    from almonium_book_processor.catalog.spend_guard import record_report
+
+    record_report()
+
+
 @shared_task(acks_late=True)
 def adapt_book(run_id: str) -> None:
     from almonium_book_processor.catalog.book_adaptation import run_book
