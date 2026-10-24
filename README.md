@@ -101,17 +101,7 @@ supported language, and `manage.py check --tag nlp` proves each loads and
 lemmatizes. The first embedding request may download the configured model; CI
 installs only `.[dev]`, never downloads models and never calls paid APIs.
 
-## Migrated catalogue
-
-The raw legacy `/books` input was intentionally removed after normalization.
-The 16 normalized artifacts remain in the ignored `build/legacy/` directory.
-They are a one-time migration input, not application source.
-
-After creating an admin user, open **Import migrated books**, select all JSON
-files in `build/legacy/`, and submit them together. The importer is idempotent,
-imports originals first and links translations to their source editions
-regardless of file-selection order. The historical filenames and IDs do not
-become database identifiers.
+## Environments
 
 Only production needs the full catalogue. Staging has its own small logical
 database so migrations and processing experiments cannot damage production;

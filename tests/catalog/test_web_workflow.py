@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import json
 import uuid
-from io import BytesIO, StringIO
+from io import StringIO
 
 import pytest
 from django.conf import settings
@@ -32,7 +31,7 @@ from almonium_book_processor.catalog.models import (
     ReviewDecision,
     Work,
 )
-from almonium_book_processor.catalog.services import import_legacy_artifact, persist_artifact
+from almonium_book_processor.catalog.services import persist_artifact
 from almonium_book_processor.catalog.tasks import (
     _edition_content_hash,
     _text_hash,
@@ -1648,48 +1647,6 @@ def test_clear_inferred_alignment_leaves_a_standalone_edition_alone() -> None:
 
     assert "should not have" in output.getvalue()
     assert BlockAlignment.objects.filter(target_edition=target).count() == 1
-
-
-def test_schema_one_json_import_migrates_and_uses_uuid_identity() -> None:
-    artifact = BookArtifact(
-        processor_version="0.1.0",
-        edition=EditionMetadata(
-            edition_slug="shelley-frankenstein-en-orig",
-            work_slug="shelley-frankenstein",
-            title="Frankenstein",
-            author="Mary Shelley",
-            language="en",
-            source=SourceMetadata(
-                format="legacy_html",
-                path="books/1.html",
-                sha256="a" * 64,
-            ),
-        ),
-        blocks=[
-            ArtifactBlock(
-                edition_slug="shelley-frankenstein-en-orig",
-                block_id="c1.p1",
-                chapter=1,
-                seq=1,
-                type=BlockType.PARAGRAPH,
-                text="It was on a dreary night of November.",
-            )
-        ],
-    )
-    payload = artifact.model_dump(mode="json")
-    payload["schema_version"] = 1
-    payload["edition"]["edition_id"] = payload["edition"].pop("edition_slug")
-    payload["edition"]["work_id"] = payload["edition"].pop("work_slug")
-    for block in payload["blocks"]:
-        block["schema_version"] = 1
-        block["edition_id"] = block.pop("edition_slug")
-    upload = BytesIO(json.dumps(payload).encode())
-
-    edition = import_legacy_artifact(upload)
-
-    assert str(edition.id) != "1"
-    assert edition.status == Edition.Status.READY
-    assert ContentBlock.objects.get(edition=edition).block_id == "c1.p1"
 
 
 def test_dashboard_requires_staff_login(client) -> None:

@@ -28,7 +28,6 @@ The service can ingest EPUB and TEI P5/ELTeC sources into normalized works,
 editions, chapters, and blocks. It retains source provenance, runs ingestion in
 Celery, records importer warnings and review decisions, supports owner-scoped
 private imports, and publishes reviewed public metadata to the Almonium backend.
-The sixteen normalized legacy artifacts remain available in `build/legacy/`.
 
 A normalized original is independently readable and publishable. Translations,
 adaptations, alignment, lexical data, source polishing, summaries, and quizzes

@@ -46,7 +46,6 @@ from almonium_book_processor.catalog.forms import (
     EditionMetadataForm,
     EditionPurgeForm,
     EditionUploadForm,
-    LegacyArtifactImportForm,
     ParallelTranslationForm,
 )
 from almonium_book_processor.catalog.metadata import (
@@ -88,7 +87,6 @@ from almonium_book_processor.catalog.services import (
     complete_review,
     confirm_ai_alignment_groups,
     dismiss_text_quality_finding,
-    import_legacy_artifacts,
     release_private_import,
     repair_alignment_group,
     resolve_review_warning,
@@ -616,16 +614,6 @@ def update_chapter_role(request: HttpRequest, edition_id: str, chapter_id: str) 
             request, "Chapter role saved. Refresh projections to update the book estimate."
         )
     return redirect("catalog:edition-detail", edition_id=edition_id)
-
-
-@staff_member_required
-def import_legacy(request: HttpRequest) -> HttpResponse:
-    form = LegacyArtifactImportForm(request.POST or None, request.FILES or None)
-    if request.method == "POST" and form.is_valid():
-        editions = import_legacy_artifacts(form.cleaned_data["artifacts"])
-        messages.success(request, f"Imported {len(editions)} normalized editions.")
-        return redirect("catalog:dashboard")
-    return render(request, "catalog/import_legacy.html", {"form": form})
 
 
 @staff_member_required

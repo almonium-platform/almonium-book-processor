@@ -205,24 +205,6 @@ class EditionMetadataForm(forms.Form):
         return form
 
 
-class MultipleFileInput(forms.ClearableFileInput):
-    allow_multiple_selected = True
-
-
-class MultipleFileField(forms.FileField):
-    def clean(self, data, initial=None):
-        clean_one = super().clean
-        if isinstance(data, (list, tuple)):
-            return [clean_one(item, initial) for item in data]
-        return [clean_one(data, initial)]
-
-
-class LegacyArtifactImportForm(forms.Form):
-    artifacts = MultipleFileField(
-        widget=MultipleFileInput(attrs={"accept": ".json", "data-drop-input": "true"})
-    )
-
-
 class ParallelTranslationForm(forms.Form):
     """Request a generated parallel edition from a canonical original."""
 

@@ -18,7 +18,6 @@
     <nav>
       <a href="{% url 'catalog:dashboard' %}">Public catalogue</a>
       <a href="{% url 'catalog:private-imports' %}">User imports</a>
-      <a href="{% url 'catalog:import-legacy' %}">Import migrated books</a>
       <a href="{% url 'catalog:removed-books' %}">Removed books</a>
       <a href="{% url 'admin:index' %}" title="Advanced maintenance and configuration">Advanced admin</a>
       <span>{{ request.user.get_username }}</span>
