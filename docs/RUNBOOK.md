@@ -48,6 +48,13 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   alone, which the meter timer does once an account answers). Never restart a
   plan worker with a production under way; look at `catalog_pipelinerun`, not
   at Celery, to know.
+- **A production that died after writing its book.** Queue the source again
+  (`requeue_held`, or the production form); the new production adopts the
+  finished adaptation it finds in review at that level and judges it, so the
+  book is not written twice. The dashboard shows such an adaptation as
+  "Production · <step>" rather than "needs review": the production closes
+  those review items itself at its verdict. An adaptation that reads "needs
+  review" with no production under way is one a person has to open.
 - **Looking at many books without keeping them.** `manage.py shake_down
   --languages en,fr --per-language 20` downloads Gutenberg's most read books
   per language, cuts each as ingest would, judges the shape

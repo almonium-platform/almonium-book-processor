@@ -865,3 +865,29 @@ this are over." The rules, with their numbers:
   or not reachable loses a ranking signal, never a book. The catalogue side,
   the per-language source order and the reader's choice of a library are in
   the backend's `docs/COPYRIGHT_AND_CATALOGUE.md`.
+
+- **A book is written once, whatever happens to its production** (2026-10-24,
+  `production._written`). A production killed before its verdict leaves the
+  adaptation it wrote standing in review. The next production of that source
+  adopts the newest standing adaptation at the level (review, ready or
+  published, with text, not lightly modernised) at its probe or write step and
+  goes straight to the judges; only a level the ladder remembers as not
+  reached or probe-failed is dropped instead. Before this, the ladder read an
+  existing but unjudged edition as "probe passed" and the next production
+  wrote the whole book again: on 2026-10-24 five finished B2 editions had
+  duplicate writes under way and eight B1 editions had already been written
+  twice. The duplicates were cancelled and purged by hand and the finished
+  editions adopted.
+
+- **A queued job is never "left behind"** (`janitor.abandoned_runs`). The
+  janitor closes a job only when a worker took it and went silent for two
+  hours; a queued one waits in the broker for a free worker, however long the
+  plans queue is. Two productions queued behind a full queue were closed for
+  "nothing worked on this job" and had to be queued again by hand.
+
+- **The catalogue says what a production is doing, not "needs review"**
+  (`catalogue.EditionRow.production`). An adaptation whose review items a live
+  production will close itself at its verdict reads as processing, with the
+  production's step on the row ("Production · audit (B2)"), and does not count
+  towards the works needing attention. Review is for a person; a production's
+  own checks are not.

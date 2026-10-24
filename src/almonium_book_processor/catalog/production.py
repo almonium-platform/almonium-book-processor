@@ -486,6 +486,28 @@ def _busy(edition: Edition) -> str:
     return ", ".join(sorted(set(names)))
 
 
+def _written(source: Edition, level: str) -> Edition | None:
+    """The newest adaptation of ``source`` at ``level`` whose text stands, or None.
+
+    A write that finished leaves the edition in review, ready or published; one that is still
+    going, or that failed, has no text worth adopting.
+    """
+
+    from almonium_book_processor.catalog.adaptation_quality import adaptation_target
+
+    standing = (
+        source.work.editions.filter(
+            edition_type=Edition.EditionType.ADAPTATION,
+            source_edition=source,
+            withdrawal_requested_at__isnull=True,
+            status__in=(Edition.Status.REVIEW, Edition.Status.READY, Edition.Status.PUBLISHED),
+        )
+        .exclude(literary_register=Edition.LiteraryRegister.LIGHTLY_MODERNISED)
+        .order_by("-created_at")
+    )
+    return next((e for e in standing if adaptation_target(e) == level and e.blocks.exists()), None)
+
+
 def _stalled(job: PipelineRun | None) -> bool:
     return job is not None and job.updated_at < timezone.now() - STALL
 
@@ -563,6 +585,11 @@ def _probe(run: PipelineRun, state: dict, level: str) -> tuple:
             raise Held(f"The {level} edition the ladder speaks of could not be found.")
         state["editions"][level] = str(found.id)
         return ("goto", "levels", f"A {level} edition exists already: {found.slug}.")
+    if row["state"] not in ("not_reached", "probe_failed") and (written := _written(source, level)):
+        # a book is written once: a production killed before its verdict leaves the edition
+        # standing, and the next one judges that edition instead of paying for another
+        state["editions"][level] = str(written.id)
+        return ("goto", "levels", f"A {level} edition is written already: {written.slug}.")
     if row["state"] == "probe_passed":
         return ("goto", "write", "The probe passed.")
     if row["state"] == "probing":
@@ -584,6 +611,9 @@ def _write(run: PipelineRun, state: dict, level: str) -> tuple:
 
     books = state.setdefault("books", {})
     book = PipelineRun.objects.filter(pk=books.get(level)).first() if books.get(level) else None
+    if book is None and (written := _written(run.edition, level)):
+        state["editions"][level] = str(written.id)
+        return ("goto", "levels", f"A {level} edition is written already: {written.slug}.")
     if book is None or book.status in (PipelineRun.Status.FAILED, PipelineRun.Status.CANCELLED):
         _started(state, f"book {level}")
         with transaction.atomic():
@@ -1029,6 +1059,26 @@ RIGHTS_LABELS = {
     "UNKNOWN": "unknown",
     "UNCHECKED": "not checked",
 }
+
+
+def production_step(run: PipelineRun, edition_id) -> str:
+    """What a production is doing about the edition it named, in a few words."""
+
+    state = run.summary
+    level = next(
+        (k for k, v in (state.get("editions") or {}).items() if v == str(edition_id)), None
+    )
+    if run.status == PipelineRun.Status.QUEUED:
+        return "waiting for a worker"
+    for track in _tracks(state).values():
+        if level in track["targets"]:
+            if track["index"] >= len(track["targets"]):
+                return "finishing"
+            current = track["targets"][track["index"]]
+            if current == level:
+                return f"{track['step']} ({level})"
+            return f"behind {current}"
+    return "under way"
 
 
 def production_context(edition: Edition) -> dict:

@@ -35,16 +35,18 @@ def test_a_job_a_stopped_worker_left_behind_is_closed_and_says_why():
     work = Work.objects.create(slug="w", title="A book", author="Author")
     edition = Edition.objects.create(work=work, slug="w-en", language="en")
     stuck = run(edition, PipelineRun.Stage.TRANSLATE_METADATA, "running", 5)
-    lost = run(edition, PipelineRun.Stage.CHAPTER_ANALYSIS, "queued", 30)
+    # a queued run waits in the broker for a free worker, however long the queue is
+    queued = run(edition, PipelineRun.Stage.CHAPTER_ANALYSIS, "queued", 30)
     working = run(edition, PipelineRun.Stage.ADAPT, "running", 0.5)
     # a Batch at the provider, or a promotion, is silent while it waits: not ours to close
     waiting = run(edition, PipelineRun.Stage.TRANSLATE, "running", 20)
 
-    assert close_abandoned_runs() == 2
+    assert close_abandoned_runs() == 1
 
-    for closed in (stuck, lost):
-        closed.refresh_from_db()
-        assert closed.status == "failed" and "Left behind" in closed.error
+    stuck.refresh_from_db()
+    assert stuck.status == "failed" and "Left behind" in stuck.error
+    queued.refresh_from_db()
+    assert queued.status == "queued"
     for left in (working, waiting):
         left.refresh_from_db()
         assert left.status == "running"

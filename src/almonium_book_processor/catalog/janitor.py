@@ -40,9 +40,12 @@ WORKED_BY_ONE_PROCESS = (
 
 
 def abandoned_runs(after: timedelta = ABANDONED_AFTER):
+    """Runs a worker took and then went silent on. A queued run is not one of them: its
+    message waits in the broker for a free worker, however long the queue is."""
+
     return PipelineRun.objects.filter(
         stage__in=WORKED_BY_ONE_PROCESS,
-        status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING],
+        status=PipelineRun.Status.RUNNING,
         updated_at__lt=timezone.now() - after,
     )
 

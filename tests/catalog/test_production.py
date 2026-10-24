@@ -696,3 +696,37 @@ def test_productions_held_by_circumstance_are_started_again_and_the_rest_left_al
     assert all(run.summary["levels"] == ["B2", "B1"] for run in every)
     for untouched in (fresh, book):
         assert untouched.edition.pipeline_runs.filter(processor_version=VERSION).count() == 1
+
+
+def test_a_level_written_by_a_production_that_died_is_adopted_not_written_again(world):
+    """A killed production leaves its edition in review; the next one judges that edition."""
+
+    from almonium_book_processor.catalog.models import ContentBlock
+
+    world.ladder["B2"] = "probe_passed"
+    written = world.edition_for("B2")
+    PipelineRun.objects.create(
+        edition=written,
+        stage=PipelineRun.Stage.ADAPT,
+        processor_version="b2-book-v1",
+        input_hash="",
+        idempotency_key="earlier-book-B2",
+        status=PipelineRun.Status.SUCCEEDED,
+        summary={"target_level": "B2"},
+    )
+    chapter = written.chapters.first()
+    ContentBlock.objects.create(
+        edition=written,
+        chapter=chapter,
+        block_id="p1",
+        sequence=1,
+        block_type="paragraph",
+        text="Once.",
+    )
+
+    run = run_to_the_end(queue_production(world.source.id, ["B2"]))
+
+    assert run.status == "succeeded"
+    assert run.summary["editions"]["B2"] == str(written.id)
+    assert "book B2" not in world.calls
+    assert any("written already" in entry["note"] for entry in run.summary["log"])

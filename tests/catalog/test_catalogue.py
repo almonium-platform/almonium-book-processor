@@ -547,3 +547,46 @@ def test_adaptations_at_different_levels_need_no_slug(frankenstein):
     )
     (group,) = catalogue_groups(Work.Visibility.PUBLIC)
     assert not any(row.twin for row in group.rows)
+
+
+def test_an_adaptation_a_live_production_is_judging_reads_as_processing_not_review(client, staff):
+    work = _work("dracula", "Dracula", "Bram Stoker")
+    original = _edition(work, "en", Edition.Status.READY, cefr_level="C1", word_count=160000)
+    adaptation = _edition(
+        work,
+        "en",
+        Edition.Status.REVIEW,
+        source_edition=original,
+        edition_type=Edition.EditionType.ADAPTATION,
+        parallel_role=Edition.ParallelRole.PARALLEL,
+        word_count=90000,
+    )
+    QAWarning.objects.create(
+        edition=adaptation,
+        code="adaptation_fidelity_review",
+        message="Read it.",
+        severity=QAWarning.Severity.WARNING,
+    )
+    PipelineRun.objects.create(
+        edition=original,
+        stage=PipelineRun.Stage.ADAPT,
+        status=PipelineRun.Status.RUNNING,
+        processor_version="production-v1",
+        input_hash="",
+        idempotency_key="dracula:production",
+        summary={
+            "levels": ["B2"],
+            "editions": {"B2": str(adaptation.id)},
+            "tracks": {"levels": {"targets": ["B2"], "index": 0, "step": "audit", "since": "x"}},
+            "log": [],
+        },
+    )
+
+    groups = catalogue_groups(Work.Visibility.PUBLIC)
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+
+    assert groups[0].rollup.label == "1 processing"
+    assert not groups[0].needs_attention
+    assert "Production · audit (B2)" in page
+    assert "status-review" not in page
+    assert "need review" not in page and "needs review" not in page

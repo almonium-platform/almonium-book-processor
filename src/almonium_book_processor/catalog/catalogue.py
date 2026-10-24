@@ -102,6 +102,9 @@ class EditionRow:
     # The run that is working on this edition right now, if any; the row draws
     # the stage and its progress in place of a status pill.
     run: PipelineRun | None
+    # The live production still judging this adaptation, if any. Its review items
+    # are the production's to close, so the row reads as processing, not as review.
+    production: PipelineRun | None = None
     # Whether Almonium here still shows this edition's previous metadata.
     metadata_behind: bool = False
     # One token per promotion target, in target order, once the edition is
@@ -117,11 +120,23 @@ class EditionRow:
 
     @property
     def status(self) -> str:
+        if self.production is not None and self.edition.status == Edition.Status.REVIEW:
+            return Edition.Status.PROCESSING
         return self.edition.status
 
     @property
     def status_label(self) -> str:
+        if self.status != self.edition.status:
+            return Edition.Status(self.status).label
         return self.edition.get_status_display()
+
+    @property
+    def production_label(self) -> str:
+        """Where the production judging this adaptation stands, for the row."""
+
+        from almonium_book_processor.catalog.production import production_step
+
+        return f"Production · {production_step(self.production, self.edition.id)}"
 
     @property
     def language(self) -> str:
@@ -192,14 +207,14 @@ class EditionRow:
     def warnings_urgent(self) -> bool:
         """Whether the warning count is the reason this row needs opening."""
 
-        return self.warning_count > 0 and self.edition.status in {
+        return self.warning_count > 0 and self.status in {
             Edition.Status.REVIEW,
             Edition.Status.FAILED,
         }
 
     @property
     def needs_review(self) -> bool:
-        return self.edition.status == Edition.Status.REVIEW
+        return self.status == Edition.Status.REVIEW
 
     @property
     def is_failed(self) -> bool:
@@ -393,6 +408,21 @@ def _active_runs(visibility: str) -> dict:
     return runs
 
 
+def _productions(visibility: str) -> dict:
+    """The live production judging each adaptation, keyed by the adaptation's id as text."""
+
+    from almonium_book_processor.catalog.production import ACTIVE, VERSION
+
+    judging: dict = {}
+    live = PipelineRun.objects.filter(
+        processor_version=VERSION, status__in=ACTIVE, edition__work__visibility=visibility
+    )
+    for run in live:
+        for edition_id in (run.summary.get("editions") or {}).values():
+            judging[edition_id] = run
+    return judging
+
+
 def _editions(visibility: str):
     return (
         Edition.objects.filter(work__visibility=visibility)
@@ -413,7 +443,9 @@ def _editions(visibility: str):
     )
 
 
-def _row(edition: Edition, run: PipelineRun | None) -> EditionRow:
+def _row(
+    edition: Edition, run: PipelineRun | None, production: PipelineRun | None = None
+) -> EditionRow:
     work_title = edition.work.title
     title = edition.title
     return EditionRow(
@@ -426,6 +458,7 @@ def _row(edition: Edition, run: PipelineRun | None) -> EditionRow:
             edition.source_edition.language.upper() if edition.is_parallel_translation else None
         ),
         run=run,
+        production=production,
     )
 
 
@@ -435,6 +468,7 @@ def catalogue_groups(visibility: str) -> list[WorkGroup]:
     from almonium_book_processor.catalog.release_state import listing_release_state
 
     runs = _active_runs(visibility)
+    productions = _productions(visibility)
     editions = list(_editions(visibility))
     release = listing_release_state(editions)
     groups: dict = {}
@@ -449,7 +483,7 @@ def catalogue_groups(visibility: str) -> list[WorkGroup]:
     twins = twin_ids(editions)
     for edition in editions:
         group = groups.setdefault(edition.work_id, WorkGroup(work=edition.work))
-        row = _row(edition, runs.get(edition.id))
+        row = _row(edition, runs.get(edition.id), productions.get(str(edition.id)))
         row.twin = edition.id in twins
         state = release[edition.id]
         row.metadata_behind = state.metadata_behind
