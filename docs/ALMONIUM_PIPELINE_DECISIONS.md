@@ -755,3 +755,39 @@ this are over." The rules, with their numbers:
     before translation, then by the kind's name, which puts Gutenberg before
     Wikisource by the alphabet, not by quality; a source's recorded shape is
     the quality signal that ordering lacks.
+
+- **Other libraries, measured the same way on 2026-10-24** (`shake_down --urls
+  --any-host`, `--files` for TEI; the processor's own TEI adapter reads ELTeC):
+  - Standard Ebooks (en): 10 of 10 sound. One chapter a file, a full table of
+    contents.
+  - ELTeC English (TEI, 87 novels on the owner's disk): 87 of 87 sound once a
+    chapter number had to be a well-formed roman numeral and the whole first
+    word ("CIVIL WAR" had opened a story at its 27th chapter). ELTeC exists for
+    about twenty European languages under CC BY.
+  - Wolne Lektury (pl, open API, 7,665 titles): the text is one file with
+    proper headings; the "suspects" were their fundraising pages between the
+    chapters and the footnotes file, which an ingest must trim as it trims
+    Gutenberg's header. Still to do before it is a source.
+  - Bibliothèque électronique du Québec (fr): 8 of 10 sound; the two are
+    collections of short tales.
+  - Ebooks libres et gratuits (fr): 7 of 10 sound; three downloads came back
+    as an HTML page, the site throttles unattended downloads.
+  - Liber Liber (it): its download links are not in the page's HTML; needs
+    their catalogue API or a browser, not tried further. The Prague library's
+    listing was not found in an hour. Projekt Gutenberg-DE and Zeno.org are
+    HTML only, with site terms to read before any reuse.
+- **Calibre's cut against ours**, forty of the hundred through `ebook-convert`
+  with its default chapter detection and then our own reader on its output:
+  the same chapter count on 19 books, within two on 30, every book sound both
+  ways. On the books without chapter marks Calibre found none either; the size
+  cut did the work on its output as on the original. It costs about a second a
+  book and nothing it found is missing from ours, so it stays a possible
+  fallback converter for formats we cannot read, not a splitter.
+- **Sources are to be ranked per language**, the owner decided: a language's
+  list names the libraries that carry it, best first (Italian: Liber Liber,
+  then Gutenberg; English: Standard Ebooks, then Gutenberg; Polish: Wolne
+  Lektury), and a library that does not carry the language is simply not on
+  its list. Within the order, rights first as today, then a file the shape
+  check marked suspect sinks below the rest, then a file measured sound comes
+  before one never measured. The backend orders; the processor has to report
+  its verdicts to it. Not built yet.

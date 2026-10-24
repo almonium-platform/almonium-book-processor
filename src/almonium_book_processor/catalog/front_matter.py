@@ -15,11 +15,26 @@ from almonium_book_processor.catalog.models import Chapter, Edition
 
 # A numbered title is a chapter of the story whatever word follows the number: Wells calls
 # the first chapter of The Time Machine "I Introduction".
-NUMBERED = re.compile(
+# A roman numeral is a well-formed one and the whole first word: "CIVIL WAR" and "DIM" are
+# words, not chapter numbers (ELTeC's The Hosts of the Lord lost 26 chapters to "CIVIL").
+ROMAN = re.compile(r"^m{0,3}(cm|cd|d?c{0,3})(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})$", re.IGNORECASE)
+LABELLED = re.compile(
     r"^\W*(chapter|chapitre|kapitel|capitolo|capítulo|глава|розділ|letter|lettre|brief"
-    r"|book|livre|buch|part|partie|teil|частина|[ivxlcdm]+\b|\d+\b)",
+    r"|book|livre|buch|part|partie|teil|частина|\d+\b)",
     re.IGNORECASE,
 )
+
+
+def _is_numbered(title: str) -> bool:
+    """Whether a title opens with a chapter number: a label word, digits, or a roman numeral."""
+
+    title = title.strip()
+    if LABELLED.match(title):
+        return True
+    first = re.split(r"[\s.:;,\-–—)\]]+", title.lstrip("([-–— "), maxsplit=1)[0] if title else ""
+    return bool(first) and bool(ROMAN.match(first))
+
+
 # What sits around a story, in the languages the library makes books in.
 MATTER = re.compile(
     r"\b(preface|préface|prefazione|prefacio|pr[óo]logo|vorwort|vorrede|avant-propos|передмова"
@@ -82,9 +97,7 @@ def chapter_roles(
         else:
             return [Chapter.AnalysisRole.BODY] * len(titles)
     # a title page is not a numbered chapter, whatever its letters look like ("D R A C U L A")
-    numbered = [
-        story[index] and bool(NUMBERED.match(title.strip())) for index, title in enumerate(titles)
-    ]
+    numbered = [story[index] and _is_numbered(title) for index, title in enumerate(titles)]
     first = numbered.index(True) if any(numbered) else story.index(True)
     if cut_by_size:
         first = min(first, min(index for index in cut_by_size if index < len(titles)))
@@ -115,7 +128,7 @@ def chapter_roles(
 def _is_matter(title: str) -> bool:
     title = title.strip()
     return bool(title) and (
-        bool(CLOSING.match(title)) or (not NUMBERED.match(title) and bool(MATTER.search(title)))
+        bool(CLOSING.match(title)) or (not _is_numbered(title) and bool(MATTER.search(title)))
     )
 
 
@@ -135,7 +148,7 @@ def _is_story(title: str) -> bool:
         return False
     if CLOSING.match(title):
         return False
-    return bool(NUMBERED.match(title)) or not MATTER.search(title)
+    return _is_numbered(title) or not MATTER.search(title)
 
 
 def source_role(edition: Edition, sequence: int) -> str:

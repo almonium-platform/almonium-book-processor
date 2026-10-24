@@ -247,3 +247,11 @@ def test_untitled_parts_cut_by_size_are_the_story_wherever_they_fall():
     # The Time Machine still: notes after the epilogue are back matter
     titles = ["", "", "", "I INTRODUCTION", "II", "XV", "Epilogue", "NOTES"]
     assert chapter_roles(titles) == ["front"] * 3 + ["body"] * 4 + ["back"]
+
+
+def test_a_word_of_roman_letters_is_not_a_chapter_number():
+    # ELTeC's The Hosts of the Lord: "CIVIL WAR" read as chapter CIVIL and opened the story late
+    titles = ["", "A SHADOW", "DRIFTWOOD", "CIVIL WAR", "DIM LIGHTS", "MIXED COMPANY", "NOTES"]
+    assert chapter_roles(titles) == ["front", "body", "body", "body", "body", "body", "back"]
+    assert chapter_roles(["", "I", "II", "III"]) == ["front", "body", "body", "body"]
+    assert chapter_roles(["", "XIV.", "XV."]) == ["front", "body", "body"]
