@@ -1144,3 +1144,40 @@ class PlanMeterReading(TimestampedModel):
 
     def __str__(self) -> str:
         return f"{self.provider} {self.account}: {self.week_percent}% of the week"
+
+
+class SourceShape(TimestampedModel):
+    """The shape of one source file as ingest would cut it, measured without keeping the book.
+
+    One row per (download URL, file digest): the shake-down writes it for books it only
+    looks at, and an ingest may write it for the book it stores, so the catalogue knows a
+    source was checked and what was found (``catalog/source_shape.py``).
+    """
+
+    class Verdict(models.TextChoices):
+        OK = "ok", "Sound"
+        SUSPECT = "suspect", "Suspect"
+        UNREADABLE = "unreadable", "Could not be read"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source_url = models.URLField(max_length=500)
+    source_sha256 = models.CharField(max_length=64, blank=True)
+    source_kind = models.CharField(max_length=40, blank=True)
+    title = models.CharField(max_length=500, blank=True)
+    author = models.CharField(max_length=300, blank=True)
+    language = models.CharField(max_length=16, blank=True)
+    verdict = models.CharField(max_length=12, choices=Verdict.choices)
+    reasons = models.JSONField(default=list, blank=True)
+    metrics = models.JSONField(default=dict, blank=True)
+    processor_version = models.CharField(max_length=40, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source_url", "source_sha256"], name="catalog_sourceshape_one_per_file"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.title or self.source_url}: {self.verdict}"

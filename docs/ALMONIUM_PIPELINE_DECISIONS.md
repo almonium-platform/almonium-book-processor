@@ -643,3 +643,61 @@ to Almonium as it goes. Almonium's part is three signed internal calls
 rows it is not polling are left alone. Two books at once and a 15% reserve of
 every plan's week are the starting settings; the reserve is what keeps the
 owner's own sessions from hitting the limit.
+
+## 17. A production ends every level itself, and a source is checked before it is spent on
+
+**Decided 2026-10-24, by the owner**, after a night in which thirty-nine books
+stalled on two empty Codex meters and forty-nine finished adaptations waited in
+the review queue for a reading nobody will give them. "Days of me manually doing
+this are over." The rules, with their numbers:
+
+- **A level ends as ready, not needed or not reached. It is never held for a
+  person to read.** Chapters both judges read one level above the target go back
+  to the adapter as before, the cited paragraphs once and the whole chapter once.
+  Those still above after both tries are *tolerated up to a fifth of the body
+  chapters* (`adaptation_quality.ABOVE_CHAPTER_SHARE = 0.20`) and shown to the
+  reader at their own level, which every chapter carries anyway. More of them, or
+  one chapter two levels above, *drop the level*: the edition is purged, a record
+  on the source says the level was tried and not reached
+  (`adaptation_floor.record_unreached`, processor version `level-outcome-v1`),
+  and the ladder shows `not_reached` so no production or factory run tries it
+  again. A person who disagrees purges the record and starts the book. A failed
+  probe drops the level the same way, and the levels below are not reached with
+  it. The production finishes well with these outcomes; only a hold still marks
+  it failed. On 24 October 2026 Dubliners' B1 (one chapter of sixteen at B2)
+  passes under the rule; Arsène Lupin (eight of nine) and Heart of Darkness
+  (three of three) drop theirs.
+- **The disputed-chapter allowance stays** (section 15): one in ten body
+  chapters read at the target by one judge and a level above by the other.
+- **A hold by circumstance is not a verdict and is started again.** A plan's
+  used-up allowance raises `AllowanceUsedUp` in the CLI wrappers; the job
+  records "Allowance used up … try again at <time>" and the production holds the
+  level without counting a start. `manage.py requeue_held` starts again the
+  productions held by a start counter, an allowance or a worker that died
+  ("Left behind"); `plan_meter --record` runs it for the allowance holds the
+  moment a Codex account answers. The janitor leaves silent jobs alone while
+  the plans queue is paused (workers answer, none takes the queue), which is
+  how the owner pauses the plans: `celery control cancel_consumer plans`, and
+  `add_consumer` to resume.
+- **No translations are made in the automatic flow** (owner, 2026-10-22):
+  levels only. The routes stay in code. A stored ingest plan or a held
+  production carrying a language is a mistake to scrub, not a wish to honour:
+  a re-ingest replays the stored plan (`SourceDownload.production`).
+- **The fidelity review card is the production's to-do, not a person's.** It
+  says what the production is doing, under way or held with its reason, and
+  asks for a reading only where no production looks after the book.
+- **A source's shape is checked before anything is spent on it.** Wrong splits
+  show only at scale: 12 of 86 ingested originals had three body chapters or
+  fewer, A Christmas Carol was two pieces of which one was 91% of the book, and
+  18 counted the Gutenberg preamble as a body chapter. `catalog/source_shape.py`
+  measures what ingest would store and judges it with fixed thresholds: a book
+  of 60,000 characters or more in three body chapters or fewer; one body chapter
+  over 40% of the body among more than three; text before the first heading as a
+  body chapter; contents, illustrations and preface pages as body; body
+  chapters under 400 characters. `manage.py shake_down` runs it over Gutenberg's
+  most read books per language without keeping them (no edition, no AI call,
+  about a hundred books in minutes) and records each verdict with the download
+  URL and file digest (`SourceShape`), so the catalogue knows a source was
+  checked and what was found before a reader's request ingests it. The first
+  hundred (20 each in en, fr, de, es, it) ran on 2026-10-24; the recurring
+  shapes they show are the next fixes to the splitter and the chapter roles.

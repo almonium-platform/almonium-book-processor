@@ -37,6 +37,23 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   running: one cut off mid-way goes back to the queue and its run may need
   retrying from the edition page. `./plan-worker` in a terminal still works
   for a one-off; do not run both.
+- **Pausing and resuming the plans.** When the plans' allowances are used up,
+  stop the workers taking steps rather than stopping the workers:
+  `celery -A almonium_book_processor.config control cancel_consumer plans
+  --destination plans-main@yoga,plans-second@yoga` (from `plan-env`), and
+  `add_consumer` to resume. Steps wait in the queue, the janitor leaves the
+  silent jobs alone, and nothing is paid. A refused call holds the book with
+  "Allowance used up … try again at <time>" and counts no start;
+  `manage.py requeue_held` starts such books again (`--allowance` for those
+  alone, which the meter timer does once an account answers). Never restart a
+  plan worker with a production under way; look at `catalog_pipelinerun`, not
+  at Celery, to know.
+- **Looking at many books without keeping them.** `manage.py shake_down
+  --languages en,fr --per-language 20` downloads Gutenberg's most read books
+  per language, cuts each as ingest would, judges the shape
+  (`catalog/source_shape.py`) and records the verdict in `SourceShape`; the
+  file is deleted and no edition or AI call is made. `--ids 46,2650` looks at
+  named books; `--again` measures recorded ones once more.
 - **One worker per pair of accounts.** A worker works on the Codex account
   its `CODEX_HOME` names and the Claude account its `CLAUDE_CONFIG_DIR`
   names, which is how the CLIs themselves choose an account. A second plan
