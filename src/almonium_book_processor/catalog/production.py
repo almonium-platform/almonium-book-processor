@@ -30,10 +30,13 @@ started run on theirs, and it picks up where it was after a restart.
 
 from __future__ import annotations
 
+import hashlib
 import uuid
+from contextlib import contextmanager
 from datetime import timedelta
 
-from django.db import transaction
+from django.db import connection, transaction
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -86,11 +89,14 @@ def queue_production(
     sign_off: bool = True,
     promote_to: str = "",
     publish: bool = False,
+    carried: dict | None = None,
 ) -> PipelineRun:
     """Start a production from a source edition, or return the one under way.
 
     ``levels`` are the adaptations to make and ``languages`` the translations, in the
-    ``register`` named or the first one the catalogue knows.
+    ``register`` named or the first one the catalogue knows. ``carried`` is the state of a
+    held production of the same source: what it already rewrote, repaired and settled is
+    not paid for again.
     """
 
     from almonium_book_processor.catalog.adaptation_floor import PROBE_LEVELS
@@ -133,8 +139,9 @@ def queue_production(
                 "publish": publish,
                 "editions": {},
                 "starts": {},
-                "mended": {},
-                "settled": {},
+                "mended": dict((carried or {}).get("mended") or {}),
+                "repaired": dict((carried or {}).get("repaired") or {}),
+                "settled": dict((carried or {}).get("settled") or {}),
                 "outcomes": {},
                 "log": [],
             },
@@ -145,7 +152,9 @@ def queue_production(
 
 # What holds a book without saying anything about the book: a step that broke too often, a
 # plan whose allowance ran out, a worker that died under it. These are started again.
-CIRCUMSTANTIAL_HOLDS = ("was started", ALLOWANCE_USED_UP, "Left behind")
+# "Nothing finished" is a step that outlasted STEP_TIMEOUT: a slow job, not a verdict on the book;
+# what it made in the meantime is adopted when the production is started again.
+CIRCUMSTANTIAL_HOLDS = ("was started", ALLOWANCE_USED_UP, "Left behind", "Nothing finished")
 
 
 def requeue_held(*, allowance_only: bool = False, older_than: timedelta = timedelta(minutes=30)):
@@ -178,6 +187,7 @@ def requeue_held(*, allowance_only: bool = False, older_than: timedelta = timede
                 sign_off=state.get("sign_off", True),
                 promote_to=state.get("promote_to", ""),
                 publish=state.get("publish", False),
+                carried=state,
             )
         )
     return started
@@ -214,14 +224,39 @@ def _tracks(state: dict) -> dict:
 def advance(run_id) -> bool:
     """Move a production as far as it can go without waiting; say whether it is finished."""
 
-    # a track that only waited is not asked again in the same call: its step would start
-    # the same job once more, and count the start against the book
-    moved = None
-    for _ in range(2 * len(STEPS)):
-        finished, moved = _advance_once(run_id, moved)
-        if finished or not moved:
-            return finished
+    with _one_tick(run_id) as ours:
+        if not ours:
+            # another worker is ticking this production now: a redelivered or doubled tick
+            # would read the same state and start the same paid steps beside it
+            return False
+        # a track that only waited is not asked again in the same call: its step would start
+        # the same job once more, and count the start against the book
+        moved = None
+        for _ in range(2 * len(STEPS)):
+            finished, moved = _advance_once(run_id, moved)
+            if finished or not moved:
+                return finished
     return False
+
+
+@contextmanager
+def _one_tick(run_id):
+    """A session lock on the production for the length of one tick, where the database has
+    one (PostgreSQL advisory locks); elsewhere the tick simply runs."""
+
+    if connection.vendor != "postgresql":
+        yield True
+        return
+    key = int.from_bytes(hashlib.sha1(str(run_id).encode()).digest()[:8], "big", signed=True)
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_try_advisory_lock(%s)", [key])
+        held = bool(cursor.fetchone()[0])
+    try:
+        yield held
+    finally:
+        if held:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_unlock(%s)", [key])
 
 
 def _advance_once(run_id, only: set[str] | None = None) -> tuple[bool, set[str]]:
@@ -453,9 +488,12 @@ def _refused(run: PipelineRun, state: dict, target: str) -> None:
         editions.append(level_edition)
     refused = (
         PipelineRun.objects.filter(
+            Q(finished_at__gte=run.created_at)
+            | Q(finished_at__isnull=True, created_at__gte=run.created_at),
             edition_id__in=editions,
             status=PipelineRun.Status.FAILED,
-            created_at__gte=run.created_at,
+            # when the job failed, not when its row was made: a probe or a book run is reused
+            # across productions and keeps the date of the first
             error__contains=ALLOWANCE_USED_UP,
         )
         .exclude(processor_version=VERSION)
@@ -478,8 +516,12 @@ def _edition(state: dict, level: str) -> Edition:
 def _busy(edition: Edition) -> str:
     """The edition's own jobs still queued or running, named, or an empty string."""
 
+    # a queued job waits in the broker however long the queue is; only a running one goes quiet
     names = (
-        edition.pipeline_runs.filter(status__in=ACTIVE, updated_at__gte=timezone.now() - STALL)
+        edition.pipeline_runs.filter(
+            Q(status=PipelineRun.Status.QUEUED)
+            | Q(status=PipelineRun.Status.RUNNING, updated_at__gte=timezone.now() - STALL)
+        )
         .exclude(processor_version=VERSION)
         .values_list("stage", flat=True)
     )
@@ -509,7 +551,11 @@ def _written(source: Edition, level: str) -> Edition | None:
 
 
 def _stalled(job: PipelineRun | None) -> bool:
-    return job is not None and job.updated_at < timezone.now() - STALL
+    return (
+        job is not None
+        and job.status == PipelineRun.Status.RUNNING
+        and job.updated_at < timezone.now() - STALL
+    )
 
 
 # Steps. Each returns ("wait", why), ("goto", step, what happened), ("ready", note),
@@ -676,9 +722,12 @@ def _mend(run: PipelineRun, state: dict, level: str) -> tuple:
     for sequence in above:
         done = mended.setdefault(str(sequence), [])
         chapter = edition.chapters.get(sequence=sequence)
+        # A try is counted once the adapter has answered. One that broke on the way (a
+        # timeout, a refused plan, a worker lost) is made again; it must never be the reason
+        # a written book is dropped.
         if "paragraphs" not in done:
-            done.append("paragraphs")
             spot = spot_fix_chapter(edition, chapter)
+            done.append("paragraphs")
             if spot["changed"]:
                 return (
                     "goto",
@@ -686,10 +735,19 @@ def _mend(run: PipelineRun, state: dict, level: str) -> tuple:
                     f"Chapter {sequence}: {spot['changed']} cited paragraph(s) rewritten.",
                 )
         if "chapter" not in done:
-            done.append("chapter")
             outcome = revise_chapter(edition, chapter, check_chapter(edition, chapter))
             if outcome["applied"]:
+                done.append("chapter")
                 return ("goto", "levels", f"Chapter {sequence}: rewritten whole and applied.")
+            if "pilot_id" not in outcome:
+                # too long for one pilot: nobody rewrote it, so nobody decided against it
+                raise Held(f"Chapter {sequence} cannot be rewritten whole: {outcome['reason']}.")
+            if outcome["reason"].startswith("generation"):
+                # the revision never came back; the step is tried again, not the book given up
+                raise RuntimeError(
+                    f"Chapter {sequence}: the revision pilot ended as '{outcome['reason']}'."
+                )
+            done.append("chapter")
     # the adapter has had both its tries at every chapter above the target
     tolerated = quality.get("adaptation_tolerated_chapters") or []
     if sorted(tolerated) == sorted(above):
@@ -724,12 +782,13 @@ def _drop(run: PipelineRun, state: dict, level: str, edition: Edition, reason: s
     )
     from almonium_book_processor.catalog.purge import purge_edition
 
-    record_unreached(run.edition, level, reason, production=run)
+    # the edition goes first: a purge that is refused leaves no record saying the level failed
     purge_edition(
         edition,
         reason=RemovalReason.OTHER,
         notes=f"The production {run.id} dropped {level}: {reason}",
     )
+    record_unreached(run.edition, level, reason, production=run)
     state["editions"].pop(level, None)
     refresh_adaptation_floor(run.edition.work)
     return ("dropped", reason)

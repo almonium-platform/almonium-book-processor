@@ -151,7 +151,9 @@ def world(monkeypatch):
         "fidelity_audit.audit_context",
         lambda edition: {
             "fidelity_audit_state": world.audit,
-            "fidelity_audit_run": SimpleNamespace(updated_at=world.audit_touched),
+            "fidelity_audit_run": SimpleNamespace(
+                status=PipelineRun.Status.RUNNING, updated_at=world.audit_touched
+            ),
         },
     )
 
@@ -730,3 +732,103 @@ def test_a_level_written_by_a_production_that_died_is_adopted_not_written_again(
     assert run.summary["editions"]["B2"] == str(written.id)
     assert "book B2" not in world.calls
     assert any("written already" in entry["note"] for entry in run.summary["log"])
+
+
+def test_a_rewrite_that_breaks_is_not_a_try_and_never_drops_the_book(world, monkeypatch):
+    """Two broken calls used to count as both tries and purge a written adaptation."""
+
+    world.ladder["B2"] = "probe_passed"
+    world.above = [[2], [2], [2], [2], [], []]
+    attempts = []
+
+    def spot_fix(edition, chapter):
+        attempts.append("spot")
+        if len(attempts) < 3:
+            raise TimeoutError("the CLI gave no answer in time")
+        world.analysis[str(edition.id)] = "stale"
+        return {"changed": 1, "skipped": []}
+
+    monkeypatch.setattr(f"{CATALOG}.adaptation_wording.spot_fix_chapter", spot_fix)
+
+    run = run_to_the_end(queue_production(world.source.id, ["B2"]))
+
+    assert attempts == ["spot", "spot", "spot"]
+    assert run.summary["mended"]["B2"]["2"] == ["paragraphs", "chapter"]
+    assert not [call for call in world.calls if call.startswith("purge")]
+    assert world.dropped == []
+    assert run.status == "succeeded"
+
+
+def test_a_revision_that_never_came_back_is_not_the_adapters_answer(world, monkeypatch):
+    world.ladder["B2"] = "probe_passed"
+    world.above = [[2], [2], [2], [2], [], []]
+    outcomes = iter(
+        [
+            {"applied": False, "reason": "generation failed", "pilot_id": "p1"},
+            {"applied": False, "reason": "generation failed", "pilot_id": "p1"},
+            {"applied": True},
+        ]
+    )
+
+    def revise(edition, chapter, verdict):
+        outcome = next(outcomes)
+        if outcome["applied"]:
+            world.analysis[str(edition.id)] = "stale"
+        return outcome
+
+    monkeypatch.setattr(f"{CATALOG}.adaptation_wording.revise_chapter", revise)
+
+    run = run_to_the_end(queue_production(world.source.id, ["B2"]))
+
+    assert run.summary["mended"]["B2"]["2"] == ["paragraphs", "chapter"]
+    assert world.dropped == []
+    assert run.status == "succeeded"
+
+
+def test_a_chapter_too_long_to_rewrite_whole_holds_the_book_instead_of_dropping_it(
+    world, monkeypatch
+):
+    world.ladder["B2"] = "probe_passed"
+    world.above = [[2]] * 6
+    monkeypatch.setattr(
+        f"{CATALOG}.adaptation_wording.revise_chapter",
+        lambda edition, chapter, verdict: {"applied": False, "reason": "too many blocks"},
+    )
+
+    run = run_to_the_end(queue_production(world.source.id, ["B2"]))
+
+    assert run.status == "failed"
+    assert "cannot be rewritten whole" in run.error
+    assert world.dropped == []
+    assert Edition.objects.filter(slug="book-b2").exists()
+
+
+def test_a_production_started_again_keeps_what_the_held_one_rewrote(world):
+    from almonium_book_processor.catalog.production import VERSION, requeue_held
+
+    held = PipelineRun.objects.create(
+        edition=world.source,
+        stage=PipelineRun.Stage.ADAPT,
+        processor_version=VERSION,
+        status=PipelineRun.Status.FAILED,
+        input_hash="",
+        idempotency_key="held:production",
+        error="B2 held: Nothing finished 'audit' in 3:00:00: The auditors are reading.",
+        finished_at=timezone.now() - timedelta(hours=2),
+        summary={
+            "levels": ["B2"],
+            "languages": [],
+            "register": "",
+            "sign_off": True,
+            "mended": {"B2": {"2": ["paragraphs", "chapter"]}},
+            "repaired": {"B2": [1, 2]},
+            "settled": {"B2": 2},
+        },
+    )
+
+    (again,) = requeue_held()
+
+    assert again.id != held.id
+    assert again.summary["mended"] == {"B2": {"2": ["paragraphs", "chapter"]}}
+    assert again.summary["repaired"] == {"B2": [1, 2]}
+    assert again.summary["settled"] == {"B2": 2}
