@@ -835,3 +835,15 @@ this are over." The rules, with their numbers:
   damaged originals of 2026-10-24, and a re-chapter that regroups blocks and
   aligned adaptations without rewriting is the day of work to spend the first
   time a bad split is found under several finished levels.
+
+- **A better cut is applied without rewriting a word** (`manage.py recut_source
+  <slugs> [--apply]`, `catalog/recut.py`), decided by the owner on 2026-10-24:
+  no level adaptation is paid for twice because its chapter boundaries moved.
+  The stored file is parsed with the current rules, every stored paragraph is
+  matched to the fresh cut by its text, the paragraphs move into the new
+  chapters, and the adaptations' paragraphs move the same way, since an
+  adaptation mirrors its source block for block. More than 2% of the text
+  unmatched either way means the file or the reader changed materially, and
+  the book is not re-cut. The chapters' readings are given up on purpose: there
+  are more chapters now and each needs its own level and recap from the
+  judges. The re-cut is recorded as an ingest run with the current cut version.
