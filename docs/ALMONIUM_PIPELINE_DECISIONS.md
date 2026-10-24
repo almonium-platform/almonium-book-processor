@@ -691,10 +691,10 @@ this are over." The rules, with their numbers:
   fewer, A Christmas Carol was two pieces of which one was 91% of the book, and
   18 counted the Gutenberg preamble as a body chapter. `catalog/source_shape.py`
   measures what ingest would store and judges it with fixed thresholds: a book
-  of 60,000 characters or more in three body chapters or fewer; one body chapter
-  over 40% of the body among more than three; text before the first heading as a
-  body chapter; contents, illustrations and preface pages as body; body
-  chapters under 400 characters. `manage.py shake_down` runs it over Gutenberg's
+  of 60,000 characters or more in two body chapters or fewer; one body chapter
+  over 40% of the body among more than three; contents, illustrations and
+  preface pages as body; more than a quarter of the body chapters under 400
+  characters. `manage.py shake_down` runs it over Gutenberg's
   most read books per language without keeping them (no edition, no AI call,
   about a hundred books in minutes) and records each verdict with the download
   URL and file digest (`SourceShape`), so the catalogue knows a source was
@@ -722,4 +722,8 @@ this are over." The rules, with their numbers:
     took the whole book away over a label. It now reads "Unknown" and leaves a
     warning; the metadata step proposes the author afterwards.
   - The size rule flags two body chapters or fewer, not three: Die Verwandlung
-    and Heart of Darkness are three parts, rightly.
+    and Heart of Darkness are three parts, rightly. Short chapters count only
+    when more than a quarter of the body is short: Zarathustra's aphorisms are
+    the book, the Cambridge Shakespeare's 29 one-line "chapters" of 51 are not.
+    After the fixes the same hundred read 47 sound, 44 suspect, 10 unreadable,
+    the unreadable being audio recordings and texts with no EPUB at all.

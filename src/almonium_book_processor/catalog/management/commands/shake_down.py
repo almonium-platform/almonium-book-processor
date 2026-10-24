@@ -95,8 +95,8 @@ class Command(BaseCommand):
             fetched = download(url, SourceDownload.Kind.GUTENBERG)
             path = fetched.path
             row.source_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
-            if fetched.final_url != url:
-                row.metrics = {"fetched_from": fetched.final_url}
+            if any(fetched.final_url.endswith(build) for build in ("epub.images", "epub.noimages")):
+                row.metrics = {"fetched_from": fetched.final_url}  # a plain build stood in
             artifact = ingest_epub(path, edition_slug="shake-down", work_slug="shake-down")
             row.title = (artifact.edition.title or "")[:500]
             row.author = (artifact.edition.author or "")[:300]

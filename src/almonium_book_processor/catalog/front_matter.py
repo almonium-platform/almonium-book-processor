@@ -24,8 +24,9 @@ NUMBERED = re.compile(
 MATTER = re.compile(
     r"\b(preface|préface|prefazione|prefacio|pr[óo]logo|vorwort|vorrede|avant-propos|передмова"
     r"|foreword|introdu\w*|einleitung|einführung|вступ|dedication|dédicace|dedica|dedicatoria"
-    r"|widmung|присвята|contents|table des matières|sommaire|inhalt(sverzeichnis)?|[íi]ndice"
-    r"|зміст|illustrations?|afterword|nachwort|післямова|appendix|appendice|anhang|додаток"
+    r"|widmung|zueignung|присвята|contents|table des matières|sommaire|inhalt(sverzeichnis)?"
+    r"|[íi]ndice|зміст|illustrations?|afterword|nachwort|післямова|appendix|appendice|anhang"
+    r"|додаток"
     r"|notes?|notas?|anmerkungen|примітки|avvertenza|advertencia|glossary|glossaire|glossar"
     r"|глосарій|bibliography|bibliographie|бібліографія|acknowledg\w*|transcriber"
     r"|about the author|über den autor|про автора|colophon|advertisements?|errata"

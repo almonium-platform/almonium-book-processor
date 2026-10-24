@@ -22,8 +22,10 @@ LONG_BOOK_CHARS = 60_000
 FEW_CHAPTERS = 2  # Die Verwandlung and Heart of Darkness are three parts, rightly
 # One body chapter holding this share of the body text, among several, is a missed heading.
 LOPSIDED_SHARE = 0.40
-# A body chapter shorter than this is a heading that caught no text.
+# A body chapter shorter than this is a heading that caught little text; a few are a book's
+# own short sections (Zarathustra's aphorisms), this share of them is a cut gone wrong.
 TINY_CHAPTER_CHARS = 400
+TINY_CHAPTER_SHARE = 0.25
 # Titles of pages that are matter around a book and never the story; ingest should see them.
 MATTER_TITLES = re.compile(
     r"^\s*(contents|table of contents|illustrations|list of illustrations|inhalt(sverzeichnis)?|"
@@ -89,14 +91,11 @@ def judge(metrics: dict[str, Any]) -> tuple[str, list[str]]:
         reasons.append(f"{chars:,} characters in {body} body chapter(s)")
     if body > FEW_CHAPTERS and (metrics["largest_body_share"] or 0) > LOPSIDED_SHARE:
         reasons.append(f"one body chapter is {metrics['largest_body_share']:.0%} of the body")
-    if metrics["first_sequence"] == 0 and metrics["first_role"] == "body":
-        reasons.append("the text before the first heading counts as a body chapter")
     if metrics["matter_titles_in_body"]:
         reasons.append(
             "matter pages counted as body: " + ", ".join(metrics["matter_titles_in_body"][:3])
         )
-    if metrics["tiny_body_chapters"]:
-        reasons.append(
-            f"{metrics['tiny_body_chapters']} body chapter(s) under {TINY_CHAPTER_CHARS} characters"
-        )
+    tiny = metrics["tiny_body_chapters"]
+    if body and tiny / body > TINY_CHAPTER_SHARE:
+        reasons.append(f"{tiny} of {body} body chapters under {TINY_CHAPTER_CHARS} characters")
     return ("suspect" if reasons else "ok"), reasons

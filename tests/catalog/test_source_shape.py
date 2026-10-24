@@ -56,18 +56,22 @@ def test_one_chapter_holding_half_the_book_among_many_is_a_missed_heading():
 def test_the_gutenberg_preamble_and_the_contents_page_are_not_the_story():
     verdict, reasons = judge(
         metrics(
-            first_sequence=0,
-            first_role="body",
             matter_titles_in_body=["There are several editions of this ebook", "CONTENTS"],
             tiny_body_chapters=1,
         )
     )
     assert verdict == "suspect"
+    # one short chapter among eighteen is a book's own short section, not a finding
     assert reasons == [
-        "the text before the first heading counts as a body chapter",
         "matter pages counted as body: There are several editions of this ebook, CONTENTS",
-        "1 body chapter(s) under 400 characters",
     ]
+
+
+def test_many_tiny_chapters_are_a_cut_gone_wrong():
+    # the Cambridge Shakespeare: 29 of 51 body chapters are a heading and a line
+    verdict, reasons = judge(metrics(body_chapters=51, tiny_body_chapters=29))
+    assert verdict == "suspect"
+    assert reasons == ["29 of 51 body chapters under 400 characters"]
 
 
 def test_a_book_with_no_body_chapter_is_suspect():
