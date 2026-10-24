@@ -44,7 +44,7 @@ CHAPTER_TEXTS = (("Chapter I", "It was a dark and stormy night."), ("Chapter II"
 
 @pytest.fixture(autouse=True)
 def shared_secret(monkeypatch):
-    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", SECRET)
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", SECRET)
 
 
 def published_canonical(*, cefr_level="B2") -> Edition:

@@ -251,7 +251,7 @@ def test_complete_pipeline_runs_ingestion_before_local_nlp(monkeypatch) -> None:
 
 
 def test_internal_private_import_is_owner_scoped(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", "test-shared-secret")
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", "test-shared-secret")
     owner_id = uuid.uuid4()
     client = APIClient()
     response = client.post(

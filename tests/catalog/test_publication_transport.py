@@ -14,7 +14,7 @@ from almonium_book_processor.catalog import publication
 @pytest.fixture(autouse=True)
 def configured_api(monkeypatch):
     monkeypatch.setenv("ALMONIUM_API_URL", "http://api.example.test:9998")
-    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", "test-shared-secret")
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", "test-shared-secret")
 
 
 def test_a_refused_connection_names_the_host_and_the_reason(monkeypatch):

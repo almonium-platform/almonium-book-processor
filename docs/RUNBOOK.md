@@ -74,7 +74,7 @@ Level adaptation can run on one of the owner's plans instead of the API: set
 - **The factory** (`catalog/factory.py`) is a second timer `install` puts on
   the host, every fifteen minutes: `manage.py factory_tick`. A tick tells
   Almonium how every book under way is getting on (the signed internal
-  surface, `ALMONIUM_API_URL` + `ALMONIUM_BOOKS_PUBLISHER_TOKEN`), and if
+  surface, `ALMONIUM_API_URL` + `ALMONIUM_BOOKS_PUBLISHER_SECRET`), and if
   fewer than `FACTORY_MAX_PRODUCTIONS` books are between download and
   promotion and every plan has more than `FACTORY_RESERVE_PERCENT` of its
   week left, asks Almonium for the wanted queue, reserves the first row with

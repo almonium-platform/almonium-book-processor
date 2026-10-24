@@ -96,7 +96,7 @@ def _signed_post(path: str, payload: dict[str, Any], *, failure: str) -> Any:
     """POST a signed body to the product API's internal books surface."""
 
     api_url = os.getenv("ALMONIUM_API_URL", "").rstrip("/")
-    token = os.getenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", "")
+    token = os.getenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", "")
     if not api_url or not token:
         raise PublicationError("Almonium publication is not configured.")
     request_body = json.dumps(payload, separators=(",", ":")).encode()

@@ -87,7 +87,7 @@ def test_a_shape_report_is_signed_to_almonium_and_never_fails_without_it(monkeyp
     )
 
     monkeypatch.setenv("ALMONIUM_API_URL", "https://api.example")
-    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", "secret")
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", "secret")
     posted = []
     monkeypatch.setattr(
         "almonium_book_processor.catalog.publication._signed_post",

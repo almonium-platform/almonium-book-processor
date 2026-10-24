@@ -861,7 +861,7 @@ this are over." The rules, with their numbers:
   verdict, signed like its publications, to the catalogue's
   `/internal/books/sources/shape`; the catalogue ranks a work's sources on it
   and shows a reader "checked" beside a library's text. Best effort: a
-  catalogue not configured (`ALMONIUM_API_URL`, `ALMONIUM_BOOKS_PUBLISHER_TOKEN`)
+  catalogue not configured (`ALMONIUM_API_URL`, `ALMONIUM_BOOKS_PUBLISHER_SECRET`)
   or not reachable loses a ranking signal, never a book. The catalogue side,
   the per-language source order and the reader's choice of a library are in
   the backend's `docs/COPYRIGHT_AND_CATALOGUE.md`.

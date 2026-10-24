@@ -19,7 +19,7 @@ def send_private_import_event(
 ) -> None:
     """Report private-import progress; callback delivery must not fail ingestion."""
     api_url = os.getenv("ALMONIUM_API_URL", "").rstrip("/")
-    token = os.getenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", "")
+    token = os.getenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", "")
     if not api_url or not token or edition.work.owner_id is None:
         return
 

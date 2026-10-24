@@ -134,7 +134,7 @@ def test_sums_every_run_per_purpose_and_model_inside_the_window() -> None:
 
 
 def test_internal_endpoint_needs_the_shared_token_and_an_aware_window(monkeypatch) -> None:
-    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", SECRET)
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", SECRET)
     target = edition()
     run(
         target, purpose="translation", model="terra", input_tokens=100, output_tokens=50, cost="0.5"

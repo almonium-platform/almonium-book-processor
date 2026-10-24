@@ -35,7 +35,7 @@ EPUB_BYTES = b"PK\x03\x04" + b"epub body" * 3_000
 
 @pytest.fixture(autouse=True)
 def shared_secret(monkeypatch, settings, tmp_path):
-    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", SECRET)
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", SECRET)
     settings.MEDIA_ROOT = tmp_path
 
 

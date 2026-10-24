@@ -296,7 +296,7 @@ def test_a_failed_withdrawal_leaves_the_book_intact(monkeypatch) -> None:
 
 
 def test_an_owner_can_delete_their_own_private_import(monkeypatch) -> None:
-    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", SECRET)
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", SECRET)
     edition = build_edition(visibility=Work.Visibility.PRIVATE)
     owner_id = edition.work.owner_id
 
@@ -311,7 +311,7 @@ def test_an_owner_can_delete_their_own_private_import(monkeypatch) -> None:
 
 
 def test_one_owner_cannot_delete_another_owners_import(monkeypatch) -> None:
-    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", SECRET)
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", SECRET)
     edition = build_edition(visibility=Work.Visibility.PRIVATE)
 
     response = APIClient().delete(
@@ -331,7 +331,7 @@ def test_the_withdrawal_request_is_signed_like_a_publication(monkeypatch) -> Non
     from almonium_book_processor.catalog import publication
 
     monkeypatch.setenv("ALMONIUM_API_URL", "https://api.example.test")
-    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", SECRET)
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", SECRET)
     edition = build_edition(status=Edition.Status.PUBLISHED, published_book_id=uuid.uuid4())
     sent: dict = {}
 

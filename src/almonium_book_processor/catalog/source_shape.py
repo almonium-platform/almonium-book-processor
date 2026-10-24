@@ -163,7 +163,7 @@ def report_shape(download_url: str, verdict: str, checked_at=None) -> bool:
 
     from almonium_book_processor.catalog.publication import PublicationError, _signed_post
 
-    if not os.getenv("ALMONIUM_API_URL") or not os.getenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN"):
+    if not os.getenv("ALMONIUM_API_URL") or not os.getenv("ALMONIUM_BOOKS_PUBLISHER_SECRET"):
         return False
     payload = {"downloadUrl": download_url[:1000], "verdict": verdict}
     if checked_at is not None:

@@ -127,7 +127,7 @@ def fake_openai(monkeypatch, settings, *, proposal=None, error=None) -> dict:
 def test_header_only_upload_adopts_file_metadata(tmp_path, monkeypatch, settings) -> None:
     settings.MEDIA_ROOT = tmp_path / "media"
     settings.OPENAI_API_KEY = ""
-    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", SECRET)
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", SECRET)
     owner_id = uuid.uuid4()
     client = APIClient()
 
@@ -299,7 +299,7 @@ def test_owner_confirmation_updates_fields_and_requeues_nlp_on_language_change(
     settings,
     django_capture_on_commit_callbacks,
 ) -> None:
-    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", SECRET)
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", SECRET)
     queued: list[str] = []
     monkeypatch.setattr(
         "almonium_book_processor.catalog.tasks.process_normalized_edition.delay",
@@ -370,7 +370,7 @@ def test_confirming_the_same_language_does_not_reprocess(monkeypatch) -> None:
 
 def test_import_event_carries_detected_metadata(monkeypatch) -> None:
     monkeypatch.setenv("ALMONIUM_API_URL", "http://almonium.test/api/v1/")
-    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_TOKEN", SECRET)
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", SECRET)
     sent: dict = {}
 
     class FakeResponse:
