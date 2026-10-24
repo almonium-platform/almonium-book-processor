@@ -855,3 +855,13 @@ this are over." The rules, with their numbers:
   Gutenberg books the dozen "suspect" by shape were collections of short pieces
   that are what they are. The verdict is for ranking sources and for a person
   looking at the edition page, not for stopping a book.
+
+- **The verdicts reach Almonium** (`source_shape.report_shape`): after every
+  real ingest and every shake-down measurement the processor posts the file's
+  verdict, signed like its publications, to the catalogue's
+  `/internal/books/sources/shape`; the catalogue ranks a work's sources on it
+  and shows a reader "checked" beside a library's text. Best effort: a
+  catalogue not configured (`ALMONIUM_API_URL`, `ALMONIUM_BOOKS_PUBLISHER_TOKEN`)
+  or not reachable loses a ranking signal, never a book. The catalogue side,
+  the per-language source order and the reader's choice of a library are in
+  the backend's `docs/COPYRIGHT_AND_CATALOGUE.md`.
