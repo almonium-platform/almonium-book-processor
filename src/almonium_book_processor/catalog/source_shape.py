@@ -104,3 +104,46 @@ def judge(metrics: dict[str, Any]) -> tuple[str, list[str]]:
     if body and tiny / body > TINY_CHAPTER_SHARE:
         reasons.append(f"{tiny} of {body} body chapters under {TINY_CHAPTER_CHARS} characters")
     return ("suspect" if reasons else "ok"), reasons
+
+
+def record_shape(edition, artifact: BookArtifact, file_sha256: str, run=None):
+    """Measure what was just ingested and keep the verdict with the edition and the source.
+
+    Every real ingest is measured the way the shake-down measures a book it never keeps, so
+    the catalogue knows the shape of what it stores and a source's record can be ranked on
+    it. The verdict and its reasons also go on the edition as a note (never a review item: a
+    collection of short tales is "suspect" by shape and nobody has to read it for that).
+    """
+
+    from almonium_book_processor import ingest_processor_version
+    from almonium_book_processor.catalog.models import QAWarning, SourceShape
+
+    metrics = measure(artifact)
+    verdict, reasons = judge(metrics)
+    download = getattr(edition, "source_download", None)
+    url = (download.download_url if download else "") or f"upload:{file_sha256}"
+    SourceShape.objects.update_or_create(
+        source_url=url[:500],
+        source_sha256=file_sha256,
+        defaults={
+            "source_kind": (download.source_kind if download else "upload")[:40],
+            "title": (edition.title or artifact.edition.title or "")[:500],
+            "author": (edition.author or artifact.edition.author or "")[:300],
+            "language": (edition.language or artifact.edition.language or "")[:16],
+            "verdict": verdict,
+            "reasons": reasons,
+            "metrics": metrics,
+            "processor_version": ingest_processor_version(),
+        },
+    )
+    QAWarning.objects.create(
+        edition=edition,
+        pipeline_run=run,
+        code="source_shape",
+        severity=QAWarning.Severity.INFO,
+        message=(
+            f"Shape {verdict}: {metrics['body_chapters']} body chapter(s) of {metrics['chapters']}"
+            + ("; " + "; ".join(reasons) if reasons else "")
+        ),
+    )
+    return verdict, reasons

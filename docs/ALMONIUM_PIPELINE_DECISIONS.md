@@ -847,3 +847,11 @@ this are over." The rules, with their numbers:
   the book is not re-cut. The chapters' readings are given up on purpose: there
   are more chapters now and each needs its own level and recap from the
   judges. The re-cut is recorded as an ingest run with the current cut version.
+
+- **Every real ingest is measured** (`source_shape.record_shape`, from the ingest
+  task): the same shape check the shake-down runs, its verdict and metrics kept
+  in `SourceShape` under the download address (or `upload:<digest>`) and a note
+  on the edition. A note, not a review item, and never a hold: of two hundred
+  Gutenberg books the dozen "suspect" by shape were collections of short pieces
+  that are what they are. The verdict is for ranking sources and for a person
+  looking at the edition page, not for stopping a book.

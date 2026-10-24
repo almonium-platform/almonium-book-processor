@@ -312,6 +312,16 @@ def test_epub_task_persists_normalized_content(tmp_path, settings) -> None:
     assert edition.chapters.count() == 1
     assert list(edition.blocks.values_list("text", flat=True)) == ["Eins", "Der erste Abschnitt."]
     assert edition.pipeline_runs.get().status == PipelineRun.Status.SUCCEEDED
+    # every real ingest is measured like a shake-down book and the verdict kept with the source
+    from almonium_book_processor.catalog.models import SourceShape
+
+    shape = SourceShape.objects.get(source_url=f"upload:{edition.source_sha256}")
+    # a twenty-character book is one short chapter: suspect by shape, and only a note for it
+    assert shape.verdict == "suspect" and shape.source_kind == "upload"
+    assert shape.metrics["chapters"] == 1 and "+cut-" in shape.processor_version
+    note = edition.warnings.get(code="source_shape")
+    assert note.severity == "info"
+    assert note.message.startswith("Shape suspect: 1 body chapter(s) of 1; 1 of 1 body chapters")
 
 
 def test_tei_task_persists_normalized_content(tmp_path, settings) -> None:

@@ -52,6 +52,7 @@ from almonium_book_processor.catalog.publication import (
 )
 from almonium_book_processor.catalog.purge import purge_edition, removal_blocker
 from almonium_book_processor.catalog.services import persist_artifact
+from almonium_book_processor.catalog.source_shape import record_shape
 from almonium_book_processor.catalog.translation_jobs import continue_after_translation
 from almonium_book_processor.ingest.source import ingest_source, source_format
 from almonium_book_processor.processing.lexical import (
@@ -279,6 +280,10 @@ def process_source_edition(self, edition_id: str) -> None:
         with transaction.atomic():
             adopt_source_metadata(edition, artifact.edition)
             persist_artifact(edition, artifact, run)
+            try:
+                record_shape(edition, artifact, source_hash, run)
+            except Exception:  # a measurement must never fail an ingest
+                logger.exception("Could not record the shape of edition %s", edition.id)
             run.status = PipelineRun.Status.SUCCEEDED
             run.progress = 100
             run.finished_at = timezone.now()
