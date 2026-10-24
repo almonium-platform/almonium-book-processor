@@ -22,17 +22,19 @@ NUMBERED = re.compile(
 )
 # What sits around a story, in the languages the library makes books in.
 MATTER = re.compile(
-    r"\b(preface|préface|vorwort|передмова|foreword|introduction|einleitung|einführung"
-    r"|вступ|dedication|dédicace|widmung|присвята|contents|table des matières|inhalt|зміст"
-    r"|afterword|nachwort|післямова|appendix|appendice|anhang|додаток|notes?|anmerkungen"
-    r"|примітки|glossary|glossaire|glossar|глосарій|bibliography|bibliographie|бібліографія"
-    r"|acknowledg\w*|transcriber|about the author|über den autor|про автора|colophon"
-    r"|advertisements?|errata)\b",
+    r"\b(preface|préface|prefazione|prefacio|pr[óo]logo|vorwort|vorrede|avant-propos|передмова"
+    r"|foreword|introdu\w*|einleitung|einführung|вступ|dedication|dédicace|dedica|dedicatoria"
+    r"|widmung|присвята|contents|table des matières|sommaire|inhalt(sverzeichnis)?|[íi]ndice"
+    r"|зміст|illustrations?|afterword|nachwort|післямова|appendix|appendice|anhang|додаток"
+    r"|notes?|notas?|anmerkungen|примітки|avvertenza|advertencia|glossary|glossaire|glossar"
+    r"|глосарій|bibliography|bibliographie|бібліографія|acknowledg\w*|transcriber"
+    r"|about the author|über den autor|про автора|colophon|advertisements?|errata"
+    r"|there are several editions of this ebook)\b",
     re.IGNORECASE,
 )
 
 
-def chapter_roles(titles: list[str]) -> list[str]:
+def chapter_roles(titles: list[str], *, book_title: str | None = None) -> list[str]:
     """A role per chapter title, in order: front matter, the story, back matter.
 
     The story runs from the first to the last chapter with a story title: a numbered one, or
@@ -47,6 +49,13 @@ def chapter_roles(titles: list[str]) -> list[str]:
     """
 
     story = [_is_story(title) for title in titles]
+    # the title page: a chapter named after the book itself, ahead of the story
+    if book_title:
+        for index, title in enumerate(titles):
+            if story[index] and _same_title(title, book_title):
+                story[index] = False
+            elif story[index]:
+                break
     if not any(story):
         return [Chapter.AnalysisRole.BODY] * len(titles)
     numbered = [bool(NUMBERED.match(title.strip())) for title in titles]
@@ -60,6 +69,16 @@ def chapter_roles(titles: list[str]) -> list[str]:
         else Chapter.AnalysisRole.BODY
         for index in range(len(titles))
     ]
+
+
+def _same_title(title: str, book_title: str) -> bool:
+    """Whether a chapter title is the book's own, as a title page carries it."""
+
+    plain = lambda text: re.sub(r"[^\w]+", " ", text).strip().lower()  # noqa: E731
+    chapter, book = plain(title), plain(book_title)
+    return bool(chapter) and (
+        chapter == book or book.startswith(chapter) or chapter.startswith(book)
+    )
 
 
 def _is_story(title: str) -> bool:
@@ -92,7 +111,7 @@ def retag(edition: Edition) -> int:
     if edition.source_edition_id:
         roles = [source_role(edition, chapter.sequence) for chapter in chapters]
     else:
-        roles = chapter_roles([chapter.title for chapter in chapters])
+        roles = chapter_roles([chapter.title for chapter in chapters], book_title=edition.title)
     changed = [
         chapter
         for chapter, role in zip(chapters, roles, strict=True)

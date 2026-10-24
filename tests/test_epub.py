@@ -615,3 +615,67 @@ def test_chapters_marked_with_h4_and_titled_with_h5_are_split_at_the_h4(tmp_path
     # the h5 title stays inside its chapter as a heading block, not a chapter of its own
     assert [block.type for block in chapters[1]][:2] == [BlockType.HEADING, BlockType.HEADING]
     assert chapters[1][1].text == "Do livro"
+
+
+def _book(tmp_path, documents, *, author="Ada Author"):
+    source = tmp_path / "book.epub"
+    book = epub.EpubBook()
+    book.set_identifier("urn:test:fold")
+    book.set_title("Also sprach Zarathustra")
+    book.set_language("de")
+    if author:
+        book.add_author(author)
+    items = []
+    for index, content in enumerate(documents):
+        item = epub.EpubHtml(title=f"d{index}", file_name=f"text/d{index}.xhtml", lang="de")
+        item.content = content
+        book.add_item(item)
+        items.append(item)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", *items]
+    epub.write_epub(source, book)
+    return source
+
+
+def test_a_heading_only_chapter_joins_the_next_as_its_part_label(tmp_path) -> None:
+    # Zarathustra: the book's title and "Erster Theil" each stood as a chapter of their heading
+    source = _book(
+        tmp_path,
+        [
+            "<h1>Also sprach Zarathustra</h1>",
+            "<h2>Erster Theil</h2>",
+            "<h2>Zarathustra's Vorrede</h2><p>Als Zarathustra dreissig Jahr alt war.</p>",
+            "<h2>Die Reden Zarathustra's</h2><p>Drei Verwandlungen nenne ich euch.</p>",
+        ],
+    )
+
+    artifact = ingest_epub(source, edition_slug="z-de", work_slug="z")
+
+    assert [block.chapter for block in artifact.blocks] == [0, 0, 0, 0, 1, 1]
+    assert [block.text for block in artifact.blocks[:4]] == [
+        "Also sprach Zarathustra",
+        "Erster Theil",
+        "Zarathustra's Vorrede",
+        "Als Zarathustra dreissig Jahr alt war.",
+    ]
+    # the joined headings are part labels; the chapter's own title is the third heading
+    assert [block.attributes.get("part") for block in artifact.blocks[:3]] == [True, True, None]
+    assert [block.block_id for block in artifact.blocks] == [
+        "c0.h1",
+        "c0.h2",
+        "c0.h3",
+        "c0.p4",
+        "c1.h1",
+        "c1.p2",
+    ]
+    assert "heading_only_chapters_folded" in [w.code for w in artifact.warnings]
+
+
+def test_a_book_without_an_author_is_still_a_book(tmp_path) -> None:
+    source = _book(tmp_path, ["<h2>I</h2><p>Anonymous words.</p>"], author=None)
+
+    artifact = ingest_epub(source, edition_slug="a-de", work_slug="a")
+
+    assert artifact.edition.author == "Unknown"
+    assert "author_missing" in [w.code for w in artifact.warnings]

@@ -158,3 +158,40 @@ def test_retagging_reads_an_original_and_copies_a_source_to_its_editions():
     assert retag(adaptation) == 0
     assert adaptation.chapters.get(sequence=0).analysis_role == "front"
     assert adaptation.chapters.get(sequence=2).analysis_role == "body"
+
+
+def test_matter_pages_are_known_in_every_library_language():
+    # the first hundred Gutenberg books of 2026-10-24: INDICE, TABLE DES MATIÈRES and Prólogo
+    # pages counted as the story in twenty of them
+    titles = ["INDICE", "I.", "II.", "NOTE"]
+    assert chapter_roles(titles) == ["front", "body", "body", "back"]
+    assert chapter_roles(["TABLE DES MATIÈRES", "Chapitre I", "Chapitre II"])[0] == "front"
+    assert chapter_roles(["Prólogo", "Tratado primero", "Tratado segundo"])[0] == "front"
+    assert chapter_roles(["INTRODUZIONE", "Capitolo I"])[0] == "front"
+    assert chapter_roles(["Inhaltsverzeichnis", "Erstes Kapitel"])[0] == "front"
+    assert chapter_roles(["ILLUSTRATIONS", "STAVE ONE.", "STAVE TWO."])[0] == "front"
+
+
+def test_the_gutenberg_editions_note_and_the_title_page_are_front_matter():
+    titles = [
+        "There are several editions of this ebook in the Project Gutenberg collection.",
+        "A Christmas Carol",
+        "STAVE ONE.",
+        "STAVE TWO.",
+    ]
+    assert chapter_roles(titles, book_title="A Christmas Carol in Prose") == [
+        "front",
+        "front",
+        "body",
+        "body",
+    ]
+    # without the book's title the title page cannot be told from a story chapter
+    assert chapter_roles(titles)[1] == "body"
+    # a story chapter that happens to share words with the title is not a title page
+    assert chapter_roles(
+        ["Faust", "Nacht", "Vor dem Tor"], book_title="Faust: Der Tragödie erster Teil"
+    ) == [
+        "front",
+        "body",
+        "body",
+    ]

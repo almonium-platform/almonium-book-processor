@@ -11,7 +11,8 @@ from pathlib import Path
 import requests
 from django.core.management.base import BaseCommand
 
-from almonium_book_processor.catalog.models import SourceShape
+from almonium_book_processor.catalog.models import SourceDownload, SourceShape
+from almonium_book_processor.catalog.source_download import download
 from almonium_book_processor.catalog.source_shape import judge, measure
 from almonium_book_processor.ingest.epub import ingest_epub
 
@@ -91,15 +92,16 @@ class Command(BaseCommand):
     def _look(self, session, url: str, path: Path) -> SourceShape:
         row = SourceShape(source_url=url, source_kind="gutenberg", processor_version=VERSION)
         try:
-            response = session.get(url, timeout=120)
-            response.raise_for_status()
-            path.write_bytes(response.content)
-            row.source_sha256 = hashlib.sha256(response.content).hexdigest()
+            fetched = download(url, SourceDownload.Kind.GUTENBERG)
+            path = fetched.path
+            row.source_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+            if fetched.final_url != url:
+                row.metrics = {"fetched_from": fetched.final_url}
             artifact = ingest_epub(path, edition_slug="shake-down", work_slug="shake-down")
             row.title = (artifact.edition.title or "")[:500]
             row.author = (artifact.edition.author or "")[:300]
             row.language = (artifact.edition.language or "")[:16]
-            row.metrics = measure(artifact)
+            row.metrics = {**row.metrics, **measure(artifact)}
             row.verdict, row.reasons = judge(row.metrics)
         except Exception as error:  # a book that cannot be read is a finding too
             row.verdict = SourceShape.Verdict.UNREADABLE

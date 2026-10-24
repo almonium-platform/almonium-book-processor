@@ -40,6 +40,14 @@ def test_a_short_story_in_one_piece_is_sound():
     )
 
 
+def test_a_book_in_three_parts_is_sound_however_long():
+    # Die Verwandlung and Heart of Darkness are three parts each
+    assert judge(metrics(chapters=3, body_chapters=3, chars=121_000, largest_body_share=0.4)) == (
+        "ok",
+        [],
+    )
+
+
 def test_one_chapter_holding_half_the_book_among_many_is_a_missed_heading():
     verdict, reasons = judge(metrics(body_chapters=11, largest_body_share=0.49))
     assert verdict == "suspect" and reasons == ["one body chapter is 49% of the body"]

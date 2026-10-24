@@ -399,12 +399,18 @@ def persist_artifact(edition: Edition, artifact: BookArtifact, run: PipelineRun)
 
     headings: dict[int, str] = {}
     for block in artifact.blocks:
-        if block.type.value == "heading" and block.chapter not in headings:
+        if (
+            block.type.value == "heading"
+            and block.chapter not in headings
+            and not block.attributes.get("part")  # a part label joined from a heading-only chapter
+        ):
             headings[block.chapter] = block.text[:500]
     for number, title in headings.items():
         chapters[number].title = title
     # the title page, a dedication, a preface: adapted as far as they go, never the level
-    roles = chapter_roles([chapters[number].title for number in chapter_numbers])
+    roles = chapter_roles(
+        [chapters[number].title for number in chapter_numbers], book_title=edition.title
+    )
     for number, role in zip(chapter_numbers, roles, strict=True):
         chapters[number].analysis_role = role
     Chapter.objects.bulk_update(list(chapters.values()), ["title", "analysis_role"])

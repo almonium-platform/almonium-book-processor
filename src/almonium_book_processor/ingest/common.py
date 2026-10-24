@@ -335,3 +335,66 @@ def epub_image_resolver(document_name: str) -> Callable[[str], str]:
 
 def parse_html(content: bytes | str) -> BeautifulSoup:
     return BeautifulSoup(content, "html.parser")
+
+
+def fold_heading_only_chapters(
+    blocks: list[ContentBlock],
+) -> tuple[list[ContentBlock], list[IngestionWarning]]:
+    """Join every heading-only chapter to the chapter after it, as that chapter's part label.
+
+    The splitter opens a chapter at every heading, so a heading followed at once by another
+    heading becomes a chapter of its own title: Zarathustra's "Erster Theil", a poem's title
+    ahead of its numbered sections. Such a chapter has headings and at most images, no text.
+    Its blocks move to the front of the next chapter; its headings are marked ``part`` so the
+    next chapter keeps its own title. The chapters are numbered again from 0 and the block
+    ids follow. A heading-only chapter at the very end (a closing word) stays as it is.
+    """
+
+    by_chapter: dict[int, list[ContentBlock]] = {}
+    for block in blocks:
+        by_chapter.setdefault(block.chapter, []).append(block)
+    numbers = sorted(by_chapter)
+    groups: list[list[ContentBlock]] = []
+    carry: list[ContentBlock] = []
+    folded = 0
+    for number in numbers:
+        group = by_chapter[number]
+        heading_only = any(block.type == BlockType.HEADING for block in group) and all(
+            block.type in (BlockType.HEADING, BlockType.IMAGE, BlockType.SEPARATOR)
+            for block in group
+        )
+        if heading_only and number != numbers[-1]:
+            carry.extend(
+                block.model_copy(update={"attributes": {**block.attributes, "part": True}})
+                if block.type == BlockType.HEADING
+                else block
+                for block in group
+            )
+            folded += 1
+            continue
+        groups.append(carry + group)
+        carry = []
+    if carry:
+        groups.append(carry)
+    if not folded:
+        return blocks, []
+    renumbered = []
+    for chapter, group in enumerate(groups):
+        for seq, block in enumerate(group, 1):
+            renumbered.append(
+                block.model_copy(
+                    update={
+                        "chapter": chapter,
+                        "seq": seq,
+                        "block_id": f"c{chapter}.{BLOCK_PREFIX[block.type]}{seq}",
+                    }
+                )
+            )
+    return renumbered, [
+        IngestionWarning(
+            code="heading_only_chapters_folded",
+            message=(
+                f"{folded} heading-only chapter(s) joined the chapter after them as part labels"
+            ),
+        )
+    ]

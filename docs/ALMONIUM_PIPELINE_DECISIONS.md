@@ -699,5 +699,27 @@ this are over." The rules, with their numbers:
   about a hundred books in minutes) and records each verdict with the download
   URL and file digest (`SourceShape`), so the catalogue knows a source was
   checked and what was found before a reader's request ingests it. The first
-  hundred (20 each in en, fr, de, es, it) ran on 2026-10-24; the recurring
-  shapes they show are the next fixes to the splitter and the chapter roles.
+  hundred (20 each in en, fr, de, es, it) ran on 2026-10-24: 38 sound, 50
+  suspect, 13 unreadable. What recurred, and what changed the same day:
+  - *Contents, index and preface pages counted as the story* in 20 books: the
+    front-matter words were English only. `front_matter.MATTER` now knows
+    INDICE, TABLE DES MATIÈRES, Prólogo, INTRODUZIONE, Inhaltsverzeichnis,
+    ILLUSTRATIONS and the Gutenberg editions note, in every library language.
+  - *A heading followed at once by another heading became a chapter of its own
+    title* in 30 books (Zarathustra's "Erster Theil", a poem's title ahead of
+    its numbered sections). Ingest now folds a chapter that holds headings and
+    at most images into the chapter after it, as that chapter's part label
+    (`ingest/common.py`, `fold_heading_only_chapters`); the next chapter keeps
+    its own title.
+  - *The title page counted as the story* in 13 books. A leading chapter named
+    after the book is front matter (`chapter_roles(..., book_title=)`).
+  - *No EPUB at the address we use* for 10 books. Two of them had the plain
+    build only; the downloader now tries `.epub.images` and `.epub.noimages`
+    after `.epub3.images` answers 404 (`source_download.download`). The rest
+    were audio recordings, which Gutenberg lists among ebooks; the backend's
+    catalogue already offers text entries alone.
+  - *No author in the file* for 3 books, anthologies and scripture: ingest
+    took the whole book away over a label. It now reads "Unknown" and leaves a
+    warning; the metadata step proposes the author afterwards.
+  - The size rule flags two body chapters or fewer, not three: Die Verwandlung
+    and Heart of Darkness are three parts, rightly.

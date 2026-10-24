@@ -19,7 +19,7 @@ from almonium_book_processor.models import BlockType, BookArtifact
 
 # A book this long cut into this few pieces was not cut at its chapters.
 LONG_BOOK_CHARS = 60_000
-FEW_CHAPTERS = 3
+FEW_CHAPTERS = 2  # Die Verwandlung and Heart of Darkness are three parts, rightly
 # One body chapter holding this share of the body text, among several, is a missed heading.
 LOPSIDED_SHARE = 0.40
 # A body chapter shorter than this is a heading that caught no text.
@@ -41,11 +41,14 @@ def measure(artifact: BookArtifact) -> dict[str, Any]:
     for block in artifact.blocks:
         chapter = chapters.setdefault(block.chapter, {"title": "", "chars": 0})
         if block.type == BlockType.HEADING and not chapter["title"]:
-            chapter["title"] = block.text.strip()
+            if not block.attributes.get("part"):
+                chapter["title"] = block.text.strip()
         elif block.type not in (BlockType.IMAGE, BlockType.SEPARATOR):
             chapter["chars"] += len(block.text)
     ordered = [chapters[sequence] for sequence in sorted(chapters)]
-    roles = chapter_roles([chapter["title"] for chapter in ordered])
+    roles = chapter_roles(
+        [chapter["title"] for chapter in ordered], book_title=artifact.edition.title
+    )
     for chapter, role in zip(ordered, roles, strict=True):
         chapter["role"] = role
     body = [chapter for chapter in ordered if chapter["role"] == "body"]

@@ -129,9 +129,43 @@ class _NoRedirect(HTTPRedirectHandler):
 _open = build_opener(_NoRedirect).open
 
 
-def download(url: str, source_kind: str, *, urlopen=None) -> Downloaded:
-    """Fetch the EPUB behind ``url`` into a temporary file the caller removes."""
+def gutenberg_alternates(url: str) -> list[str]:
+    """The other EPUB builds Gutenberg may have of the same book, best first.
 
+    Not every book has every build: of a hundred popular books on 2026-10-24 one text had
+    no ``.epub3.images`` at all. The plain ``.epub.noimages`` is the one most books have.
+    """
+
+    parts = urlsplit(url)
+    match = re.match(r"^/ebooks/(\d+)\.(epub3\.images|epub\.images|epub\.noimages)$", parts.path)
+    if not match:
+        return []
+    builds = ["epub3.images", "epub.images", "epub.noimages"]
+    later = builds[builds.index(match.group(2)) + 1 :]
+    return [parts._replace(path=f"/ebooks/{match.group(1)}.{build}").geturl() for build in later]
+
+
+def download(url: str, source_kind: str, *, urlopen=None) -> Downloaded:
+    """Fetch the EPUB behind ``url`` into a temporary file the caller removes.
+
+    A Gutenberg address that answers 404 is tried in its other builds before it is given up.
+    """
+
+    try:
+        return _download(url, source_kind, urlopen=urlopen)
+    except DownloadRefused as refused:
+        if "HTTP 404" not in str(refused) or source_kind != SourceDownload.Kind.GUTENBERG:
+            raise
+        for alternate in gutenberg_alternates(url):
+            try:
+                return _download(alternate, source_kind, urlopen=urlopen)
+            except DownloadRefused as also_refused:
+                if "HTTP 404" not in str(also_refused):
+                    raise
+        raise refused
+
+
+def _download(url: str, source_kind: str, *, urlopen=None) -> Downloaded:
     urlopen = urlopen or _open
     check_download_url(url, source_kind)
     started = time.monotonic()

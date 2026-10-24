@@ -19,6 +19,7 @@ from almonium_book_processor.ingest.common import (
     BlockBuilder,
     epub_image_resolver,
     extract_blocks,
+    fold_heading_only_chapters,
     parse_html,
     sha256_file,
 )
@@ -97,13 +98,13 @@ def ingest_epub(
     title = title or _metadata_value(book, "title")
     author = author or _metadata_value(book, "creator")
     language = language or _metadata_value(book, "language")
-    missing = [
-        name
-        for name, value in (("title", title), ("author", author), ("language", language))
-        if not value
-    ]
+    missing = [name for name, value in (("title", title), ("language", language)) if not value]
     if missing:
         raise ValueError(f"EPUB metadata is missing {', '.join(missing)}; provide an override")
+    # anthologies, anonymous works and scripture name no author; the book is still a book,
+    # and the metadata step proposes one afterwards
+    author_missing = not author
+    author = author or "Unknown"
 
     documents: list[tuple[str, Tag]] = []
     seen_documents: set[str] = set()
@@ -122,6 +123,14 @@ def ingest_epub(
         documents.append((document_name, soup.body or soup))
 
     builder = BlockBuilder(edition_slug)
+    if author_missing:
+        builder.warnings.append(
+            IngestionWarning(
+                code="author_missing",
+                message="The EPUB names no author; 'Unknown' stands until one is entered",
+                source_ref=str(source_path),
+            )
+        )
     documents, notices = trim_gutenberg_boilerplate(documents)
     builder.warnings.extend(notices)
     if is_wikisource_export(book):
@@ -199,6 +208,8 @@ def ingest_epub(
     if not builder.blocks:
         raise ValueError("EPUB contains no supported content blocks")
 
+    builder.blocks, notices = fold_heading_only_chapters(builder.blocks)
+    builder.warnings.extend(notices)
     actual_chapters = len({block.chapter for block in builder.blocks})
     if expected_chapters is not None and actual_chapters != expected_chapters:
         builder.warnings.append(

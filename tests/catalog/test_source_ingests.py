@@ -97,7 +97,8 @@ def fake_web(monkeypatch, routes: dict[str, object]) -> list:
 
     def urlopen(request, timeout):
         seen.append(request)
-        answer = routes[request.full_url]
+        # an address nobody routed does not exist, as on the web
+        answer = routes.get(request.full_url) or http_error(request.full_url, 404)
         if isinstance(answer, Exception):
             raise answer
         return answer
@@ -432,3 +433,25 @@ def test_a_failed_download_is_retried_from_the_edition_page(
     assert edition.source_download.status == SourceDownload.Status.PENDING
     assert edition.source_download.error == ""
     assert queued[-1] == ("download", str(edition.id))
+
+
+def test_a_gutenberg_book_without_the_images_build_is_fetched_in_its_plain_build(monkeypatch):
+    plain = "https://www.gutenberg.org/ebooks/84.epub.noimages"
+    seen = fake_web(monkeypatch, {plain: FakeResponse(EPUB_BYTES)})
+
+    fetched = source_download.download(GUTENBERG_EPUB, "gutenberg")
+
+    assert fetched.final_url == plain and fetched.size == len(EPUB_BYTES)
+    assert [request.full_url.rsplit(".", 2)[-2:] for request in seen] == [
+        ["epub3", "images"],
+        ["epub", "images"],
+        ["epub", "noimages"],
+    ]
+    fetched.path.unlink()
+
+
+def test_a_gutenberg_book_with_no_epub_at_all_is_refused_as_before(monkeypatch):
+    fake_web(monkeypatch, {})
+
+    with pytest.raises(source_download.DownloadRefused, match="HTTP 404"):
+        source_download.download(GUTENBERG_EPUB, "gutenberg")
