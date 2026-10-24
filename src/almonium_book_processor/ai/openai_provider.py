@@ -9,6 +9,9 @@ from typing import Any
 
 from django.conf import settings
 
+# A direct request may carry a long window at high effort; the Batch path has no such clock.
+DIRECT_TIMEOUT_SECONDS = 1800.0
+
 
 class OpenAIBatchProvider:
     """Small provider boundary around the OpenAI Batch API."""
@@ -96,7 +99,11 @@ class OpenAIBatchProvider:
         it forfeits the 50% Batch discount.
         """
 
-        response = self.client.responses.create(**body)
+        # The SDK would retry a slow or 5xx request twice on its own, and a generation the
+        # server finished is billed each time: one request, one bill. Connection errors
+        # before the request is sent are the caller's to retry.
+        client = self.client.with_options(max_retries=0, timeout=DIRECT_TIMEOUT_SECONDS)
+        response = client.responses.create(**body)
         return response.model_dump()
 
     def retrieve(self, batch_id: str) -> Any:

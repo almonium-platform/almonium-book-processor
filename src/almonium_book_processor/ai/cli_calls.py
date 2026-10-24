@@ -24,7 +24,11 @@ from jsonschema import Draft202012Validator
 logger = logging.getLogger(__name__)
 
 RETRY_PAUSE_SECONDS = 15.0
-_ALLOWANCE_USED_UP = re.compile(r"usage limit|limit reached", re.IGNORECASE)
+_ALLOWANCE_USED_UP = re.compile(
+    r"usage limit|limit reached|usage_limit|rate limit|quota|hit your (?:weekly |session )?limit"
+    r"|out of (?:credits|quota)",
+    re.IGNORECASE,
+)
 # A run's error that holds this text was refused for a used-up allowance, not for its own fault.
 ALLOWANCE_USED_UP = "Allowance used up"
 _TRY_AGAIN = re.compile(r"try again at ([^.\n]+)", re.IGNORECASE)
@@ -103,7 +107,16 @@ def tried_twice(
 
     try:
         return call()
-    except (RuntimeError, subprocess.TimeoutExpired) as error:
+    except subprocess.TimeoutExpired as error:
+        # The CLI was killed, but the model may well have finished the work and the plan paid
+        # for it; asking again pays twice for the slowest call of the book. The window fails,
+        # and the next attempt reuses every answer that was kept.
+        _raise_if_used_up(error)
+        raise CallFailed(
+            "The plan CLI gave no answer within its timeout; not asked again in this call.",
+            spent_by(error),
+        ) from error
+    except RuntimeError as error:
         _raise_if_used_up(error)
         first = spent_by(error)
         logger.warning("A plan CLI call failed and is tried once more: %s", str(error)[:300])

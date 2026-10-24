@@ -173,8 +173,13 @@ def test_a_call_that_fails_in_passing_is_tried_once_more():
     assert outputs == [] and len(pauses) == 1
 
 
-def test_a_timeout_is_tried_once_more_and_then_raised():
+def test_a_timeout_is_not_tried_again_in_the_same_call():
+    """The CLI was killed, but the model may have finished and the plan paid: asking again
+    pays twice for the slowest call of the book. The window fails and is resumed later."""
+
     import subprocess
+
+    from almonium_book_processor.ai.cli_calls import CallFailed
 
     calls = []
 
@@ -184,9 +189,9 @@ def test_a_timeout_is_tried_once_more_and_then_raised():
 
     provider = CodexProvider(binary="codex", timeout_seconds=5, runner=runner, pause=lambda _: None)
 
-    with pytest.raises(subprocess.TimeoutExpired):
+    with pytest.raises(CallFailed, match="not asked again"):
         provider.respond(BODY)
-    assert len(calls) == 2
+    assert len(calls) == 1
 
 
 def test_a_plan_whose_allowance_is_used_up_is_not_asked_again():

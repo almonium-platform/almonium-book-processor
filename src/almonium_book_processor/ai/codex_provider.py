@@ -30,6 +30,10 @@ def codex_home(home: str | Path | None = None) -> Path:
     return Path(home or os.environ.get("CODEX_HOME") or Path.home() / ".codex")
 
 
+# A meter read from the log of a call this recent is the meter; a probe call costs a turn.
+METER_FRESH_SECONDS = 300
+
+
 def codex_meter(
     *,
     home: str | Path | None = None,
@@ -48,6 +52,17 @@ def codex_meter(
     workdir.mkdir(parents=True, exist_ok=True)
     started, log = time.time(), None
     try:
+        # a call made minutes ago already told the CLI the meter: read that, ask nothing
+        recent = sorted(
+            (account / "sessions").glob("*/*/*/rollout-*.jsonl"),
+            key=lambda path: path.stat().st_mtime,
+        )
+        if recent and started - recent[-1].stat().st_mtime < METER_FRESH_SECONDS:
+            text = recent[-1].read_text()
+            found = re.findall(r'"primary":\s*(\{[^}]*\})', text)
+            plan = re.findall(r'"plan_type":\s*"([^"]*)"', text)
+            if found:
+                return {**json.loads(found[-1]), "plan_type": plan[-1] if plan else ""}
         runner(
             [
                 binary or settings.CODEX_BINARY,
