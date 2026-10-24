@@ -357,7 +357,8 @@ def fold_heading_only_chapters(
     ahead of its numbered sections. Such a chapter has headings and at most images, no text.
     Its blocks move to the front of the next chapter; its headings are marked ``part`` so the
     next chapter keeps its own title. The chapters are numbered again from 0 and the block
-    ids follow. A heading-only chapter at the very end (a closing word) stays as it is.
+    ids follow. A heading-only chapter at the very end, a closing word such as "FINE.", joins
+    the chapter before it: it is the end of that chapter, not a chapter.
     """
 
     by_chapter: dict[int, list[ContentBlock]] = {}
@@ -373,7 +374,7 @@ def fold_heading_only_chapters(
             block.type in (BlockType.HEADING, BlockType.IMAGE, BlockType.SEPARATOR)
             for block in group
         )
-        if heading_only and number != numbers[-1]:
+        if heading_only:
             carry.extend(
                 block.model_copy(update={"attributes": {**block.attributes, "part": True}})
                 if block.type == BlockType.HEADING
@@ -384,7 +385,9 @@ def fold_heading_only_chapters(
             continue
         groups.append(carry + group)
         carry = []
-    if carry:
+    if carry and groups:
+        groups[-1].extend(carry)  # the closing word ends the last chapter
+    elif carry:
         groups.append(carry)
     if not folded:
         return blocks, []

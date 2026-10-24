@@ -720,3 +720,20 @@ def test_a_long_chapter_after_a_heading_and_a_continuing_file_are_cut_by_size(tm
     assert sum(1 for w in artifact.warnings if w.code == "long_document_split_by_size") == 2
     # every part carries the mark that makes it the story for the chapter roles
     assert all(block.attributes.get("cut") == "size" for block in artifact.blocks)
+
+
+def test_a_closing_word_ends_the_last_chapter_instead_of_opening_one(tmp_path) -> None:
+    # Damiano closes with a page that says only "FINE."
+    source = _book(
+        tmp_path,
+        [
+            "<h2>I</h2><p>Primo capitolo della storia.</p>",
+            "<h2>II</h2><p>Secondo capitolo della storia.</p>",
+            "<h2>FINE.</h2>",
+        ],
+    )
+
+    artifact = ingest_epub(source, edition_slug="d-it", work_slug="d")
+
+    assert [block.chapter for block in artifact.blocks] == [0, 0, 1, 1, 1]
+    assert artifact.blocks[-1].text == "FINE." and artifact.blocks[-1].attributes.get("part")
