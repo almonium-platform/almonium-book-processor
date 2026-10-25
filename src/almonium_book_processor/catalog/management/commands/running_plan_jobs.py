@@ -18,12 +18,17 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         silent_after = timezone.now() - abandoned_after()
+        from almonium_book_processor.catalog.production import VERSION
+
+        # a production is a ticker, not a call in flight: between ticks a restart costs it
+        # nothing, and while the queue is paused it is "running" with nobody working on it
         live = (
             PipelineRun.objects.filter(
                 stage__in=WORKED_BY_ONE_PROCESS,
                 status=PipelineRun.Status.RUNNING,
                 updated_at__gte=silent_after,
             )
+            .exclude(processor_version=VERSION)
             .select_related("edition")
             .order_by("stage", "updated_at")
         )
