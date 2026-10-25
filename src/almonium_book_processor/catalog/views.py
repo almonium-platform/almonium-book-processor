@@ -2011,6 +2011,33 @@ def plan_account_pause_view(request: HttpRequest) -> HttpResponse:
 
 @staff_member_required
 @require_POST
+def plan_account_details_view(request: HttpRequest) -> HttpResponse:
+    """Keep what no CLI knows about an account: when it renews, and a label if wanted."""
+
+    from datetime import date
+
+    from almonium_book_processor.catalog.models import PlanAccount
+
+    provider = request.POST.get("provider", "")
+    account = request.POST.get("account", "")
+    renews = request.POST.get("renews_on", "").strip()
+    try:
+        renews_on = date.fromisoformat(renews) if renews else None
+    except ValueError:
+        messages.error(request, "Give the renewal date as YYYY-MM-DD.")
+        return redirect("catalog:dashboard")
+    if not provider or not account:
+        messages.error(request, "Name the account.")
+        return redirect("catalog:dashboard")
+    PlanAccount.objects.update_or_create(
+        provider=provider, account=account, defaults={"renews_on": renews_on}
+    )
+    messages.info(request, f"{account}: renewal date saved.")
+    return redirect("catalog:dashboard")
+
+
+@staff_member_required
+@require_POST
 def run_spend_guard_view(request: HttpRequest) -> HttpResponse:
     """Read the ledger for money paid twice, now, from the dashboard."""
 

@@ -804,6 +804,9 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .plan-meter-list { list-style: none; margin: .5rem 0 0; padding: 0; display: grid; gap: .45rem; }
 .plan-meter { display: grid; grid-template-columns: 11rem 120px 1fr auto; align-items: center; gap: .9rem; font-size: .9rem; }
 .plan-meter-paused { opacity: .6; }
+.plan-meter-figures small { color: var(--muted); }
+.plan-meter-renews { display: inline-flex; gap: .4rem; align-items: center; margin-top: .25rem; font-size: .8rem; }
+.plan-meter-renews input[type=date] { font: inherit; padding: .05rem .3rem; }
 .plan-meter-all { display: flex; gap: .6rem; margin-top: .8rem; }
 .plan-meter-name small { color: var(--muted); font-weight: 400; margin-left: .3rem; }
 .plan-meter-figures { color: var(--muted); }

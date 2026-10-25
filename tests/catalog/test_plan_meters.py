@@ -66,3 +66,49 @@ def test_the_catalogue_page_shows_the_plans_this_week():
     # The header carries the short form inline; the popover keeps the account.
     assert 'class="plan-meter-inline">Codex-2 <span class="run-bar">' in page
     assert "12% used" in page
+
+
+def test_each_account_shows_who_it_is_when_it_resets_and_when_it_renews(client):
+    from datetime import date
+
+    from almonium_book_processor.catalog.models import PlanAccount, PlanWorker
+
+    reading(
+        "claude-code",
+        ".claude-2",
+        3,
+        session_percent=12,
+        resets_at=datetime(2026, 10, 26, 20, 0, tzinfo=UTC),
+        session_resets_at=datetime(2026, 10, 26, 4, 0, tzinfo=UTC),
+    )
+    PlanAccount.objects.create(
+        provider="claude-code",
+        account=".claude-2",
+        email="almonium.app@gmail.com",
+        plan_label="max",
+        renews_on=date(2026, 11, 26),
+    )
+    PlanWorker.objects.create(
+        name="main",
+        nodename="plans-main@yoga",
+        codex_account=".codex",
+        claude_account=".claude-2",
+        seen_at=datetime.now(UTC),
+    )
+
+    (meter,) = plan_meters()
+    assert meter.email == "almonium.app@gmail.com" and meter.plan_label == "max"
+    assert meter.session_percent == 12 and meter.renews_on == date(2026, 11, 26)
+    assert meter.workers == ("main",)
+
+    client.force_login(get_user_model().objects.create_user(username="staff", is_staff=True))
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+    assert "almonium.app@gmail.com" in page and "worker: main" in page
+    assert "Week resets" in page and "session 12%" in page and "renews 26 Nov 2026" in page
+
+    response = client.post(
+        reverse("catalog:plan-account-details"),
+        {"provider": "claude-code", "account": ".claude-2", "renews_on": "2026-12-26"},
+    )
+    assert response.status_code == 302
+    assert PlanAccount.objects.get(account=".claude-2").renews_on == date(2026, 12, 26)

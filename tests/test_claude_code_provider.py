@@ -191,3 +191,43 @@ def test_the_plan_meters_are_read_from_the_usage_screen():
     assert asked == [("/usage", "/home/owner/.claude-2")]
     # a screen that cannot be read is no meter, never an error
     assert claude_meter(binary="claude", runner=lambda *a, **k: SimpleNamespace(stdout="")) is None
+
+
+def test_the_reset_times_are_read_from_the_usage_screen_in_its_own_zone():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from almonium_book_processor.ai.claude_code_provider import _reset_time, claude_meter
+
+    screen = (
+        "Current session: 32% used · resets Oct 26, 4:20am (Europe/Kyiv)\n"
+        "Current week (all models): 92% used · resets Oct 29, 4am (Europe/Kyiv)\n"
+        "Current week (Fable): 67% used · resets Oct 29, 4am (Europe/Kyiv)\n"
+    )
+    meter = claude_meter(
+        binary="claude",
+        runner=lambda *a, **k: SimpleNamespace(stdout=json.dumps({"result": screen})),
+    )
+
+    assert meter["week_percent"] == 92 and meter["session_percent"] == 32
+    week = datetime.fromisoformat(meter["week_resets_at"])
+    assert (week.month, week.day, week.hour, week.minute) == (10, 29, 4, 0)
+    assert week.utcoffset().total_seconds() == 2 * 3600  # Kyiv, after the clocks went back
+    session = datetime.fromisoformat(meter["session_resets_at"])
+    assert (session.hour, session.minute) == (4, 20)
+    # a reset just past New Year belongs to the coming year
+    now = datetime(2026, 12, 30, tzinfo=ZoneInfo("Europe/Kyiv"))
+    assert _reset_time("Jan 2, 4am", "Europe/Kyiv", now=now).startswith("2027-01-02")
+
+
+def test_the_account_is_read_from_auth_status():
+    from almonium_book_processor.ai.claude_code_provider import claude_account
+
+    status = {"loggedIn": True, "email": "almonium.app@gmail.com", "subscriptionType": "max"}
+    who = claude_account(
+        config_dir="/home/owner/.claude-2",
+        binary="claude",
+        runner=lambda *a, **k: SimpleNamespace(stdout=json.dumps(status)),
+    )
+    assert who == {"email": "almonium.app@gmail.com", "plan": "max"}
+    assert claude_account(binary="claude", runner=lambda *a, **k: SimpleNamespace(stdout="")) == {}

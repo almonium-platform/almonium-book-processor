@@ -3,10 +3,18 @@ from datetime import UTC, datetime
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from almonium_book_processor.ai.claude_code_provider import claude_config_dir, claude_meter
+from almonium_book_processor.ai.claude_code_provider import (
+    claude_account,
+    claude_config_dir,
+    claude_meter,
+)
 from almonium_book_processor.ai.codex_provider import codex_home, codex_meter
 from almonium_book_processor.ai.pricing import PLAN_WEEK_USD
-from almonium_book_processor.catalog.models import PlanMeterReading
+from almonium_book_processor.catalog.models import PlanAccount, PlanMeterReading
+
+
+def _instant(value):
+    return datetime.fromisoformat(value) if value else None
 
 
 class Command(BaseCommand):
@@ -46,6 +54,11 @@ class Command(BaseCommand):
                     resets_at=resets,
                     plan_type=meter["plan_type"],
                 )
+                PlanAccount.objects.update_or_create(
+                    provider="codex",
+                    account=account.name,
+                    defaults={"plan_label": meter["plan_type"] or ""},
+                )
         for config_dir in settings.CLAUDE_CONFIG_DIRS or [None]:
             account = claude_config_dir(config_dir)
             claude = claude_meter(config_dir=account)
@@ -69,6 +82,21 @@ class Command(BaseCommand):
                     week_percent=week,
                     session_percent=claude.get("session_percent"),
                     fable_week_percent=fable,
+                    resets_at=_instant(claude.get("week_resets_at")),
+                    session_resets_at=_instant(claude.get("session_resets_at")),
+                )
+                who = claude_account(config_dir=account)
+                PlanAccount.objects.update_or_create(
+                    provider="claude-code",
+                    account=account.name,
+                    defaults={
+                        key: value
+                        for key, value in (
+                            ("email", who.get("email")),
+                            ("plan_label", who.get("plan")),
+                        )
+                        if value
+                    },
                 )
         if record and answering:
             # a Codex account answers: the books its used-up allowance held can go on

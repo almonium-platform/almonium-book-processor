@@ -1138,6 +1138,7 @@ class PlanMeterReading(TimestampedModel):
     session_percent = models.PositiveSmallIntegerField(null=True, blank=True)
     fable_week_percent = models.PositiveSmallIntegerField(null=True, blank=True)
     resets_at = models.DateTimeField(null=True, blank=True)
+    session_resets_at = models.DateTimeField(null=True, blank=True)
     plan_type = models.CharField(max_length=40, blank=True)
 
     class Meta:
@@ -1262,3 +1263,26 @@ class PlanAccountPause(TimestampedModel):
 
     def __str__(self) -> str:
         return f"{self.provider} {self.account} paused"
+
+
+class PlanAccount(TimestampedModel):
+    """What is known about a plan account beyond its meter: whose it is, what plan, when it
+    renews. The meter timer fills the email and plan where a CLI tells them; the owner sets
+    the renewal date on the dashboard, since no CLI knows the billing day.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    provider = models.CharField(max_length=20)
+    account = models.CharField(max_length=80)
+    email = models.CharField(max_length=200, blank=True)
+    plan_label = models.CharField(max_length=60, blank=True)
+    renews_on = models.DateField(null=True, blank=True)
+    note = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["provider", "account"], name="one_record_per_account")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.provider} {self.account} ({self.email or 'unknown'})"

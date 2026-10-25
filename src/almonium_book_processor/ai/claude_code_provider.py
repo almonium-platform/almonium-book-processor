@@ -8,8 +8,10 @@ import tempfile
 import time
 import uuid
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 
@@ -26,6 +28,63 @@ _METERS = {
     "week_percent": r"Current week \(all models\): (\d+)% used",
     "fable_week_percent": r"Current week \(Fable\): (\d+)% used",
 }
+# "resets Oct 29, 4am (Europe/Kyiv)" or "resets Oct 26, 4:20am (Europe/Kyiv)": the screen's
+# own words, in the zone it names. A screen without the time or the zone gives no reset.
+_RESETS = {
+    "session_resets_at": (
+        r"Current session: .*?resets ([A-Z][a-z]{2} \d{1,2}, [\d:]+[ap]m) \(([^)]+)\)"
+    ),
+    "week_resets_at": (
+        r"Current week \(all models\): .*?resets ([A-Z][a-z]{2} \d{1,2}, [\d:]+[ap]m) \(([^)]+)\)"
+    ),
+}
+
+
+def _reset_time(when: str, zone: str, now: datetime | None = None) -> str | None:
+    """The screen's "Oct 29, 4am" in its zone as an ISO instant; the year is the one that
+    puts the moment in the coming year, never more than a few days back."""
+
+    try:
+        tz = ZoneInfo(zone)
+    except Exception:
+        return None
+    now = now or datetime.now(tz)
+    for fmt in ("%b %d, %I:%M%p", "%b %d, %I%p"):
+        try:
+            naive = datetime.strptime(f"{when}", fmt)
+        except ValueError:
+            continue
+        moment = naive.replace(year=now.year, tzinfo=tz)
+        if (now - moment).days > 7:
+            moment = moment.replace(year=now.year + 1)
+        return moment.isoformat()
+    return None
+
+
+def claude_account(
+    *,
+    config_dir: str | Path | None = None,
+    binary: str | None = None,
+    runner: Callable[..., Any] = subprocess.run,
+) -> dict[str, str]:
+    """Who the account is, as ``claude auth status`` says: email and subscription; {} if unknown."""
+
+    try:
+        completed = runner(
+            [binary or settings.CLAUDE_CODE_BINARY, "auth", "status"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env={**os.environ, "CLAUDE_CONFIG_DIR": str(claude_config_dir(config_dir))},
+        )
+        status = json.loads(completed.stdout)
+    except Exception:
+        return {}
+    return {
+        key: str(status[source])
+        for key, source in (("email", "email"), ("plan", "subscriptionType"))
+        if status.get(source)
+    }
 
 
 def claude_config_dir(config_dir: str | Path | None = None) -> Path:
@@ -79,7 +138,13 @@ def claude_meter(
     found = {name: re.search(pattern, screen) for name, pattern in _METERS.items()}
     if not found["week_percent"]:
         return None
-    return {name: int(match.group(1)) for name, match in found.items() if match}
+    meter: dict[str, Any] = {name: int(match.group(1)) for name, match in found.items() if match}
+    for name, pattern in _RESETS.items():
+        match = re.search(pattern, screen)
+        instant = _reset_time(match.group(1), match.group(2)) if match else None
+        if instant:
+            meter[name] = instant
+    return meter
 
 
 class ClaudeCodeProvider:
