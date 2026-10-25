@@ -23,6 +23,8 @@ class PlanMeter:
     read_at: datetime
     resets_at: datetime | None
     fable_week_percent: int | None
+    # Whether the owner has taken this account out of the pipeline (catalog/plan_pause.py).
+    paused: bool = False
 
     @property
     def provider_label(self) -> str:
@@ -61,6 +63,9 @@ class PlanMeter:
 def plan_meters() -> list[PlanMeter]:
     """The last reading of every account, Codex first, then by account name."""
 
+    from almonium_book_processor.catalog.plan_pause import paused_accounts
+
+    paused = paused_accounts()
     latest: dict[tuple[str, str], PlanMeterReading] = {}
     for reading in PlanMeterReading.objects.order_by("-created_at")[:200]:
         latest.setdefault((reading.provider, reading.account), reading)
@@ -72,6 +77,7 @@ def plan_meters() -> list[PlanMeter]:
             read_at=reading.created_at,
             resets_at=reading.resets_at,
             fable_week_percent=reading.fable_week_percent,
+            paused=(reading.provider, reading.account) in paused,
         )
         for reading in latest.values()
     ]

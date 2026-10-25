@@ -1220,3 +1220,45 @@ class SpendGuardReport(TimestampedModel):
 
     def __str__(self) -> str:
         return f"Spend guard {self.created_at:%Y-%m-%d %H:%M}: {'clean' if self.clean else 'waste'}"
+
+
+class PlanWorker(TimestampedModel):
+    """A host worker that takes plan jobs, and the two accounts it works on.
+
+    Registered by the worker itself when it starts (``config/celery.py``), so the pages know
+    which worker to stop when an account is paused (``catalog/plan_pause.py``).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=80, unique=True)
+    nodename = models.CharField(max_length=200)
+    codex_account = models.CharField(max_length=80, blank=True)
+    claude_account = models.CharField(max_length=80, blank=True)
+    seen_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.codex_account}, {self.claude_account})"
+
+
+class PlanAccountPause(TimestampedModel):
+    """An account the owner has taken out of the pipeline for now.
+
+    Every worker that works on it stops taking plan jobs, stays stopped across restarts,
+    and takes them again when the pause is lifted.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    provider = models.CharField(max_length=20)
+    account = models.CharField(max_length=80)
+    note = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["provider", "account"], name="one_pause_per_account")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.provider} {self.account} paused"

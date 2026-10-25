@@ -8,7 +8,7 @@
     {% if meters %}
     <details class="plan-meters">
       <summary class="plan-meters-inline" title="Plans this week: open for what is left and when each resets">
-        {% for meter in meters %}<span class="plan-meter-inline{% if meter.stale %} plan-meter-stale{% endif %}">{{ meter.short_label }} <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>{{ meter.week_percent }}%</span>{% endfor %}
+        {% for meter in meters %}<span class="plan-meter-inline{% if meter.stale %} plan-meter-stale{% endif %}{% if meter.paused %} plan-meter-paused{% endif %}">{{ meter.short_label }} <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>{{ meter.week_percent }}%{% if meter.paused %} ⏸{% endif %}</span>{% endfor %}
       </summary>
       <section class="panel plan-meters-popover" aria-label="Plan accounts">
         <p class="eyebrow">Plans this week</p>
@@ -17,10 +17,15 @@
           <li class="plan-meter{% if meter.stale %} plan-meter-stale{% endif %}" title="Read {{ meter.read_at|timesince }} ago{% if meter.stale %}; the host's meter timer has not run for over an hour{% endif %}">
             <span class="plan-meter-name">{{ meter.provider_label }} <small>{{ meter.account }}</small></span>
             <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>
-            <span class="plan-meter-figures">{{ meter.week_percent }}% used · ${{ meter.left_usd|floatformat:2 }} of ${{ meter.week_usd|floatformat:2 }} left{% if meter.fable_week_percent is not None %} · Fable {{ meter.fable_week_percent }}%{% endif %}{% if meter.resets_at %} · resets {{ meter.resets_at|date:"D H:i" }}{% endif %}</span>
+            <span class="plan-meter-figures">{{ meter.week_percent }}% used · ${{ meter.left_usd|floatformat:2 }} of ${{ meter.week_usd|floatformat:2 }} left{% if meter.fable_week_percent is not None %} · Fable {{ meter.fable_week_percent }}%{% endif %}{% if meter.resets_at %} · resets {{ meter.resets_at|date:"D H:i" }}{% endif %}{% if meter.paused %} · <strong>paused</strong>{% endif %}</span>
+            <form method="post" action="{% url 'catalog:plan-account-pause' %}" class="plan-meter-action">{% csrf_token %}<input type="hidden" name="provider" value="{{ meter.provider }}"><input type="hidden" name="account" value="{{ meter.account }}"><input type="hidden" name="action" value="{% if meter.paused %}resume{% else %}pause{% endif %}"><button class="button button-small button-secondary" type="submit" title="{% if meter.paused %}Let the worker on this account take plan jobs again{% else %}Stop the worker on this account from taking plan jobs; the queue keeps them and nothing is paid{% endif %}">{% if meter.paused %}Resume{% else %}Pause{% endif %}</button></form>
           </li>
           {% endfor %}
         </ul>
+        <div class="plan-meter-all">
+          <form method="post" action="{% url 'catalog:plan-account-pause' %}">{% csrf_token %}<input type="hidden" name="action" value="pause-all"><button class="button button-small button-secondary" type="submit">Pause all</button></form>
+          <form method="post" action="{% url 'catalog:plan-account-pause' %}">{% csrf_token %}<input type="hidden" name="action" value="resume-all"><button class="button button-small button-secondary" type="submit">Resume all</button></form>
+        </div>
       </section>
     </details>
     {% endif %}

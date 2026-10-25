@@ -1981,6 +1981,36 @@ def promote_edition_view(request: HttpRequest, edition_id: str) -> HttpResponse:
 
 @staff_member_required
 @require_POST
+def plan_account_pause_view(request: HttpRequest) -> HttpResponse:
+    """Take a plan account out of the pipeline, or put it back; or all of them at once."""
+
+    from almonium_book_processor.catalog import plan_pause
+
+    action = request.POST.get("action", "")
+    provider = request.POST.get("provider", "")
+    account = request.POST.get("account", "")
+    try:
+        if action == "pause-all":
+            plan_pause.pause_all(note=f"Paused by {request.user}")
+            messages.info(request, "Every plan account is paused; the workers take no more jobs.")
+        elif action == "resume-all":
+            plan_pause.resume_all()
+            messages.info(request, "Every plan account is back; the workers take jobs again.")
+        elif action == "pause":
+            plan_pause.pause(provider, account, note=f"Paused by {request.user}")
+            messages.info(request, f"{account} is paused; its worker takes no more plan jobs.")
+        elif action == "resume":
+            plan_pause.resume(provider, account)
+            messages.info(request, f"{account} is back in the pipeline.")
+        else:
+            messages.error(request, "Choose pause or resume.")
+    except ValueError as error:
+        messages.error(request, str(error))
+    return redirect("catalog:dashboard")
+
+
+@staff_member_required
+@require_POST
 def run_spend_guard_view(request: HttpRequest) -> HttpResponse:
     """Read the ledger for money paid twice, now, from the dashboard."""
 

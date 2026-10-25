@@ -802,7 +802,9 @@ span.toolbar-step { color: var(--line); background: transparent; }
 /* The plan accounts' meters on the catalogue page: one line per account, read by the host. */
 .plan-meters { padding: 1rem 1.5rem; }
 .plan-meter-list { list-style: none; margin: .5rem 0 0; padding: 0; display: grid; gap: .45rem; }
-.plan-meter { display: grid; grid-template-columns: 11rem 120px 1fr; align-items: center; gap: .9rem; font-size: .9rem; }
+.plan-meter { display: grid; grid-template-columns: 11rem 120px 1fr auto; align-items: center; gap: .9rem; font-size: .9rem; }
+.plan-meter-paused { opacity: .6; }
+.plan-meter-all { display: flex; gap: .6rem; margin-top: .8rem; }
 .plan-meter-name small { color: var(--muted); font-weight: 400; margin-left: .3rem; }
 .plan-meter-figures { color: var(--muted); }
 .plan-meter-stale .run-bar span { background: var(--muted); }

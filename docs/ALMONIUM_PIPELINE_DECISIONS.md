@@ -997,3 +997,14 @@ rule below names its constant or function.
   production holds the book without a start, and the meter's timer starts it
   again once a provider answers, exactly as for a used-up allowance.
 
+- **Accounts can be paused, and the pause is remembered**
+  (`catalog/plan_pause.py`, `PlanWorker`, `PlanAccountPause`, the meter
+  panel's buttons). A worker registers the Codex and Claude accounts it works
+  on when it starts; pausing an account tells every worker on it to stop
+  taking plan jobs, and a worker that starts on a paused account stops itself,
+  so the pause no longer lives only in a worker's memory (on 25 October a
+  paused account came back on a restart and drained alongside the other).
+  The second Claude account (`~/.claude-2`, the Max 5x plan bought on 26
+  October) is the pipeline's Claude seat; the owner's own `~/.claude` is read
+  for its meter but not used for book calls.
+

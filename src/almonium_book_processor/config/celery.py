@@ -31,6 +31,10 @@ def _close_what_the_last_worker_left(sender=None, **_) -> None:
         taken = getattr(getattr(sender, "task_consumer", None), "queues", None) or []
         if not any(getattr(queue, "name", None) == settings.PLAN_QUEUE for queue in taken):
             return
+        from almonium_book_processor.catalog.plan_pause import stop_if_paused
+
+        # the worker says which accounts it works on; a paused account keeps it standing still
+        stop_if_paused(sender, getattr(sender, "hostname", "") or "")
         closed = close_abandoned_runs()
         if closed:
             logging.getLogger(__name__).warning("Closed %s abandoned job(s).", closed)
