@@ -68,13 +68,27 @@ def test_the_same_request_paid_again_is_counted_and_a_deliberate_rereading_is_no
     for _ in range(3):
         call({"window": {"blocks": [{"text": "A title page."}]}}, input_hash="h3", status="failed")
 
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    retried = call(
+        {"window": {"blocks": [{"text": "Retried once."}]}}, input_hash="h4", status="failed"
+    )
+    AIRun.objects.filter(pk=retried.pk).update(created_at=timezone.now() - timedelta(minutes=1))
+    call({"window": {"blocks": [{"text": "Retried once."}]}}, input_hash="h4")
+
     report = guard_report()
 
-    assert report["checked_runs"] == 7
-    assert report["new_duplicate_calls"] == 3 and report["total_duplicate_calls"] == 3
-    assert report["new_duplicate_usd"] == "0.3000"
+    assert report["checked_runs"] == 9
+    # the title page was never answered, so its three failures are not money paid twice
+    assert report["new_duplicate_calls"] == 1 and report["total_duplicate_calls"] == 1
+    assert report["new_duplicate_usd"] == "0.1000"
     assert report["reasked_windows"] == 1
-    assert report["duplicates"][0]["calls"] == 3  # the failed title page, asked three times
+    # retries after the model's own failures (one here, two on the title page) are reported
+    # apart, never as waste
+    assert report["retry_calls"] == 3 and report["retry_usd"] == "0.3000"
+    assert {d["calls"] for d in report["duplicates"]} == {2, 3}
     assert "text" not in str(report["duplicates"])
 
 

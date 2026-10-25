@@ -8,7 +8,9 @@ a window re-asked on every tick, a paid write purged) and reports them as number
 
 An identical request is the same payload to the same model under the same input hash. The
 judges deliberately read a disputed chapter three times with the same payload; those
-readings carry different input hashes and are not counted.
+readings carry different input hashes and are not counted. A call made again after an
+earlier one had already succeeded is money paid twice; one made again after a failed
+answer is the price of the model's failure, reported apart and never counted as waste.
 """
 
 from __future__ import annotations
@@ -67,17 +69,29 @@ def guard_report(*, window: timedelta = WINDOW) -> dict:
 
     duplicates = []
     new_calls, new_usd, total_calls, total_usd = 0, Decimal("0"), 0, Decimal("0")
+    retry_calls, retry_usd = 0, Decimal("0")
     reasked = []
     for rows in groups.values():
         if len(rows) < 2:
             continue
-        extras = rows[1:]
-        cost = sum((r.estimated_cost_usd or Decimal("0")) for r in extras)
+        # everything asked again once an answer had succeeded was paid twice; what was asked
+        # again before any success is a retry after the model's own failure
+        answered = next((i for i, r in enumerate(rows) if r.status == AIRun.Status.SUCCEEDED), None)
+        extras = rows[answered + 1 :] if answered is not None else []
+        retries = rows[1 : answered + 1] if answered is not None else rows[1:]
+        recent_retries = [r for r in retries if r.created_at >= since]
+        retry_calls += len(recent_retries)
+        retry_usd += sum(
+            ((r.estimated_cost_usd or Decimal("0")) for r in recent_retries), Decimal("0")
+        )
+        cost = sum(((r.estimated_cost_usd or Decimal("0")) for r in extras), Decimal("0"))
         recent = [r for r in extras if r.created_at >= since]
         total_calls += len(extras)
         total_usd += cost
         new_calls += len(recent)
-        new_usd += sum((r.estimated_cost_usd or Decimal("0")) for r in recent)
+        new_usd += sum(((r.estimated_cost_usd or Decimal("0")) for r in recent), Decimal("0"))
+        if not extras and len(rows) <= REASKED_AFTER:
+            continue
         first = rows[0]
         where = first.pipeline_run
         entry = {
@@ -126,6 +140,8 @@ def guard_report(*, window: timedelta = WINDOW) -> dict:
         "new_duplicate_usd": str(new_usd.quantize(Decimal("0.0001"))),
         "total_duplicate_calls": total_calls,
         "total_duplicate_usd": str(total_usd.quantize(Decimal("0.0001"))),
+        "retry_calls": retry_calls,
+        "retry_usd": str(retry_usd.quantize(Decimal("0.0001"))),
         "duplicates": duplicates[:20],
         "reasked_windows": len(reasked),
         "reasked": reasked[:20],
@@ -164,6 +180,9 @@ def summary_line(report: SpendGuardReport) -> str:
         f"{report.twin_editions} twin edition(s)",
         f"{report.reasked_windows} window(s) re-asked",
     ]
+    retries = report.report.get("retry_calls", 0)
+    if retries:
+        parts.append(f"{retries} retr{'y' if retries == 1 else 'ies'} after a failed answer")
     if report.purged_usd > 0:
         parts.append(f"${report.purged_usd:.2f} of paid text purged")
     return " · ".join(parts)
