@@ -98,7 +98,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+# Times on the pages are the owner's: the host and the plans' resets live in Kyiv. Storage stays UTC.
+TIME_ZONE = os.getenv("TIME_ZONE", "Europe/Kyiv")
 USE_I18N = True
 USE_TZ = True
 

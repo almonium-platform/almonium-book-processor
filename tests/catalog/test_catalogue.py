@@ -355,7 +355,9 @@ def test_uploaded_label_is_relative_only_for_today():
     now = timezone.now()
     assert uploaded_label(now) == f"Today, {timezone.localtime(now):%H:%M}"
     earlier = datetime.datetime(2026, 9, 13, 21, 28, tzinfo=datetime.UTC)
-    assert uploaded_label(earlier) == "Sep 13, 21:28"
+    # shown in the pages' zone (Kyiv), where this evening is already the next day
+    local = timezone.localtime(earlier)
+    assert uploaded_label(earlier) == f"{local:%b} {local.day}, {local:%H:%M}"
 
 
 def _page(client, **params):
