@@ -62,7 +62,7 @@ def test_the_catalogue_page_shows_the_plans_this_week():
     page = client.get(reverse("catalog:dashboard")).content.decode()
 
     assert "Plans this week" in page
-    assert "Codex <small>.codex-2</small>" in page
+    assert "<strong>Codex</strong> <code>.codex-2</code>" in page
     # The header carries the short form inline; the popover keeps the account.
     assert 'class="plan-meter-inline">Codex-2 <span class="run-bar">' in page
     assert "12% used" in page
@@ -104,7 +104,8 @@ def test_each_account_shows_who_it_is_when_it_resets_and_when_it_renews(client):
     client.force_login(get_user_model().objects.create_user(username="staff", is_staff=True))
     page = client.get(reverse("catalog:dashboard")).content.decode()
     assert "almonium.app@gmail.com" in page and "worker: main" in page
-    assert "Week resets" in page and "session 12%" in page and "renews 26 Nov 2026" in page
+    assert "Week resets" in page and "Session 12%" in page
+    assert "Renews 26 Nov" in page and "Next payment 26 Nov 2026" in page
 
     response = client.post(
         reverse("catalog:plan-account-details"),

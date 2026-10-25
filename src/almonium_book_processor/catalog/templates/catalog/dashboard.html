@@ -14,14 +14,21 @@
         <p class="eyebrow">Plans this week</p>
         <ul class="plan-meter-list">
           {% for meter in meters %}
-          <li class="plan-meter{% if meter.stale %} plan-meter-stale{% endif %}" title="Read {{ meter.read_at|timesince }} ago{% if meter.stale %}; the host's meter timer has not run for over an hour{% endif %}">
-            <span class="plan-meter-name">{{ meter.provider_label }} <small>{{ meter.account }}</small>{% if meter.email or meter.plan_label %}<br><small>{{ meter.email }}{% if meter.plan_label %} · {{ meter.plan_label }}{% endif %}</small>{% endif %}{% if meter.workers %}<br><small>worker{{ meter.workers|length|pluralize }}: {{ meter.workers|join:", " }}</small>{% endif %}</span>
-            <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>
-            <span class="plan-meter-figures">
-              <span>Week {{ meter.week_percent }}% used · ${{ meter.left_usd|floatformat:2 }} of ${{ meter.week_usd|floatformat:2 }} left{% if meter.fable_week_percent is not None %} · Fable {{ meter.fable_week_percent }}%{% endif %}{% if meter.paused %} · <strong>paused</strong>{% endif %}</span>
-              <br><small>{% if meter.resets_at %}Week resets {{ meter.resets_at|date:"D j M H:i" }}{% else %}Week reset unknown{% endif %}{% if meter.session_percent is not None %} · session {{ meter.session_percent }}%{% if meter.session_resets_at %}, resets {{ meter.session_resets_at|date:"H:i" }}{% endif %}{% endif %} · {% if meter.renews_next %}renews {{ meter.renews_next|date:"j M Y" }} (paid on the {{ meter.renews_on|date:"jS" }}){% else %}renewal date not set{% endif %}</small>
-              <form method="post" action="{% url 'catalog:plan-account-details' %}" class="plan-meter-renews">{% csrf_token %}<input type="hidden" name="provider" value="{{ meter.provider }}"><input type="hidden" name="account" value="{{ meter.account }}"><input type="date" name="renews_on" value="{{ meter.renews_on|date:'Y-m-d' }}" aria-label="Renewal date"><button class="link-button" type="submit">Save renewal date</button></form>
-            </span>
+          <li class="plan-meter{% if meter.stale %} plan-meter-stale{% endif %}{% if meter.paused %} plan-meter-paused{% endif %}" title="Read {{ meter.read_at|timesince }} ago{% if meter.stale %}; the host's meter timer has not run for over an hour{% endif %}">
+            <div class="plan-meter-who">
+              <p><strong>{{ meter.provider_label }}</strong> <code>{{ meter.account }}</code></p>
+              {% if meter.email or meter.plan_label %}<p class="plan-meter-sub">{{ meter.email }}{% if meter.email and meter.plan_label %} · {% endif %}{{ meter.plan_label }}</p>{% endif %}
+              {% if meter.workers %}<p class="plan-meter-sub">worker{{ meter.workers|length|pluralize }}: {{ meter.workers|join:", " }}</p>{% endif %}
+            </div>
+            <div class="plan-meter-usage">
+              <p class="plan-meter-headline"><strong>Week {{ meter.week_percent }}% used{% if meter.paused %} · paused{% endif %}</strong><span>${{ meter.left_usd|floatformat:2 }} of ${{ meter.week_usd|floatformat:2 }} left</span></p>
+              <span class="run-bar{% if meter.week_percent >= 85 %} run-bar-high{% endif %}"><span style="width:{{ meter.week_percent }}%"></span></span>
+              <p class="plan-meter-sub plan-meter-resets"><span>{% if meter.resets_at %}Week resets {{ meter.resets_at|date:"D j M H:i" }}{% else %}Week reset unknown{% endif %}</span>{% if meter.session_percent is not None %}<span>Session {{ meter.session_percent }}%{% if meter.session_resets_at %}, resets {{ meter.session_resets_at|date:"H:i" }}{% endif %}</span>{% endif %}{% if meter.fable_week_percent is not None %}<span>Fable {{ meter.fable_week_percent }}%</span>{% endif %}</p>
+            </div>
+            <form method="post" action="{% url 'catalog:plan-account-details' %}" class="plan-meter-renews">{% csrf_token %}<input type="hidden" name="provider" value="{{ meter.provider }}"><input type="hidden" name="account" value="{{ meter.account }}">
+              <label for="renews-{{ forloop.counter }}" title="{% if meter.renews_next %}Next payment {{ meter.renews_next|date:'j M Y' }}{% else %}Renewal date not set{% endif %}">Renews{% if meter.renews_next %} {{ meter.renews_next|date:"j M" }}{% endif %}</label>
+              <span><input id="renews-{{ forloop.counter }}" type="date" name="renews_on" value="{{ meter.renews_on|date:'Y-m-d' }}"><button class="button button-small button-soft" type="submit">Save</button></span>
+            </form>
             <form method="post" action="{% url 'catalog:plan-account-pause' %}" class="plan-meter-action">{% csrf_token %}<input type="hidden" name="provider" value="{{ meter.provider }}"><input type="hidden" name="account" value="{{ meter.account }}"><input type="hidden" name="action" value="{% if meter.paused %}resume{% else %}pause{% endif %}"><button class="button button-small button-secondary" type="submit" title="{% if meter.paused %}Let the worker on this account take plan jobs again{% else %}Stop the worker on this account from taking plan jobs; the queue keeps them and nothing is paid{% endif %}">{% if meter.paused %}Resume{% else %}Pause{% endif %}</button></form>
           </li>
           {% endfor %}
