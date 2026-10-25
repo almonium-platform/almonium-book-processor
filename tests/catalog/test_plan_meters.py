@@ -112,3 +112,17 @@ def test_each_account_shows_who_it_is_when_it_resets_and_when_it_renews(client):
     )
     assert response.status_code == 302
     assert PlanAccount.objects.get(account=".claude-2").renews_on == date(2026, 12, 26)
+
+
+def test_the_renewal_date_rolls_forward_a_month_at_a_time():
+    from datetime import date
+
+    from almonium_book_processor.catalog.plan_meters import PlanMeter
+
+    bought = PlanMeter("claude-code", ".claude-2", 0, datetime.now(UTC), None, None)
+    assert bought.renews_next is None
+    old = PlanMeter(
+        "codex", ".codex-2", 0, datetime.now(UTC), None, None, renews_on=date(2026, 1, 31)
+    )
+    nxt = old.renews_next
+    assert nxt >= datetime.now(UTC).date() and nxt.day in (28, 29, 30, 31)

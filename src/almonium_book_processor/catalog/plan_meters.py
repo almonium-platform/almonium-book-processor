@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.utils import timezone
@@ -60,6 +60,23 @@ class PlanMeter:
     @property
     def left_usd(self) -> Decimal:
         return self.week_usd - self.spent_usd
+
+    @property
+    def renews_next(self) -> date | None:
+        """The next renewal: the saved date rolled forward a month at a time until it is ahead."""
+
+        if self.renews_on is None:
+            return None
+        today = timezone.localdate()
+        year, month, day = self.renews_on.year, self.renews_on.month, self.renews_on.day
+        when = self.renews_on
+        while when < today:
+            month += 1
+            if month > 12:
+                month, year = 1, year + 1
+            last = (date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)).day
+            when = date(year, month, min(day, last))
+        return when
 
     @property
     def stale(self) -> bool:
