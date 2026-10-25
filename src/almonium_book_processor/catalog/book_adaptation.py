@@ -1,5 +1,7 @@
 """Complete B1/B2 editions: checkpointed generation, atomic materialization, no publication."""
 
+import contextlib
+import logging
 from concurrent.futures import ThreadPoolExecutor
 
 from django.conf import settings
@@ -26,6 +28,8 @@ from almonium_book_processor.catalog.models import (
     QAWarning,
     Work,
 )
+
+logger = logging.getLogger(__name__)
 
 VERSION = "b2-book-v1"
 MODERNISATION_BOOK_VERSION = "modernisation-book-v1"
@@ -257,8 +261,80 @@ def _generate(child_id):
     close_old_connections()
     try:
         run_pilot(child_id)
+    except Exception:
+        # the child recorded its failure on its own run; the book decides what to do with it
+        logger.info("A chapter window did not finish; the book reads its run.", exc_info=True)
     finally:
         close_old_connections()
+
+
+def _run_children(children, provider, workers: int) -> None:
+    if provider is not None:
+        # Fake providers stay on the test DB connection; CI never calls the network.
+        for child in children:
+            # the child's run records its failure; _collect reads it
+            with contextlib.suppress(Exception):
+                run_pilot(child.id, provider=provider)
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            list(pool.map(_generate, [child.id for child in children]))
+
+
+# What the adapter says when it loses or reorders block ids over a long window.
+BLOCK_ID_ERROR = "Adaptation must preserve all source block IDs"
+# A window asked again over its halves, then its quarters, before the book gives up on it.
+SPLIT_DEPTH = 2
+
+
+def _collect(run, source, child, results: dict, provider, workers: int, depth: int = 0) -> None:
+    """Take a window's answer into ``results``; a window the adapter mangled is asked over
+    its halves. Anything else that did not finish stops the book with the child's own words,
+    so a used-up allowance is named and holds the production without a start."""
+
+    child.refresh_from_db()
+    if child.status == PipelineRun.Status.SUCCEEDED:
+        ai = child.ai_runs.get(pk=child.summary["ai_run_id"])
+        for block in ai.response_payload["adaptation"]["blocks"]:
+            results[block["block_id"]] = {**block, "ai_run_id": str(ai.id)}
+        return
+    block_ids = child.summary.get("block_ids") or []
+    error = child.error or ""
+    if (
+        child.status == PipelineRun.Status.FAILED
+        and error.startswith(BLOCK_ID_ERROR)
+        and len(block_ids) > 1
+        and depth < SPLIT_DEPTH
+    ):
+        chapter = source.chapters.get(pk=child.summary["chapter_id"])
+        parts = []
+        for half in (block_ids[: len(block_ids) // 2], block_ids[len(block_ids) // 2 :]):
+            blocks = list(chapter.blocks.filter(block_id__in=half))
+            if not any(b.text.strip() for b in blocks):
+                for block in blocks:
+                    results[block.block_id] = {
+                        "text": block.text,
+                        "decision": "kept",
+                        "reason": "",
+                        "ai_run_id": None,
+                    }
+                continue
+            parts.append(
+                queue_pilot(
+                    source.id,
+                    chapter.id,
+                    target_edition_id=run.edition_id,
+                    target_level=run.summary["target_level"],
+                    block_ids=half,
+                    dispatch=False,
+                )
+            )
+        _run_children(parts, provider, workers)
+        run.summary = {**run.summary, "split_windows": run.summary.get("split_windows", 0) + 1}
+        run.save(update_fields=["summary", "updated_at"])
+        for part in parts:
+            _collect(run, source, part, results, provider, workers, depth + 1)
+        return
+    raise ValueError(error or "A chapter is still running; reconcile it before retrying.")
 
 
 def run_book(run_id, *, provider=None):
@@ -323,20 +399,9 @@ def run_book(run_id, *, provider=None):
                     dispatch=False,
                 )
                 children.append(child)
-            if provider is not None:
-                # Fake providers stay on the test DB connection; CI never calls the network.
-                for child in children:
-                    run_pilot(child.id, provider=provider)
-            else:
-                with ThreadPoolExecutor(max_workers=workers) as pool:
-                    list(pool.map(_generate, [child.id for child in children]))
+            _run_children(children, provider, workers)
             for child in children:
-                child.refresh_from_db()
-                if child.status != PipelineRun.Status.SUCCEEDED:
-                    raise ValueError("A chapter is still running; reconcile it before retrying.")
-                ai = child.ai_runs.get(pk=child.summary["ai_run_id"])
-                for block in ai.response_payload["adaptation"]["blocks"]:
-                    results[block["block_id"]] = {**block, "ai_run_id": str(ai.id)}
+                _collect(run, source, child, results, provider, workers)
             completed = min(start + workers, total)
             run.summary = {
                 **run.summary,

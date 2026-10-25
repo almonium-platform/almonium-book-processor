@@ -798,9 +798,28 @@ def test_a_chapter_too_long_to_rewrite_whole_holds_the_book_instead_of_dropping_
     run = run_to_the_end(queue_production(world.source.id, ["B2"]))
 
     assert run.status == "failed"
-    assert "cannot be rewritten whole" in run.error
+    assert "cannot be rewritten whole" in run.error and "chapter 2: too many blocks" in run.error
     assert world.dropped == []
     assert Edition.objects.filter(slug="book-b2").exists()
+
+
+def test_a_chapter_too_long_to_rewrite_whole_is_still_labelled_within_the_allowance(
+    world, monkeypatch
+):
+    world.ladder["B2"] = "probe_passed"
+    world.above = [[2], [2], [2]]
+    world.tolerated = [[], [2], [2]]
+    monkeypatch.setattr(
+        f"{CATALOG}.adaptation_wording.revise_chapter",
+        lambda edition, chapter, verdict: {"applied": False, "reason": "too many blocks"},
+    )
+
+    run = run_to_the_end(queue_production(world.source.id, ["B2"]))
+
+    assert run.status == "succeeded"
+    assert run.summary["outcomes"]["B2"]["outcome"] == "ready"
+    assert run.summary["mended"]["B2"]["2"] == ["paragraphs", "chapter"]
+    assert world.dropped == []
 
 
 def test_a_production_started_again_keeps_what_the_held_one_rewrote(world):

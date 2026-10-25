@@ -136,7 +136,8 @@ def test_failure_never_creates_partial_book_and_retry_reuses_completed_chunks(so
     run = queue_book(source.id, target_level=target_level)
     retry = Provider()
     run_book(run.id, provider=retry)
-    assert retry.calls == 3  # First chapter is reused; second, third, fourth are generated.
+    # the first and third chapters are reused: a failed window no longer abandons its batch
+    assert retry.calls == 2
     assert run.edition.blocks.count() == 4
     failed.refresh_from_db()
     assert failed.status == "failed"
@@ -291,8 +292,8 @@ def test_a_plan_change_after_a_failed_write_resumes_the_same_edition_and_its_pai
     assert again.id != run.id and again.edition_id == run.edition_id
     retry = Provider()
     run_book(again.id, provider=retry)
-    # the first chapter's answer was bought before the title changed; it is taken, not bought
-    assert retry.calls == 3
+    # the chapters answered before the title changed are taken, not bought again
+    assert retry.calls == 2
     assert again.edition.blocks.count() == 4
     assert AIRun.objects.filter(request_payload__reused_from__isnull=False).count() == 1
     assert Edition.objects.filter(source_edition=source).count() == 1
@@ -314,3 +315,41 @@ def test_a_text_answered_for_one_edition_of_the_source_is_not_bought_for_another
     assert second.edition.blocks.count() == 4
     reused = AIRun.objects.filter(edition=second.edition)
     assert reused.count() == 4 and all(r.estimated_cost_usd in (None, 0) for r in reused)
+
+
+def test_a_window_the_adapter_mangles_is_asked_again_over_its_halves(source):
+    """The adapter loses block ids over long windows (16 of 37 such failures were at the
+    100-block cap). Instead of failing the book twice and holding it, the window is split."""
+
+    chapter = Chapter.objects.create(edition=source, sequence=5, title="Chapter 5")
+    for n in range(1, 5):
+        ContentBlock.objects.create(
+            edition=source,
+            chapter=chapter,
+            sequence=n,
+            block_id=f"c5.p{n}",
+            align_group=uuid.uuid4(),
+            text=f"Sentence {n} of a long chapter.",
+        )
+
+    class Mangling(Provider):
+        def respond(self, body):
+            response = super().respond(body)
+            if len(json.loads(body["input"])["blocks"]) == 4:
+                # drops the block ids over the whole window, keeps them over halves
+                answer = json.loads(response["output"][0]["content"][0]["text"])
+                response["output"][0]["content"][0]["text"] = json.dumps(
+                    {**answer, "blocks": answer["blocks"][1:]}
+                )
+            return response
+
+    run = queue_book(source.id, target_level="B2")
+    provider = Mangling()
+    run_book(run.id, provider=provider)
+
+    run.refresh_from_db()
+    assert run.status == "succeeded"
+    assert run.edition.blocks.count() == 8
+    assert run.summary["split_windows"] == 1
+    # four one-block chapters, one mangled whole window, two halves
+    assert provider.calls == 4 + 1 + 2

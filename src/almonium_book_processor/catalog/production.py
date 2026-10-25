@@ -719,6 +719,7 @@ def _mend(run: PipelineRun, state: dict, level: str) -> tuple:
             )
         return ("goto", "audit", note)
     mended = state["mended"].setdefault(level, {})
+    unrewritable = []
     for sequence in above:
         done = mended.setdefault(str(sequence), [])
         chapter = edition.chapters.get(sequence=sequence)
@@ -740,8 +741,11 @@ def _mend(run: PipelineRun, state: dict, level: str) -> tuple:
                 done.append("chapter")
                 return ("goto", "levels", f"Chapter {sequence}: rewritten whole and applied.")
             if "pilot_id" not in outcome:
-                # too long for one pilot: nobody rewrote it, so nobody decided against it
-                raise Held(f"Chapter {sequence} cannot be rewritten whole: {outcome['reason']}.")
+                # too long for one pilot: the whole-chapter try cannot be made; whether the
+                # book still holds its level is the allowance's to say, below
+                done.append("chapter")
+                unrewritable.append((sequence, outcome["reason"]))
+                continue
             if outcome["reason"].startswith("generation"):
                 # the revision never came back; the step is tried again, not the book given up
                 raise RuntimeError(
@@ -758,6 +762,11 @@ def _mend(run: PipelineRun, state: dict, level: str) -> tuple:
             "paragraphs and the whole chapter were each rewritten once; within the "
             "allowance, each is shown to the reader at its own level.",
         )
+    if unrewritable:
+        # nobody rewrote these whole, so nobody decided the book cannot come down: a person
+        # splits the chapter or accepts it, and the written book stands meanwhile
+        reasons = "; ".join(f"chapter {seq}: {why}" for seq, why in unrewritable)
+        raise Held(f"Chapter(s) cannot be rewritten whole and read above {level}: {reasons}")
     return _drop(
         run,
         state,
