@@ -31,6 +31,15 @@ _ALLOWANCE_USED_UP = re.compile(
 )
 # A run's error that holds this text was refused for a used-up allowance, not for its own fault.
 ALLOWANCE_USED_UP = "Allowance used up"
+# ... and one that holds this text could not reach the provider at all: the machine's network
+# was down, as it was on the evening of 25 October 2026 when every book burned its starts.
+NETWORK_DOWN = "Network unreachable"
+_NETWORK_DOWN = re.compile(
+    r"EAI_AGAIN|ENOTFOUND|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|getaddrinfo"
+    r"|can.t reach the API server|workspace routing discovery failed|network is unreachable"
+    r"|Temporary failure in name resolution",
+    re.IGNORECASE,
+)
 # Codex: "... or try again at Oct 30th, 2026 7:43 PM."; Claude Code: "You've hit your session
 # limit · resets 6:10pm (UTC)" (its weekly limit reads the same way).
 _TRY_AGAIN = re.compile(r"(?:try again at|resets) ([^.\n\"]+)", re.IGNORECASE)
@@ -59,6 +68,27 @@ class AllowanceUsedUp(CallFailed):
         super().__init__(f"{ALLOWANCE_USED_UP}: {message[:300]}", spent)
         found = _TRY_AGAIN.search(message)
         self.until = found.group(1).strip() if found else None
+
+
+class NetworkDown(CallFailed):
+    """The provider could not be reached: the machine's network, not the plan or the book.
+
+    The message starts with ``NETWORK_DOWN`` so a job's error says so in the first words; the
+    production holds the book without a start and the meter's timer starts it again once a
+    provider answers.
+    """
+
+    def __init__(self, message: str, spent: dict[str, Any] | None = None) -> None:
+        super().__init__(f"{NETWORK_DOWN}: {message[:300]}", spent)
+
+
+def _raise_if_unreachable(error: BaseException, earlier: dict[str, Any] | None = None) -> None:
+    """Raise ``NetworkDown`` when the CLI could not reach its provider."""
+
+    if isinstance(error, (NetworkDown, AllowanceUsedUp)) or not _NETWORK_DOWN.search(str(error)):
+        return
+    spent = _together(earlier, spent_by(error) or {}) or None
+    raise NetworkDown(str(error), spent) from error
 
 
 def _raise_if_used_up(error: BaseException, earlier: dict[str, Any] | None = None) -> None:
@@ -127,10 +157,13 @@ def tried_twice(
         return _together(first, call())
     except CallFailed as error:
         _raise_if_used_up(error, first)
+        # a network that is still down after the pause is an outage, not a passing blip
+        _raise_if_unreachable(error, first)
         error.spent = _together(first, error.spent or {})
         raise
     except (RuntimeError, subprocess.TimeoutExpired) as error:
         _raise_if_used_up(error, first)
+        _raise_if_unreachable(error, first)
         if first:
             raise CallFailed(str(error) or type(error).__name__, first) from error
         raise

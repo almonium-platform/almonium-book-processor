@@ -36,7 +36,7 @@ from almonium_book_processor.ai.chapter_analysis import (
     ChapterAnalysis,
     OpenAIChapterAnalysisProvider,
 )
-from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import (
     OutputLanguageError,
@@ -606,6 +606,7 @@ def _attempt(
                 CitationRejected,
                 OutputLanguageError,
                 AllowanceUsedUp,
+                NetworkDown,
             ),
         ):
             reason = str(error)
@@ -619,7 +620,7 @@ def _attempt(
         )
         # each of these is handled by name above: a stale plan stops the run, a used-up
         # allowance holds the book without a start, a bad citation is asked for once more
-        if isinstance(error, (StaleAnalysis, AllowanceUsedUp)):
+        if isinstance(error, (StaleAnalysis, AllowanceUsedUp, NetworkDown)):
             raise
         if isinstance(error, CitationRejected):
             raise CitationRejected(f"{where}: {reason}") from None
@@ -630,7 +631,7 @@ def _named(error: Exception) -> str:
     """An error as a run records it: our own messages and a used-up allowance in full, since
     they carry no book text; anything else by type only."""
 
-    if isinstance(error, (AnalysisRejected, AllowanceUsedUp)):
+    if isinstance(error, (AnalysisRejected, AllowanceUsedUp, NetworkDown)):
         return str(error)
     return type(error).__name__
 

@@ -48,6 +48,11 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   alone, which the meter timer does once an account answers). Never restart a
   plan worker with a production under way; look at `catalog_pipelinerun`, not
   at Celery, to know.
+- **The network went down.** Nothing to do. A call that cannot reach its
+  provider after one retry holds the book with "Network unreachable" and no
+  start; the meter timer re-queues such books once a provider answers. If the
+  outage outlived the hold's own 30-minute cooldown, `manage.py requeue_held
+  --allowance` lifts them at once.
 - **Reading the ledger for waste.** The dashboard's "Spend guard" line is the
   host's daily reading (`almonium-spend-guard.timer`, 06:30); "Run now" reads
   it again, `./plan-manage spend_guard` prints it. A red line means something

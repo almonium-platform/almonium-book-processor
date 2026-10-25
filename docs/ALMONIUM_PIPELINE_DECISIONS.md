@@ -987,3 +987,13 @@ rule below names its constant or function.
   the window. The dashboard line turns red when any number in the last 24 h is
   not zero. Nobody watches sixty books; this does.
 
+- **A network outage is a hold that lifts itself** (`cli_calls.NetworkDown`,
+  `NETWORK_DOWN`, `production.PROVIDER_HOLDS`). On the evening of 25 October
+  2026 the host lost its network for a few minutes; both CLIs answered "can't
+  reach the API server" and "workspace routing discovery failed", the pipeline
+  read that as broken calls, and all 54 running books burned their two starts
+  within twenty minutes. A call that still cannot reach its provider after the
+  one retry is now a `NetworkDown`; every job records it in full, the
+  production holds the book without a start, and the meter's timer starts it
+  again once a provider answers, exactly as for a used-up allowance.
+

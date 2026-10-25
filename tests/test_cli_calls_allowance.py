@@ -72,3 +72,38 @@ def test_claudes_session_limit_is_a_used_up_allowance_with_its_reset_time():
 
     assert str(refused.value).startswith(ALLOWANCE_USED_UP)
     assert refused.value.until == "6:10pm (UTC)"
+
+
+def test_a_network_that_stays_down_through_the_retry_is_an_outage_not_a_broken_call():
+    """On the evening of 25 October 2026 the laptop lost its network and every book burned its
+    starts on "can't reach the API server"; the pipeline now holds and waits for a provider."""
+
+    from almonium_book_processor.ai.cli_calls import NETWORK_DOWN, NetworkDown
+
+    calls = []
+
+    def call():
+        calls.append(1)
+        raise RuntimeError(
+            "Claude Code exited with 1: API Error: Can't reach the API server — check your "
+            "internet or DNS (EAI_AGAIN)"
+        )
+
+    with pytest.raises(NetworkDown) as down:
+        tried_twice(call, pause=lambda _: None)
+
+    # tried once more after the pause, as a passing blip deserves; then named as an outage
+    assert len(calls) == 2
+    assert str(down.value).startswith(NETWORK_DOWN)
+
+
+def test_a_passing_network_blip_is_retried_and_forgiven():
+    answers = [RuntimeError("Codex returned no answer: workspace routing discovery failed"), None]
+
+    def call():
+        error = answers.pop(0)
+        if error:
+            raise error
+        return {"usage": {"input_tokens": 5}}
+
+    assert tried_twice(call, pause=lambda _: None)["usage"]["input_tokens"] == 5

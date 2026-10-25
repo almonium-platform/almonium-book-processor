@@ -40,7 +40,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from almonium_book_processor.ai.cli_calls import ALLOWANCE_USED_UP
+from almonium_book_processor.ai.cli_calls import ALLOWANCE_USED_UP, NETWORK_DOWN
 from almonium_book_processor.catalog.fidelity_audit import backed
 from almonium_book_processor.catalog.models import (
     Edition,
@@ -154,7 +154,15 @@ def queue_production(
 # plan whose allowance ran out, a worker that died under it. These are started again.
 # "Nothing finished" is a step that outlasted STEP_TIMEOUT: a slow job, not a verdict on the book;
 # what it made in the meantime is adopted when the production is started again.
-CIRCUMSTANTIAL_HOLDS = ("was started", ALLOWANCE_USED_UP, "Left behind", "Nothing finished")
+CIRCUMSTANTIAL_HOLDS = (
+    "was started",
+    ALLOWANCE_USED_UP,
+    NETWORK_DOWN,
+    "Left behind",
+    "Nothing finished",
+)
+# The holds the meter's timer lifts by itself once a provider answers again.
+PROVIDER_HOLDS = (ALLOWANCE_USED_UP, NETWORK_DOWN)
 
 
 def requeue_held(*, allowance_only: bool = False, older_than: timedelta = timedelta(minutes=30)):
@@ -166,7 +174,7 @@ def requeue_held(*, allowance_only: bool = False, older_than: timedelta = timede
     whose newest production is finished well or under way are left alone. Returns the runs.
     """
 
-    causes = (ALLOWANCE_USED_UP,) if allowance_only else CIRCUMSTANTIAL_HOLDS
+    causes = PROVIDER_HOLDS if allowance_only else CIRCUMSTANTIAL_HOLDS
     cutoff = timezone.now() - older_than
     started = []
     newest_by_source: dict = {}
@@ -494,15 +502,21 @@ def _refused(run: PipelineRun, state: dict, target: str) -> None:
             status=PipelineRun.Status.FAILED,
             # when the job failed, not when its row was made: a probe or a book run is reused
             # across productions and keeps the date of the first
-            error__contains=ALLOWANCE_USED_UP,
         )
+        .filter(Q(error__contains=ALLOWANCE_USED_UP) | Q(error__contains=NETWORK_DOWN))
         .exclude(processor_version=VERSION)
         .order_by("-created_at")
         .first()
     )
     if refused is None:
         return
-    said = refused.error[refused.error.index(ALLOWANCE_USED_UP) :].split(" — ")[0][:220]
+    marker = ALLOWANCE_USED_UP if ALLOWANCE_USED_UP in refused.error else NETWORK_DOWN
+    said = refused.error[refused.error.index(marker) :].split(" — ")[0][:220]
+    if marker == NETWORK_DOWN:
+        raise Held(
+            f"The provider could not be reached, said the '{refused.stage}' job: {said} "
+            "The book is started again once a provider answers."
+        )
     raise Held(
         f"The plan's allowance is used up, said the '{refused.stage}' job: {said} "
         "Start the book again after the reset."

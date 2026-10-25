@@ -83,3 +83,49 @@ def test_a_job_refused_for_a_used_up_allowance_holds_the_book_without_a_start():
     assert "retry reuses" not in str(held.value)
     assert str(held.value).endswith("Start the book again after the reset.")
     assert state["starts"] == {}
+
+
+@pytest.mark.django_db
+def test_a_job_that_could_not_reach_its_provider_holds_the_book_without_a_start():
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from almonium_book_processor.ai.cli_calls import NETWORK_DOWN
+    from almonium_book_processor.catalog.models import Edition, PipelineRun, Work
+    from almonium_book_processor.catalog.production import VERSION, Held, _refused, requeue_held
+
+    work = Work.objects.create(slug="w2", title="A book", author="Author")
+    source = Edition.objects.create(work=work, slug="w2-en", language="en")
+    production = PipelineRun.objects.create(
+        edition=source,
+        stage="adapt",
+        processor_version=VERSION,
+        input_hash="",
+        idempotency_key="w2:production",
+        status="running",
+        summary={"levels": ["B2"], "languages": [], "register": "", "sign_off": True},
+    )
+    PipelineRun.objects.create(
+        edition=source,
+        stage="adapt",
+        processor_version="fidelity-audit-v1",
+        input_hash="",
+        idempotency_key="w2:audit",
+        status="failed",
+        error=f"{NETWORK_DOWN}: Claude Code exited with 1: Can't reach the API server (EAI_AGAIN)",
+    )
+    state = {"editions": {}, "starts": {}, "log": []}
+
+    with pytest.raises(Held) as held:
+        _refused(production, state, "B2")
+
+    assert "could not be reached" in str(held.value)
+    assert state["starts"] == {}
+    # the meter's timer lifts this hold like a used-up allowance
+    PipelineRun.objects.filter(pk=production.pk).update(
+        status="failed",
+        error=f"B2 held: {held.value}",
+        finished_at=timezone.now() - timedelta(hours=1),
+    )
+    assert [run.edition for run in requeue_held(allowance_only=True)] == [source]

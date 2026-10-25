@@ -21,6 +21,7 @@ from django.conf import settings
 from django.db import connection, transaction
 from django.utils import timezone
 
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown
 from almonium_book_processor.ai.fidelity import (
     MAX_OUTPUT_TOKENS,
     OUTPUT_SCHEMA,
@@ -631,7 +632,13 @@ def audit_pilot(pilot_id, *, provider=None) -> dict:
         PipelineRun.objects.filter(pk=run.id).update(
             status=PipelineRun.Status.FAILED,
             finished_at=timezone.now(),
-            error=str(error)[:1000] if isinstance(error, ValueError) else type(error).__name__,
+            # a refused plan or an unreachable network is named: the production holds the
+            # book without a start; other errors may carry book text and are typed only
+            error=(
+                str(error)[:1000]
+                if isinstance(error, (ValueError, AllowanceUsedUp, NetworkDown))
+                else type(error).__name__
+            ),
         )
         raise
 
@@ -809,7 +816,13 @@ def run_edition_audit(run_id, *, provider=None) -> None:
         PipelineRun.objects.filter(pk=run_id).update(
             status=PipelineRun.Status.FAILED,
             finished_at=timezone.now(),
-            error=str(error)[:1000] if isinstance(error, ValueError) else type(error).__name__,
+            # a refused plan or an unreachable network is named: the production holds the
+            # book without a start; other errors may carry book text and are typed only
+            error=(
+                str(error)[:1000]
+                if isinstance(error, (ValueError, AllowanceUsedUp, NetworkDown))
+                else type(error).__name__
+            ),
         )
         raise
     from almonium_book_processor.catalog.adaptation_floor import refresh_adaptation_floor

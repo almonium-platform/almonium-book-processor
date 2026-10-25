@@ -15,7 +15,7 @@ from almonium_book_processor.ai.adaptation import (
     ChapterAdaptation,
     pilot_prompt,
 )
-from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
 from almonium_book_processor.ai.pricing import call_cost, plan_priced
@@ -493,7 +493,7 @@ def run_pilot(run_id, *, provider=None):
             # from a failure of the book; other errors may carry book text and are typed only
             error=(
                 str(error)[:1000]
-                if isinstance(error, (ValueError, AllowanceUsedUp))
+                if isinstance(error, (ValueError, AllowanceUsedUp, NetworkDown))
                 else type(error).__name__
             ),
             finished_at=timezone.now(),

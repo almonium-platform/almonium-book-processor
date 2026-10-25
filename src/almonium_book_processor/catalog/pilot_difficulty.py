@@ -12,7 +12,7 @@ from almonium_book_processor.ai.chapter_analysis import (
     WORDING_NOTE,
     WORDING_PROMPT_VERSION,
 )
-from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown
 from almonium_book_processor.ai.pricing import has_price, seat_prices
 from almonium_book_processor.ai.seats import parse_seat, provider_for
 from almonium_book_processor.catalog.adaptation import PILOT_VERSIONS
@@ -294,7 +294,7 @@ def judge_text(
             finished_at=timezone.now(),
             error=(
                 str(error)[:1000]
-                if isinstance(error, AllowanceUsedUp)
+                if isinstance(error, (AllowanceUsedUp, NetworkDown))
                 else "Pilot assessment failed; inspect AI ledger."
             ),
         )
