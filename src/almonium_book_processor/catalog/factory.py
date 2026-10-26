@@ -9,7 +9,13 @@ first wanted work that has a free text in a language the processor reads, and in
 When the text reaches the shelf (``tasks._finish_normalized_pipeline``) the production the ingest
 carries is queued: the levels, where the book is wanted in its own language, or the translation,
 and the finished editions are promoted and published to ``FACTORY_PROMOTE_TO``. Publication
-settles the wants; nobody presses anything.
+settles the wants.
+
+Two switches decide whether it does: ``FACTORY_ENABLED`` says this host is the one that makes
+the books, and the dashboard's Start and Pause say whether it starts new ones now
+(``FactorySwitch``; paused until first started). A paused factory still reports. Books already
+under way are paused one at a time (``production.pause_book``); the dashboard's queue lists
+them, the factory's and the ones started by hand, with a button each.
 
 Everything Almonium is told goes through the signed internal surface the rights check uses.
 """
@@ -22,8 +28,14 @@ from typing import Any
 
 from django.conf import settings
 from django.db.models import Q
+from django.utils import timezone
 
-from almonium_book_processor.catalog.models import Edition, PipelineRun, SourceDownload
+from almonium_book_processor.catalog.models import (
+    Edition,
+    FactorySwitch,
+    PipelineRun,
+    SourceDownload,
+)
 from almonium_book_processor.catalog.plan_meters import PlanMeter, plan_meters
 from almonium_book_processor.catalog.publication import PublicationError, _signed_post
 from almonium_book_processor.languages import LANGUAGE_CODES
@@ -43,8 +55,18 @@ def tick() -> dict[str, Any]:
 
     if not settings.FACTORY_ENABLED:
         return {"started": None, "reason": "The factory is off (FACTORY_ENABLED)."}
+    result = _tick()
+    FactorySwitch.objects.update_or_create(
+        pk=1, defaults={"ticked_at": timezone.now(), "tick_note": result["reason"][:300]}
+    )
+    return result
+
+
+def _tick() -> dict[str, Any]:
     reported = report_preparations()
     busy = under_way()
+    if not switch().running:
+        return _result(reported, busy, None, "The factory is paused; nothing new is started.")
     if len(busy) >= settings.FACTORY_MAX_PRODUCTIONS:
         return _result(reported, busy, None, f"{len(busy)} book(s) under way already.")
     if (room := plans_room()) is not None:
@@ -68,6 +90,59 @@ def tick() -> dict[str, Any]:
 
 def _result(reported: int, busy: list, started: str | None, reason: str) -> dict[str, Any]:
     return {"reported": reported, "under_way": len(busy), "started": started, "reason": reason}
+
+
+def switch() -> FactorySwitch:
+    """The factory's switch as last pressed; an unsaved paused one before the first press."""
+
+    return FactorySwitch.objects.filter(pk=1).first() or FactorySwitch(pk=1)
+
+
+def set_running(running: bool, *, by: str = "") -> None:
+    FactorySwitch.objects.update_or_create(
+        pk=1, defaults={"running": running, "changed_by": by[:150]}
+    )
+
+
+def queue() -> list[dict[str, Any]]:
+    """Every book under way, oldest first: the ingests that carry a production from their
+    download, and every production however it was started. A book is a source edition."""
+
+    from almonium_book_processor.catalog.production import VERSION, current_steps, paused_books
+
+    paused = paused_books()
+    rows: dict = {}
+    for edition in under_way():
+        if _production(edition) is None:
+            rows[edition.id] = {
+                "edition": edition,
+                "since": edition.created_at,
+                "step": _ingest_step(edition),
+            }
+    for run in PipelineRun.objects.filter(
+        processor_version=VERSION, status__in=ACTIVE
+    ).select_related("edition__work"):
+        rows[run.edition_id] = {
+            "edition": run.edition,
+            "since": run.created_at,
+            "step": (
+                "waiting for a worker"
+                if run.status == PipelineRun.Status.QUEUED
+                else current_steps(run) or "finishing"
+            ),
+            "run": run,
+        }
+    for edition_id, row in rows.items():
+        row["paused"] = edition_id in paused
+    return sorted(rows.values(), key=lambda row: row["since"])
+
+
+def _ingest_step(edition: Edition) -> str:
+    if edition.source_download.status == SourceDownload.Status.PENDING:
+        return "downloading"
+    if edition.status in (Edition.Status.READY, Edition.Status.REVIEW):
+        return "waiting for its production"
+    return "ingesting"
 
 
 def plans_room() -> str | None:

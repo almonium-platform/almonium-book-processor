@@ -62,6 +62,7 @@ class Almonium:
 @pytest.fixture
 def almonium(monkeypatch, settings):
     settings.FACTORY_ENABLED = True
+    factory.set_running(True)
     settings.FACTORY_MAX_PRODUCTIONS = 2
     settings.FACTORY_RESERVE_PERCENT = 15
     settings.FACTORY_LEVELS = ["B2", "B1"]
@@ -91,6 +92,57 @@ def test_the_factory_is_off_unless_told_otherwise(settings):
     settings.FACTORY_ENABLED = False
     assert factory.tick()["started"] is None
     assert "off" in factory.tick()["reason"]
+
+
+def test_a_paused_factory_reports_but_starts_nothing_and_says_so(almonium):
+    meters()
+    factory.set_running(False)
+
+    result = factory.tick()
+
+    assert result["started"] is None and "paused" in result["reason"]
+    assert not SourceDownload.objects.exists()
+    assert factory.switch().tick_note == result["reason"]
+
+
+def test_the_factory_is_paused_until_first_started(settings):
+    from almonium_book_processor.catalog.models import FactorySwitch
+
+    FactorySwitch.objects.all().delete()
+    assert factory.switch().running is False
+
+
+def test_the_queue_lists_every_book_under_way_with_its_pause(almonium):
+    from almonium_book_processor.catalog.production import pause_book
+
+    meters()
+    factory.tick()
+    by_hand = Edition.objects.create(
+        work=Work.objects.create(slug="by-hand", title="By hand", author="A"),
+        slug="by-hand-en",
+        language="en",
+        status=Edition.Status.READY,
+    )
+    PipelineRun.objects.create(
+        edition=by_hand,
+        stage=PipelineRun.Stage.ADAPT,
+        processor_version=PRODUCTION_VERSION,
+        input_hash="",
+        idempotency_key="by-hand",
+        status=PipelineRun.Status.RUNNING,
+        summary={
+            "levels": ["B2"],
+            "tracks": {"levels": {"targets": ["B2"], "index": 0, "step": "write", "since": ""}},
+        },
+    )
+    pause_book(by_hand.id)
+
+    rows = factory.queue()
+
+    assert [(row["step"], row["paused"]) for row in rows] == [
+        ("downloading", False),
+        ("write (B2)", True),
+    ]
 
 
 def test_a_want_in_another_language_starts_a_translation_of_the_free_text(almonium):
@@ -231,3 +283,40 @@ def test_reporting_stops_once_a_book_is_finished(almonium, settings):
     assert SourceDownload.objects.get().reported_final
     assert factory.report_preparations() == 0
     assert almonium.reports()[-1]["edition_id"] == str(edition.id)
+
+
+def test_the_dashboard_starts_and_pauses_the_factory_and_a_book(client, settings):
+    from django.contrib.auth import get_user_model
+    from django.urls import reverse
+
+    from almonium_book_processor.catalog.models import BookPause
+
+    settings.FACTORY_ENABLED = True
+    client.force_login(get_user_model().objects.create_user("staff", is_staff=True))
+    assert "Start factory" in client.get(reverse("catalog:dashboard")).content.decode()
+
+    client.post(reverse("catalog:factory-switch"), {"action": "start"})
+    assert factory.switch().running and factory.switch().changed_by == "staff"
+    assert "Pause factory" in client.get(reverse("catalog:dashboard")).content.decode()
+
+    work = Work.objects.create(slug="paused", title="Paused", author="A")
+    source = Edition.objects.create(work=work, slug="paused-en", language="en")
+    client.post(reverse("catalog:book-pause", args=[source.id]), {"action": "pause"})
+    assert BookPause.objects.filter(edition=source).exists()
+    client.post(reverse("catalog:book-pause", args=[source.id]), {"action": "resume"})
+    assert not BookPause.objects.filter(edition=source).exists()
+
+    PipelineRun.objects.create(
+        edition=source,
+        stage=PipelineRun.Stage.ADAPT,
+        processor_version=PRODUCTION_VERSION,
+        input_hash="",
+        idempotency_key="paused",
+        status=PipelineRun.Status.RUNNING,
+        summary={"levels": ["B2"]},
+    )
+    client.post(reverse("catalog:factory-switch"), {"action": "pause-books"})
+    assert BookPause.objects.filter(edition=source).exists()
+    assert "1 paused" in client.get(reverse("catalog:dashboard")).content.decode()
+    client.post(reverse("catalog:factory-switch"), {"action": "resume-books"})
+    assert not BookPause.objects.exists()

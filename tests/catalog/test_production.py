@@ -419,6 +419,51 @@ def test_a_step_nobody_finishes_holds_the_book_instead_of_waiting_for_ever(world
     assert run.status == "failed" and "Nothing finished 'probe'" in run.error
 
 
+def test_a_paused_book_starts_nothing_and_goes_on_from_where_it_stood(world):
+    from almonium_book_processor.catalog.production import pause_book, resume_book
+
+    world.ladder["B2"] = "probing"
+    run = queue_production(world.source.id, ["B2"])
+    advance(run.id)
+    started = list(world.calls)
+    pause_book(world.source.id)
+
+    for _ in range(3):
+        assert not advance(run.id)
+    assert world.calls == started
+    run.refresh_from_db()
+    assert "paused_at" in run.summary
+    assert run.summary["log"][-1]["note"].startswith("Paused")
+    # four hours paused are not four hours of the probe's clock
+    hours_ago = (timezone.now() - timedelta(hours=4)).isoformat()
+    run.summary["paused_at"] = hours_ago
+    run.summary["tracks"]["levels"]["since"] = hours_ago
+    run.save()
+
+    resume_book(world.source.id)
+    assert not advance(run.id)
+    run.refresh_from_db()
+    assert run.status == "running" and "paused_at" not in run.summary
+    assert any(entry["note"].startswith("Resumed") for entry in run.summary["log"])
+    assert not advance(run.id)
+    run.refresh_from_db()
+    assert run.status == "running" and world.calls == started
+
+
+def test_a_paused_book_held_by_circumstance_is_not_started_again(world):
+    from almonium_book_processor.catalog.production import pause_book, requeue_held
+
+    run = queue_production(world.source.id, ["B2"])
+    PipelineRun.objects.filter(pk=run.pk).update(
+        status=PipelineRun.Status.FAILED,
+        error="B2 held: Left behind",
+        finished_at=timezone.now() - timedelta(hours=1),
+    )
+    pause_book(world.source.id)
+
+    assert requeue_held() == []
+
+
 def test_a_step_that_keeps_breaking_holds_the_book_with_what_it_said(world, monkeypatch):
     def broken(edition):
         raise RuntimeError("the judges are away")

@@ -43,6 +43,7 @@ from django.utils.dateparse import parse_datetime
 from almonium_book_processor.ai.cli_calls import ALLOWANCE_USED_UP, NETWORK_DOWN
 from almonium_book_processor.catalog.fidelity_audit import backed
 from almonium_book_processor.catalog.models import (
+    BookPause,
     Edition,
     PipelineRun,
     QAWarning,
@@ -176,6 +177,7 @@ def requeue_held(*, allowance_only: bool = False, older_than: timedelta = timede
 
     causes = PROVIDER_HOLDS if allowance_only else CIRCUMSTANTIAL_HOLDS
     cutoff = timezone.now() - older_than
+    paused = paused_books()
     started = []
     newest_by_source: dict = {}
     for run in PipelineRun.objects.filter(processor_version=VERSION).order_by("-created_at"):
@@ -185,6 +187,8 @@ def requeue_held(*, allowance_only: bool = False, older_than: timedelta = timede
             continue
         if run.finished_at > cutoff or not any(cause in (run.error or "") for cause in causes):
             continue
+        if run.edition_id in paused:
+            continue  # the owner stopped this book; it is started again when resumed
         state = run.summary
         started.append(
             queue_production(
@@ -237,6 +241,8 @@ def advance(run_id) -> bool:
             # another worker is ticking this production now: a redelivered or doubled tick
             # would read the same state and start the same paid steps beside it
             return False
+        if _stands_still(run_id):
+            return False
         # a track that only waited is not asked again in the same call: its step would start
         # the same job once more, and count the start against the book
         moved = None
@@ -245,6 +251,54 @@ def advance(run_id) -> bool:
             if finished or not moved:
                 return finished
     return False
+
+
+def pause_book(edition_id, *, note: str = "") -> None:
+    """Stop a book: its production starts nothing new until it is resumed."""
+
+    BookPause.objects.update_or_create(edition_id=edition_id, defaults={"note": note[:200]})
+
+
+def resume_book(edition_id) -> None:
+    """Let a paused book go on; its next tick moves it from where it stood."""
+
+    BookPause.objects.filter(edition_id=edition_id).delete()
+
+
+def paused_books() -> set:
+    return set(BookPause.objects.values_list("edition_id", flat=True))
+
+
+def _stands_still(run_id) -> bool:
+    """Whether the production's book is paused; while it is, a tick only marks the time.
+
+    The tick goes on being called, so a resumed book needs nothing to start it again, and it
+    saves the run, so the janitor does not take a paused production for an abandoned one.
+    """
+
+    run = PipelineRun.objects.get(pk=run_id)
+    if run.status in FINISHED or not BookPause.objects.filter(edition_id=run.edition_id).exists():
+        return False
+    state = run.summary
+    if "paused_at" not in state:
+        state["paused_at"] = timezone.now().isoformat()
+        _log(state, "book", "pause", "Paused; nothing new is started until it is resumed.")
+    run.summary = state
+    run.save(update_fields=["summary", "updated_at"])
+    return True
+
+
+def _resumed(state: dict) -> None:
+    """Take the time a book stood paused off every step's clock, so none times out for it."""
+
+    paused_at = state.pop("paused_at", None)
+    if paused_at is None:
+        return
+    stood = timezone.now() - parse_datetime(paused_at)
+    for track in _tracks(state).values():
+        track["since"] = (parse_datetime(track["since"]) + stood).isoformat()
+    minutes = int(stood.total_seconds() // 60)
+    _log(state, "book", "pause", f"Resumed after {minutes} minute(s) paused.")
 
 
 @contextmanager
@@ -279,6 +333,7 @@ def _advance_once(run_id, only: set[str] | None = None) -> tuple[bool, set[str]]
     if run.status in FINISHED:
         return True, False
     state = run.summary
+    _resumed(state)
     if run.status == PipelineRun.Status.QUEUED:
         run.status = PipelineRun.Status.RUNNING
         run.started_at = timezone.now()
@@ -1150,6 +1205,8 @@ def production_step(run: PipelineRun, edition_id) -> str:
     level = next(
         (k for k, v in (state.get("editions") or {}).items() if v == str(edition_id)), None
     )
+    if BookPause.objects.filter(edition_id=run.edition_id).exists():
+        return "paused"
     if run.status == PipelineRun.Status.QUEUED:
         return "waiting for a worker"
     for track in _tracks(state).values():
@@ -1163,6 +1220,16 @@ def production_step(run: PipelineRun, edition_id) -> str:
     return "under way"
 
 
+def current_steps(run: PipelineRun) -> str:
+    """The step each unfinished track of a production is at, as "write (B2), translate (uk)"."""
+
+    return ", ".join(
+        f"{track['step']} ({track['targets'][track['index']]})"
+        for track in _tracks(run.summary).values()
+        if track["index"] < len(track["targets"])
+    )
+
+
 def production_context(edition: Edition) -> dict:
     """The latest production of a source edition, for its page."""
 
@@ -1174,12 +1241,9 @@ def production_context(edition: Edition) -> dict:
         "production": {
             "run": run,
             "active": run.status in ACTIVE,
+            "paused": BookPause.objects.filter(edition_id=edition.id).exists(),
             "levels": _targets(state),
-            "step": ", ".join(
-                f"{track['step']} ({track['targets'][track['index']]})"
-                for track in _tracks(state).values()
-                if track["index"] < len(track["targets"])
-            ),
+            "step": current_steps(run),
             "outcomes": state["outcomes"],
             "rights": state.get("rights"),
             "rights_label": RIGHTS_LABELS.get((state.get("rights") or {}).get("status"), ""),

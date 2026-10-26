@@ -79,7 +79,7 @@ OnUnitActiveSec=15min
 WantedBy=timers.target
 UNIT
     # every quarter of an hour the factory reports its books to Almonium and starts the next
-    # wanted one if the plans have room (FACTORY_ENABLED in .env; off, the tick only reports)
+    # wanted one if the plans have room (FACTORY_ENABLED in .env, then Start on the dashboard)
     cat > "$config/systemd/user/almonium-factory.service" <<UNIT
 [Unit]
 Description=Almonium book processor: one pass of the factory

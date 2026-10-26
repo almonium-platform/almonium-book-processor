@@ -307,7 +307,7 @@ CODEX_WORKERS = int(os.getenv("CODEX_WORKERS", "4"))
 CODEX_HOMES = [home.strip() for home in os.getenv("CODEX_HOMES", "").split(",") if home.strip()]
 
 # The factory: the host's timer starts the next wanted book while the plan accounts have room
-# (catalog/factory.py). Off unless this host makes the books.
+# (catalog/factory.py). Off unless this host makes the books; the dashboard then starts it.
 FACTORY_ENABLED = env_bool("FACTORY_ENABLED", False)
 # books under way at once, from download to promotion
 FACTORY_MAX_PRODUCTIONS = int(os.getenv("FACTORY_MAX_PRODUCTIONS", "2"))

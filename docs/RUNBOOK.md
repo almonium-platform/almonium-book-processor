@@ -117,8 +117,15 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   shelf the production is queued (`FACTORY_LEVELS` where the book is wanted
   in its own language, else a translation into the wanted language) and the
   finished editions are promoted and published to `FACTORY_PROMOTE_TO`.
-  `FACTORY_ENABLED=false` (the default) keeps the tick to reporting. The
-  books it makes show on the catalogue page like any other production.
+  `FACTORY_ENABLED=false` (the default) says this host makes no books and
+  keeps the tick from doing anything. Where it is on, the catalogue page's
+  "Books under way" panel has the factory's Start and Pause (paused until
+  first started; a paused factory still reports and starts nothing new) and
+  lists every book under way, the factory's and the ones started by hand,
+  with a Pause each. A paused book's production starts nothing new: a step
+  already running finishes and is adopted on Resume, and the time paused
+  does not count against a step's timeout. The plan-account pause in the
+  meters popover is the other lever: it stops the workers, not the books.
 
 - Chapter pilots, floor probes and whole-book adaptations are then sent to the
   `plans` queue. The container worker never takes that queue, because the

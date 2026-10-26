@@ -1286,3 +1286,37 @@ class PlanAccount(TimestampedModel):
 
     def __str__(self) -> str:
         return f"{self.provider} {self.account} ({self.email or 'unknown'})"
+
+
+class FactorySwitch(TimestampedModel):
+    """Whether the factory starts new books, pressed on the dashboard; one row.
+
+    No row is a paused factory: nothing new is started until the owner presses Start. The
+    tick writes down what it last did, so the dashboard can say why nothing started.
+    """
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    running = models.BooleanField(default=False)
+    changed_by = models.CharField(max_length=150, blank=True)
+    ticked_at = models.DateTimeField(null=True, blank=True)
+    tick_note = models.CharField(max_length=300, blank=True)
+
+    def __str__(self) -> str:
+        return "factory running" if self.running else "factory paused"
+
+
+class BookPause(TimestampedModel):
+    """A book the owner has stopped for now.
+
+    Its production starts nothing new while the row exists: a job a step already started
+    finishes and is adopted when the book is resumed, and the time paused does not count
+    against a step's timeout. Ingestion is free and goes on. The row is its own so that no
+    save of the edition or of the production's state can lose it; it is not promoted.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    edition = models.OneToOneField(Edition, on_delete=models.CASCADE, related_name="book_pause")
+    note = models.CharField(max_length=200, blank=True)
+
+    def __str__(self) -> str:
+        return f"{self.edition_id} paused"

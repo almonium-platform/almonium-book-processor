@@ -129,8 +129,24 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "summary": catalogue.summary,
             "meters": plan_meters(),
             "guard": _guard_context(),
+            "factory": _factory_context(),
         },
     )
+
+
+def _factory_context() -> dict:
+    """The factory's switch, where this host has one, and every book under way."""
+
+    from almonium_book_processor.catalog import factory
+
+    queue = factory.queue()
+    return {
+        "enabled": settings.FACTORY_ENABLED,
+        "switch": factory.switch(),
+        "queue": queue,
+        "paused_count": sum(row["paused"] for row in queue),
+        "max": settings.FACTORY_MAX_PRODUCTIONS,
+    }
 
 
 def _guard_context() -> dict | None:
@@ -2006,6 +2022,65 @@ def plan_account_pause_view(request: HttpRequest) -> HttpResponse:
             messages.error(request, "Choose pause or resume.")
     except ValueError as error:
         messages.error(request, str(error))
+    return redirect("catalog:dashboard")
+
+
+@staff_member_required
+@require_POST
+def factory_switch_view(request: HttpRequest) -> HttpResponse:
+    """Let the factory start new books, or stop it starting them; or every book at once."""
+
+    from almonium_book_processor.catalog import factory
+    from almonium_book_processor.catalog.production import pause_book, resume_book
+
+    action = request.POST.get("action", "")
+    if action == "start":
+        factory.set_running(True, by=str(request.user))
+        messages.info(
+            request, "The factory is running; its next tick starts a book if the plans have room."
+        )
+    elif action == "pause":
+        factory.set_running(False, by=str(request.user))
+        messages.info(request, "The factory is paused; books under way go on until you pause them.")
+    elif action == "pause-books":
+        rows = factory.queue()
+        for row in rows:
+            pause_book(row["edition"].id, note=f"Paused by {request.user}")
+        messages.info(
+            request,
+            f"{len(rows)} book(s) paused; steps already running finish, nothing new starts.",
+        )
+    elif action == "resume-books":
+        for row in factory.queue():
+            resume_book(row["edition"].id)
+        messages.info(request, "Every book under way goes on from where it stood.")
+    else:
+        messages.error(request, "Choose start or pause.")
+    return redirect("catalog:dashboard")
+
+
+@staff_member_required
+@require_POST
+def book_pause_view(request: HttpRequest, edition_id) -> HttpResponse:
+    """Stop a book's production starting anything new, or let it go on."""
+
+    from almonium_book_processor.catalog.production import pause_book, resume_book
+
+    edition = get_object_or_404(Edition, id=edition_id)
+    action = request.POST.get("action", "")
+    if action == "pause":
+        pause_book(edition.id, note=f"Paused by {request.user}")
+        messages.info(
+            request,
+            f"{edition.title} is paused; a step already running finishes, nothing new starts.",
+        )
+    elif action == "resume":
+        resume_book(edition.id)
+        messages.info(request, f"{edition.title} goes on from where it stood.")
+    else:
+        messages.error(request, "Choose pause or resume.")
+    if request.POST.get("next") == "edition":
+        return redirect(reverse("catalog:edition-detail", args=[edition.id]) + "#production")
     return redirect("catalog:dashboard")
 
 
