@@ -1,9 +1,12 @@
 """Taking a plan account out of the pipeline, and putting it back.
 
-A plan worker works on one Codex account and one Claude account. Pausing an account stops
-every worker that works on it from taking plan jobs (the queue keeps the jobs; nothing is
-paid), and the pause outlives a worker restart: a worker that starts on a paused account
-stops itself. The dashboard's meter panel has the buttons; the state is a row per account.
+A plan worker works on one Codex account, and pausing it stops every worker on it from
+taking plan jobs (the queue keeps the jobs; nothing is paid); the pause outlives a worker
+restart, since a worker that starts on a paused account stops itself. Claude accounts are
+shared: every call takes the first open one in ``CLAUDE_CONFIG_DIRS`` order, so pausing one
+sends the calls to the next, and with all of them paused a Claude call holds its book
+(``ai/claude_code_provider.py``). The dashboard's meter panel has the buttons; the state is a
+row per account.
 """
 
 from __future__ import annotations
@@ -56,13 +59,20 @@ def is_paused(provider: str, account: str) -> bool:
 
 
 def worker_is_paused(worker: PlanWorker, paused: set | None = None) -> bool:
-    """A worker stands still when either of its accounts is paused."""
+    """A worker stands still when its Codex account is paused; a paused Claude account only
+    sends its calls to the next one."""
 
     paused = paused_accounts() if paused is None else paused
-    return ("codex", worker.codex_account) in paused or (
-        "claude-code",
-        worker.claude_account,
-    ) in paused
+    return ("codex", worker.codex_account) in paused
+
+
+def open_claude_accounts() -> list[Path]:
+    """The Claude accounts a call may use now, in the order it tries them."""
+
+    from almonium_book_processor.ai.claude_code_provider import configured_accounts
+
+    paused = {account for provider, account in paused_accounts() if provider == "claude-code"}
+    return [path for path in configured_accounts() if path.name not in paused]
 
 
 def pause(provider: str, account: str, *, note: str = "") -> None:

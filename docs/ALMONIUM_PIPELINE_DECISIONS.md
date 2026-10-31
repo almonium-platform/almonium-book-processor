@@ -1007,4 +1007,14 @@ rule below names its constant or function.
   The second Claude account (`~/.claude-2`, the Max 5x plan bought on 26
   October) is the pipeline's Claude seat; the owner's own `~/.claude` is read
   for its meter but not used for book calls.
+- **A Claude call goes to the first open Claude account** (1 November 2026,
+  `ClaudeCodeProvider.respond`, `plan_pause.open_claude_accounts`). Pausing
+  `~/.claude-2` at its limit used to stop both workers, Codex steps included,
+  while `~/.claude` stood idle. Now each call tries the accounts in
+  `CLAUDE_CONFIG_DIRS` order, skips the paused ones, and hands the request on
+  when an account refuses for its allowance (that account rests 15 minutes in
+  the process). A paused Claude account no longer stops a worker; only a
+  paused Codex account does. `~/.claude` stays out of book calls exactly while
+  it is paused, which the owner controls from the dashboard. Answers are cached
+  by content, not by account, so a fallback never pays for an answer twice.
 

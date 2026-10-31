@@ -231,3 +231,78 @@ def test_the_account_is_read_from_auth_status():
     )
     assert who == {"email": "almonium.app@gmail.com", "plan": "max"}
     assert claude_account(binary="claude", runner=lambda *a, **k: SimpleNamespace(stdout="")) == {}
+
+
+class Accounts:
+    """A CLI that answers per account: refusing ones say the CLI's limit words."""
+
+    def __init__(self, refusing=()):
+        self.refusing = set(refusing)
+        self.asked = []
+
+    def __call__(self, command, **kwargs):
+        account = kwargs["env"]["CLAUDE_CONFIG_DIR"]
+        self.asked.append(account)
+        if account in self.refusing:
+            return SimpleNamespace(
+                returncode=1, stdout="", stderr="You've hit your weekly limit · resets Nov 5"
+            )
+        return SimpleNamespace(returncode=0, stdout=json.dumps(cli_result()), stderr="")
+
+
+def test_a_call_goes_to_the_first_open_account():
+    from pathlib import Path
+
+    runner = Accounts()
+    provider = ClaudeCodeProvider(
+        model="claude-opus-5-5",
+        runner=runner,
+        pause=lambda _: None,
+        accounts=lambda: [Path("/h/.claude-2"), Path("/h/.claude")],
+    )
+
+    provider.respond(BODY)
+
+    assert runner.asked == ["/h/.claude-2"]
+
+
+def test_an_account_out_of_allowance_hands_the_call_on_and_rests():
+    from pathlib import Path
+
+    runner = Accounts(refusing={"/h/.claude-2"})
+    provider = ClaudeCodeProvider(
+        model="claude-opus-5-5",
+        runner=runner,
+        pause=lambda _: None,
+        accounts=lambda: [Path("/h/.claude-2"), Path("/h/.claude")],
+    )
+
+    assert provider.respond(BODY)["status"] == "completed"
+    # a refusal is never asked twice: the allowance would refuse the same way
+    assert runner.asked == ["/h/.claude-2", "/h/.claude"]
+
+    runner.asked.clear()
+    provider.respond(BODY)
+    assert runner.asked == ["/h/.claude"]
+
+
+def test_with_every_account_paused_or_refusing_the_call_holds_its_book():
+    from pathlib import Path
+
+    from almonium_book_processor.ai.claude_code_provider import EVERY_ACCOUNT_PAUSED
+    from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+
+    runner = Accounts(refusing={"/h/.claude-2"})
+    paused = ClaudeCodeProvider(model="claude-opus-5-5", runner=runner, accounts=lambda: [])
+    with pytest.raises(AllowanceUsedUp, match=EVERY_ACCOUNT_PAUSED):
+        paused.respond(BODY)
+    assert runner.asked == []
+
+    alone = ClaudeCodeProvider(
+        model="claude-opus-5-5",
+        runner=runner,
+        pause=lambda _: None,
+        accounts=lambda: [Path("/h/.claude-2")],
+    )
+    with pytest.raises(AllowanceUsedUp, match="weekly limit"):
+        alone.respond(BODY)

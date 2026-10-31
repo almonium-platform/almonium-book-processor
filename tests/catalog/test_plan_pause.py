@@ -52,8 +52,8 @@ def test_pausing_an_account_stops_the_workers_on_it_and_resuming_starts_them(con
 
     control.clear()
     plan_pause.pause("claude-code", ".claude-2")
-    # both workers share the Claude account, so both stand still
-    assert control == [("stop", ("plans-main@yoga",)), ("stop", ("plans-second@yoga",))]
+    # a paused Claude account sends its calls to the next one; it stops no worker
+    assert control == [("go", ("plans-main@yoga",)), ("stop", ("plans-second@yoga",))]
 
     control.clear()
     plan_pause.resume_all()
@@ -157,3 +157,13 @@ def test_the_limit_is_saved_from_the_row_and_cleared_when_empty(client, control,
 
     client.post(url, {**row, "action": "limit", "pause_at": "140"})
     assert PlanAccount.objects.get(account=".codex-2").pause_at_percent is None
+
+
+def test_claude_calls_go_to_the_open_accounts_in_order(settings):
+    settings.CLAUDE_CONFIG_DIRS = ["/home/ok/.claude-2", "/home/ok/.claude"]
+
+    assert [p.name for p in plan_pause.open_claude_accounts()] == [".claude-2", ".claude"]
+    PlanAccountPause.objects.create(provider="claude-code", account=".claude-2")
+    assert [p.name for p in plan_pause.open_claude_accounts()] == [".claude"]
+    PlanAccountPause.objects.create(provider="claude-code", account=".claude")
+    assert plan_pause.open_claude_accounts() == []

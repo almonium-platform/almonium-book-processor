@@ -114,9 +114,11 @@ def plan_meters() -> list[PlanMeter]:
     }
     details = {(a.provider, a.account): a for a in PlanAccount.objects.all()}
     workers: dict[tuple[str, str], list[str]] = {}
-    for worker in PlanWorker.objects.order_by("name"):
+    names = list(PlanWorker.objects.order_by("name"))
+    for worker in names:
         workers.setdefault(("codex", worker.codex_account), []).append(worker.name)
-        workers.setdefault(("claude-code", worker.claude_account), []).append(worker.name)
+    # every worker calls whichever Claude account is open, so each is listed on all of them
+    claude_workers = [worker.name for worker in names]
     # Each account's own last reading, however old: an account whose meter cannot be read
     # (a lapsed login) stays on the page as stale instead of dropping out of it.
     latest: dict[tuple[str, str], PlanMeterReading] = {}
@@ -147,7 +149,9 @@ def plan_meters() -> list[PlanMeter]:
                 email=about.email if about else "",
                 plan_label=(about.plan_label if about else "") or reading.plan_type or "",
                 renews_on=about.renews_on if about else None,
-                workers=tuple(workers.get(key, ())),
+                workers=tuple(
+                    claude_workers if reading.provider == "claude-code" else workers.get(key, ())
+                ),
             )
         )
     return sorted(meters, key=lambda meter: (meter.provider != "codex", meter.account))

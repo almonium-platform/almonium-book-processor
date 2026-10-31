@@ -87,7 +87,7 @@ def _raise_if_unreachable(error: BaseException, earlier: dict[str, Any] | None =
 
     if isinstance(error, (NetworkDown, AllowanceUsedUp)) or not _NETWORK_DOWN.search(str(error)):
         return
-    spent = _together(earlier, spent_by(error) or {}) or None
+    spent = together(earlier, spent_by(error) or {}) or None
     raise NetworkDown(str(error), spent) from error
 
 
@@ -96,7 +96,7 @@ def _raise_if_used_up(error: BaseException, earlier: dict[str, Any] | None = Non
 
     if isinstance(error, AllowanceUsedUp) or not _ALLOWANCE_USED_UP.search(str(error)):
         return
-    spent = _together(earlier, spent_by(error) or {}) or None
+    spent = together(earlier, spent_by(error) or {}) or None
     raise AllowanceUsedUp(str(error), spent) from error
 
 
@@ -106,7 +106,7 @@ def spent_by(error: BaseException) -> dict[str, Any] | None:
     return getattr(error, "spent", None)
 
 
-def _together(first: dict[str, Any] | None, second: dict[str, Any]) -> dict[str, Any]:
+def together(first: dict[str, Any] | None, second: dict[str, Any]) -> dict[str, Any]:
     """``second`` carrying the tokens and the price of ``first`` as well: both were paid for."""
 
     if not first:
@@ -154,12 +154,12 @@ def tried_twice(
         logger.warning("A plan CLI call failed and is tried once more: %s", str(error)[:300])
     pause(RETRY_PAUSE_SECONDS)
     try:
-        return _together(first, call())
+        return together(first, call())
     except CallFailed as error:
         _raise_if_used_up(error, first)
         # a network that is still down after the pause is an outage, not a passing blip
         _raise_if_unreachable(error, first)
-        error.spent = _together(first, error.spent or {})
+        error.spent = together(first, error.spent or {})
         raise
     except (RuntimeError, subprocess.TimeoutExpired) as error:
         _raise_if_used_up(error, first)

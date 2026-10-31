@@ -15,13 +15,27 @@ from zoneinfo import ZoneInfo
 
 from django.conf import settings
 
-from almonium_book_processor.ai.cli_calls import CallFailed, fits_schema, tried_twice
+from almonium_book_processor.ai.cli_calls import (
+    AllowanceUsedUp,
+    CallFailed,
+    fits_schema,
+    together,
+    tried_twice,
+)
 
 # The CLI writes every prompt to a one-hour cache and charges that write above the input
 # price. A request here is one chapter under one prompt: almost nothing is ever read back
 # (a tenth of the input on 102 audit calls), so the cache only costs. With it off the same
 # Opus call came to USD 0.045 instead of USD 0.070.
 UNCACHED = {**os.environ, "DISABLE_PROMPT_CACHING": "1"}
+
+# A hold's words when no Claude account may be asked: the meter's timer leaves such a book
+# held until an account is open again (catalog/management/commands/plan_meter.py).
+EVERY_ACCOUNT_PAUSED = "every Claude account is paused"
+# An account that refused for its allowance is not asked again for this long by this process;
+# the refusal is free, but asking it before every call of a chapter is a wasted round trip.
+REST_SECONDS = 15 * 60
+_resting_until: dict[str, float] = {}
 
 _METERS = {
     "session_percent": r"Current session: (\d+)% used",
@@ -95,6 +109,14 @@ def claude_config_dir(config_dir: str | Path | None = None) -> Path:
     """
 
     return Path(config_dir or os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+
+
+def configured_accounts() -> list[Path]:
+    """The accounts the settings name, in the order a call tries them; else the worker's own."""
+
+    return [claude_config_dir(path) for path in settings.CLAUDE_CONFIG_DIRS] or [
+        claude_config_dir()
+    ]
 
 
 def claude_meter(
@@ -171,8 +193,14 @@ class ClaudeCodeProvider:
         timeout_seconds: float | None = None,
         runner: Callable[..., Any] = subprocess.run,
         pause: Callable[[float], None] = time.sleep,
+        accounts: Callable[[], list[Path]] = configured_accounts,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.model = model or settings.CLAUDE_CODE_MODEL
+        # Which accounts a call may use, asked afresh for every call: the owner pauses one on
+        # the dashboard and the next call goes to the next (catalog/plan_pause.py).
+        self.accounts = accounts
+        self.clock = clock
         self.binary = binary or settings.CLAUDE_CODE_BINARY
         self.timeout_seconds = timeout_seconds or settings.CLAUDE_CODE_TIMEOUT_SECONDS
         self.runner = runner
@@ -193,11 +221,38 @@ class ClaudeCodeProvider:
         return json.dumps(converted, ensure_ascii=False).replace("#/$defs/", "#/definitions/")
 
     def respond(self, body: dict[str, Any]) -> dict[str, Any]:
-        """One request, tried once more if the CLI fails in passing."""
+        """One request on the first open account, tried once more if the CLI fails in passing.
 
-        return tried_twice(lambda: self._ask(body), pause=self.pause)
+        An account whose allowance is used up hands the request to the next open one; with
+        none left the call raises ``AllowanceUsedUp``, which holds the book without a start.
+        """
 
-    def _ask(self, body: dict[str, Any]) -> dict[str, Any]:
+        accounts = self.accounts()
+        if not accounts:
+            raise AllowanceUsedUp(EVERY_ACCOUNT_PAUSED)
+        now = self.clock()
+        refused: AllowanceUsedUp | None = None
+        for account in accounts:
+            if _resting_until.get(str(account), 0) > now:
+                continue
+            try:
+                answer = tried_twice(lambda on=account: self._ask(body, on), pause=self.pause)
+            except AllowanceUsedUp as error:
+                _resting_until[str(account)] = now + REST_SECONDS
+                if refused is not None:
+                    error.spent = together(refused.spent, error.spent or {}) or None
+                refused = error
+                continue
+            # a refusal is normally free, but where the CLI said it used tokens they count
+            return together(refused.spent, answer) if refused and refused.spent else answer
+        if refused is not None:
+            raise refused
+        raise AllowanceUsedUp(
+            "every open Claude account refused for its allowance in the last "
+            f"{REST_SECONDS // 60} minutes"
+        )
+
+    def _ask(self, body: dict[str, Any], account: Path | None = None) -> dict[str, Any]:
         text_format = (body.get("text") or {}).get("format") or {}
         schema = text_format.get("schema")
         if not schema:
@@ -232,7 +287,7 @@ class ClaudeCodeProvider:
             text=True,
             timeout=self.timeout_seconds,
             cwd=self.workdir,
-            env=UNCACHED,
+            env={**UNCACHED, "CLAUDE_CONFIG_DIR": str(account or claude_config_dir())},
         )
         if completed.returncode != 0:
             detail = (completed.stderr or completed.stdout or "").strip()[-500:]

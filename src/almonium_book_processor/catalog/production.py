@@ -166,13 +166,19 @@ CIRCUMSTANTIAL_HOLDS = (
 PROVIDER_HOLDS = (ALLOWANCE_USED_UP, NETWORK_DOWN)
 
 
-def requeue_held(*, allowance_only: bool = False, older_than: timedelta = timedelta(minutes=30)):
+def requeue_held(
+    *,
+    allowance_only: bool = False,
+    older_than: timedelta = timedelta(minutes=30),
+    not_held_for: tuple[str, ...] = (),
+):
     """Start again the productions that were held by circumstance, not by the book.
 
     A hold names its cause in the run's error. With ``allowance_only`` only the ones a plan's
     used-up allowance held are started, which the meter's timer does once an account answers
-    again; ``older_than`` keeps a book from being started twice in one bad hour. The sources
-    whose newest production is finished well or under way are left alone. Returns the runs.
+    again; ``older_than`` keeps a book from being started twice in one bad hour, and a hold
+    whose error holds any of ``not_held_for`` is left for later. The sources whose newest
+    production is finished well or under way are left alone. Returns the runs.
     """
 
     causes = PROVIDER_HOLDS if allowance_only else CIRCUMSTANTIAL_HOLDS
@@ -186,6 +192,8 @@ def requeue_held(*, allowance_only: bool = False, older_than: timedelta = timede
         if run.status != PipelineRun.Status.FAILED or run.finished_at is None:
             continue
         if run.finished_at > cutoff or not any(cause in (run.error or "") for cause in causes):
+            continue
+        if any(reason in (run.error or "") for reason in not_held_for):
             continue
         if run.edition_id in paused:
             continue  # the owner stopped this book; it is started again when resumed
@@ -571,6 +579,13 @@ def _refused(run: PipelineRun, state: dict, target: str) -> None:
         raise Held(
             f"The provider could not be reached, said the '{refused.stage}' job: {said} "
             "The book is started again once a provider answers."
+        )
+    from almonium_book_processor.ai.claude_code_provider import EVERY_ACCOUNT_PAUSED
+
+    if EVERY_ACCOUNT_PAUSED in said:
+        raise Held(
+            f"No Claude account is open, said the '{refused.stage}' job: {said} "
+            "The book is started again once one is run on the dashboard."
         )
     raise Held(
         f"The plan's allowance is used up, said the '{refused.stage}' job: {said} "

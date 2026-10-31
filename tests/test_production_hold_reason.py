@@ -129,3 +129,49 @@ def test_a_job_that_could_not_reach_its_provider_holds_the_book_without_a_start(
         finished_at=timezone.now() - timedelta(hours=1),
     )
     assert [run.edition for run in requeue_held(allowance_only=True)] == [source]
+
+
+@pytest.mark.django_db
+def test_a_book_held_because_every_claude_account_is_paused_waits_for_one():
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from almonium_book_processor.ai.claude_code_provider import EVERY_ACCOUNT_PAUSED
+    from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+    from almonium_book_processor.catalog.models import Edition, PipelineRun, Work
+    from almonium_book_processor.catalog.production import VERSION, Held, _refused, requeue_held
+
+    work = Work.objects.create(slug="w3", title="A book", author="Author")
+    source = Edition.objects.create(work=work, slug="w3-en", language="en")
+    production = PipelineRun.objects.create(
+        edition=source,
+        stage="adapt",
+        processor_version=VERSION,
+        input_hash="",
+        idempotency_key="w3:production",
+        status="running",
+        summary={"levels": ["B2"], "languages": [], "register": "", "sign_off": True},
+    )
+    PipelineRun.objects.create(
+        edition=source,
+        stage="adapt",
+        processor_version="fidelity-audit-v1",
+        input_hash="",
+        idempotency_key="w3:audit",
+        status="failed",
+        error=str(AllowanceUsedUp(EVERY_ACCOUNT_PAUSED)),
+    )
+    state = {"editions": {}, "starts": {}, "log": []}
+
+    with pytest.raises(Held) as held:
+        _refused(production, state, "B2")
+
+    assert "No Claude account is open" in str(held.value) and state["starts"] == {}
+    PipelineRun.objects.filter(pk=production.pk).update(
+        status="failed",
+        error=f"B2 held: {held.value}",
+        finished_at=timezone.now() - timedelta(hours=1),
+    )
+    assert requeue_held(allowance_only=True, not_held_for=(EVERY_ACCOUNT_PAUSED,)) == []
+    assert [run.edition for run in requeue_held(allowance_only=True)] == [source]
