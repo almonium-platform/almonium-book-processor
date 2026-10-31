@@ -148,15 +148,16 @@ def _ingest_step(edition: Edition) -> str:
 def plans_room() -> str | None:
     """Why the plans leave no room for another book; ``None`` when they do.
 
-    Each plan needs an account with more than the reserve left; a meter the host's timer has
-    not refreshed for over an hour says nothing, so it counts as no room.
+    Each plan needs an open account with more than the reserve left; a paused account takes no
+    calls, and a meter the host's timer has not refreshed for over an hour says nothing, so
+    neither counts as room.
     """
 
-    meters = [meter for meter in plan_meters() if not meter.stale]
+    meters = [meter for meter in plan_meters() if not meter.stale and not meter.paused]
     for provider in PROVIDERS:
         own = [meter for meter in meters if meter.provider == provider]
         if not own:
-            return f"No fresh meter reading of the {PlanMeter.label(provider)} plan."
+            return f"No open {PlanMeter.label(provider)} account with a fresh meter reading."
         if all(100 - meter.week_percent <= settings.FACTORY_RESERVE_PERCENT for meter in own):
             return (
                 f"Every {PlanMeter.label(provider)} account is within the reserve of "

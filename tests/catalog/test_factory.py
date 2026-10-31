@@ -180,6 +180,16 @@ def test_nothing_starts_without_room_on_both_plans(almonium):
     assert not SourceDownload.objects.exists()
 
 
+def test_a_paused_account_is_no_room_however_empty_its_week(almonium):
+    from almonium_book_processor.catalog.models import PlanAccountPause
+
+    meters(codex=5)
+    PlanAccountPause.objects.create(provider="codex", account=".x")
+
+    assert "No open Codex account" in factory.tick()["reason"]
+    assert not SourceDownload.objects.exists()
+
+
 def test_nothing_starts_while_enough_books_are_under_way(almonium, settings):
     meters()
     settings.FACTORY_MAX_PRODUCTIONS = 1
