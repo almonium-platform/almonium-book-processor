@@ -6,7 +6,7 @@
   <div><p class="eyebrow">Editorial catalogue</p><h1>Public books</h1></div>
   <div class="catalogue-actions">
     {% if meters %}
-    <details class="plan-meters">
+    <details class="plan-meters" id="plans">
       <summary class="plan-meters-inline" title="Plans this week: open for what is left and when each resets">
         {% for meter in meters %}<span class="plan-meter-inline{% if meter.stale %} plan-meter-stale{% endif %}{% if meter.paused %} plan-meter-paused{% endif %}">{{ meter.short_label }} <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>{{ meter.week_percent }}%{% if meter.paused %} ⏸{% endif %}</span>{% endfor %}
       </summary>
@@ -21,15 +21,26 @@
               {% if meter.workers %}<p class="plan-meter-sub">worker{{ meter.workers|length|pluralize }}: {{ meter.workers|join:", " }}</p>{% endif %}
             </div>
             <div class="plan-meter-usage">
-              <p class="plan-meter-headline"><strong>Week {{ meter.week_percent }}% used{% if meter.paused %} · paused{% endif %}</strong><span>${{ meter.left_usd|floatformat:2 }} of ${{ meter.week_usd|floatformat:2 }} left</span></p>
-              <span class="run-bar{% if meter.week_percent >= 85 %} run-bar-high{% endif %}"><span style="width:{{ meter.week_percent }}%"></span></span>
-              <p class="plan-meter-sub plan-meter-resets"><span>{% if meter.resets_at %}Week resets {{ meter.resets_at|date:"D j M H:i" }}{% else %}Week reset unknown{% endif %}</span>{% if meter.session_percent is not None %}<span>Session {{ meter.session_percent }}%{% if meter.session_resets_at %}, resets {{ meter.session_resets_at|date:"H:i" }}{% endif %}</span>{% endif %}{% if meter.fable_week_percent is not None %}<span>Fable {{ meter.fable_week_percent }}%</span>{% endif %}</p>
+              <p class="plan-meter-headline"><strong>Week {{ meter.week_percent }}% used{% if meter.paused and not meter.paused_at_limit %} · paused{% endif %}</strong><span>${{ meter.left_usd|floatformat:2 }} of ${{ meter.week_usd|floatformat:2 }} left</span></p>
+              <span class="plan-meter-bar"><span class="run-bar{% if meter.week_percent >= 85 %} run-bar-high{% endif %}"><span style="width:{{ meter.week_percent }}%"></span></span>{% if meter.pause_at_percent is not None %}<i class="plan-meter-limit" style="left:{{ meter.pause_at_percent }}%" title="Pauses at {{ meter.pause_at_percent }}%"></i>{% endif %}</span>
+              <p class="plan-meter-sub plan-meter-resets"><span>{% if meter.resets_at %}Week resets {{ meter.resets_at|date:"D j M H:i" }}{% else %}Week reset unknown{% endif %}</span>{% if meter.session_percent is not None %}<span>Session {{ meter.session_percent }}%{% if meter.session_resets_at %}, resets {{ meter.session_resets_at|date:"H:i" }}{% endif %}</span>{% endif %}{% if meter.fable_week_percent is not None %}<span>Fable {{ meter.fable_week_percent }}%</span>{% endif %}{% if meter.paused_at_limit %}<strong>Paused at {{ meter.pause_at_percent }}% limit</strong>{% elif meter.pause_at_percent is not None and not meter.paused %}<strong>Auto-pauses at {{ meter.pause_at_percent }}%</strong>{% endif %}</p>
             </div>
-            <form method="post" action="{% url 'catalog:plan-account-details' %}" class="plan-meter-renews">{% csrf_token %}<input type="hidden" name="provider" value="{{ meter.provider }}"><input type="hidden" name="account" value="{{ meter.account }}">
-              <label for="renews-{{ forloop.counter }}" title="{% if meter.renews_next %}Next payment {{ meter.renews_next|date:'j M Y' }}{% else %}Renewal date not set{% endif %}">Renews{% if meter.renews_next %} {{ meter.renews_next|date:"j M" }}{% endif %}</label>
-              <span><input id="renews-{{ forloop.counter }}" type="date" name="renews_on" value="{{ meter.renews_on|date:'Y-m-d' }}"><button class="button button-small button-soft" type="submit">Save</button></span>
+            <div class="plan-meter-renews">
+              <span class="plan-meter-label">Renews</span>
+              <details>
+                <summary title="{% if meter.renews_on %}Paid on the {{ meter.renews_on|date:'jS' }} of the month{% else %}No CLI knows the billing day; set it here{% endif %}"><span class="plan-meter-date">{% if meter.renews_next %}{{ meter.renews_next|date:"D j M" }}{% else %}Not set{% endif %}</span><span class="plan-meter-change">{% if meter.renews_on %}Change{% else %}Set{% endif %}</span><span class="plan-meter-cancel">Cancel</span></summary>
+                <form method="post" action="{% url 'catalog:plan-account-details' %}">{% csrf_token %}<input type="hidden" name="provider" value="{{ meter.provider }}"><input type="hidden" name="account" value="{{ meter.account }}"><input type="date" name="renews_on" value="{{ meter.renews_on|date:'Y-m-d' }}" aria-label="Renewal date of {{ meter.account }}"><button class="button button-small button-soft" type="submit">Save</button></form>
+              </details>
+            </div>
+            <form method="post" action="{% url 'catalog:plan-account-pause' %}" class="plan-meter-action">{% csrf_token %}<input type="hidden" name="provider" value="{{ meter.provider }}"><input type="hidden" name="account" value="{{ meter.account }}">
+              <label class="plan-meter-label" for="pause-at-{{ forloop.counter }}">Pause at</label>
+              <span>
+                {# The first submit button is the one Enter presses: it saves the limit and leaves the account as it is. #}
+                <button class="visually-hidden" type="submit" name="action" value="limit" tabindex="-1">Save limit</button>
+                <span class="plan-meter-percent"><input id="pause-at-{{ forloop.counter }}" type="number" name="pause_at" min="1" max="100" placeholder="Off" value="{{ meter.pause_at_percent|default_if_none:'' }}" data-submit-on-change title="Pause this account when its week reaches this share; empty is no limit">%</span>
+                {% if meter.paused %}<button class="button button-small button-secondary" type="submit" name="action" value="resume" title="Let the worker on this account take plan jobs again; a limit it is already past does not stop it">Run</button>{% else %}<button class="button button-small" type="submit" name="action" value="pause" title="Stop the worker on this account from taking plan jobs; the queue keeps them and nothing is paid">Pause</button>{% endif %}
+              </span>
             </form>
-            <form method="post" action="{% url 'catalog:plan-account-pause' %}" class="plan-meter-action">{% csrf_token %}<input type="hidden" name="provider" value="{{ meter.provider }}"><input type="hidden" name="account" value="{{ meter.account }}"><input type="hidden" name="action" value="{% if meter.paused %}resume{% else %}pause{% endif %}"><button class="button button-small button-secondary" type="submit" title="{% if meter.paused %}Let the worker on this account take plan jobs again{% else %}Stop the worker on this account from taking plan jobs; the queue keeps them and nothing is paid{% endif %}">{% if meter.paused %}Resume{% else %}Pause{% endif %}</button></form>
           </li>
           {% endfor %}
         </ul>

@@ -11,6 +11,7 @@ from almonium_book_processor.ai.claude_code_provider import (
 from almonium_book_processor.ai.codex_provider import codex_home, codex_meter
 from almonium_book_processor.ai.pricing import PLAN_WEEK_USD
 from almonium_book_processor.catalog.models import PlanAccount, PlanMeterReading
+from almonium_book_processor.catalog.plan_pause import pause_on_limit
 
 
 def _instant(value):
@@ -47,6 +48,8 @@ class Command(BaseCommand):
                 f"resets {resets.astimezone():%a %d %b %H:%M %Z}"
             )
             if record:
+                if pause_on_limit("codex", account.name, used):
+                    self.stdout.write(f"codex ({account.name}): paused at its limit")
                 PlanMeterReading.objects.create(
                     provider="codex",
                     account=account.name,
@@ -76,6 +79,8 @@ class Command(BaseCommand):
                 + (f"; Fable's own week {fable}%" if fable is not None else "")
             )
             if record:
+                if pause_on_limit("claude-code", account.name, week):
+                    self.stdout.write(f"claude-code ({account.name}): paused at its limit")
                 PlanMeterReading.objects.create(
                     provider="claude-code",
                     account=account.name,

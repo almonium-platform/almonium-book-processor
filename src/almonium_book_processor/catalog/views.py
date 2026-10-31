@@ -2005,6 +2005,22 @@ def plan_account_pause_view(request: HttpRequest) -> HttpResponse:
     action = request.POST.get("action", "")
     provider = request.POST.get("provider", "")
     account = request.POST.get("account", "")
+    plans = redirect(f"{reverse('catalog:dashboard')}#plans")
+    if "pause_at" in request.POST and provider and account:
+        # The row's limit travels with every press of its form, so the field is never lost.
+        try:
+            limit = plan_pause.set_limit(provider, account, request.POST["pause_at"])
+        except ValueError as error:
+            messages.error(request, str(error))
+            return plans
+        if action in ("limit", ""):
+            messages.info(
+                request,
+                f"{account} pauses itself at {limit}% of its week."
+                if limit is not None
+                else f"{account} has no limit; it runs until paused.",
+            )
+            return plans
     try:
         if action == "pause-all":
             plan_pause.pause_all(note=f"Paused by {request.user}")
@@ -2022,7 +2038,7 @@ def plan_account_pause_view(request: HttpRequest) -> HttpResponse:
             messages.error(request, "Choose pause or resume.")
     except ValueError as error:
         messages.error(request, str(error))
-    return redirect("catalog:dashboard")
+    return plans
 
 
 @staff_member_required
@@ -2108,7 +2124,7 @@ def plan_account_details_view(request: HttpRequest) -> HttpResponse:
         provider=provider, account=account, defaults={"renews_on": renews_on}
     )
     messages.info(request, f"{account}: renewal date saved.")
-    return redirect("catalog:dashboard")
+    return redirect(f"{reverse('catalog:dashboard')}#plans")
 
 
 @staff_member_required

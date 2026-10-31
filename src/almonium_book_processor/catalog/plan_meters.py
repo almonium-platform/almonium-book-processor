@@ -10,7 +10,12 @@ from decimal import Decimal
 from django.utils import timezone
 
 from almonium_book_processor.ai.pricing import PLAN_WEEK_USD
-from almonium_book_processor.catalog.models import PlanAccount, PlanMeterReading, PlanWorker
+from almonium_book_processor.catalog.models import (
+    PlanAccount,
+    PlanAccountPause,
+    PlanMeterReading,
+    PlanWorker,
+)
 
 PROVIDER_LABELS = {"codex": "Codex", "claude-code": "Claude"}
 
@@ -25,6 +30,9 @@ class PlanMeter:
     fable_week_percent: int | None
     # Whether the owner has taken this account out of the pipeline (catalog/plan_pause.py).
     paused: bool = False
+    pause_note: str = ""
+    # The week's share at which the account pauses itself; None is no limit.
+    pause_at_percent: int | None = None
     session_percent: int | None = None
     session_resets_at: datetime | None = None
     # Whose account, what plan and when it renews (PlanAccount; the renewal date is the owner's).
@@ -79,6 +87,16 @@ class PlanMeter:
         return when
 
     @property
+    def paused_at_limit(self) -> bool:
+        from almonium_book_processor.catalog.plan_pause import limit_note
+
+        return (
+            self.paused
+            and self.pause_at_percent is not None
+            and self.pause_note == limit_note(self.pause_at_percent)
+        )
+
+    @property
     def stale(self) -> bool:
         """A reading older than an hour: the timer or the host is not running."""
 
@@ -88,9 +106,12 @@ class PlanMeter:
 def plan_meters() -> list[PlanMeter]:
     """The last reading of every account, Codex first, then by account name."""
 
-    from almonium_book_processor.catalog.plan_pause import paused_accounts
-
-    paused = paused_accounts()
+    paused = {
+        (provider, account): note
+        for provider, account, note in PlanAccountPause.objects.values_list(
+            "provider", "account", "note"
+        )
+    }
     details = {(a.provider, a.account): a for a in PlanAccount.objects.all()}
     workers: dict[tuple[str, str], list[str]] = {}
     for worker in PlanWorker.objects.order_by("name"):
@@ -111,6 +132,8 @@ def plan_meters() -> list[PlanMeter]:
                 resets_at=reading.resets_at,
                 fable_week_percent=reading.fable_week_percent,
                 paused=key in paused,
+                pause_note=paused.get(key, ""),
+                pause_at_percent=about.pause_at_percent if about else None,
                 session_percent=reading.session_percent,
                 session_resets_at=reading.session_resets_at,
                 email=about.email if about else "",

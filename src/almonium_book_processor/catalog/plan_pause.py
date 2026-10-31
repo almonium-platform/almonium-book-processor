@@ -92,6 +92,59 @@ def resume_all() -> None:
     apply_to_workers()
 
 
+def set_limit(provider: str, account: str, value: str) -> int | None:
+    """Keep the share of the week at which the account pauses itself; empty clears it."""
+
+    from almonium_book_processor.catalog.models import PlanAccount
+
+    if provider not in PROVIDERS:
+        raise ValueError(f"Unknown plan provider: {provider}")
+    value = value.strip().rstrip("%").strip()
+    try:
+        limit = int(value) if value else None
+    except ValueError:
+        raise ValueError("Give the limit as a whole percent, or leave it empty.") from None
+    if limit is not None and not 1 <= limit <= 100:
+        raise ValueError("Give the limit as a percent from 1 to 100.")
+    PlanAccount.objects.update_or_create(
+        provider=provider, account=account, defaults={"pause_at_percent": limit}
+    )
+    return limit
+
+
+def limit_note(percent: int) -> str:
+    return f"Paused at {percent}% limit"
+
+
+def pause_on_limit(provider: str, account: str, week_percent: int) -> bool:
+    """Before a new reading is kept: pause the account when its week crosses its limit.
+
+    Only a crossing counts, from below the limit in the last reading to at or above it now, so
+    an account the owner runs on past its limit keeps running until the limit is moved, and
+    the week's reset brings it back under to cross again.
+    """
+
+    from almonium_book_processor.catalog.models import PlanAccount, PlanMeterReading
+
+    limit = (
+        PlanAccount.objects.filter(provider=provider, account=account)
+        .values_list("pause_at_percent", flat=True)
+        .first()
+    )
+    if limit is None or week_percent < limit or is_paused(provider, account):
+        return False
+    last = (
+        PlanMeterReading.objects.filter(provider=provider, account=account)
+        .values_list("week_percent", flat=True)
+        .first()
+    )
+    if last is not None and last >= limit:
+        return False
+    pause(provider, account, note=limit_note(limit))
+    logger.warning("%s %s reached its %s%% limit and is paused.", provider, account, limit)
+    return True
+
+
 def known_accounts() -> list[tuple[str, str]]:
     """Every account the settings name or a worker has reported, Codex first."""
 

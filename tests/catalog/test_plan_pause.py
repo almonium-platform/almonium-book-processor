@@ -98,3 +98,62 @@ def test_the_dashboard_shows_the_pause_and_offers_the_buttons(client, control, w
 
     client.post(reverse("catalog:plan-account-pause"), {"action": "resume-all"})
     assert not PlanAccountPause.objects.exists()
+
+
+def test_an_account_pauses_itself_when_its_week_crosses_its_limit(control, workers):
+    plan_pause.set_limit("codex", ".codex-2", "85")
+    PlanMeterReading.objects.create(provider="codex", account=".codex-2", week_percent=80)
+
+    assert plan_pause.pause_on_limit("codex", ".codex-2", 84) is False
+    assert plan_pause.pause_on_limit("codex", ".codex-2", 86) is True
+    assert PlanAccountPause.objects.get().note == "Paused at 85% limit"
+    meter = next(m for m in plan_meters() if m.account == ".codex-2")
+    assert meter.paused_at_limit and meter.pause_at_percent == 85
+
+
+def test_an_account_run_on_past_its_limit_keeps_running(control, workers):
+    """The limit acts on a crossing; the owner's Run past it is not undone by the next reading."""
+
+    plan_pause.set_limit("codex", ".codex-2", "85")
+    PlanMeterReading.objects.create(provider="codex", account=".codex-2", week_percent=90)
+
+    assert plan_pause.pause_on_limit("codex", ".codex-2", 92) is False
+    assert not PlanAccountPause.objects.exists()
+
+    # the week resets under the limit, and the next climb crosses it again
+    PlanMeterReading.objects.create(provider="codex", account=".codex-2", week_percent=3)
+    assert plan_pause.pause_on_limit("codex", ".codex-2", 85) is True
+
+
+def test_no_limit_never_pauses_and_a_manual_pause_keeps_its_note(control, workers):
+    PlanMeterReading.objects.create(provider="codex", account=".codex", week_percent=10)
+    assert plan_pause.pause_on_limit("codex", ".codex", 100) is False
+
+    plan_pause.set_limit("codex", ".codex", "50")
+    plan_pause.pause("codex", ".codex", note="Paused by staff")
+    assert plan_pause.pause_on_limit("codex", ".codex", 60) is False
+    assert PlanAccountPause.objects.get().note == "Paused by staff"
+
+
+def test_the_limit_is_saved_from_the_row_and_cleared_when_empty(client, control, workers):
+    from almonium_book_processor.catalog.models import PlanAccount
+
+    client.force_login(get_user_model().objects.create_user(username="staff", is_staff=True))
+    PlanMeterReading.objects.create(provider="codex", account=".codex-2", week_percent=52)
+    url = reverse("catalog:plan-account-pause")
+    row = {"provider": "codex", "account": ".codex-2"}
+
+    response = client.post(url, {**row, "action": "limit", "pause_at": "85"})
+    assert response.url.endswith("#plans")
+    assert PlanAccount.objects.get(account=".codex-2").pause_at_percent == 85
+    assert not PlanAccountPause.objects.exists()
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+    assert "Auto-pauses at 85%" in page and 'class="plan-meter-limit" style="left:85%"' in page
+
+    # the toggle carries the field too
+    client.post(url, {**row, "action": "pause", "pause_at": ""})
+    assert PlanAccount.objects.get(account=".codex-2").pause_at_percent is None
+    assert PlanAccountPause.objects.exists()
+
+    client.post(url, {**row, "action": "limit", "pause_at": "140"})
+    assert PlanAccount.objects.get(account=".codex-2").pause_at_percent is None

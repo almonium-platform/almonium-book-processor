@@ -803,7 +803,7 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .plan-meters { padding: 1rem 1.5rem; }
 .plan-meter-list { list-style: none; margin: .5rem 0 0; padding: 0; }
 /* Four fixed tracks so long usage text wraps in its own column instead of pushing the date field down. */
-.plan-meter { display: grid; grid-template-columns: 12.5rem minmax(0, 1fr) 15.5rem 5.25rem; column-gap: 1.75rem; align-items: center; padding: 1rem 0; border-top: 1px solid #eee4d6; }
+.plan-meter { display: grid; grid-template-columns: 12.5rem minmax(0, 1fr) 12.5rem auto; column-gap: 1.75rem; align-items: center; padding: 1rem 0; border-top: 1px solid #eee4d6; }
 .plan-meter p { margin: 0; }
 .plan-meter-who { display: grid; gap: 3px; min-width: 0; }
 .plan-meter-who strong { font-size: 1.05rem; font-weight: 600; }
@@ -813,25 +813,38 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .plan-meter-headline { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; }
 .plan-meter-headline strong { font-size: .95rem; font-weight: 600; }
 .plan-meter-headline span { font-size: .88rem; font-variant-numeric: tabular-nums; }
+.plan-meter-bar { position: relative; display: block; }
 .plan-meter-usage .run-bar { width: 100%; height: 6px; border-radius: 3px; }
 .plan-meter-usage .run-bar span { border-radius: 3px; }
 .run-bar-high span { background: #c27a1a; }
+/* The limit's tick stands proud of the bar, so it reads even where the bar has filled past it. */
+.plan-meter-limit { position: absolute; top: -4px; width: 2px; height: 14px; margin-left: -1px; border-radius: 1px; background: var(--ink); }
 .plan-meter-resets { display: flex; flex-wrap: wrap; column-gap: .9rem; row-gap: 2px; white-space: normal; }
-.plan-meter-renews { display: grid; gap: 5px; }
-.plan-meter-renews label { font-size: .75rem; color: var(--muted); }
-.plan-meter-renews > span { display: flex; gap: .5rem; align-items: center; }
-.plan-meter-renews input[type=date] { flex: 1; min-width: 0; height: 34px; padding: 0 .6rem; font: inherit; font-size: .88rem; }
-.button-soft { background: #f1e6d6; color: var(--accent); border-radius: 8px; height: 34px; }
+.plan-meter-resets strong { color: var(--ink); font-weight: 600; }
+.plan-meter-label { display: block; font-size: .75rem; color: var(--muted); margin-bottom: 5px; }
+.plan-meter-renews summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: .6rem; font-size: .92rem; }
+.plan-meter-renews summary::-webkit-details-marker { display: none; }
+.plan-meter-change, .plan-meter-cancel { color: var(--accent); font-size: .82rem; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.plan-meter-cancel, .plan-meter-renews details[open] .plan-meter-date, .plan-meter-renews details[open] .plan-meter-change { display: none; }
+.plan-meter-renews details[open] .plan-meter-cancel { display: inline; }
+.plan-meter-renews form { display: flex; gap: .4rem; align-items: center; margin-top: .35rem; }
+.plan-meter-renews input[type=date] { flex: 1; min-width: 0; height: 32px; padding: 0 .35rem; font: inherit; font-size: .8rem; }
+.button-soft { background: #f1e6d6; color: var(--accent); border-radius: 8px; height: 32px; }
 .button-soft:hover { background: #e8d9c4; }
-.plan-meter-action .button { width: 100%; }
+.plan-meter-action > span { display: flex; gap: .5rem; align-items: center; }
+.plan-meter-percent { display: inline-flex; align-items: center; gap: 3px; height: 34px; padding: 0 .45rem; border: 1px solid #d9cdbd; border-radius: 8px; background: white; font-size: .85rem; color: var(--muted); }
+.plan-meter-percent input { width: 2.6rem; padding: 0; border: 0; background: transparent; font: inherit; color: var(--ink); text-align: right; }
+.plan-meter-percent input:focus { outline: none; }
+.plan-meter-percent:focus-within { border-color: var(--accent); }
+.plan-meter-action .button { min-width: 4.6rem; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; }
 .plan-meter-all { display: flex; gap: .6rem; padding-top: .9rem; border-top: 1px solid #eee4d6; }
-.plan-meter-paused { opacity: .6; }
+.plan-meter-inline.plan-meter-paused, .plan-meter-paused > :not(.plan-meter-action) { opacity: .6; }
 .plan-meter-stale .run-bar span { background: var(--muted); }
 .plan-meter-stale .plan-meter-headline strong::after { content: " · stale"; color: var(--amber); font-weight: 700; }
 @media (max-width: 900px) {
   .plan-meter { grid-template-columns: minmax(0, 1fr) auto; row-gap: .7rem; }
-  .plan-meter-usage, .plan-meter-renews { grid-column: 1 / -1; }
-  .plan-meter-action { grid-column: 2; grid-row: 1; }
+  .plan-meter-usage { grid-column: 1 / -1; }
 }
 
 /* The spend guard's line: quiet when clean, red when anything was paid twice. */

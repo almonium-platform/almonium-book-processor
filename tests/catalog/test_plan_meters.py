@@ -105,7 +105,7 @@ def test_each_account_shows_who_it_is_when_it_resets_and_when_it_renews(client):
     page = client.get(reverse("catalog:dashboard")).content.decode()
     assert "almonium.app@gmail.com" in page and "worker: main" in page
     assert "Week resets" in page and "Session 12%" in page
-    assert "Renews 26 Nov" in page and "Next payment 26 Nov 2026" in page
+    assert ">Thu 26 Nov</span>" in page and "Paid on the 26th of the month" in page
 
     response = client.post(
         reverse("catalog:plan-account-details"),
