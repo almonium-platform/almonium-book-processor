@@ -23,6 +23,7 @@ from almonium_book_processor.catalog.chapter_analysis import (
     _hash,
     _json,
     analysis_spec,
+    fitted_blocks,
     judged_blocks,
     snapshot,
     spec_identity,
@@ -162,9 +163,7 @@ def windows_of(blocks: list[dict], window_bytes: int) -> list[list[dict]]:
     """The blocks in the windows a judge reads them in."""
 
     parts, current = [], []
-    for block in blocks:
-        if len(_json([block]).encode()) > window_bytes:
-            raise ValueError("A block exceeds the judge window limit.")
+    for block in fitted_blocks(blocks, window_bytes):
         if current and len(_json([*current, block]).encode()) > window_bytes:
             parts.append(current)
             current = []

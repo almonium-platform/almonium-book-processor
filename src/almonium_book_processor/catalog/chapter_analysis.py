@@ -181,10 +181,59 @@ def judged_blocks(blocks: list[dict], *, adaptation: bool) -> list[dict]:
     return [block for block in blocks if block["type"] not in ContentBlock.PROTECTED_VERSE]
 
 
+_SENTENCE_END = re.compile(r"(?<=[.!?…»«\"“”])\s+")
+
+
+def fitted_blocks(blocks: list[dict], window_bytes: int) -> list[dict]:
+    """The blocks as a reader of ``window_bytes`` windows takes them in.
+
+    A block that fits is passed on untouched, so every window made from such blocks keeps the
+    bytes, and the hash, it was read under. A paragraph larger than one window (Kafka writes
+    paragraphs of 4,000 words) is read in consecutive pieces cut at sentence ends: each is an
+    exact slice of the paragraph with its ``block_id``, its place (``part`` of ``parts``) and
+    the character ``offset`` it starts at, so a citation in it still points into the whole
+    paragraph. The text is never cut inside a sentence: a sentence longer than a window is
+    refused and nothing is truncated.
+    """
+
+    fitted = []
+    for block in blocks:
+        if len(_json([block]).encode()) <= window_bytes:
+            fitted.append(block)
+            continue
+        text = block["text"]
+        cuts = [(m.start(), m.end()) for m in _SENTENCE_END.finditer(text)] + [
+            (len(text), len(text))
+        ]
+        pieces, start, end = [], 0, None
+
+        for cut_start, cut_end in cuts:
+            if end is not None and not _piece_fits(block, start, cut_start, window_bytes):
+                pieces.append((start, end[0]))
+                start = end[1]
+            end = (cut_start, cut_end)
+        pieces.append((start, len(text)))
+        for index, (a, b) in enumerate(pieces, 1):
+            if not _piece_fits(block, a, b, window_bytes):
+                raise ValueError(
+                    f"Block {block['block_id']} holds a sentence longer than one analysis "
+                    "window; review its segmentation before analysis. No text was truncated."
+                )
+            fitted.append(
+                {**block, "text": text[a:b], "part": index, "parts": len(pieces), "offset": a}
+            )
+    return fitted
+
+
+def _piece_fits(block: dict, start: int, end: int, window_bytes: int) -> bool:
+    piece = {**block, "text": block["text"][start:end], "part": 999, "parts": 999, "offset": start}
+    return len(_json([piece]).encode()) <= window_bytes
+
+
 def window_parts(blocks: list[dict], window_bytes: int) -> list[list[dict]]:
     """A chapter's blocks cut into the windows the analysis reads, each within ``window_bytes``."""
     parts, current = [], []
-    for block in blocks:
+    for block in fitted_blocks(blocks, window_bytes):
         if current and len(_json([*current, block]).encode()) > window_bytes:
             parts.append(current)
             current = []
@@ -235,12 +284,6 @@ def snapshot(edition: Edition, spec: dict) -> dict:
         if not blocks:
             continue
         digest = chapter_hash(edition, chapter, blocks)
-        for block in blocks:
-            if len(_json([block]).encode()) > spec["window_bytes"]:
-                raise ValueError(
-                    f"Block {block['block_id']} exceeds the chapter-analysis window limit; "
-                    "review its segmentation before analysis. No text was truncated."
-                )
         parts = window_parts(blocks, spec["window_bytes"])
         chapters.append({"id": str(chapter.id), "hash": digest, "windows": len(parts)})
         for index, part in enumerate(parts, 1):
@@ -433,6 +476,8 @@ def _verify_citations(result: ChapterAnalysis, data: dict) -> tuple[ChapterAnaly
     payloads never carry the model's spelling of the book.
     """
     blocks = {b["block_id"]: b["text"] for b in data["blocks"]}
+    # a paragraph read in pieces: a citation's place counts from the paragraph's start
+    offsets = {b["block_id"]: b.get("offset", 0) for b in data["blocks"]}
     spans, notes = [], []
     evidence, hard_words = [], []
     for kind, items, keep in (
@@ -449,7 +494,8 @@ def _verify_citations(result: ChapterAnalysis, data: dict) -> tuple[ChapterAnaly
             exact = blocks[item.block_id][start:end]
             field = "quote" if kind == "evidence" else "surface"
             keep.append(item.model_copy(update={field: exact}))
-            spans.append({"block_id": item.block_id, "start": start, "end": end})
+            shift = offsets[item.block_id]
+            spans.append({"block_id": item.block_id, "start": start + shift, "end": end + shift})
     if not evidence:
         raise CitationRejected("No cited evidence occurs in the analyzed text.")
     if any(len(s) > 100 for s in [*result.themes, *result.characters, *result.content_flags]):
