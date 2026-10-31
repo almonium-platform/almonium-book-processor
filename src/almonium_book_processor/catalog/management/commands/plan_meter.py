@@ -105,11 +105,21 @@ class Command(BaseCommand):
                 )
         if record and answering:
             # a Codex account answers: the books its used-up allowance held can go on
-            from almonium_book_processor.ai.claude_code_provider import EVERY_ACCOUNT_PAUSED
-            from almonium_book_processor.catalog.plan_pause import open_claude_accounts
+            from almonium_book_processor.ai import claude_code_provider, codex_provider
+            from almonium_book_processor.catalog.plan_pause import (
+                open_claude_accounts,
+                open_codex_accounts,
+            )
             from almonium_book_processor.catalog.production import requeue_held
 
-            # a book held because no Claude account was open waits until one is again
-            waiting = () if open_claude_accounts() else (EVERY_ACCOUNT_PAUSED,)
+            # a book held because no account of a plan was open waits until one is again
+            waiting = tuple(
+                words
+                for words, open_now in (
+                    (claude_code_provider.EVERY_ACCOUNT_PAUSED, open_claude_accounts()),
+                    (codex_provider.EVERY_ACCOUNT_PAUSED, open_codex_accounts()),
+                )
+                if not open_now
+            )
             for run in requeue_held(allowance_only=True, not_held_for=waiting):
                 self.stdout.write(f"{run.edition.slug}: started again after the allowance hold")

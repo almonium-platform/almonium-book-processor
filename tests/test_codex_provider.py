@@ -337,3 +337,43 @@ def test_a_conversation_is_forgotten_even_without_the_databases(tmp_path):
     forget_thread(tmp_path, log)
 
     assert not log.exists()
+
+
+def test_a_codex_account_out_of_allowance_hands_the_call_to_the_next_open_one():
+    refusal = events(
+        {"type": "thread.started"},
+        {"type": "error", "message": "You've hit your usage limit. Try again at Nov 6th."},
+        {"type": "turn.failed"},
+    )
+    asked = []
+
+    def runner(command, **kwargs):
+        home = kwargs["env"]["CODEX_HOME"]
+        asked.append(home)
+        stdout = refusal if home == "/h/.codex" else answer()
+        return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+
+    provider = CodexProvider(
+        binary="codex",
+        timeout_seconds=5,
+        runner=runner,
+        pause=lambda _: None,
+        accounts=lambda: [Path("/h/.codex"), Path("/h/.codex-2")],
+    )
+
+    assert provider.respond(BODY)["status"] == "completed"
+    assert asked == ["/h/.codex", "/h/.codex-2"]
+    # the refusing account rests; the next call goes straight to the other
+    asked.clear()
+    provider.respond(BODY)
+    assert asked == ["/h/.codex-2"]
+
+
+def test_with_every_codex_account_paused_the_call_holds_its_book():
+    from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+    from almonium_book_processor.ai.codex_provider import EVERY_ACCOUNT_PAUSED
+
+    provider = CodexProvider(binary="codex", runner=lambda *a, **k: None, accounts=lambda: [])
+
+    with pytest.raises(AllowanceUsedUp, match=EVERY_ACCOUNT_PAUSED):
+        provider.respond(BODY)

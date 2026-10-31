@@ -15,7 +15,12 @@ from typing import Any
 
 from django.conf import settings
 
-from almonium_book_processor.ai.cli_calls import CallFailed, fits_schema, tried_twice
+from almonium_book_processor.ai.cli_calls import (
+    CallFailed,
+    every_account_paused,
+    fits_schema,
+    on_open_account,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +33,15 @@ def codex_home(home: str | Path | None = None) -> Path:
     """
 
     return Path(home or os.environ.get("CODEX_HOME") or Path.home() / ".codex")
+
+
+EVERY_ACCOUNT_PAUSED = every_account_paused("Codex")
+
+
+def configured_accounts() -> list[Path]:
+    """The accounts the settings name, in the order a call tries them; else the worker's own."""
+
+    return [codex_home(home) for home in settings.CODEX_HOMES] or [codex_home()]
 
 
 # A meter read from the log of a call this recent is the meter; a probe call costs a turn.
@@ -158,8 +172,14 @@ class CodexProvider:
         timeout_seconds: float | None = None,
         runner: Callable[..., Any] = subprocess.run,
         pause: Callable[[float], None] = time.sleep,
+        accounts: Callable[[], list[Path]] = configured_accounts,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.binary = binary or settings.CODEX_BINARY
+        # Which accounts a call may use, asked afresh for every call: the owner pauses one on
+        # the dashboard and the next call goes to the next (catalog/plan_pause.py).
+        self.accounts = accounts
+        self.clock = clock
         self.timeout_seconds = timeout_seconds or settings.CODEX_TIMEOUT_SECONDS
         self.runner = runner
         self.pause = pause
@@ -167,11 +187,21 @@ class CodexProvider:
         self.workdir.mkdir(parents=True, exist_ok=True)
 
     def respond(self, body: dict[str, Any]) -> dict[str, Any]:
-        """One request, tried once more if the CLI fails in passing."""
+        """One request on the first open account, tried once more if the CLI fails in passing.
 
-        return tried_twice(lambda: self._ask(body), pause=self.pause)
+        Calls are ephemeral and leave no session log, so the meter of whichever account answered
+        is still read from that account's own probe (``codex_meter``).
+        """
 
-    def _ask(self, body: dict[str, Any]) -> dict[str, Any]:
+        return on_open_account(
+            "Codex",
+            self.accounts(),
+            lambda account: self._ask(body, account),
+            pause=self.pause,
+            clock=self.clock,
+        )
+
+    def _ask(self, body: dict[str, Any], account: Path | None = None) -> dict[str, Any]:
         schema = ((body.get("text") or {}).get("format") or {}).get("schema")
         if not schema:
             raise ValueError("Codex requests need a JSON schema for the output")
@@ -212,6 +242,7 @@ class CodexProvider:
                 text=True,
                 timeout=self.timeout_seconds,
                 cwd=self.workdir,
+                env={**os.environ, "CODEX_HOME": str(account or codex_home())},
             )
         finally:
             schema_path.unlink(missing_ok=True)

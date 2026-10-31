@@ -17,6 +17,7 @@ import re
 import subprocess
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
@@ -167,6 +168,59 @@ def tried_twice(
         if first:
             raise CallFailed(str(error) or type(error).__name__, first) from error
         raise
+
+
+# An account that refused for its allowance is not asked again for this long by this process;
+# the refusal is free, but asking it before every call of a chapter is a wasted round trip.
+REST_SECONDS = 15 * 60
+_resting_until: dict[str, float] = {}
+
+
+def every_account_paused(plan: str) -> str:
+    """A hold's words when no account of a plan may be asked: the meter's timer leaves such a
+    book held until one is open again (catalog/management/commands/plan_meter.py)."""
+
+    return f"every {plan} account is paused"
+
+
+def on_open_account(
+    plan: str,
+    accounts: list[Path],
+    ask: Callable[[Path], dict[str, Any]],
+    *,
+    pause: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.monotonic,
+) -> dict[str, Any]:
+    """``ask`` on the first of ``accounts`` that is not resting, tried twice as above.
+
+    The accounts are the open ones in the order the settings name them. One whose allowance is
+    used up hands the request to the next and rests; with none left the call raises
+    ``AllowanceUsedUp``, which holds the book without a start.
+    """
+
+    if not accounts:
+        raise AllowanceUsedUp(every_account_paused(plan))
+    now = clock()
+    refused: AllowanceUsedUp | None = None
+    for account in accounts:
+        if _resting_until.get(str(account), 0) > now:
+            continue
+        try:
+            answer = tried_twice(lambda on=account: ask(on), pause=pause)
+        except AllowanceUsedUp as error:
+            _resting_until[str(account)] = now + REST_SECONDS
+            if refused is not None:
+                error.spent = together(refused.spent, error.spent or {}) or None
+            refused = error
+            continue
+        # a refusal is normally free, but where the CLI said it used tokens they count
+        return together(refused.spent, answer) if refused and refused.spent else answer
+    if refused is not None:
+        raise refused
+    raise AllowanceUsedUp(
+        f"every open {plan} account refused for its allowance in the last "
+        f"{REST_SECONDS // 60} minutes"
+    )
 
 
 def fits_schema(answer: Any, schema: dict[str, Any]) -> None:

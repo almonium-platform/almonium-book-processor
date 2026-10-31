@@ -66,5 +66,7 @@ def provider_for(provider: str, model: str):
 
         return ClaudeCodeProvider(model=model, accounts=open_claude_accounts)
     if provider == "codex":
-        return CodexProvider()
+        from almonium_book_processor.catalog.plan_pause import open_codex_accounts
+
+        return CodexProvider(accounts=open_codex_accounts)
     return OpenAIBatchProvider()

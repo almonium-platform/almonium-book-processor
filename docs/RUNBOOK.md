@@ -40,16 +40,15 @@ Level adaptation can run on one of the owner's plans instead of the API: set
 - **Pausing one plan account, or all of them.** The dashboard's meter panel
   has a Pause/Run button per account, an optional "Pause at" percent that
   pauses the account when the meter timer sees its week cross it, and Pause
-  all / Resume all. A paused Codex account stops every worker that works on it
-  from taking plan jobs (the queue keeps them, nothing is paid), and the
-  pause survives a worker restart (a worker that starts on a paused account
-  stands still). Claude accounts are shared by every worker: each call takes
-  the first unpaused one in `CLAUDE_CONFIG_DIRS` order, and moves on to the
-  next when the CLI says an account's allowance is used up. With every Claude
-  account paused a Claude call holds its book without a start, and the meter
-  timer starts it again once one is open. Workers register themselves and
-  their accounts when they start (`PlanWorker`); the pause is a
-  `PlanAccountPause` row.
+  all / Resume all. The accounts of each plan are a pool every worker shares:
+  each call takes the first unpaused one in `CODEX_HOMES` or
+  `CLAUDE_CONFIG_DIRS` order, and moves on to the next when the CLI says an
+  account's allowance is used up. With every account of a plan paused, a call
+  on that plan holds its book without a start, and the meter timer starts it
+  again once one is open. Only with every account paused (Pause all) do the
+  workers stop taking plan jobs (the queue keeps them, nothing is paid), and
+  that survives a worker restart. Workers register themselves when they start
+  (`PlanWorker`); the pause is a `PlanAccountPause` row.
 - **Pausing and resuming the plans.** When the plans' allowances are used up,
   stop the workers taking steps rather than stopping the workers:
   `celery -A almonium_book_processor.config control cancel_consumer plans

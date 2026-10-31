@@ -1,12 +1,12 @@
 """Taking a plan account out of the pipeline, and putting it back.
 
-A plan worker works on one Codex account, and pausing it stops every worker on it from
-taking plan jobs (the queue keeps the jobs; nothing is paid); the pause outlives a worker
-restart, since a worker that starts on a paused account stops itself. Claude accounts are
-shared: every call takes the first open one in ``CLAUDE_CONFIG_DIRS`` order, so pausing one
-sends the calls to the next, and with all of them paused a Claude call holds its book
-(``ai/claude_code_provider.py``). The dashboard's meter panel has the buttons; the state is a
-row per account.
+The accounts of each plan are a pool every worker shares: a call takes the first open one in
+``CODEX_HOMES`` or ``CLAUDE_CONFIG_DIRS`` order (``ai/cli_calls.on_open_account``), so pausing
+an account sends its calls to the next, and with every account of a plan paused a call on that
+plan holds its book without a start. Only with every account of both plans paused do the
+workers stop taking plan jobs (the queue keeps them; nothing is paid), and that outlives a
+worker restart: a worker that starts then stops itself. The dashboard's meter panel has the
+buttons; the state is a row per account.
 """
 
 from __future__ import annotations
@@ -58,12 +58,21 @@ def is_paused(provider: str, account: str) -> bool:
     return PlanAccountPause.objects.filter(provider=provider, account=account).exists()
 
 
-def worker_is_paused(worker: PlanWorker, paused: set | None = None) -> bool:
-    """A worker stands still when its Codex account is paused; a paused Claude account only
-    sends its calls to the next one."""
+def worker_is_paused(worker: PlanWorker, paused: set | None = None) -> bool:  # noqa: ARG001
+    """The workers stand still only when every account they could call is paused: with one
+    left open on either plan there is work they can do."""
 
     paused = paused_accounts() if paused is None else paused
-    return ("codex", worker.codex_account) in paused
+    return set(known_accounts()) <= paused
+
+
+def open_codex_accounts() -> list[Path]:
+    """The Codex accounts a call may use now, in the order it tries them."""
+
+    from almonium_book_processor.ai.codex_provider import configured_accounts
+
+    paused = {account for provider, account in paused_accounts() if provider == "codex"}
+    return [path for path in configured_accounts() if path.name not in paused]
 
 
 def open_claude_accounts() -> list[Path]:

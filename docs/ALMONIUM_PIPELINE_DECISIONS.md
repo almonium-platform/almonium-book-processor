@@ -1017,4 +1017,12 @@ rule below names its constant or function.
   paused Codex account does. `~/.claude` stays out of book calls exactly while
   it is paused, which the owner controls from the dashboard. Answers are cached
   by content, not by account, so a fallback never pays for an answer twice.
+- **Codex accounts are pooled the same way** (1 November 2026,
+  `cli_calls.on_open_account`, `plan_pause.open_codex_accounts`). A worker's
+  own `CODEX_HOME` no longer decides which account a call uses: every Codex
+  call takes the first open account in `CODEX_HOMES` order. Pausing one
+  account therefore no longer takes its worker, and that worker's Claude
+  capacity, out of the pipeline; the workers stop only when every account of
+  both plans is paused. Book calls are `--ephemeral` and write no session log,
+  so each account's meter is still read from its own probe.
 

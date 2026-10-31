@@ -39,7 +39,7 @@ class PlanMeter:
     email: str = ""
     plan_label: str = ""
     renews_on: date | None = None
-    # The plan workers that work on this account.
+    # The plan workers that may call this account: all of them, since the accounts are pooled.
     workers: tuple[str, ...] = ()
 
     @property
@@ -113,12 +113,8 @@ def plan_meters() -> list[PlanMeter]:
         )
     }
     details = {(a.provider, a.account): a for a in PlanAccount.objects.all()}
-    workers: dict[tuple[str, str], list[str]] = {}
-    names = list(PlanWorker.objects.order_by("name"))
-    for worker in names:
-        workers.setdefault(("codex", worker.codex_account), []).append(worker.name)
-    # every worker calls whichever Claude account is open, so each is listed on all of them
-    claude_workers = [worker.name for worker in names]
+    # every worker calls whichever account of a plan is open, so each serves all of them
+    every_worker = tuple(PlanWorker.objects.order_by("name").values_list("name", flat=True))
     # Each account's own last reading, however old: an account whose meter cannot be read
     # (a lapsed login) stays on the page as stale instead of dropping out of it.
     latest: dict[tuple[str, str], PlanMeterReading] = {}
@@ -149,9 +145,7 @@ def plan_meters() -> list[PlanMeter]:
                 email=about.email if about else "",
                 plan_label=(about.plan_label if about else "") or reading.plan_type or "",
                 renews_on=about.renews_on if about else None,
-                workers=tuple(
-                    claude_workers if reading.provider == "claude-code" else workers.get(key, ())
-                ),
+                workers=every_worker,
             )
         )
     return sorted(meters, key=lambda meter: (meter.provider != "codex", meter.account))

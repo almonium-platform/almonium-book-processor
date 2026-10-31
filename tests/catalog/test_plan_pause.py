@@ -44,16 +44,16 @@ def workers(monkeypatch):
     return main, second
 
 
-def test_pausing_an_account_stops_the_workers_on_it_and_resuming_starts_them(control, workers):
+def test_one_paused_account_stops_no_worker_and_every_one_paused_stops_them_all(control, workers):
     plan_pause.pause("codex", ".codex-2", note="refused until Friday")
 
     assert PlanAccountPause.objects.get().account == ".codex-2"
-    assert control == [("go", ("plans-main@yoga",)), ("stop", ("plans-second@yoga",))]
+    # the other accounts take its calls, so both workers keep taking jobs
+    assert control == [("go", ("plans-main@yoga",)), ("go", ("plans-second@yoga",))]
 
     control.clear()
-    plan_pause.pause("claude-code", ".claude-2")
-    # a paused Claude account sends its calls to the next one; it stops no worker
-    assert control == [("go", ("plans-main@yoga",)), ("stop", ("plans-second@yoga",))]
+    plan_pause.pause_all()
+    assert control == [("stop", ("plans-main@yoga",)), ("stop", ("plans-second@yoga",))]
 
     control.clear()
     plan_pause.resume_all()
@@ -61,19 +61,18 @@ def test_pausing_an_account_stops_the_workers_on_it_and_resuming_starts_them(con
     assert control == [("go", ("plans-main@yoga",)), ("go", ("plans-second@yoga",))]
 
 
-def test_a_worker_that_starts_on_a_paused_account_stands_still(workers, monkeypatch):
-    PlanAccountPause.objects.create(provider="codex", account=".codex-2")
+def test_a_worker_that_starts_with_every_account_paused_stands_still(workers, monkeypatch, control):
     stopped = []
     consumer = SimpleNamespace(cancel_task_queue=lambda queue: stopped.append(queue))
-
     monkeypatch.setenv("PLAN_WORKER_NAME", "second")
     monkeypatch.setenv("CODEX_HOME", "/home/ok/.codex-2")
+
+    PlanAccountPause.objects.create(provider="codex", account=".codex-2")
+    assert plan_pause.stop_if_paused(consumer, "plans-second@yoga") is False
+
+    plan_pause.pause_all()
     assert plan_pause.stop_if_paused(consumer, "plans-second@yoga") is True
     assert stopped == ["plans"]
-
-    monkeypatch.setenv("PLAN_WORKER_NAME", "main")
-    monkeypatch.setenv("CODEX_HOME", "/home/ok/.codex")
-    assert plan_pause.stop_if_paused(consumer, "plans-main@yoga") is False
     assert PlanWorker.objects.get(name="main").claude_account == ".claude-2"
 
 
@@ -167,3 +166,11 @@ def test_claude_calls_go_to_the_open_accounts_in_order(settings):
     assert [p.name for p in plan_pause.open_claude_accounts()] == [".claude"]
     PlanAccountPause.objects.create(provider="claude-code", account=".claude")
     assert plan_pause.open_claude_accounts() == []
+
+
+def test_codex_calls_go_to_the_open_accounts_in_order(settings):
+    settings.CODEX_HOMES = ["/home/ok/.codex", "/home/ok/.codex-2"]
+
+    assert [p.name for p in plan_pause.open_codex_accounts()] == [".codex", ".codex-2"]
+    PlanAccountPause.objects.create(provider="codex", account=".codex")
+    assert [p.name for p in plan_pause.open_codex_accounts()] == [".codex-2"]

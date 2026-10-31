@@ -16,11 +16,10 @@ from zoneinfo import ZoneInfo
 from django.conf import settings
 
 from almonium_book_processor.ai.cli_calls import (
-    AllowanceUsedUp,
     CallFailed,
+    every_account_paused,
     fits_schema,
-    together,
-    tried_twice,
+    on_open_account,
 )
 
 # The CLI writes every prompt to a one-hour cache and charges that write above the input
@@ -29,13 +28,7 @@ from almonium_book_processor.ai.cli_calls import (
 # Opus call came to USD 0.045 instead of USD 0.070.
 UNCACHED = {**os.environ, "DISABLE_PROMPT_CACHING": "1"}
 
-# A hold's words when no Claude account may be asked: the meter's timer leaves such a book
-# held until an account is open again (catalog/management/commands/plan_meter.py).
-EVERY_ACCOUNT_PAUSED = "every Claude account is paused"
-# An account that refused for its allowance is not asked again for this long by this process;
-# the refusal is free, but asking it before every call of a chapter is a wasted round trip.
-REST_SECONDS = 15 * 60
-_resting_until: dict[str, float] = {}
+EVERY_ACCOUNT_PAUSED = every_account_paused("Claude")
 
 _METERS = {
     "session_percent": r"Current session: (\d+)% used",
@@ -227,29 +220,12 @@ class ClaudeCodeProvider:
         none left the call raises ``AllowanceUsedUp``, which holds the book without a start.
         """
 
-        accounts = self.accounts()
-        if not accounts:
-            raise AllowanceUsedUp(EVERY_ACCOUNT_PAUSED)
-        now = self.clock()
-        refused: AllowanceUsedUp | None = None
-        for account in accounts:
-            if _resting_until.get(str(account), 0) > now:
-                continue
-            try:
-                answer = tried_twice(lambda on=account: self._ask(body, on), pause=self.pause)
-            except AllowanceUsedUp as error:
-                _resting_until[str(account)] = now + REST_SECONDS
-                if refused is not None:
-                    error.spent = together(refused.spent, error.spent or {}) or None
-                refused = error
-                continue
-            # a refusal is normally free, but where the CLI said it used tokens they count
-            return together(refused.spent, answer) if refused and refused.spent else answer
-        if refused is not None:
-            raise refused
-        raise AllowanceUsedUp(
-            "every open Claude account refused for its allowance in the last "
-            f"{REST_SECONDS // 60} minutes"
+        return on_open_account(
+            "Claude",
+            self.accounts(),
+            lambda account: self._ask(body, account),
+            pause=self.pause,
+            clock=self.clock,
         )
 
     def _ask(self, body: dict[str, Any], account: Path | None = None) -> dict[str, Any]:

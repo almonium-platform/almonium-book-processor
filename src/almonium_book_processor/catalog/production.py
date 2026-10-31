@@ -580,13 +580,17 @@ def _refused(run: PipelineRun, state: dict, target: str) -> None:
             f"The provider could not be reached, said the '{refused.stage}' job: {said} "
             "The book is started again once a provider answers."
         )
-    from almonium_book_processor.ai.claude_code_provider import EVERY_ACCOUNT_PAUSED
+    from almonium_book_processor.ai import claude_code_provider, codex_provider
 
-    if EVERY_ACCOUNT_PAUSED in said:
-        raise Held(
-            f"No Claude account is open, said the '{refused.stage}' job: {said} "
-            "The book is started again once one is run on the dashboard."
-        )
+    for plan, words in (
+        ("Claude", claude_code_provider.EVERY_ACCOUNT_PAUSED),
+        ("Codex", codex_provider.EVERY_ACCOUNT_PAUSED),
+    ):
+        if words in said:
+            raise Held(
+                f"No {plan} account is open, said the '{refused.stage}' job: {said} "
+                "The book is started again once one is run on the dashboard."
+            )
     raise Held(
         f"The plan's allowance is used up, said the '{refused.stage}' job: {said} "
         "Start the book again after the reset."
