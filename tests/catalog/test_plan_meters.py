@@ -53,6 +53,21 @@ def test_a_reading_older_than_an_hour_is_marked_stale():
     assert plan_meters()[0].stale
 
 
+def test_an_account_whose_meter_stopped_answering_stays_on_the_page_as_stale():
+    """A lapsed login leaves its last reading days behind the others; it must not drop out."""
+
+    lapsed = reading("claude-code", ".claude-2", 7)
+    PlanMeterReading.objects.filter(pk=lapsed.pk).update(
+        created_at=datetime.now(UTC) - timedelta(days=4)
+    )
+    for _ in range(250):
+        reading("codex", ".codex", 10)
+
+    meters = {meter.account: meter for meter in plan_meters()}
+    assert set(meters) == {".codex", ".claude-2"}
+    assert meters[".claude-2"].stale and meters[".claude-2"].week_percent == 7
+
+
 def test_the_catalogue_page_shows_the_plans_this_week():
     user = get_user_model().objects.create_user("staff", password="x", is_staff=True)
     client = Client()

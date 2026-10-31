@@ -810,7 +810,8 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .plan-meter-who code { font-size: .78rem; color: var(--muted); background: none; padding: 0; }
 .plan-meter-sub { font-size: .8rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-meter-usage { display: grid; gap: 6px; min-width: 0; }
-.plan-meter-headline { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; }
+.plan-meter-headline { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: .75rem; }
+.plan-meter-headline > * { white-space: nowrap; }
 .plan-meter-headline strong { font-size: .95rem; font-weight: 600; }
 .plan-meter-headline span { font-size: .88rem; font-variant-numeric: tabular-nums; }
 .plan-meter-bar { position: relative; display: block; }

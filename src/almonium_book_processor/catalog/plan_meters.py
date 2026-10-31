@@ -117,9 +117,17 @@ def plan_meters() -> list[PlanMeter]:
     for worker in PlanWorker.objects.order_by("name"):
         workers.setdefault(("codex", worker.codex_account), []).append(worker.name)
         workers.setdefault(("claude-code", worker.claude_account), []).append(worker.name)
+    # Each account's own last reading, however old: an account whose meter cannot be read
+    # (a lapsed login) stays on the page as stale instead of dropping out of it.
     latest: dict[tuple[str, str], PlanMeterReading] = {}
-    for reading in PlanMeterReading.objects.order_by("-created_at")[:200]:
-        latest.setdefault((reading.provider, reading.account), reading)
+    for pair in PlanMeterReading.objects.order_by().values_list("provider", "account").distinct():
+        reading = (
+            PlanMeterReading.objects.filter(provider=pair[0], account=pair[1])
+            .order_by("-created_at")
+            .first()
+        )
+        if reading is not None:
+            latest[pair] = reading
     meters = []
     for key, reading in latest.items():
         about = details.get(key)
