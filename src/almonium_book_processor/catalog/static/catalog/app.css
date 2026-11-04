@@ -867,3 +867,20 @@ span.toolbar-step { color: var(--line); background: transparent; }
 @media (max-width: 700px) { .book-queue-row { grid-template-columns: minmax(0, 1fr) auto; } .book-queue-origin, .book-queue-step { grid-column: 1; } .book-queue-row form { grid-column: 2; grid-row: 1 / span 3; } .book-queue-tick { flex-basis: 100%; white-space: normal; } }
 .production-line { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; }
 .production-line > p { margin: 0; }
+.plan-routing { padding: .9rem 0; border-top: 1px solid #eee4d6; }
+.plan-routing .eyebrow { margin: 0 0 .5rem; }
+.plan-routing-row { display: grid; grid-template-columns: 12.5rem auto minmax(0, 1fr); column-gap: 1.75rem; row-gap: .5rem; align-items: center; padding: .35rem 0; font-size: .85rem; }
+.plan-routing-modes { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.plan-routing-modes button { height: 28px; padding: 0 .7rem; border: 0; border-radius: 7px; background: none; color: var(--ink); font: inherit; font-size: .8rem; cursor: pointer; white-space: nowrap; }
+.plan-routing-modes button:hover { background: #f3ede4; }
+.plan-routing-modes button.is-active { background: var(--ink); color: #fff; font-weight: 600; }
+.plan-routing-order { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; margin: 0; padding: 0; list-style: none; }
+.plan-routing-order li { display: inline-flex; align-items: center; gap: .45rem; min-width: 0; max-width: 100%; }
+.plan-routing-order code, .plan-routing-order .link-button, .plan-routing-note { white-space: nowrap; }
+.plan-routing-order li.is-paused { color: var(--muted); }
+.plan-routing-rank { min-width: 1.6rem; padding: .1rem .4rem; border-radius: 999px; background: #e9e1d4; font-size: .72rem; font-weight: 700; text-align: center; }
+.plan-routing-email, .plan-routing-note { color: var(--muted); font-size: .78rem; }
+.plan-routing-email { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-routing-order form { display: inline; }
+.plan-routing-order .link-button { font-size: .78rem; }
+@media (max-width: 900px) { .plan-routing-row { grid-template-columns: minmax(0, 1fr) auto; } .plan-routing-order { grid-column: 1 / -1; } }

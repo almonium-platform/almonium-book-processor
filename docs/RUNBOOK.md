@@ -41,9 +41,15 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   has a Pause/Run button per account, an optional "Pause at" percent that
   pauses the account when the meter timer sees its week cross it, and Pause
   all / Resume all. The accounts of each plan are a pool every worker shares:
-  each call takes the first unpaused one in `CODEX_HOMES` or
-  `CLAUDE_CONFIG_DIRS` order, and moves on to the next when the CLI says an
-  account's allowance is used up. With every account of a plan paused, a call
+  each call takes the first unpaused one in the panel's "Spending order",
+  and moves on to the next when the CLI says an account's allowance is used
+  up. Per plan, "In order" spends the account numbered 1 until it refuses or
+  is paused, then 2 ("Spend first" moves an account to 1); "Balanced" sends
+  each call to the account with the least of its week used at the last
+  meter reading. Both are read on every call: no restart. The order starts
+  as `CODEX_HOMES` / `CLAUDE_CONFIG_DIRS` list them (the meter timer numbers
+  an account that has no number yet) and is the dashboard's after that
+  (`PlanAccount.priority`, `PlanRouting`). With every account of a plan paused, a call
   on that plan holds its book without a start, and the meter timer starts it
   again once one is open. Only with every account paused (Pause all) do the
   workers stop taking plan jobs (the queue keeps them, nothing is paid), and

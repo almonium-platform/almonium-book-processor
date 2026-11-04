@@ -11,7 +11,7 @@ from almonium_book_processor.ai.claude_code_provider import (
 from almonium_book_processor.ai.codex_provider import codex_home, codex_meter
 from almonium_book_processor.ai.pricing import PLAN_WEEK_USD
 from almonium_book_processor.catalog.models import PlanAccount, PlanMeterReading
-from almonium_book_processor.catalog.plan_pause import pause_on_limit
+from almonium_book_processor.catalog.plan_pause import pause_on_limit, seed_priorities
 
 
 def _instant(value):
@@ -30,6 +30,13 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         record = options["record"]
         answering = False
+        if record:
+            # the settings' order is where the dashboard's order of the accounts starts
+            seed_priorities("codex", [codex_home(home).name for home in settings.CODEX_HOMES])
+            seed_priorities(
+                "claude-code",
+                [claude_config_dir(path).name for path in settings.CLAUDE_CONFIG_DIRS],
+            )
         for home in settings.CODEX_HOMES or [None]:
             account = codex_home(home)
             meter = codex_meter(home=account)

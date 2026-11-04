@@ -41,6 +41,8 @@ class PlanMeter:
     renews_on: date | None = None
     # The plan workers that may call this account: all of them, since the accounts are pooled.
     workers: tuple[str, ...] = ()
+    # Where the account stands among its plan's when calls go in order; 1 is spent first.
+    priority: int | None = None
 
     @property
     def provider_label(self) -> str:
@@ -146,6 +148,35 @@ def plan_meters() -> list[PlanMeter]:
                 plan_label=(about.plan_label if about else "") or reading.plan_type or "",
                 renews_on=about.renews_on if about else None,
                 workers=every_worker,
+                priority=about.priority if about else None,
             )
         )
     return sorted(meters, key=lambda meter: (meter.provider != "codex", meter.account))
+
+
+def plan_routing(meters: list[PlanMeter]) -> list[dict]:
+    """Each plan's way of choosing among its accounts, with the accounts in the order calls
+    try them when they go in order (an account without a priority last, by name)."""
+
+    from almonium_book_processor.catalog.models import PlanRouting
+
+    modes = dict(PlanRouting.objects.values_list("provider", "mode"))
+    plans = []
+    for provider in PROVIDER_LABELS:
+        own = sorted(
+            (meter for meter in meters if meter.provider == provider),
+            key=lambda meter: (meter.priority is None, meter.priority or 0, meter.account),
+        )
+        if not own:
+            continue
+        mode = modes.get(provider, PlanRouting.Mode.ORDER)
+        plans.append(
+            {
+                "provider": provider,
+                "label": PlanMeter.label(provider),
+                "mode": mode,
+                "balanced": mode == PlanRouting.Mode.BALANCED,
+                "accounts": own,
+            }
+        )
+    return plans

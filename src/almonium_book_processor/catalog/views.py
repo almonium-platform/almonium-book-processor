@@ -66,12 +66,13 @@ from almonium_book_processor.catalog.models import (
     EditionTombstone,
     GlossNote,
     PipelineRun,
+    PlanRouting,
     QAWarning,
     SourceDownload,
     TextQualityFinding,
     Work,
 )
-from almonium_book_processor.catalog.plan_meters import plan_meters
+from almonium_book_processor.catalog.plan_meters import plan_meters, plan_routing
 from almonium_book_processor.catalog.promotion import (
     promotion_blocker,
     promotion_chain,
@@ -127,7 +128,8 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "catalogue": catalogue,
             "groups": catalogue.groups,
             "summary": catalogue.summary,
-            "meters": plan_meters(),
+            "meters": (meters := plan_meters()),
+            "routing": plan_routing(meters),
             "guard": _guard_context(),
             "factory": _factory_context(),
         },
@@ -2098,6 +2100,42 @@ def book_pause_view(request: HttpRequest, edition_id) -> HttpResponse:
     if request.POST.get("next") == "edition":
         return redirect(reverse("catalog:edition-detail", args=[edition.id]) + "#production")
     return redirect("catalog:dashboard")
+
+
+@staff_member_required
+@require_POST
+def plan_routing_view(request: HttpRequest) -> HttpResponse:
+    """Choose how a plan's calls pick an account: in order or balanced; or which goes first."""
+
+    from almonium_book_processor.catalog import plan_pause
+
+    provider = request.POST.get("provider", "")
+    action = request.POST.get("action", "")
+    try:
+        if action == "mode":
+            mode = request.POST.get("mode", "")
+            plan_pause.set_mode(provider, mode)
+            messages.info(
+                request,
+                "Calls now go to the account with the least of its week used."
+                if mode == PlanRouting.Mode.BALANCED
+                else "Calls now spend the first account until it is used up, then the next.",
+            )
+        elif action == "first":
+            account = request.POST.get("account", "")
+            order = [
+                meter.account
+                for plan in plan_routing(plan_meters())
+                if plan["provider"] == provider
+                for meter in plan["accounts"]
+            ]
+            plan_pause.put_first(provider, account, order)
+            messages.info(request, f"{account} is spent first from the next call.")
+        else:
+            messages.error(request, "Choose a mode or the account to spend first.")
+    except ValueError as error:
+        messages.error(request, str(error))
+    return redirect(f"{reverse('catalog:dashboard')}#plans")
 
 
 @staff_member_required

@@ -174,3 +174,63 @@ def test_codex_calls_go_to_the_open_accounts_in_order(settings):
     assert [p.name for p in plan_pause.open_codex_accounts()] == [".codex", ".codex-2"]
     PlanAccountPause.objects.create(provider="codex", account=".codex")
     assert [p.name for p in plan_pause.open_codex_accounts()] == [".codex-2"]
+
+
+def test_calls_spend_the_account_put_first_on_the_dashboard(settings):
+    settings.CLAUDE_CONFIG_DIRS = ["/home/ok/.claude-2", "/home/ok/.claude"]
+    plan_pause.seed_priorities("claude-code", [".claude-2", ".claude"])
+    assert [p.name for p in plan_pause.open_claude_accounts()] == [".claude-2", ".claude"]
+
+    plan_pause.put_first("claude-code", ".claude", [".claude-2", ".claude"])
+
+    assert [p.name for p in plan_pause.open_claude_accounts()] == [".claude", ".claude-2"]
+    # the settings' order does not take the dashboard's back at the next meter reading
+    plan_pause.seed_priorities("claude-code", [".claude-2", ".claude"])
+    assert [p.name for p in plan_pause.open_claude_accounts()] == [".claude", ".claude-2"]
+    # a paused first account hands its calls to the next
+    plan_pause.pause("claude-code", ".claude")
+    assert [p.name for p in plan_pause.open_claude_accounts()] == [".claude-2"]
+
+
+def test_a_balanced_plan_calls_the_account_with_the_least_of_its_week_used(settings):
+    from almonium_book_processor.catalog.models import PlanRouting
+
+    settings.CODEX_HOMES = ["/home/ok/.codex", "/home/ok/.codex-2", "/home/ok/.codex-3"]
+    PlanMeterReading.objects.create(provider="codex", account=".codex", week_percent=60)
+    PlanMeterReading.objects.create(provider="codex", account=".codex-2", week_percent=20)
+    plan_pause.set_mode("codex", PlanRouting.Mode.BALANCED)
+
+    # an account never read goes last
+    assert [p.name for p in plan_pause.open_codex_accounts()] == [".codex-2", ".codex", ".codex-3"]
+    PlanMeterReading.objects.create(provider="codex", account=".codex-2", week_percent=70)
+    assert [p.name for p in plan_pause.open_codex_accounts()] == [".codex", ".codex-2", ".codex-3"]
+
+    plan_pause.set_mode("codex", PlanRouting.Mode.ORDER)
+    assert [p.name for p in plan_pause.open_codex_accounts()] == [".codex", ".codex-2", ".codex-3"]
+    with pytest.raises(ValueError):
+        plan_pause.set_mode("codex", "random")
+
+
+def test_the_dashboard_sets_the_mode_and_the_first_account(client, control, workers):
+    from almonium_book_processor.catalog.models import PlanAccount, PlanRouting
+
+    for account, used in ((".claude", 18), (".claude-2", 4)):
+        PlanMeterReading.objects.create(provider="claude-code", account=account, week_percent=used)
+    plan_pause.seed_priorities("claude-code", [".claude-2", ".claude"])
+    client.force_login(get_user_model().objects.create_user("staff", is_staff=True))
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+    assert "Spending order" in page and "Spend first" in page
+
+    client.post(
+        reverse("catalog:plan-routing"),
+        {"provider": "claude-code", "action": "first", "account": ".claude"},
+    )
+    assert PlanAccount.objects.get(provider="claude-code", account=".claude").priority == 1
+    assert PlanAccount.objects.get(provider="claude-code", account=".claude-2").priority == 2
+
+    client.post(
+        reverse("catalog:plan-routing"),
+        {"provider": "claude-code", "action": "mode", "mode": "balanced"},
+    )
+    assert PlanRouting.objects.get(provider="claude-code").mode == "balanced"
+    assert "next call" in client.get(reverse("catalog:dashboard")).content.decode()

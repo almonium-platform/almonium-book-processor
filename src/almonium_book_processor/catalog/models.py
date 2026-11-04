@@ -1279,6 +1279,9 @@ class PlanAccount(TimestampedModel):
     renews_on = models.DateField(null=True, blank=True)
     # Pause the account when its week crosses this share; empty is no limit (plan_pause.py).
     pause_at_percent = models.PositiveSmallIntegerField(null=True, blank=True)
+    # Where the account stands among its plan's when calls go in order: 1 is spent first. The
+    # meter timer fills it from the settings' order for an account that has none.
+    priority = models.PositiveSmallIntegerField(null=True, blank=True)
     note = models.CharField(max_length=200, blank=True)
 
     class Meta:
@@ -1288,6 +1291,25 @@ class PlanAccount(TimestampedModel):
 
     def __str__(self) -> str:
         return f"{self.provider} {self.account} ({self.email or 'unknown'})"
+
+
+class PlanRouting(TimestampedModel):
+    """How a plan's calls choose among its open accounts, set on the dashboard; a row a plan.
+
+    In order spends the first account by priority until it refuses for its allowance, then the
+    next. Balanced sends each call to the account with the least of its week used, by the last
+    meter reading. No row is in order.
+    """
+
+    class Mode(models.TextChoices):
+        ORDER = "order", "In order"
+        BALANCED = "balanced", "Balanced"
+
+    provider = models.CharField(max_length=20, unique=True)
+    mode = models.CharField(max_length=10, choices=Mode.choices, default=Mode.ORDER)
+
+    def __str__(self) -> str:
+        return f"{self.provider}: {self.get_mode_display()}"
 
 
 class FactorySwitch(TimestampedModel):

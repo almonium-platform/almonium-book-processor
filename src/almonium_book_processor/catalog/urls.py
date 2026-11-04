@@ -269,6 +269,7 @@ urlpatterns = [
     path("spend-guard/run/", views.run_spend_guard_view, name="run-spend-guard"),
     path("plan-accounts/pause/", views.plan_account_pause_view, name="plan-account-pause"),
     path("plan-accounts/details/", views.plan_account_details_view, name="plan-account-details"),
+    path("plan-accounts/routing/", views.plan_routing_view, name="plan-routing"),
     path("factory/switch/", views.factory_switch_view, name="factory-switch"),
     path("editions/<uuid:edition_id>/pause/", views.book_pause_view, name="book-pause"),
     path(
