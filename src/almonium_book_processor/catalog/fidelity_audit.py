@@ -242,6 +242,7 @@ def _record_usage(ai_id, response: dict, spec: dict) -> None:
             output_tokens=outputs,
             reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
             estimated_cost_usd=cost,
+            plan_account=response.get("plan_account", ""),
         )
         ai.provider_request_id = response.get("id", "")
         ai.response_payload = {"raw": response} if ai.edition_id else {}

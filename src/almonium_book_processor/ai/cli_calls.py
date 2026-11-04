@@ -213,6 +213,7 @@ def on_open_account(
                 error.spent = together(refused.spent, error.spent or {}) or None
             refused = error
             continue
+        answer["plan_account"] = account.name
         # a refusal is normally free, but where the CLI said it used tokens they count
         return together(refused.spent, answer) if refused and refused.spent else answer
     if refused is not None:

@@ -271,6 +271,7 @@ def _usage(reviewer: dict, response: dict) -> dict:
         "estimated_cost_usd": plan_priced(
             response, call_cost(reviewer["provider"], reviewer["model"], **tokens)
         ),
+        "plan_account": response.get("plan_account", ""),
     }
 
 

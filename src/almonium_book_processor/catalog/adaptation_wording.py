@@ -524,6 +524,7 @@ def _ask_spot_fix(
                 if has_price(seat.model)
                 else Decimal("0")
             ),
+            plan_account=response.get("plan_account", ""),
         )
         # the answer is paid for whether or not it validates below
         ai.save(update_fields=[*AIRun.USAGE_FIELDS, "updated_at"])

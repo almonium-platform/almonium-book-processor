@@ -1,0 +1,53 @@
+{% extends "catalog/base.html" %}
+{% block title %}Operations · Almonium Books{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Book pipeline</p>
+    <h1>Operations</h1>
+    <p class="muted">Every step a book takes and every model call it makes, newest first. A line with no end yet is running now. "% wk" is an estimate of the plan's week, not a meter reading. A call names its account once it has answered.</p>
+  </div>
+</div>
+
+<div {% if live_url %}data-live="{{ live_url }}" data-live-fingerprint="{{ fingerprint }}"{% endif %}>
+  <p class="ops-now">
+    <strong>{{ running }} running now</strong>{% for plan in last_hour %}<span>{{ plan.plan }} last hour: {{ plan.calls }} calls, about {{ plan.share }} of a week</span>{% endfor %}
+  </p>
+
+  <nav class="ops-filters" aria-label="Show">
+    {% for filter in filters %}
+      <a href="?{% if filter.key %}show={{ filter.key }}{% endif %}{% if work %}{% if filter.key %}&amp;{% endif %}book={{ work }}{% endif %}" {% if filter.on %}class="is-on" aria-current="true"{% endif %}>{{ filter.label }}</a>
+    {% endfor %}
+    {% if work %}<a class="ops-book-filter" href="?{% if chosen %}show={{ chosen }}{% endif %}">{{ book|default:"This book" }} ×</a>{% endif %}
+  </nav>
+
+  <section class="ops-list">
+    {% for line in lines %}
+      {% if line.new_day %}<h2 class="ops-day">{{ line.new_day|date:"l j F" }}</h2>{% endif %}
+      <div class="ops-row ops-{{ line.kind }}{% if line.running %} is-running{% endif %}{% if line.failed %} is-failed{% endif %}">
+        <time datetime="{{ line.at|date:'c' }}">{{ line.at|date:"H:i:s" }}</time>
+        <span class="ops-what">
+          {% if line.running %}<span class="ops-pulse" aria-hidden="true"></span>{% endif %}{{ line.text }}{% if line.chapter %} <small>{{ line.chapter }}</small>{% endif %}
+          {% if line.failed and line.error %}<small class="ops-error">{{ line.error }}</small>{% endif %}
+        </span>
+        <span class="ops-book">
+          {% if line.work_id %}<a href="?{% if chosen %}show={{ chosen }}&amp;{% endif %}book={{ line.work_id }}" title="Only this book">{{ line.book }}</a>{% else %}{{ line.book }}{% endif %}{% if line.level %} <span class="ops-level">{{ line.level }}</span>{% endif %}
+        </span>
+        {% if line.kind == "call" %}
+          <span class="ops-who ops-plan-{{ line.provider }}">{{ line.model }}{% if line.account %} · {{ line.account }}{% endif %}</span>
+          <span class="ops-took">
+            {% if line.running %}running {{ line.took }}{% elif line.failed %}failed after {{ line.took }}{% elif line.ended %}{{ line.took }}{% else %}<span title="This call never recorded an end; its worker probably stopped.">no end recorded</span>{% endif %}
+          </span>
+          <span class="ops-used"{% if line.used_note %} title="{{ line.used_note }}"{% endif %}>{% if line.used %}{{ line.used }}{% if line.provider != "openai" %} wk{% endif %}{% endif %}</span>
+        {% endif %}
+      </div>
+    {% empty %}
+      <p class="muted ops-empty">Nothing to show here{% if chosen == "live" %}: no call is running right now{% endif %}.</p>
+    {% endfor %}
+  </section>
+
+  {% if older %}
+    <p class="ops-older"><a class="button secondary" href="?{% if chosen %}show={{ chosen }}&amp;{% endif %}{% if work %}book={{ work }}&amp;{% endif %}before={{ older|urlencode }}">Older</a></p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -536,6 +536,7 @@ def _record_response(ai_run: AIRun, response: dict, spec: dict) -> bool:
             "reasoning_tokens", 0
         )
         current.estimated_cost_usd = cost if usage else None
+        current.plan_account = response.get("plan_account", "")
         current.provider_request_id = response.get("id", "")
         current.save(update_fields=[*AIRun.USAGE_FIELDS, "provider_request_id", "updated_at"])
         return current.edition_id is not None

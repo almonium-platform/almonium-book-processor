@@ -1061,6 +1061,9 @@ class AIRun(TimestampedModel):
     output_tokens = models.PositiveIntegerField(default=0)
     reasoning_tokens = models.PositiveIntegerField(default=0)
     estimated_cost_usd = models.DecimalField(max_digits=12, decimal_places=6, null=True, blank=True)
+    # The plan account that answered (``.codex-2``), once one has. A default in the database,
+    # because workers still running the code before this column insert rows without it.
+    plan_account = models.CharField(max_length=100, blank=True, default="", db_default="")
     request_payload = models.JSONField(default=dict)
     response_payload = models.JSONField(default=dict)
     error = models.TextField(blank=True)
@@ -1076,6 +1079,7 @@ class AIRun(TimestampedModel):
         "output_tokens",
         "reasoning_tokens",
         "estimated_cost_usd",
+        "plan_account",
     )
 
     def add_attempt_usage(
@@ -1086,6 +1090,7 @@ class AIRun(TimestampedModel):
         output_tokens: int,
         reasoning_tokens: int,
         estimated_cost_usd: Decimal,
+        plan_account: str = "",
     ) -> None:
         """Add one attempt's usage to the run.
 
@@ -1099,6 +1104,7 @@ class AIRun(TimestampedModel):
         self.output_tokens += output_tokens
         self.reasoning_tokens += reasoning_tokens
         self.estimated_cost_usd = (self.estimated_cost_usd or Decimal("0")) + estimated_cost_usd
+        self.plan_account = plan_account or self.plan_account
 
 
 class UserErrorReport(TimestampedModel):

@@ -884,3 +884,42 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .plan-routing-order form { display: inline; }
 .plan-routing-order .link-button { font-size: .78rem; }
 @media (max-width: 900px) { .plan-routing-row { grid-template-columns: minmax(0, 1fr) auto; } .plan-routing-order { grid-column: 1 / -1; } }
+
+/* The operations page: one line per step or model call, newest first. */
+.ops-now { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; align-items: baseline; margin: .4rem 0 .8rem; font-size: .9rem; }
+.ops-now span { color: var(--muted); }
+.ops-filters { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .9rem; font-size: .82rem; }
+.ops-filters a { padding: .28rem .7rem; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; color: var(--ink); background: var(--card); }
+.ops-filters a.is-on { background: var(--accent); border-color: var(--accent); color: var(--card); }
+.ops-filters .ops-book-filter { border-color: var(--accent); color: var(--accent); }
+.ops-list { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; font-size: .82rem; }
+.ops-day { margin: 0; padding: .5rem 1rem; border-top: 1px solid var(--line); background: var(--paper); font-size: .76rem; font-weight: 600; color: var(--muted); }
+.ops-list > .ops-day:first-child { border-top: 0; }
+.ops-row { display: grid; grid-template-columns: 4.6rem minmax(0, 2.2fr) minmax(0, 1.7fr) minmax(0, 1.2fr) 7.5rem 5.5rem; gap: .2rem .9rem; align-items: baseline; padding: .32rem 1rem; border-top: 1px solid var(--line); }
+.ops-row time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.ops-what small { color: var(--muted); }
+.ops-what .ops-error { display: block; color: var(--red); overflow-wrap: anywhere; }
+.ops-book { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ops-book a { text-decoration: none; color: inherit; }
+.ops-book a:hover { text-decoration: underline; }
+.ops-level { padding: 0 .3rem; border: 1px solid var(--line); border-radius: 4px; font-size: .68rem; color: var(--muted); }
+.ops-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.ops-plan-claude-code { color: var(--accent); }
+.ops-plan-codex { color: var(--green); }
+.ops-took, .ops-used { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ops-step { background: var(--paper); font-weight: 600; }
+.ops-step .ops-book { grid-column: 3 / -1; font-weight: 400; }
+.ops-row.is-running .ops-took { color: var(--green); font-weight: 600; }
+.ops-row.is-failed .ops-took { color: var(--red); }
+.ops-pulse { display: inline-block; width: .5rem; height: .5rem; margin-right: .4rem; border-radius: 50%; background: var(--green); animation: ops-pulse 1.6s ease-in-out infinite; }
+@keyframes ops-pulse { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .ops-pulse { animation: none; } }
+.ops-empty { margin: 0; padding: 1rem; }
+.ops-older { margin: 1rem 0; text-align: center; }
+@media (max-width: 800px) {
+  .ops-row { grid-template-columns: 4.2rem minmax(0, 1fr) auto; }
+  .ops-row .ops-what, .ops-row .ops-book, .ops-step .ops-book { grid-column: 2 / -1; }
+  .ops-row .ops-who { grid-column: 2; }
+  .ops-row .ops-took { grid-column: 3; }
+  .ops-row .ops-used { grid-column: 3; }
+}

@@ -534,6 +534,7 @@ def record_response(ai_id, response):
                 if configuration.provider in ("codex", "claude-code")
                 else _estimated_cost("quality", inputs, cached, outputs, discounted=False)
             ),
+            plan_account=response.get("plan_account", ""),
         )
         ai.provider_request_id = response.get("id", "")
         ai.response_payload = {"raw": response} if ai.edition_id else {}
