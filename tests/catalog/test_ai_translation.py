@@ -727,3 +727,42 @@ def test_plan_tiers_are_not_offered_by_the_admin() -> None:
     from almonium_book_processor.catalog.translation_jobs import TRANSLATION_TIERS
 
     assert not set(PLAN_TIERS) & set(TRANSLATION_TIERS)
+
+
+def test_a_plan_translation_calls_the_open_accounts_in_the_dashboards_order(monkeypatch) -> None:
+    """A paused account is skipped and the priority holds for translations too: on
+    16 November 2026 they went to a paused Codex account while the one expiring that day idled."""
+
+    from almonium_book_processor.catalog import ai_translation
+    from almonium_book_processor.catalog.ai_translation import CODEX_TIER, run_translation_inline
+    from almonium_book_processor.catalog.plan_pause import open_codex_accounts
+
+    built: list[dict] = []
+
+    class RecordingCodex:
+        name = "codex"
+
+        def __init__(self, **kwargs):
+            built.append(kwargs)
+
+        def respond(self, body):
+            line = output_line(
+                "chapter-1",
+                [
+                    translated("c1.h1", "Розділ I"),
+                    translated("c1.p2", "Похмурої листопадової ночі я побачив кінець трудів."),
+                ],
+            )
+            return line["response"]["body"]
+
+    monkeypatch.setattr(ai_translation, "CodexProvider", RecordingCodex)
+    edition = create_parallel_translation(
+        source_edition=canonical_edition(),
+        target_language="uk",
+        register="period-faithful",
+        tier=CODEX_TIER,
+    )
+
+    run_translation_inline(str(edition.id), tier=CODEX_TIER)
+
+    assert built == [{"accounts": open_codex_accounts}]

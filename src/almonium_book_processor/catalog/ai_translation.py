@@ -873,9 +873,19 @@ def run_translation_inline(edition_id: str, *, tier: str = "quality", provider=N
     )
 
     if provider is None:
-        provider = {SUBSCRIPTION_TIER: ClaudeCodeProvider, CODEX_TIER: CodexProvider}.get(
-            tier, OpenAIBatchProvider
-        )()
+        # the open accounts in the dashboard's order, as every other plan step calls them: a
+        # paused account is skipped and the account spent first is the one the owner chose
+        from almonium_book_processor.catalog.plan_pause import (
+            open_claude_accounts,
+            open_codex_accounts,
+        )
+
+        if tier == SUBSCRIPTION_TIER:
+            provider = ClaudeCodeProvider(accounts=open_claude_accounts)
+        elif tier == CODEX_TIER:
+            provider = CodexProvider(accounts=open_codex_accounts)
+        else:
+            provider = OpenAIBatchProvider()
     workers = {
         SUBSCRIPTION_TIER: settings.CLAUDE_CODE_WORKERS,
         CODEX_TIER: settings.CODEX_WORKERS,
