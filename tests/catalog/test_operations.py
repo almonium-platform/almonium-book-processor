@@ -99,7 +99,7 @@ def test_a_finished_call_names_its_work_model_account_and_share_of_the_week(clie
         started_at=now - timedelta(seconds=90),
         finished_at=now,
         plan_account=".claude",
-        estimated_cost_usd=Decimal("0.4615"),
+        estimated_cost_usd=Decimal("0.2308"),
     )
 
     page = _page(client)
@@ -188,3 +188,66 @@ def test_usage_keeps_the_account_that_answered():
     run.add_attempt_usage(**usage)
 
     assert run.plan_account == ".codex-2"
+
+
+def test_the_entries_tab_shows_the_dictionary_by_language_and_by_writer(
+    client, staff, settings, tmp_path
+):
+    import json
+
+    status = tmp_path / "status.json"
+    status.write_text(
+        json.dumps(
+            {
+                "built_at": timezone.now().isoformat(),
+                "queue": "v4-new",
+                "languages": [
+                    {
+                        "lang": "de",
+                        "entries": 200,
+                        "rejected": 4,
+                        "by_writer": {"cc-claude-opus-5-5-v4": 190, "cc-claude-fable-5-2-v4": 10},
+                        "faults": {"definition of N words": 12},
+                        "with_faults": 12,
+                        "last_day": 150,
+                        "queue": 1000,
+                        "queue_left": 800,
+                        "to_mend": 9000,
+                        "failed": 0,
+                        "senses_per_lexeme": 2.1,
+                    }
+                ],
+                "writers": [
+                    {
+                        "writer": "cc-claude-opus-5-5-v4",
+                        "entries": 190,
+                        "rejected": 4,
+                        "model": "claude-opus-5-5",
+                        "effort": "high",
+                        "prompt_version": "v4",
+                        "schema_version": "3",
+                        "list_usd_per_entry": 0.0315,
+                        "output_tokens_per_entry": 1086,
+                        "first": timezone.now().isoformat(),
+                        "last": timezone.now().isoformat(),
+                    }
+                ],
+            }
+        )
+    )
+    settings.LEXICON_STATUS_FILE = str(status)
+
+    page = _page(client, show="entries")
+
+    assert "German" in page and "Opus-5.5 · v4 190" in page and "Fable-5.2 · v4 10" in page
+    assert "definition too short or long 6%" in page
+    assert "800 <small>of 1000 (20% done)</small>" in page
+    assert "claude-opus-5-5" in page and "$0.0315" in page and "stale" not in page
+
+
+def test_the_entries_tab_says_where_the_status_comes_from_when_there_is_none(
+    client, staff, settings
+):
+    settings.LEXICON_STATUS_FILE = ""
+
+    assert "No dictionary status here" in _page(client, show="entries")

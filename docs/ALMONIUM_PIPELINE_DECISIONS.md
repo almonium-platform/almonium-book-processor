@@ -1039,3 +1039,16 @@ rule below names its constant or function.
   given back, and the step's 3-hour clock restarts when the plan answers. A
   step whose job is queued for a worker gets 12 hours: thirty books under way
   share a few workers.
+- **What a week of Codex book work needs from Claude** (16 November 2026, from the
+  ledger). About 90% of a Codex week on translations into EN, FR, ES and DE cost about
+  USD 615 at list price on Codex (gpt-6.1-sol translating ~250, gpt-6-astra reviewing
+  ~370) and about USD 250 of Opus 5.5 as the first reviewer: USD 0.40 of Opus per
+  Codex dollar, about a third of a $100 Claude week per Codex week. Both Claude
+  accounts are on the $100 plan from November 2026 (`pricing.PLAN_WEEK_USD`). The
+  backend's `docs/LEXICON_PLAN_USAGE.md` keeps these numbers with the entry writers'.
+- **The Operations page shows the dictionary** (16 November 2026, `catalog/lexicon_status.py`,
+  `LEXICON_STATUS_FILE`). The Entries tab reads the JSON the backend's
+  `scripts/lexicon_research/lexicon_status.py` writes on the owner's machine: entries per
+  language and writer, model, effort, prompt and schema version, faults, queues left and
+  words to mend. Nothing of it is in the database; a deployed processor has no file and
+  says so.

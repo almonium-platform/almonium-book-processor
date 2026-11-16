@@ -30,10 +30,12 @@ LIST_PRICES = {
     "claude-sonnet-5-5": ("2", "0.2", "10"),
 }
 
-# A plan's price for one week, in USD: twelve monthly payments over fifty-two weeks.
+# A plan's price for one week, in USD: twelve monthly payments over fifty-two weeks. Both
+# Claude accounts are on the $100 plan from November 2026 (the owner's main account for that
+# month at least); put 200 back if it returns to the $200 plan.
 PLAN_WEEK_USD = {
     "codex": Decimal(100) * 12 / 52,
-    "claude-code": Decimal(200) * 12 / 52,
+    "claude-code": Decimal(100) * 12 / 52,
 }
 
 # Plan dollars consumed per list-price dollar of tokens, measured on 2026-10-04.
