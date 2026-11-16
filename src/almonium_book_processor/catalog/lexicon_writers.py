@@ -3,7 +3,7 @@
 An entry writer is the backend's ``scripts/lexicon_research/claude_code_writer.py`` on one Claude
 account, for one language, from one headword list (``LexiconWriter``). The page only records what
 the owner wants; the web container cannot start anything on the host. A timer on the host runs
-``manage.py lexicon_writers --reconcile`` every five minutes, and ``reconcile`` makes the host
+``manage.py lexicon_writers --reconcile`` every minute, and ``reconcile`` makes the host
 match the page: each writer that is on runs as the systemd user service
 ``almonium-lexicon-writer@<id>`` (under ``systemd-inhibit``, so the laptop does not sleep under
 it), each one that is off is stopped, and every writer's state and last log line are written back

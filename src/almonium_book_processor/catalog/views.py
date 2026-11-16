@@ -2046,7 +2046,7 @@ def plan_account_pause_view(request: HttpRequest) -> HttpResponse:
 @staff_member_required
 @require_POST
 def lexicon_writer_view(request: HttpRequest) -> HttpResponse:
-    """Add an entry writer, start or pause one, or remove it; the host acts within five minutes."""
+    """Add an entry writer, start or pause one, or remove it; the host acts within a minute."""
 
     from almonium_book_processor.catalog import lexicon_writers
     from almonium_book_processor.catalog.models import LexiconWriter
@@ -2069,7 +2069,7 @@ def lexicon_writer_view(request: HttpRequest) -> HttpResponse:
             if request.POST.get("start"):
                 lexicon_writers.set_running(writer, True, by=by)
             messages.info(
-                request, f"Writer added: {writer}. The host picks it up within five minutes."
+                request, f"Writer added: {writer}. The host picks it up within a minute."
             )
             return redirect(back)
         writer = get_object_or_404(LexiconWriter, pk=request.POST.get("writer"))
@@ -2077,11 +2077,11 @@ def lexicon_writer_view(request: HttpRequest) -> HttpResponse:
             lexicon_writers.set_running(writer, action == "start", by=by)
             messages.info(
                 request,
-                f"{writer}: {'starts' if action == 'start' else 'stops'} within five minutes.",
+                f"{writer}: {'starts' if action == 'start' else 'stops'} within a minute.",
             )
         elif action == "remove":
             writer.delete()
-            messages.info(request, f"{writer} removed; the host stops it within five minutes.")
+            messages.info(request, f"{writer} removed; the host stops it within a minute.")
         else:
             messages.error(request, "Choose add, start, pause or remove.")
     except ValueError as error:

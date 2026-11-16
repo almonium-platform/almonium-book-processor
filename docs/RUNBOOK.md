@@ -86,7 +86,7 @@ Level adaptation can run on one of the owner's plans instead of the API: set
 - **Starting and pausing entry writers.** Operations → Entries → Writers. Each row is one
   writer: account, language, headword list, workers, and the percent of the five-hour window
   it pauses at. Add one with the form (two writers may not share a language's list), Start or
-  Pause it with its button. Nothing runs in the web container: every five minutes the host
+  Pause it with its button. Nothing runs in the web container: every minute the host
   timer `almonium-lexicon-writers.timer` (installed with `./plan-service install-lexicon`) runs
   `plan-manage lexicon_writers --reconcile`, which starts each writer that is on as the user
   service `almonium-lexicon-writer@<id>` under `systemd-inhibit`, stops the others, and writes

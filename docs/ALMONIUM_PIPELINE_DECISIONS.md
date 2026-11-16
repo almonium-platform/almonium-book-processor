@@ -1053,10 +1053,11 @@ rule below names its constant or function.
   words to mend. Nothing of it is in the database; a deployed processor has no file and
   says so.
 - **Entry writers are switched from the Operations page** (17 November 2026,
-  `catalog/lexicon_writers.py`, `LexiconWriter`, `almonium-lexicon-writers.timer` every 5
-  minutes). The writers had run only as processes started by hand in a terminal or a chat,
+  `catalog/lexicon_writers.py`, `LexiconWriter`, `almonium-lexicon-writers.timer` every
+  minute). The writers had run only as processes started by hand in a terminal or a chat,
   which died with the session that started them or with the laptop's sleep. A row per writer
   on the page now says what should run; the host timer makes systemd match it, so writers
   survive restarts and reboots and need no session. The web container cannot start host
-  processes, so a press takes effect within five minutes. One pass costs about 24 seconds and
-  1.5 GB at peak (Django's start).
+  processes, so a press takes effect within a minute. The command skips Django's system
+  checks (`requires_system_checks = []`): they load every view and with them spaCy, which made
+  each pass 20 seconds and 1.2 GB; without them it is under a second and 100 MB.

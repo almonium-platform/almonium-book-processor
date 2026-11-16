@@ -161,7 +161,7 @@ UNIT
     ;;
   install-lexicon)
     mkdir -p "$config/systemd/user"
-    # every five minutes the host starts the entry writers switched on on the Operations page,
+    # every minute the host starts the entry writers switched on on the Operations page,
     # stops the others and reports what they are doing
     cat > "$config/systemd/user/almonium-lexicon-writers.service" <<UNIT
 [Unit]
@@ -175,11 +175,11 @@ ExecStart=$repo/plan-manage lexicon_writers --reconcile
 UNIT
     cat > "$config/systemd/user/almonium-lexicon-writers.timer" <<UNIT
 [Unit]
-Description=Almonium dictionary: run the entry writers as the Operations page sets them, every 5 minutes
+Description=Almonium dictionary: run the entry writers as the Operations page sets them, every minute
 
 [Timer]
-OnBootSec=3min
-OnUnitActiveSec=5min
+OnBootSec=2min
+OnUnitActiveSec=1min
 
 [Install]
 WantedBy=timers.target
