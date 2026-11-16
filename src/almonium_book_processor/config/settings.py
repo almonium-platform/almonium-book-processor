@@ -309,6 +309,9 @@ CODEX_HOMES = [home.strip() for home in os.getenv("CODEX_HOMES", "").split(",") 
 # The factory: the host's timer starts the next wanted book while the plan accounts have room
 # (catalog/factory.py). Off unless this host makes the books; the dashboard then starts it.
 FACTORY_ENABLED = env_bool("FACTORY_ENABLED", False)
+# The dictionary's state as the backend's scripts/lexicon_research/lexicon_status.py writes
+# it, shown on the Operations page's Entries tab. Only the owner's machine writes entries.
+LEXICON_STATUS_FILE = os.getenv("LEXICON_STATUS_FILE", "")
 # books under way at once, from download to promotion
 FACTORY_MAX_PRODUCTIONS = int(os.getenv("FACTORY_MAX_PRODUCTIONS", "2"))
 # the share of each plan's week left untouched for the owner's own work

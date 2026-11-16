@@ -22,6 +22,7 @@ x-app-environment: &app-environment
   PRODUCTION_TRANSLATION_TIER: ${PRODUCTION_TRANSLATION_TIER:-codex}
   FACTORY_ENABLED: ${FACTORY_ENABLED:-false}
   FACTORY_MAX_PRODUCTIONS: ${FACTORY_MAX_PRODUCTIONS:-2}
+  LEXICON_STATUS_FILE: ${LEXICON_STATUS_FILE:-/app/lexicon-status/status.json}
   FIDELITY_AUDITORS: ${FIDELITY_AUDITORS:-}
   OPENAI_ALIGNMENT_PRIMARY_MODEL: ${OPENAI_ALIGNMENT_PRIMARY_MODEL:-gpt-5.6-luna}
   OPENAI_ALIGNMENT_ESCALATION_MODEL: ${OPENAI_ALIGNMENT_ESCALATION_MODEL:-gpt-5.6-terra}
@@ -81,6 +82,8 @@ services:
     volumes:
       - books-media:/app/media
       - books-models:/app/models
+      # the dictionary's state for the Operations page, written by the backend's lexicon_status.py
+      - ${LEXICON_STATUS_DIR:-../almonium-be/scripts/lexicon_research/out/status}:/app/lexicon-status:ro
     depends_on:
       postgres:
         condition: service_healthy

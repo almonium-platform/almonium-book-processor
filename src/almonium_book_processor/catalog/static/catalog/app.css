@@ -923,3 +923,11 @@ span.toolbar-step { color: var(--line); background: transparent; }
   .ops-row .ops-took { grid-column: 3; }
   .ops-row .ops-used { grid-column: 3; }
 }
+
+/* Operations · Entries: the dictionary's state, one table per question */
+.ops-entries { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: .8rem 1rem; }
+.ops-table { width: 100%; border-collapse: collapse; font-size: .88rem; margin: .4rem 0 1.4rem; }
+.ops-table th, .ops-table td { text-align: left; vertical-align: top; padding: .35rem .6rem; border-bottom: 1px solid var(--line); }
+.ops-table thead th { font-weight: 600; color: var(--muted); white-space: nowrap; }
+.ops-table tbody th { font-weight: 600; white-space: nowrap; }
+.ops-table small { color: var(--muted); }

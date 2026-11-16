@@ -26,6 +26,7 @@ from django.utils.dateparse import parse_datetime
 
 from almonium_book_processor.ai.pricing import PLAN_WEEK_USD
 from almonium_book_processor.catalog.activity import ACTIVE_STATUSES, _fingerprint
+from almonium_book_processor.catalog.lexicon_status import lexicon_status
 from almonium_book_processor.catalog.models import AIRun, PipelineRun, PlanAccount
 
 PAGE = 200
@@ -35,6 +36,7 @@ FILTERS = {
     "steps": "Book steps",
     "claude-code": "Claude",
     "codex": "Codex",
+    "entries": "Entries",
 }
 PLAN_NAMES = {"claude-code": "Claude", "codex": "Codex"}
 MODEL_NAMES = {
@@ -336,6 +338,21 @@ def operations_view(request: HttpRequest) -> HttpResponse:
         work = ""
     before = _before(request)
 
+    if chosen == "entries":
+        return render(
+            request,
+            "catalog/operations.html",
+            {
+                "filters": [
+                    {"key": key, "label": label, "on": key == chosen}
+                    for key, label in FILTERS.items()
+                ],
+                "chosen": chosen,
+                "entries": lexicon_status(),
+                "running": AIRun.objects.filter(_running_filter(now)).count(),
+                "last_hour": _last_hour(now),
+            },
+        )
     rows = [] if chosen == "steps" else _calls(now, chosen=chosen, work=work, before=before)
     more = len(rows) > PAGE
     rows = rows[:PAGE]

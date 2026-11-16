@@ -21,6 +21,57 @@
     {% if work %}<a class="ops-book-filter" href="?{% if chosen %}show={{ chosen }}{% endif %}">{{ book|default:"This book" }} ×</a>{% endif %}
   </nav>
 
+  {% if chosen == "entries" %}
+  <section class="ops-entries">
+    {% if not entries %}
+      <p class="muted ops-empty">No dictionary status here. Entries are written on the owner's machine; there, run <code>scripts/lexicon_research/lexicon_status.py</code> in the backend (the host timer does it every quarter of an hour) and set <code>LEXICON_STATUS_FILE</code>.</p>
+    {% else %}
+      <p class="muted">Prompt v4 entries, summed {{ entries.built_at|date:"j F H:i" }}{% if entries.stale %} <strong class="ops-error">— stale: the timer that writes this has stopped</strong>{% endif %}. Faults are the free checks of <code>check_v4.py</code>; an entry can have several. "Queue left" counts words of the {{ entries.queue }} lists no writer has tried; "to mend" counts words with only a v3 entry.</p>
+      <p class="ops-now"><strong>{{ entries.totals.entries }} entries</strong><span>{{ entries.totals.last_day }} in the last day</span><span>{{ entries.totals.rejected }} rejected</span><span>{{ entries.totals.queue_left }} queued words left</span><span>{{ entries.totals.to_mend }} to mend</span>{% if entries.totals.failed %}<span class="ops-error">{{ entries.totals.failed }} unusable answers in out/failed</span>{% endif %}</p>
+
+      <h2 class="ops-day">By language</h2>
+      <table class="ops-table">
+        <thead><tr><th>Language</th><th>Entries</th><th>Last day</th><th>Rejected</th><th>Senses per lexeme</th><th>Written by</th><th>With a fault</th><th>Queue left</th><th>To mend</th></tr></thead>
+        <tbody>
+          {% for row in entries.languages %}
+            <tr>
+              <th scope="row">{{ row.name }}</th>
+              <td>{{ row.entries }}</td>
+              <td>{{ row.last_day }}</td>
+              <td>{{ row.rejected }}</td>
+              <td>{{ row.senses_per_lexeme|default:"–" }}</td>
+              <td>{% for w in row.by_writer %}{{ w.writer }} {{ w.count }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+              <td title="{% for f in row.faults %}{{ f.name }}: {{ f.count }}{% if not forloop.last %}; {% endif %}{% endfor %}">{{ row.fault_share }}{% for f in row.faults|slice:":2" %}<br><small>{{ f.name }} {{ f.share }}</small>{% endfor %}</td>
+              <td>{{ row.queue_left }} <small>of {{ row.queue }} ({{ row.queue_done }} done)</small></td>
+              <td>{{ row.to_mend }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <h2 class="ops-day">By writer</h2>
+      <table class="ops-table">
+        <thead><tr><th>Writer</th><th>Model</th><th>Effort</th><th>Prompt</th><th>Schema</th><th>Entries</th><th>Rejected</th><th>List $ per entry</th><th>Output tokens</th><th>Wrote</th></tr></thead>
+        <tbody>
+          {% for w in entries.writers %}
+            <tr>
+              <th scope="row" title="{{ w.writer }}">{{ w.label }}</th>
+              <td>{{ w.model|default:"–" }}</td>
+              <td>{{ w.effort|default:"–" }}</td>
+              <td>{{ w.prompt_version|default:"–" }}</td>
+              <td>{{ w.schema_version|default:"–" }}</td>
+              <td>{{ w.entries }}</td>
+              <td>{{ w.rejected }}</td>
+              <td>{% if w.list_usd_per_entry %}${{ w.list_usd_per_entry }}{% else %}–{% endif %}</td>
+              <td>{{ w.output_tokens_per_entry|default:"–" }}</td>
+              <td>{{ w.first|date:"j M" }} – {{ w.last|date:"j M H:i" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </section>
+  {% else %}
   <section class="ops-list">
     {% for line in lines %}
       {% if line.new_day %}<h2 class="ops-day">{{ line.new_day|date:"l j F" }}</h2>{% endif %}
@@ -45,6 +96,8 @@
       <p class="muted ops-empty">Nothing to show here{% if chosen == "live" %}: no call is running right now{% endif %}.</p>
     {% endfor %}
   </section>
+
+  {% endif %}
 
   {% if older %}
     <p class="ops-older"><a class="button secondary" href="?{% if chosen %}show={{ chosen }}&amp;{% endif %}{% if work %}book={{ work }}&amp;{% endif %}before={{ older|urlencode }}">Older</a></p>

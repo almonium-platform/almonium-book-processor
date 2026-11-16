@@ -75,6 +75,14 @@ Level adaptation can run on one of the owner's plans instead of the API: set
 - **Many books under way.** A step whose job is still queued for a worker is
   given 12 hours (`production.QUEUED_TIMEOUT`) instead of 3 before the book
   is held as "Nothing finished".
+- **The dictionary's state.** Operations → Entries shows what the backend's entry writers
+  have written. The host timer `almonium-lexicon-status.timer` (a user unit in
+  `~/.config/systemd/user`, every 15 minutes) runs the backend's
+  `scripts/lexicon_research/lexicon_status.py`, which writes
+  `scripts/lexicon_research/out/status/status.json`; `compose.yaml` mounts that folder
+  read-only into the web container (`LEXICON_STATUS_DIR`, `LEXICON_STATUS_FILE`). A page
+  that says "stale" means the timer stopped: `systemctl --user status
+  almonium-lexicon-status.timer`.
 - **Reading the ledger for waste.** The dashboard's "Spend guard" line is the
   host's daily reading (`almonium-spend-guard.timer`, 06:30); "Run now" reads
   it again, `./plan-manage spend_guard` prints it. A red line means something
