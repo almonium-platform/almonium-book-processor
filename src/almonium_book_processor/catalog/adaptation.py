@@ -485,7 +485,9 @@ def run_pilot(run_id, *, provider=None):
         )
         # Never save stale in-memory payloads here: removal must stay scrubbed.
         AIRun.objects.filter(pk=ai.id).update(
-            status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
+            status=AIRun.Status.FAILED,
+            error=recorded_error(error, ValueError),
+            finished_at=timezone.now(),
         )
         PipelineRun.objects.filter(pk=run_id).update(
             status=PipelineRun.Status.FAILED,

@@ -310,7 +310,9 @@ def run_advice(run_id, *, provider=None) -> None:
         run.save(update_fields=["summary", "status", "progress", "finished_at", "updated_at"])
     except Exception as error:
         AIRun.objects.filter(pk=ai.id).update(
-            status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
+            status=AIRun.Status.FAILED,
+            error=recorded_error(error, ValueError),
+            finished_at=timezone.now(),
         )
         PipelineRun.objects.filter(pk=run_id).update(
             status=PipelineRun.Status.FAILED,

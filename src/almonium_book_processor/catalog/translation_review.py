@@ -341,7 +341,9 @@ def _review_window(run, edition, window: dict, reviewer: dict, system: str, prov
     except Exception as error:
         record_failed_call(ai.id, error, provider=reviewer["provider"], model=reviewer["model"])
         AIRun.objects.filter(pk=ai.id).update(
-            status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
+            status=AIRun.Status.FAILED,
+            error=recorded_error(error, ValueError),
+            finished_at=timezone.now(),
         )
         raise
 
@@ -486,7 +488,9 @@ def _ask(run, edition, reviewer: dict, step: str, system: str, payload: dict, mo
     except Exception as error:
         record_failed_call(ai.id, error, provider=reviewer["provider"], model=reviewer["model"])
         AIRun.objects.filter(pk=ai.id).update(
-            status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
+            status=AIRun.Status.FAILED,
+            error=recorded_error(error, ValueError),
+            finished_at=timezone.now(),
         )
         raise
 

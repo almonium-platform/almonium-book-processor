@@ -544,7 +544,9 @@ def _ask_spot_fix(
 
         record_failed_call(ai.id, error, provider=seat.provider, model=seat.model)
         AIRun.objects.filter(pk=ai.id).update(
-            status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
+            status=AIRun.Status.FAILED,
+            error=recorded_error(error, ValueError),
+            finished_at=timezone.now(),
         )
         PipelineRun.objects.filter(pk=run.id).update(
             status=PipelineRun.Status.FAILED,
