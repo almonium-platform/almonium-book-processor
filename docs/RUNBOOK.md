@@ -83,6 +83,17 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   read-only into the web container (`LEXICON_STATUS_DIR`, `LEXICON_STATUS_FILE`). A page
   that says "stale" means the timer stopped: `systemctl --user status
   almonium-lexicon-status.timer`.
+- **Starting and pausing entry writers.** Operations → Entries → Writers. Each row is one
+  writer: account, language, headword list, workers, and the percent of the five-hour window
+  it pauses at. Add one with the form (two writers may not share a language's list), Start or
+  Pause it with its button. Nothing runs in the web container: every five minutes the host
+  timer `almonium-lexicon-writers.timer` (installed with `./plan-service install-lexicon`) runs
+  `plan-manage lexicon_writers --reconcile`, which starts each writer that is on as the user
+  service `almonium-lexicon-writer@<id>` under `systemd-inhibit`, stops the others, and writes
+  each one's state and last log line back to the page. A writer's log is the backend's
+  `scripts/lexicon_research/out/logs/writer-<id>.log`; one that reaches the end of its list
+  switches itself off. `systemctl --user list-units 'almonium-lexicon-writer@*'` shows them
+  on the host.
 - **Reading the ledger for waste.** The dashboard's "Spend guard" line is the
   host's daily reading (`almonium-spend-guard.timer`, 06:30); "Run now" reads
   it again, `./plan-manage spend_guard` prints it. A red line means something

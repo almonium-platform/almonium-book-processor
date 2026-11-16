@@ -312,6 +312,8 @@ FACTORY_ENABLED = env_bool("FACTORY_ENABLED", False)
 # The dictionary's state as the backend's scripts/lexicon_research/lexicon_status.py writes
 # it, shown on the Operations page's Entries tab. Only the owner's machine writes entries.
 LEXICON_STATUS_FILE = os.getenv("LEXICON_STATUS_FILE", "")
+# The backend checkout whose entry writers the host runs (catalog/lexicon_writers.py).
+LEXICON_BACKEND_DIR = os.getenv("LEXICON_BACKEND_DIR", str(BASE_DIR.parent / "almonium-be"))
 # books under way at once, from download to promotion
 FACTORY_MAX_PRODUCTIONS = int(os.getenv("FACTORY_MAX_PRODUCTIONS", "2"))
 # the share of each plan's week left untouched for the owner's own work

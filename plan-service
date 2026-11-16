@@ -12,6 +12,8 @@
 # Usage: ./plan-service install <name> [codex home] [claude config dir]
 #        ./plan-service restart [name]      after changing src/; every worker when unnamed
 #        ./plan-service status | logs <name> [lines] | uninstall <name>
+#        ./plan-service install-lexicon     the timer that runs the dictionary's entry writers as
+#                                           the Operations page sets them (lexicon_writers.py)
 #
 # The unit is written for this checkout and with this shell's PATH, which is where the worker
 # finds the claude and codex CLIs: install it from a shell in which both run.
@@ -156,6 +158,34 @@ UNIT
     if [ -n "$name" ]; then systemctl --user restart "$unit"; else
       for running in $(units); do systemctl --user restart "$running"; done
     fi
+    ;;
+  install-lexicon)
+    mkdir -p "$config/systemd/user"
+    # every five minutes the host starts the entry writers switched on on the Operations page,
+    # stops the others and reports what they are doing
+    cat > "$config/systemd/user/almonium-lexicon-writers.service" <<UNIT
+[Unit]
+Description=Almonium dictionary: run the entry writers as the Operations page sets them
+
+[Service]
+Type=oneshot
+WorkingDirectory=$repo
+Environment=PATH=$PATH
+ExecStart=$repo/plan-manage lexicon_writers --reconcile
+UNIT
+    cat > "$config/systemd/user/almonium-lexicon-writers.timer" <<UNIT
+[Unit]
+Description=Almonium dictionary: run the entry writers as the Operations page sets them, every 5 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target
+UNIT
+    systemctl --user daemon-reload
+    systemctl --user enable --now almonium-lexicon-writers.timer
     ;;
   status) systemctl --user --no-pager status 'almonium-plan-worker@*' ;;
   logs) journalctl --user -u "$unit" -n "${3:-100}" --no-pager ;;

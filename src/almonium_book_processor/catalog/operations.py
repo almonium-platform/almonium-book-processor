@@ -27,7 +27,14 @@ from django.utils.dateparse import parse_datetime
 from almonium_book_processor.ai.pricing import PLAN_WEEK_USD
 from almonium_book_processor.catalog.activity import ACTIVE_STATUSES, _fingerprint
 from almonium_book_processor.catalog.lexicon_status import lexicon_status
-from almonium_book_processor.catalog.models import AIRun, PipelineRun, PlanAccount
+from almonium_book_processor.catalog.lexicon_writers import (
+    EFFORTS,
+    LANGUAGES,
+    MAX_WORKERS,
+    MODELS,
+    claude_accounts,
+)
+from almonium_book_processor.catalog.models import AIRun, LexiconWriter, PipelineRun, PlanAccount
 
 PAGE = 200
 FILTERS = {
@@ -349,6 +356,14 @@ def operations_view(request: HttpRequest) -> HttpResponse:
                 ],
                 "chosen": chosen,
                 "entries": lexicon_status(),
+                "writers": LexiconWriter.objects.all(),
+                "writer_choices": {
+                    "accounts": claude_accounts(),
+                    "languages": LANGUAGES,
+                    "models": MODELS,
+                    "efforts": EFFORTS,
+                    "max_workers": MAX_WORKERS,
+                },
                 "running": AIRun.objects.filter(_running_filter(now)).count(),
                 "last_hour": _last_hour(now),
             },

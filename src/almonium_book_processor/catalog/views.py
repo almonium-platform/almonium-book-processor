@@ -2045,6 +2045,52 @@ def plan_account_pause_view(request: HttpRequest) -> HttpResponse:
 
 @staff_member_required
 @require_POST
+def lexicon_writer_view(request: HttpRequest) -> HttpResponse:
+    """Add an entry writer, start or pause one, or remove it; the host acts within five minutes."""
+
+    from almonium_book_processor.catalog import lexicon_writers
+    from almonium_book_processor.catalog.models import LexiconWriter
+
+    action = request.POST.get("action", "")
+    by = str(request.user)
+    back = f"{reverse('catalog:operations')}?show=entries"
+    try:
+        if action == "add":
+            writer = lexicon_writers.add_writer(
+                account=request.POST.get("account", ""),
+                language=request.POST.get("language", ""),
+                word_list=request.POST.get("word_list", ""),
+                workers=int(request.POST.get("workers") or 2),
+                pause_at_percent=int(request.POST.get("pause_at_percent") or 100),
+                model=request.POST.get("model", "claude-opus-5-5"),
+                effort=request.POST.get("effort", "high"),
+                by=by,
+            )
+            if request.POST.get("start"):
+                lexicon_writers.set_running(writer, True, by=by)
+            messages.info(
+                request, f"Writer added: {writer}. The host picks it up within five minutes."
+            )
+            return redirect(back)
+        writer = get_object_or_404(LexiconWriter, pk=request.POST.get("writer"))
+        if action in ("start", "pause"):
+            lexicon_writers.set_running(writer, action == "start", by=by)
+            messages.info(
+                request,
+                f"{writer}: {'starts' if action == 'start' else 'stops'} within five minutes.",
+            )
+        elif action == "remove":
+            writer.delete()
+            messages.info(request, f"{writer} removed; the host stops it within five minutes.")
+        else:
+            messages.error(request, "Choose add, start, pause or remove.")
+    except ValueError as error:
+        messages.error(request, str(error))
+    return redirect(back)
+
+
+@staff_member_required
+@require_POST
 def factory_switch_view(request: HttpRequest) -> HttpResponse:
     """Let the factory start new books, or stop it starting them; or every book at once."""
 

@@ -1335,6 +1335,38 @@ class FactorySwitch(TimestampedModel):
         return "factory running" if self.running else "factory paused"
 
 
+class LexiconWriter(TimestampedModel):
+    """One writer of dictionary entries, set up and switched on the Operations page.
+
+    The entries are written on the owner's machine by the backend's
+    ``scripts/lexicon_research/claude_code_writer.py``, on one Claude account, for one language,
+    from one headword list. A timer on the host (``manage.py lexicon_writers --reconcile``)
+    runs each writer that is on as a systemd user service and stops each one that is off,
+    and writes back what the service is doing (catalog/lexicon_writers.py).
+    """
+
+    account = models.CharField(max_length=100)
+    language = models.CharField(max_length=8)
+    word_list = models.CharField(max_length=100)
+    workers = models.PositiveSmallIntegerField(default=2)
+    # the writer waits while the account's five-hour window is used up to this percent
+    pause_at_percent = models.PositiveSmallIntegerField(default=100)
+    model = models.CharField(max_length=60, default="claude-opus-5-5")
+    effort = models.CharField(max_length=10, default="high")
+    running = models.BooleanField(default=False)
+    changed_by = models.CharField(max_length=150, blank=True)
+    # what the host last saw: the service's state, the writer's last log line, and when
+    state = models.CharField(max_length=40, blank=True)
+    last_line = models.CharField(max_length=300, blank=True)
+    checked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["language", "account", "word_list"]
+
+    def __str__(self) -> str:
+        return f"{self.language} {self.word_list} on {self.account}"
+
+
 class BookPause(TimestampedModel):
     """A book the owner has stopped for now.
 

@@ -274,6 +274,7 @@ urlpatterns = [
     path("plan-accounts/details/", views.plan_account_details_view, name="plan-account-details"),
     path("plan-accounts/routing/", views.plan_routing_view, name="plan-routing"),
     path("factory/switch/", views.factory_switch_view, name="factory-switch"),
+    path("operations/writers/", views.lexicon_writer_view, name="lexicon-writer"),
     path("editions/<uuid:edition_id>/pause/", views.book_pause_view, name="book-pause"),
     path(
         "editions/<uuid:edition_id>/purge/",

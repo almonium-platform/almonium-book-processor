@@ -96,6 +96,10 @@ def lexicon_status() -> dict | None:
         "languages": languages,
         "writers": writers,
         "totals": totals,
+        # the headword lists a writer can be given, by their name without the language
+        "list_names": sorted(
+            {name for names in (raw.get("lists") or {}).values() for name in names}
+        ),
     }
 
 
