@@ -40,7 +40,12 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from almonium_book_processor.ai.cli_calls import ALLOWANCE_USED_UP, NETWORK_DOWN
+from almonium_book_processor.ai.cli_calls import (
+    ALLOWANCE_USED_UP,
+    NETWORK_DOWN,
+    AllowanceUsedUp,
+    NetworkDown,
+)
 from almonium_book_processor.catalog.fidelity_audit import backed
 from almonium_book_processor.catalog.models import (
     AIRun,
@@ -378,6 +383,16 @@ def _advance_once(run_id, only: set[str] | None = None) -> tuple[bool, set[str]]
                     raise Held(f"Nothing finished '{step}' in {limit}: {move[1]}")
         except Held as held:
             move = ("hold", held.reasons)
+        except (AllowanceUsedUp, NetworkDown) as error:
+            # a call the step made itself was refused: the plan's wall, not the step's fault,
+            # so it waits like a refused job, uncounted and with its clock stopped
+            track["since"] = timezone.now().isoformat()
+            state.setdefault("inline_refusals", {})[target] = {
+                "at": timezone.now().isoformat(),
+                "said": str(error)[:300],
+            }
+            retry_at = timezone.localtime(timezone.now() + REFUSAL_RETRY)
+            move = ("wait", f"{str(error)[:300]} Trying again at {retry_at:%H:%M}.")
         except Exception as error:
             # a step that breaks is started again on the next call, as often as its own
             # counters allow; one that keeps breaking holds the book with what it said
@@ -574,6 +589,11 @@ def _refusal(run: PipelineRun, state: dict, target: str) -> str | None:
     words since the production started.
     """
 
+    if inline := state.get("inline_refusals", {}).get(target):
+        retry_at = parse_datetime(inline["at"]) + REFUSAL_RETRY
+        if timezone.now() < retry_at:
+            return f"{inline['said']} Trying again at {timezone.localtime(retry_at):%H:%M}."
+        del state["inline_refusals"][target]
     editions = [run.edition_id]
     if target_edition := state.get("editions", {}).get(target):
         editions.append(target_edition)

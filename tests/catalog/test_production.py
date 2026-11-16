@@ -448,6 +448,36 @@ def test_a_step_whose_job_waits_for_a_worker_is_given_longer(world):
     assert run.status == "failed" and "Nothing finished 'probe' in 12:00:00" in run.error
 
 
+def test_a_call_a_step_makes_itself_and_the_plan_refuses_makes_the_book_wait(world, monkeypatch):
+    from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+    from almonium_book_processor.catalog import production
+
+    calls = []
+
+    def refused(run, state, level):
+        calls.append(level)
+        raise AllowanceUsedUp("You've hit your 5-hour limit · resets 9pm")
+
+    world.ladder["B2"] = "probing"
+    run = queue_production(world.source.id, ["B2"])
+    advance(run.id)
+    monkeypatch.setitem(production.STEPS, "probe", refused)
+    for _ in range(5):
+        assert not advance(run.id)
+
+    run.refresh_from_db()
+    assert run.status == "running"
+    # tried once, then left alone until the wait is over; nothing counted against the book
+    assert calls == ["B2"]
+    assert not any(key.startswith("error:") for key in run.summary["starts"])
+    assert "Allowance used up" in run.summary["log"][-1]["note"]
+
+    run.summary["inline_refusals"]["B2"]["at"] = (timezone.now() - timedelta(hours=1)).isoformat()
+    run.save()
+    advance(run.id)
+    assert calls == ["B2", "B2"]
+
+
 def test_a_paused_book_starts_nothing_and_goes_on_from_where_it_stood(world):
     from almonium_book_processor.catalog.production import pause_book, resume_book
 
