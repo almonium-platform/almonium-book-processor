@@ -19,7 +19,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from almonium_book_processor.ai.adaptation import pilot_prompt
-from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+from almonium_book_processor.ai.cli_calls import recorded_error
 from almonium_book_processor.catalog.adaptation import (
     B1_VERSION,
     MAX_BLOCKS,
@@ -124,7 +124,7 @@ def judged_pilot(source, chapter, level: str, *, provider=None, judge=None, audi
             try:
                 run_pilot(pilot.id, provider=provider)
             except Exception as error:
-                detail = str(error) if isinstance(error, ValueError) else type(error).__name__
+                detail = recorded_error(error, ValueError)
                 raise GenerationFailed(f"generation failed. {detail}") from error
         pilot.refresh_from_db()
         if pilot.status != PipelineRun.Status.SUCCEEDED:
@@ -338,11 +338,7 @@ def run_probe(run_id, *, provider=None, judge=None, auditor=None) -> None:
         PipelineRun.objects.filter(pk=run_id).update(
             status=PipelineRun.Status.FAILED,
             finished_at=timezone.now(),
-            error=(
-                str(error)[:1000]
-                if isinstance(error, (ValueError, AllowanceUsedUp))
-                else type(error).__name__
-            ),
+            error=recorded_error(error, ValueError),
         )
         raise
     refresh_adaptation_floor(source.work)

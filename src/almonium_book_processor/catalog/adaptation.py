@@ -15,7 +15,7 @@ from almonium_book_processor.ai.adaptation import (
     ChapterAdaptation,
     pilot_prompt,
 )
-from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown, recorded_error
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
 from almonium_book_processor.ai.pricing import call_cost, plan_priced
@@ -485,7 +485,7 @@ def run_pilot(run_id, *, provider=None):
         )
         # Never save stale in-memory payloads here: removal must stay scrubbed.
         AIRun.objects.filter(pk=ai.id).update(
-            status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
+            status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
         )
         PipelineRun.objects.filter(pk=run_id).update(
             status=PipelineRun.Status.FAILED,

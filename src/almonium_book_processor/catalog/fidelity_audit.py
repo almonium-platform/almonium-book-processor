@@ -21,7 +21,7 @@ from django.conf import settings
 from django.db import connection, transaction
 from django.utils import timezone
 
-from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown, recorded_error
 from almonium_book_processor.ai.fidelity import (
     MAX_OUTPUT_TOKENS,
     OUTPUT_SCHEMA,
@@ -339,7 +339,7 @@ def _audit_window(run, window: dict, spec: dict, configuration, prompt, provider
     except Exception as error:
         _record_failed(ai.id, error, spec)
         AIRun.objects.filter(pk=ai.id).update(
-            status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
+            status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
         )
         raise
 
@@ -469,7 +469,7 @@ def _second_opinion(run, spec: dict, items: list[dict], pairs: list[dict], langu
         except Exception as error:
             _record_failed(ai.id, error, spec)
             AIRun.objects.filter(pk=ai.id).update(
-                status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
+                status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
             )
             raise
     return ai, {v["id"]: v for v in ai.response_payload["opinion"]["verdicts"]}

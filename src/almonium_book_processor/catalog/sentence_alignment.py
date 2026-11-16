@@ -8,6 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
+from almonium_book_processor.ai.cli_calls import recorded_error
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
 from almonium_book_processor.catalog.adaptation import record_response
 from almonium_book_processor.catalog.models import (
@@ -214,7 +215,7 @@ def generate_sentence_preview(primary_id, secondary_id, chapter, block_ids=None)
             completed += 1
         except Exception as error:
             AIRun.objects.filter(pk=ai.id).update(
-                status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
+                status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
             )
             raise
     return {"completed_blocks": completed}

@@ -24,7 +24,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
-from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown, recorded_error
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
 from almonium_book_processor.ai.pricing import call_cost, has_price, plan_priced
@@ -544,7 +544,7 @@ def _ask_spot_fix(
 
         record_failed_call(ai.id, error, provider=seat.provider, model=seat.model)
         AIRun.objects.filter(pk=ai.id).update(
-            status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
+            status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
         )
         PipelineRun.objects.filter(pk=run.id).update(
             status=PipelineRun.Status.FAILED,

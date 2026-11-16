@@ -60,17 +60,21 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   `celery -A almonium_book_processor.config control cancel_consumer plans
   --destination plans-main@yoga,plans-second@yoga` (from `plan-env`), and
   `add_consumer` to resume. Steps wait in the queue, the janitor leaves the
-  silent jobs alone, and nothing is paid. A refused call holds the book with
-  "Allowance used up … try again at <time>" and counts no start;
-  `manage.py requeue_held` starts such books again (`--allowance` for those
-  alone, which the meter timer does once an account answers). Never restart a
+  silent jobs alone, and nothing is paid. A refused call makes the book wait:
+  its line says "The plan's allowance is used up … Trying again at <time>",
+  the step is started again 30 minutes later (`production.REFUSAL_RETRY`), the
+  refused attempt counts no start, and the step's 3-hour clock does not run
+  meanwhile. Books held this way before 16 November 2026 are still lifted by
+  `manage.py requeue_held` (`--allowance` for those alone, which the meter
+  timer does once an account answers). Never restart a
   plan worker with a production under way; look at `catalog_pipelinerun`, not
   at Celery, to know.
 - **The network went down.** Nothing to do. A call that cannot reach its
-  provider after one retry holds the book with "Network unreachable" and no
-  start; the meter timer re-queues such books once a provider answers. If the
-  outage outlived the hold's own 30-minute cooldown, `manage.py requeue_held
-  --allowance` lifts them at once.
+  provider after one retry makes the book wait, as a refused call does, and
+  the step is tried again every 30 minutes with no start counted.
+- **Many books under way.** A step whose job is still queued for a worker is
+  given 12 hours (`production.QUEUED_TIMEOUT`) instead of 3 before the book
+  is held as "Nothing finished".
 - **Reading the ledger for waste.** The dashboard's "Spend guard" line is the
   host's daily reading (`almonium-spend-guard.timer`, 06:30); "Run now" reads
   it again, `./plan-manage spend_guard` prints it. A red line means something

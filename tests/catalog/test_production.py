@@ -419,6 +419,35 @@ def test_a_step_nobody_finishes_holds_the_book_instead_of_waiting_for_ever(world
     assert run.status == "failed" and "Nothing finished 'probe'" in run.error
 
 
+def test_a_step_whose_job_waits_for_a_worker_is_given_longer(world):
+    """Thirty books under way share a few workers (16 November 2026): a queued job is no stall."""
+
+    world.ladder["B2"] = "probing"
+    run = queue_production(world.source.id, ["B2"])
+    advance(run.id)
+    assert not advance(run.id)
+    PipelineRun.objects.create(
+        edition=world.source,
+        stage=PipelineRun.Stage.ADAPT,
+        processor_version="pilot-v1",
+        input_hash="",
+        idempotency_key="queued-behind-other-books",
+        status=PipelineRun.Status.QUEUED,
+    )
+    run.refresh_from_db()
+    run.summary["tracks"]["levels"]["since"] = (timezone.now() - timedelta(hours=4)).isoformat()
+    run.save()
+
+    assert not advance(run.id)
+
+    run.refresh_from_db()
+    run.summary["tracks"]["levels"]["since"] = (timezone.now() - timedelta(hours=13)).isoformat()
+    run.save()
+    assert advance(run.id)
+    run.refresh_from_db()
+    assert run.status == "failed" and "Nothing finished 'probe' in 12:00:00" in run.error
+
+
 def test_a_paused_book_starts_nothing_and_goes_on_from_where_it_stood(world):
     from almonium_book_processor.catalog.production import pause_book, resume_book
 

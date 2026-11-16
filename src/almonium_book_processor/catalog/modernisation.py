@@ -11,6 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
+from almonium_book_processor.ai.cli_calls import recorded_error
 from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
 from almonium_book_processor.catalog.adaptation import digest, record_response
 from almonium_book_processor.catalog.ai_translation import TRANSLATION_MODEL_PRICING
@@ -309,11 +310,11 @@ def run_advice(run_id, *, provider=None) -> None:
         run.save(update_fields=["summary", "status", "progress", "finished_at", "updated_at"])
     except Exception as error:
         AIRun.objects.filter(pk=ai.id).update(
-            status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
+            status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
         )
         PipelineRun.objects.filter(pk=run_id).update(
             status=PipelineRun.Status.FAILED,
-            error=str(error)[:1000] if isinstance(error, ValueError) else type(error).__name__,
+            error=recorded_error(error, ValueError),
             finished_at=timezone.now(),
         )
         raise

@@ -43,6 +43,7 @@ from django.utils.dateparse import parse_datetime
 from almonium_book_processor.ai.cli_calls import ALLOWANCE_USED_UP, NETWORK_DOWN
 from almonium_book_processor.catalog.fidelity_audit import backed
 from almonium_book_processor.catalog.models import (
+    AIRun,
     BookPause,
     Edition,
     PipelineRun,
@@ -54,6 +55,13 @@ VERSION = "production-v1"
 TICK_SECONDS = 30
 # A whole book is written in about half an hour and audited in a quarter.
 STEP_TIMEOUT = timedelta(hours=3)
+# A step whose job waits in the queue for a worker gets this long instead: with thirty books
+# under way the workers are the bottleneck, not the step (16 November 2026).
+QUEUED_TIMEOUT = timedelta(hours=12)
+# How long a book waits after a plan refused one of its jobs before the job is started again.
+REFUSAL_RETRY = timedelta(minutes=30)
+# The words a refused job's error starts with: its message, or its type where only that was kept.
+REFUSALS = (ALLOWANCE_USED_UP, NETWORK_DOWN, "AllowanceUsedUp", "NetworkDown")
 # How often one thing is started before the book is held: the first time and once more.
 STARTS = 2
 # How often corrections are applied and the changed chapters audited again. Each round
@@ -358,10 +366,16 @@ def _advance_once(run_id, only: set[str] | None = None) -> tuple[bool, set[str]]
         target = track["targets"][track["index"]]
         step = track["step"]
         try:
-            _refused(run, state, target)
-            move = STEPS[step](run, state, target)
-            if move[0] == "wait" and timezone.now() - parse_datetime(track["since"]) > STEP_TIMEOUT:
-                raise Held(f"Nothing finished '{step}' in {STEP_TIMEOUT}: {move[1]}")
+            if waiting := _refusal(run, state, target):
+                # the plan's wait is not the step's: its clock starts when the plan answers
+                track["since"] = timezone.now().isoformat()
+                move = ("wait", waiting)
+            else:
+                move = STEPS[step](run, state, target)
+            if move[0] == "wait" and not waiting:
+                limit = QUEUED_TIMEOUT if _waits_for_a_worker(run, state, target) else STEP_TIMEOUT
+                if timezone.now() - parse_datetime(track["since"]) > limit:
+                    raise Held(f"Nothing finished '{step}' in {limit}: {move[1]}")
         except Held as held:
             move = ("hold", held.reasons)
         except Exception as error:
@@ -545,55 +559,104 @@ def _started(state: dict, key: str, limit: int = STARTS) -> None:
     state["starts"][key] = count + 1
 
 
-def _refused(run: PipelineRun, state: dict, target: str) -> None:
-    """Hold the target when a job this production started was refused for a used-up allowance.
+def _refusal(run: PipelineRun, state: dict, target: str) -> str | None:
+    """Why the target waits for a plan or the network instead of going on, or None.
 
-    Every call on that plan fails the same way until its week turns, so starting the job
-    again would only use up a start: on 24 October 2026 thirty-nine books did that against
-    two empty Codex meters. The book waits instead, and no start is counted; the owner starts
-    it again after the reset, and the finished reads are reused.
+    A job of the book refused for a used-up allowance, for every account of a plan paused, or
+    for a network that could not be reached says nothing about the book. The target waits
+    ``REFUSAL_RETRY`` and the step is then started again; the refused attempt is not counted
+    against the step's starts, and the step's clock does not run while it waits. Holding the
+    book instead left it for a person: on 24 October 2026 thirty-nine books, and on
+    16 November 2026 forty-five translations whose reviewer found both Claude accounts full.
+
+    A refusal is a job (a PipelineRun) or a model call (an AIRun: a translation's chapter, a
+    reviewer's window) of the source or the target's edition that failed with a refusal's
+    words since the production started.
     """
 
     editions = [run.edition_id]
-    if level_edition := state.get("editions", {}).get(target):
-        editions.append(level_edition)
-    refused = (
-        PipelineRun.objects.filter(
-            Q(finished_at__gte=run.created_at)
-            | Q(finished_at__isnull=True, created_at__gte=run.created_at),
-            edition_id__in=editions,
-            status=PipelineRun.Status.FAILED,
-            # when the job failed, not when its row was made: a probe or a book run is reused
-            # across productions and keeps the date of the first
-        )
-        .filter(Q(error__contains=ALLOWANCE_USED_UP) | Q(error__contains=NETWORK_DOWN))
-        .exclude(processor_version=VERSION)
-        .order_by("-created_at")
-        .first()
+    if target_edition := state.get("editions", {}).get(target):
+        editions.append(target_edition)
+    # when the job failed, not when its row was made: a probe or a book run is reused across
+    # productions and keeps the date of the first
+    since = Q(finished_at__gte=run.created_at) | Q(
+        finished_at__isnull=True, updated_at__gte=run.created_at
     )
-    if refused is None:
-        return
-    marker = ALLOWANCE_USED_UP if ALLOWANCE_USED_UP in refused.error else NETWORK_DOWN
-    said = refused.error[refused.error.index(marker) :].split(" — ")[0][:220]
-    if marker == NETWORK_DOWN:
-        raise Held(
-            f"The provider could not be reached, said the '{refused.stage}' job: {said} "
-            "The book is started again once a provider answers."
+    worded = Q()
+    for words in REFUSALS:
+        worded |= Q(error__contains=words)
+    candidates = [
+        *PipelineRun.objects.filter(
+            since, worded, edition_id__in=editions, status=PipelineRun.Status.FAILED
         )
+        .exclude(processor_version=VERSION)
+        .order_by("-updated_at")[:1],
+        *AIRun.objects.filter(
+            since, worded, edition_id__in=editions, status=AIRun.Status.FAILED
+        ).order_by("-updated_at")[:1],
+    ]
+    if not candidates:
+        return None
+    refused = max(candidates, key=lambda row: row.updated_at)
+    # a call that is tried again keeps its row, so the time it failed tells two refusals apart
+    key = f"{type(refused).__name__}:{refused.pk}:{refused.updated_at.isoformat()}"
+    seen = state.setdefault("refusals", {})
+    if key not in seen:
+        seen[key] = timezone.now().isoformat()
+        _refund(state, target)
+    retry_at = parse_datetime(seen[key]) + REFUSAL_RETRY
+    if timezone.now() >= retry_at:
+        return None
+    return (
+        f"{_refused_by(refused)} Trying again at "
+        f"{timezone.localtime(retry_at):%H:%M}; nothing is counted against the book."
+    )
+
+
+def _refused_by(refused) -> str:
+    """What the refusal said, named the way the dashboard shows it."""
+
     from almonium_book_processor.ai import claude_code_provider, codex_provider
 
+    error = refused.error
+    marker = next((words for words in REFUSALS if words in error), "")
+    said = error[error.index(marker) :].split(" — ")[0].split('"')[0][:220] if marker else ""
+    job = getattr(refused, "stage", "") or "model call"
     for plan, words in (
         ("Claude", claude_code_provider.EVERY_ACCOUNT_PAUSED),
         ("Codex", codex_provider.EVERY_ACCOUNT_PAUSED),
     ):
-        if words in said:
-            raise Held(
-                f"No {plan} account is open, said the '{refused.stage}' job: {said} "
-                "The book is started again once one is run on the dashboard."
-            )
-    raise Held(
-        f"The plan's allowance is used up, said the '{refused.stage}' job: {said} "
-        "Start the book again after the reset."
+        if words in error:
+            return f"No {plan} account is open, said the '{job}' job: {said}"
+    if marker in (NETWORK_DOWN, "NetworkDown"):
+        return f"The provider could not be reached, said the '{job}' job: {said}"
+    return f"The plan's allowance is used up, said the '{job}' job: {said}"
+
+
+def _refund(state: dict, target: str) -> None:
+    """Take back the start a refused attempt of the target's steps counted."""
+
+    for key, count in state["starts"].items():
+        names = key.split(":") if key.startswith("error:") else key.split()
+        if target in names[1:] and count > 0:
+            state["starts"][key] = count - 1
+
+
+def _waits_for_a_worker(run: PipelineRun, state: dict, target: str) -> bool:
+    """Whether a job of the target is queued and no worker has taken it yet.
+
+    Many books under way share a few workers, so a job can wait for one longer than a step
+    may take; that wait says nothing about the step.
+    """
+
+    editions = [run.edition_id]
+    if target_edition := state.get("editions", {}).get(target):
+        editions.append(target_edition)
+    return (
+        PipelineRun.objects.filter(edition_id__in=editions, status=PipelineRun.Status.QUEUED)
+        .exclude(processor_version=VERSION)
+        .exists()
+        or AIRun.objects.filter(edition_id__in=editions, status=AIRun.Status.QUEUED).exists()
     )
 
 

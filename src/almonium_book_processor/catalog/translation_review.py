@@ -31,6 +31,7 @@ from django.db.models import Q
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
+from almonium_book_processor.ai.cli_calls import recorded_error
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.pricing import call_cost, has_price, plan_priced
 from almonium_book_processor.ai.seats import parse_seat, provider_for
@@ -340,7 +341,7 @@ def _review_window(run, edition, window: dict, reviewer: dict, system: str, prov
     except Exception as error:
         record_failed_call(ai.id, error, provider=reviewer["provider"], model=reviewer["model"])
         AIRun.objects.filter(pk=ai.id).update(
-            status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
+            status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
         )
         raise
 
@@ -485,7 +486,7 @@ def _ask(run, edition, reviewer: dict, step: str, system: str, payload: dict, mo
     except Exception as error:
         record_failed_call(ai.id, error, provider=reviewer["provider"], model=reviewer["model"])
         AIRun.objects.filter(pk=ai.id).update(
-            status=AIRun.Status.FAILED, error=type(error).__name__, finished_at=timezone.now()
+            status=AIRun.Status.FAILED, error=recorded_error(error), finished_at=timezone.now()
         )
         raise
 
@@ -697,7 +698,7 @@ def review_translation(
         PipelineRun.objects.filter(pk=run.id).update(
             status=PipelineRun.Status.FAILED,
             finished_at=timezone.now(),
-            error=str(error)[:1000] if isinstance(error, ValueError) else type(error).__name__,
+            error=recorded_error(error, ValueError),
         )
         raise
     return run

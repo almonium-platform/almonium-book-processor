@@ -83,6 +83,21 @@ class NetworkDown(CallFailed):
         super().__init__(f"{NETWORK_DOWN}: {message[:300]}", spent)
 
 
+def recorded_error(error: BaseException, *named: type[BaseException]) -> str:
+    """How a failed job records its error.
+
+    A refused plan or an unreachable network is kept in full: it carries no book text, and the
+    production waits on it by its first words instead of holding the book. The ``named``
+    errors, the job's own messages, are kept in full too; anything else may quote the book and
+    is recorded by its type only. Recording the type alone for a refusal held 45 translations
+    on 16 November 2026 as "started 2 times and did not finish" while the plans were full.
+    """
+
+    if isinstance(error, (AllowanceUsedUp, NetworkDown, *named)):
+        return str(error)[:1000]
+    return type(error).__name__
+
+
 def _raise_if_unreachable(error: BaseException, earlier: dict[str, Any] | None = None) -> None:
     """Raise ``NetworkDown`` when the CLI could not reach its provider."""
 

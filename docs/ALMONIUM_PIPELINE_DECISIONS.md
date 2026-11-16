@@ -1025,4 +1025,17 @@ rule below names its constant or function.
   capacity, out of the pipeline; the workers stop only when every account of
   both plans is paused. Book calls are `--ephemeral` and write no session log,
   so each account's meter is still read from its own probe.
-
+- **A refused call makes the book wait, never hold** (16 November 2026,
+  `production._refusal`, `REFUSAL_RETRY` = 30 minutes, `QUEUED_TIMEOUT` = 12
+  hours, `cli_calls.recorded_error`). With both Claude accounts' five-hour
+  windows full, 45 translations were held as "'review fr' was started 2 times
+  and did not finish": the review job recorded only the type `AllowanceUsedUp`,
+  so the production did not know a refusal, and a known refusal held the book
+  for a person anyway. Now every job records a refusal's words in full
+  (translation review, modernisation and the adaptation floor recorded the type
+  alone), a refused job or model call of the source or the target edition
+  (translation chapters and reviewer windows are model calls) makes the target
+  wait 30 minutes and then start the step again, the refused attempt's start is
+  given back, and the step's 3-hour clock restarts when the plan answers. A
+  step whose job is queued for a worker gets 12 hours: thirty books under way
+  share a few workers.
