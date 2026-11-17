@@ -330,3 +330,21 @@ def test_the_dashboard_starts_and_pauses_the_factory_and_a_book(client, settings
     assert "1 paused" in client.get(reverse("catalog:dashboard")).content.decode()
     client.post(reverse("catalog:factory-switch"), {"action": "resume-books"})
     assert not BookPause.objects.exists()
+
+
+def test_a_second_want_for_a_text_on_the_shelf_does_not_fetch_it_again(almonium):
+    """Candide and Marianela were fetched twice on 17 October 2026, once per wanted language."""
+
+    meters()
+    almonium.queue = [{**ROW, "language": "EN"}]
+    factory.tick()
+    assert SourceDownload.objects.count() == 1
+
+    almonium.queue = [ROW]  # the same book, wanted in Ukrainian
+    almonium.preparation_id = uuid.uuid4()
+    result = factory.tick()
+
+    assert result["started"] is None
+    assert SourceDownload.objects.count() == 1 and Edition.objects.count() == 1
+    reserved = [payload for path, payload in almonium.posts if path == factory.PREPARATIONS_PATH]
+    assert len(reserved) == 1  # the second want was not reserved either

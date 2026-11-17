@@ -1061,3 +1061,11 @@ rule below names its constant or function.
   processes, so a press takes effect within a minute. The command skips Django's system
   checks (`requires_system_checks = []`): they load every view and with them spaCy, which made
   each pass 20 seconds and 1.2 GB; without them it is under a second and 100 MB.
+- **The factory never fetches a text it has fetched before** (17 November 2026,
+  `factory.already_fetched`). Almonium's wanted queue has a row per work and wanted
+  language, and the factory reserved and fetched each row, so on 17 October Candide and
+  Marianela were fetched twice an hour apart (Gutenberg 4650 and 17340): one copy got the
+  levels, the other the translations. The copies were merged on 17 November 2026 (the
+  first copies removed as superseded, the second renamed). A want whose source page is
+  already on the shelf is now left in the queue; serving several wants from one book needs
+  a reservation table, since a SourceDownload holds one reservation.

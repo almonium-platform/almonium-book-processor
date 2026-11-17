@@ -79,6 +79,12 @@ def _tick() -> dict[str, Any]:
         source = row.get("source")
         if not source or source.get("language") not in LANGUAGE_CODES:
             continue
+        if already_fetched(source):
+            # the text is on the shelf already, fetched for another want of the same work: a
+            # second fetch made a second book (Candide and Marianela on 17 October 2026). Until
+            # one book can serve several wants, the want waits rather than duplicating it.
+            logger.info("The factory leaves %s: its text is on the shelf", row.get("title"))
+            continue
         try:
             started = start(row, source)
         except (PublicationError, ValueError) as error:
@@ -86,6 +92,12 @@ def _tick() -> dict[str, Any]:
             continue
         return _result(reported, busy, started.slug, f"Started {row.get('title')!r}.")
     return _result(reported, busy, None, "Nothing in the queue has a free text to start from.")
+
+
+def already_fetched(source: dict) -> bool:
+    """Whether a book was already fetched from this source page, under any want."""
+
+    return SourceDownload.objects.filter(source_page_url=source.get("pageUrl", "")).exists()
 
 
 def _result(reported: int, busy: list, started: str | None, reason: str) -> dict[str, Any]:
