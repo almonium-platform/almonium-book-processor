@@ -313,22 +313,28 @@ class WorkGroup:
 
     @property
     def floor_below(self) -> str | None:
-        """The level under the floor, or None at A1 or without a floor."""
+        """The level under the floor, or None at the lowest level made or without a floor."""
 
-        if not self.floor or self.floor not in LEVELS or LEVELS.index(self.floor) == 0:
+        from almonium_book_processor.catalog.adaptation_floor import PROBE_LEVELS
+
+        # no level is made under the lowest the pipeline adapts to (B1)
+        lowest = min(PROBE_LEVELS, key=LEVELS.index)
+        if not self.floor or self.floor not in LEVELS or self.floor == lowest:
             return None
         return LEVELS[LEVELS.index(self.floor) - 1]
 
     @property
     def floor_final(self) -> bool:
-        """Whether the floor is as low as the book goes: the level under it was tried and
-        refused, by its probe or by the production's verdict."""
+        """Whether the floor is as low as the book goes: it is the lowest level made (B1), or
+        the level under it was tried and refused, by its probe or by the production's verdict."""
 
+        if not self.floor:
+            return False
         below = self.floor_below
-        state = (
-            ((self.work.adaptation_evidence or {}).get("levels") or {}).get(below, {}).get("state")
-        )
-        return below is not None and state in FINAL_STATES
+        if below is None:
+            return True
+        levels = (self.work.adaptation_evidence or {}).get("levels") or {}
+        return levels.get(below, {}).get("state") in FINAL_STATES
 
     @property
     def floor_label(self) -> str:
@@ -336,7 +342,7 @@ class WorkGroup:
             return ""
         if self.floor_final:
             return f"{self.floor} · final"
-        return f"{self.floor} · {self.floor_below} not tried" if self.floor_below else self.floor
+        return f"{self.floor} · {self.floor_below} not tried"
 
     @property
     def edition_count_label(self) -> str:

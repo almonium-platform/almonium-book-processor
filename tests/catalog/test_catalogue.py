@@ -618,8 +618,9 @@ def test_the_level_filter_and_the_floor_badge_tell_a_final_floor_from_one_still_
 
     assert titles(level="B2") == ["Dracula", "Germinal"]
     assert titles(level="B1") == ["Heidi"]
-    assert titles(level="final") == ["Germinal"]
-    assert titles(level="open") == ["Dracula", "Heidi"]
+    # B1 is the lowest level made, so a B1 floor is final
+    assert titles(level="final") == ["Germinal", "Heidi"]
+    assert titles(level="open") == ["Dracula"]
     assert titles(level="none") == ["Emma"]
     _, page = _page(client, tab="all", level="B2")
     assert "B2 · final" in page and "B2 · B1 not tried" in page
