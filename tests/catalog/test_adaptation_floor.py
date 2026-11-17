@@ -1665,7 +1665,9 @@ def test_an_english_correction_for_a_ukrainian_edition_fails_the_audit(source):
     with pytest.raises(OutputLanguageError, match="uk"):
         audit_pilot(pilot.id, provider=Auditor([issue]))
     failed = AIRun.objects.get(prompt_template__name="literary-fidelity-editor")
-    assert failed.status == "failed" and failed.error == "OutputLanguageError"
+    # the call keeps the checker's reason, which quotes no text, as its job does
+    assert failed.status == "failed"
+    assert failed.error.startswith("Generated prose did not validate as uk")
     assert PipelineRun.objects.get(processor_version=AUDIT_VERSION).status == "failed"
     ukrainian = {**issue, "suggested_correction": "і страх ані на мить не полишав його дорогою"}
     review = audit_pilot(pilot.id, provider=Auditor([ukrainian]))

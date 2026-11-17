@@ -2068,9 +2068,7 @@ def lexicon_writer_view(request: HttpRequest) -> HttpResponse:
             )
             if request.POST.get("start"):
                 lexicon_writers.set_running(writer, True, by=by)
-            messages.info(
-                request, f"Writer added: {writer}. The host picks it up within a minute."
-            )
+            messages.info(request, f"Writer added: {writer}. The host picks it up within a minute.")
             return redirect(back)
         writer = get_object_or_404(LexiconWriter, pk=request.POST.get("writer"))
         if action in ("start", "pause"):

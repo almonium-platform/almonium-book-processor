@@ -193,11 +193,22 @@ def test_the_plan_meters_are_read_from_the_usage_screen():
     assert claude_meter(binary="claude", runner=lambda *a, **k: SimpleNamespace(stdout="")) is None
 
 
-def test_the_reset_times_are_read_from_the_usage_screen_in_its_own_zone():
+def test_the_reset_times_are_read_from_the_usage_screen_in_its_own_zone(monkeypatch):
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
+    from almonium_book_processor.ai import claude_code_provider
     from almonium_book_processor.ai.claude_code_provider import _reset_time, claude_meter
+
+    class OnTheDayTheScreenWasRead(datetime):
+        """The screen below was read on 25 October 2026; read later, "Oct 29" is next year's,
+        before that year's clocks go back, and the test failed from 29 October 2026 on."""
+
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 10, 25, 12, tzinfo=tz)
+
+    monkeypatch.setattr(claude_code_provider, "datetime", OnTheDayTheScreenWasRead)
 
     screen = (
         "Current session: 32% used · resets Oct 26, 4:20am (Europe/Kyiv)\n"
