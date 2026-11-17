@@ -592,3 +592,35 @@ def test_an_adaptation_a_live_production_is_judging_reads_as_processing_not_revi
     assert "Production · audit (B2)" in page
     assert "status-review" not in page
     assert "need review" not in page and "needs review" not in page
+
+
+def test_the_level_filter_and_the_floor_badge_tell_a_final_floor_from_one_still_open(client, staff):
+    final = _work("germinal", "Germinal", "Émile Zola")
+    _edition(final, "fr", Edition.Status.READY)
+    Work.objects.filter(pk=final.pk).update(
+        adapts_to="B2",
+        adaptation_evidence={
+            "levels": {"B2": {"state": "reached"}, "B1": {"state": "probe_failed"}}
+        },
+    )
+    open_floor = _work("dracula", "Dracula", "Bram Stoker")
+    _edition(open_floor, "en", Edition.Status.READY)
+    Work.objects.filter(pk=open_floor.pk).update(
+        adapts_to="B2", adaptation_evidence={"levels": {"B2": {"state": "reached"}}}
+    )
+    low = _work("heidi", "Heidi", "Johanna Spyri")
+    _edition(low, "de", Edition.Status.READY)
+    Work.objects.filter(pk=low.pk).update(adapts_to="B1")
+    _edition(_work("emma", "Emma", "Jane Austen"), "en", Edition.Status.READY)
+
+    def titles(**query):
+        return sorted(group.title for group in _page(client, tab="all", **query)[0].groups)
+
+    assert titles(level="B2") == ["Dracula", "Germinal"]
+    assert titles(level="B1") == ["Heidi"]
+    assert titles(level="final") == ["Germinal"]
+    assert titles(level="open") == ["Dracula", "Heidi"]
+    assert titles(level="none") == ["Emma"]
+    _, page = _page(client, tab="all", level="B2")
+    assert "B2 · final" in page and "B2 · B1 not tried" in page
+    assert '<option value="B2" selected>Lowest level B2</option>' in page

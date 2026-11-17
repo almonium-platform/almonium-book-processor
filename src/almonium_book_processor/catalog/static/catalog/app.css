@@ -935,3 +935,5 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .ops-writer-form { display: flex; flex-wrap: wrap; gap: .5rem .9rem; align-items: end; margin: .2rem 0 1.4rem; font-size: .85rem; }
 .ops-writer-form label { display: flex; flex-direction: column; gap: .2rem; color: var(--muted); }
 .ops-writer-form input[type=number] { width: 4.5rem; }
+.work-floor { display: inline-block; margin-left: .4rem; padding: .05rem .45rem; border: 1px solid var(--line); border-radius: 999px; font-size: .72rem; font-weight: 600; color: var(--muted); vertical-align: middle; }
+.work-floor-final { border-color: var(--green); color: var(--green); }

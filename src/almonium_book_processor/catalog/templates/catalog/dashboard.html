@@ -95,6 +95,12 @@
         {% for code, name in catalogue.languages %}<option value="{{ code }}"{% if code == catalogue.language %} selected{% endif %}>{{ name }}</option>{% endfor %}
       </select>
     </label>
+    <label class="catalogue-select">
+      <select name="level" aria-label="Level">
+        <option value="">Level: any</option>
+        {% for key, label in catalogue.levels %}<option value="{{ key }}"{% if key == catalogue.level %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
     <input class="catalogue-search" type="search" name="q" value="{{ catalogue.search }}" placeholder="Title or author" aria-label="Search title or author">
   </form>
 
@@ -143,7 +149,7 @@
     <details class="work-row" id="work-{{ group.work.id }}" data-work="{{ group.work.id }}"{% if group.matched_through_edition %} data-matched open{% endif %}>
       <summary class="work-summary">
         <span class="work-chevron" aria-hidden="true"></span>
-        <span class="work-name"><span class="work-title">{{ group.title }}</span><span class="work-author">{{ group.author }}</span></span>
+        <span class="work-name"><span class="work-title">{{ group.title }}{% if group.floor %} <span class="work-floor{% if group.floor_final %} work-floor-final{% endif %}" title="The lowest level this book reached, both gates passed{% if group.floor_final %}; the level under it was tried and refused{% endif %}">{{ group.floor_label }}</span>{% endif %}</span><span class="work-author">{{ group.author }}</span></span>
         <span class="edition-strip">
           {% for row in group.rows %}<a class="edition-token edition-token-{{ row.token_state }}" href="{% url 'catalog:edition-detail' row.edition.id %}" title="{{ row.token_title }}"><span class="edition-token-dot"></span><span class="edition-token-lang">{{ row.language }}</span>{% if row.token_level %}<span class="edition-token-level">{{ row.token_level }}</span>{% endif %}{% if row.is_canonical %}<span class="edition-token-canonical" aria-hidden="true">●</span>{% endif %}</a>{% endfor %}
         </span>

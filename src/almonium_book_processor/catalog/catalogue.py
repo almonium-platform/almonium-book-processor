@@ -23,6 +23,7 @@ from pathlib import Path
 from django.db.models import Count, Max, Q
 from django.utils import timezone
 
+from almonium_book_processor.catalog.chapter_projections import LEVELS
 from almonium_book_processor.catalog.models import Edition, PipelineRun, QAWarning, Work
 from almonium_book_processor.catalog.release_state import PromotionToken
 from almonium_book_processor.languages import LANGUAGES
@@ -303,6 +304,39 @@ class WorkGroup:
     @property
     def author(self) -> str:
         return self.work.author
+
+    @property
+    def floor(self) -> str | None:
+        """The lowest level the work reached, both gates passed (``Work.adapts_to``)."""
+
+        return self.work.adapts_to
+
+    @property
+    def floor_below(self) -> str | None:
+        """The level under the floor, or None at A1 or without a floor."""
+
+        if not self.floor or self.floor not in LEVELS or LEVELS.index(self.floor) == 0:
+            return None
+        return LEVELS[LEVELS.index(self.floor) - 1]
+
+    @property
+    def floor_final(self) -> bool:
+        """Whether the floor is as low as the book goes: the level under it was tried and
+        refused, by its probe or by the production's verdict."""
+
+        below = self.floor_below
+        state = (
+            ((self.work.adaptation_evidence or {}).get("levels") or {}).get(below, {}).get("state")
+        )
+        return below is not None and state in FINAL_STATES
+
+    @property
+    def floor_label(self) -> str:
+        if not self.floor:
+            return ""
+        if self.floor_final:
+            return f"{self.floor} · final"
+        return f"{self.floor} · {self.floor_below} not tried" if self.floor_below else self.floor
 
     @property
     def edition_count_label(self) -> str:
@@ -605,6 +639,7 @@ class CataloguePage:
     tab: str
     sort: str
     language: str
+    level: str
     search: str
     page: int
     tabs: list[CatalogueTab]
@@ -621,8 +656,24 @@ class CataloguePage:
         return [(key, label) for key, (label, _) in SORTS.items()]
 
     @property
+    def levels(self) -> list[tuple[str, str]]:
+        return [(key, label) for key, (label, _) in LEVEL_FILTERS.items()]
+
+    @property
     def shown_label(self) -> str:
         return f"{len(self.groups)} of {self.matched}"
+
+
+# A level under the floor that was tried and refused makes the floor final.
+FINAL_STATES = ("probe_failed", "not_reached")
+# The dashboard's level filter: what each choice keeps.
+LEVEL_FILTERS = {
+    "B1": ("Lowest level B1", lambda group: group.floor in ("A1", "A2", "B1")),
+    "B2": ("Lowest level B2", lambda group: group.floor == "B2"),
+    "final": ("Lowest level final", lambda group: group.floor_final),
+    "open": ("A lower level to try", lambda group: bool(group.floor) and not group.floor_final),
+    "none": ("No level yet", lambda group: not group.floor),
+}
 
 
 def _query_url(**params) -> str:
@@ -670,6 +721,7 @@ def catalogue_page(params, groups: list[WorkGroup]) -> CataloguePage:
     targets = [target.name for target in promotion_targets()]
     search = (params.get("q") or "").strip()
     language = (params.get("lang") or "").strip().lower()
+    level = params.get("level") if params.get("level") in LEVEL_FILTERS else ""
     sort = params.get("sort") if params.get("sort") in SORTS else DEFAULT_SORT
     try:
         page = max(1, int(params.get("page") or 1))
@@ -701,13 +753,15 @@ def catalogue_page(params, groups: list[WorkGroup]) -> CataloguePage:
             count = sum(group.behind_count(key.removeprefix("behind-")) for group in groups)
         else:
             count = sum(1 for group in groups if test(group))
-        url = _query_url(tab=key, sort=sort, lang=language)
+        url = _query_url(tab=key, sort=sort, lang=language, level=level)
         tabs.append(CatalogueTab(key, label, count, unit, url, active=key == tab and not search))
 
     matched: list[WorkGroup] = []
     for group in groups:
         found, through_edition = _matches(group, search, language)
         if not found or (not search and not tests[tab][2](group)):
+            continue
+        if level and not LEVEL_FILTERS[level][1](group):
             continue
         group.matched_through_edition = through_edition
         matched.append(group)
@@ -744,6 +798,7 @@ def catalogue_page(params, groups: list[WorkGroup]) -> CataloguePage:
                 tab=tab if params.get("tab") else "",
                 sort=sort,
                 lang=language,
+                level=level,
                 q=search,
                 page=page + 1,
             )
@@ -758,6 +813,7 @@ def catalogue_page(params, groups: list[WorkGroup]) -> CataloguePage:
         tab=tab,
         sort=sort,
         language=language,
+        level=level,
         search=search,
         page=page,
         tabs=tabs,
