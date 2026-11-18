@@ -238,8 +238,35 @@ Not changed: French spaCy makes a lone "«" its own sentence (harmless to alignm
 under Modal each process still loads the whole model to tokenize (about 330 MB more than
 the tokenizer alone).
 
+## The library backfill, 2026-11-18 (v10)
+
+All 412 pairs (every public translation or adaptation with its original) aligned in
+1 h 44 min, 19:50–21:34, with no failure: 683,820 paragraph pairs, 3,171,262 groups,
+**91.8% confirmed**, 69.1% at clause level. 258,765 groups stayed unconfirmed (8.2%), in
+27.1% of paragraph pairs: 140,433 sentence matches under the bar, 111,235 clause pairs in
+unconfirmed stretches, 5,351 placed by position. 1,961 paragraph pairs have no groups
+because one side was never sentence-split (`missing_sentences`).
+
+What set the pace, measured during the run on an 8-core laptop with embeddings on Modal:
+
+- **Waiting, not computing.** Four aligner processes used 45–90% CPU in all. A Modal call
+  for 2,048 texts took 4–6 s warm (19–33 s cold), most of it the vectors coming back;
+  matching those paragraphs takes about as long. A look-ahead thread now fetches the next
+  window while the current one is matched (`86dcb76`, with a test that fails on a
+  sequential loop), and six processes run instead of four (`ALIGNER_CONCURRENCY`, the
+  tokenizer-only load making room): 79–91 → 135 paragraph pairs a second.
+- **Bandwidth.** Six processes pulled 57 Mbit/s. Vectors now come back as float16
+  (`88604a0`; the app answers float32 to an older worker): a lone warm call went from
+  4.2–6.2 s to 3.5–5.3 s. The gain under six-way concurrency was not measured; the
+  backfill had finished.
+
 ## Open
 
-- Speed: measure the deployment host (ARM64, no native bf16 on Neoverse N1: fp32 there).
+- Re-promote the aligned books: alignment artifacts reach staging and production only
+  in a promotion bundle, and these were promoted before they were aligned.
+- Re-split the sentences of the 1,961 paragraph pairs with none on one side.
+- Speed: measure the deployment host (ARM64, no native bf16 on Neoverse N1: fp32 there),
+  and embed each original once for all its companions (one task per family), now that
+  the transfer, not the matching, sets the pace.
 - Calibrated accuracy: a hand-labelled sample per language pair, so "confirmed" has a
   measured error rate rather than a reading.
