@@ -168,8 +168,38 @@ def _embedding_model(model_name: str) -> Any:
         from sentence_transformers import SentenceTransformer
     except ImportError as error:
         raise RuntimeError("Install the worker dependency group to compute embeddings") from error
-    # Under Modal this copy only tokenizes and chunks; it always lives on local hardware.
+    # Embeddings on Modal never load it (_tokenizer_only); it always lives on local hardware.
     return SentenceTransformer(model_name, device=_local_runtime().device)
+
+
+@dataclass(frozen=True, slots=True)
+class _Window:
+    """What splitting a text to the encoder's window needs: the tokenizer and the window."""
+
+    tokenizer: Any
+    max_seq_length: int
+
+
+@lru_cache(maxsize=2)
+def _tokenizer_only(model_name: str) -> _Window:
+    """The model's tokenizer and window without its weights, for embeddings run on Modal.
+
+    A process whose forward pass runs remotely only tokenizes and splits: about 450 MB where
+    the whole LaBSE is 780. The files are the sentence-transformers model's own, so the ids
+    and the window are the same (checked on LaBSE and MiniLM, Cyrillic and CJK included).
+    """
+
+    import json
+
+    try:
+        from huggingface_hub import hf_hub_download
+        from transformers import AutoTokenizer
+    except ImportError as error:
+        raise RuntimeError("Install the worker dependency group to compute embeddings") from error
+    config = hf_hub_download(model_name, "sentence_bert_config.json")
+    with open(config, encoding="utf-8") as handle:
+        window = int(json.load(handle)["max_seq_length"])
+    return _Window(AutoTokenizer.from_pretrained(model_name), window)
 
 
 def _encode(model: Any, texts: list[str], model_name: str) -> np.ndarray:
@@ -208,12 +238,15 @@ def embed_texts(
     """Create normalized multilingual embeddings with the configured local model."""
 
     model_name = model_name or settings.NLP_EMBEDDING_MODEL
-    model = _embedding_model(model_name)
+    # On Modal this process only tokenizes: the tokenizer alone, not the model's weights.
+    remote = embedding_runtime().device == "modal"
+    model = None if remote else _embedding_model(model_name)
+    splitter = _tokenizer_only(model_name) if remote else model
     if chunk_long:
         # Split original text, then re-tokenize every leaf, including special tokens.
         # No decoded-token round trip and no silent encoder truncation.
-        tokenizer = model.tokenizer
-        limit = model.max_seq_length
+        tokenizer = splitter.tokenizer
+        limit = splitter.max_seq_length
         special = tokenizer.num_special_tokens_to_add()
         chunks, owners, weights = [], [], []
 
@@ -253,8 +286,8 @@ def embed_texts(
         norms = np.linalg.norm(sums, axis=1, keepdims=True)
         return (sums / np.where(norms, norms, 1.0)).tolist()
     if reject_truncation:
-        tokens = model.tokenizer(texts, truncation=False, padding=False)["input_ids"]
-        if any(len(ids) > model.max_seq_length for ids in tokens):
+        tokens = splitter.tokenizer(texts, truncation=False, padding=False)["input_ids"]
+        if any(len(ids) > splitter.max_seq_length for ids in tokens):
             raise ValueError("Sentence exceeds embedding token limit")
     return [vector.tolist() for vector in _encode(model, texts, model_name)]
 

@@ -33,13 +33,14 @@ class Tokenizer:
 
 
 class LocalModel:
-    """The worker's own copy: it tokenizes, and embeds only when Modal is not used."""
+    """The worker's whole model: loaded, tokenizing and embedding, only off Modal."""
 
     tokenizer = Tokenizer()
     max_seq_length = 128
 
     def __init__(self):
         self.encoded = []
+        self.loaded = 0
 
     def encode(self, texts, **kwargs):
         self.encoded += texts
@@ -52,7 +53,14 @@ def stack(monkeypatch, settings):
     settings.MODAL_EMBEDDING_GPUS = ["L4", "A10"]
     settings.NLP_EMBEDDING_PRECISION = "auto"
     local = LocalModel()
-    monkeypatch.setattr(nlp, "_embedding_model", lambda _: local)
+
+    def whole_model(_):
+        local.loaded += 1
+        return local
+
+    monkeypatch.setattr(nlp, "_embedding_model", whole_model)
+    # on Modal the process loads the tokenizer alone, never the model's weights
+    monkeypatch.setattr(nlp, "_tokenizer_only", lambda _: nlp._Window(Tokenizer(), 128))
     monkeypatch.setattr(nlp, "_local_runtime", lambda: nlp.EmbeddingRuntime("cpu", "fp32", 32))
     sent = []
 
@@ -86,6 +94,7 @@ def test_a_public_run_embeds_on_modal_and_records_what_it_bought(pair, stack):  
     run.refresh_from_db()
     assert run.status == PipelineRun.Status.SUCCEEDED, run.error
     assert local.encoded == []
+    assert local.loaded == 0  # tokenized without the model's weights
     assert sorted(sent[0][0]) == ["Again.", "Hello!", "Hello."]
     assert sent[0][1] == "bf16"
     embedding = run.summary["embedding"]
@@ -112,6 +121,7 @@ def test_past_the_budget_the_run_embeds_on_the_worker(pair, stack, settings):  #
     assert run.status == PipelineRun.Status.SUCCEEDED, run.error
     assert sent == []
     assert sorted(local.encoded) == ["Again.", "Hello!", "Hello."]
+    assert local.loaded > 0  # past the budget the whole model embeds on the CPU
     assert run.summary["embedding"] == {"device": "cpu", "precision": "fp32"}
 
 
