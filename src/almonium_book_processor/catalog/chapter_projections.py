@@ -149,6 +149,10 @@ def build_payloads(
                 "summary": summary,
             }
         )
+    return chapters, _book_projection(plan, roles, chapters)
+
+
+def _book_projection(plan, roles, chapters):
     eligible = [c["difficulty"] for c in chapters if c["role"] == Chapter.AnalysisRole.BODY]
     complete = [c for c in eligible if c["complete"]]
     levels = [c["cefr_estimate"] for c in complete]
@@ -174,7 +178,30 @@ def build_payloads(
         "confidence_min": min(confidence_min) if confidence_min else None,
         "confidence_max": max(confidence_max) if confidence_max else None,
     }
-    return chapters, book
+    return book
+
+
+def _image_cleanup_projections(run, plan, roles, images):
+    """Project the saved chapter readings over the prose after image text was archived."""
+    sources = run.edition.artifacts.in_bulk(images["chapter_artifacts"])
+    by_chapter = {(str(row.chapter_id), row.kind): row.payload for row in sources.values()}
+    # Promotion bundles carry the current projections, including their provenance.
+    for row in run.artifacts.filter(is_current=True, kind__in=KINDS, chapter__isnull=False):
+        by_chapter.setdefault((str(row.chapter_id), row.kind), row.payload)
+    provenance = {"reason": images["reason"], "from_run": images["from_run"]}
+    chapters = []
+    for entry in plan["chapters"]:
+        chapter_id = entry["id"]
+        fingerprint = {"chapter_hash": entry["hash"], "image_cleanup": provenance}
+        chapters.append(
+            {
+                "id": chapter_id,
+                "role": roles[chapter_id],
+                "difficulty": {**by_chapter[(chapter_id, KINDS[0])], **fingerprint},
+                "summary": {**by_chapter[(chapter_id, KINDS[1])], **fingerprint},
+            }
+        )
+    return chapters, {**_book_projection(plan, roles, chapters), "image_cleanup": provenance}
 
 
 def refresh_projections(run_id: str, *, token: str | None = None) -> None:
@@ -231,7 +258,11 @@ def refresh_projections(run_id: str, *, token: str | None = None) -> None:
                 # Keep the first validated result, matching reuse rather than mixing attempts.
                 results.setdefault(result.input_hash, result)
         roles = dict(_roles(edition))
-        chapters, book = build_payloads(plan, roles, results, run.summary.get("judges"))
+        cleanup = run.summary.get("image_cleanup")
+        if cleanup and cleanup.get("chapter_artifacts"):
+            chapters, book = _image_cleanup_projections(run, plan, roles, cleanup)
+        else:
+            chapters, book = build_payloads(plan, roles, results, run.summary.get("judges"))
         retained = []
 
         def persist(kind, payload, chapter_id=None):
