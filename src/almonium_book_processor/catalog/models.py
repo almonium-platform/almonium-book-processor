@@ -1107,6 +1107,35 @@ class AIRun(TimestampedModel):
         self.plan_account = plan_account or self.plan_account
 
 
+class AlignmentJudgment(TimestampedModel):
+    """A model's grouping of one stretch offline sentence alignment left unconfirmed.
+
+    Bought once and found again by ``identity``: a hash of the adjudication version, the
+    model, the two languages and the stretch's own clauses, never of a block, an edition or
+    a run (catalog/sentence_adjudication.py). ``groups`` holds clause indexes only, no book
+    text; it is null while no usable answer has been given, and ``attempts`` counts the
+    times the stretch was asked, so a stretch the model cannot answer is not asked forever.
+    Part of the AI ledger: it stays in the environment that paid for it, and the artifacts
+    made from it travel.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    identity = models.CharField(max_length=64, unique=True)
+    processor_version = models.CharField(max_length=80)
+    groups = models.JSONField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    ai_run = models.ForeignKey(
+        AIRun,
+        related_name="alignment_judgments",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class UserErrorReport(TimestampedModel):
     class Status(models.TextChoices):
         OPEN = "open", "Open"

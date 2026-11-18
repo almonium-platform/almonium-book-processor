@@ -63,6 +63,7 @@ PURPOSE_LABELS = {
     "alignment_adjudication": "Alignment adjudication",
     "chapter-analysis": "Chapter analysis",
     "sentence_alignment": "Sentence alignment preview",
+    "sentence_adjudication": "Sentence alignment adjudication",
     "import_metadata": "Metadata detection",
     "description": "Description",
 }

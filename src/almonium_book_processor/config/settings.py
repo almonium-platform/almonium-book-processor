@@ -209,6 +209,10 @@ NLP_EMBEDDING_CACHE_TEXTS = int(os.getenv("NLP_EMBEDDING_CACHE_TEXTS", "50000"))
 # pipeline queues every new translation or adaptation with its original in this model.
 SENTENCE_ALIGNMENT_QUEUE = os.getenv("SENTENCE_ALIGNMENT_QUEUE", "alignment")
 SENTENCE_ALIGNMENT_MODEL = os.getenv("SENTENCE_ALIGNMENT_MODEL", "sentence-transformers/LaBSE")
+# The model that reads the stretches the offline aligner left unconfirmed
+# (catalog/sentence_adjudication.py): a model alone, so it runs on a plan where AI_PLANS has
+# one that serves it. Only the adjudicate_sentence_alignment command calls it.
+SENTENCE_ADJUDICATION_MODEL = os.getenv("SENTENCE_ADJUDICATION_MODEL", "gpt-5.6-luna")
 
 # Where the embedding forward pass runs: "local" on this worker, or "modal" on a GPU of the
 # Modal app in modal_apps/embeddings.py (docs/MODAL.md), billed per GPU second. Modal's own

@@ -75,17 +75,28 @@ def inherited_payload(edition, other):
     pairs = inherited_pairs(edition, other)
     if not pairs:
         return None
-    candidates = EditionArtifact.objects.filter(
-        edition__in=[edition, other],
-        kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,
-        is_current=True,
-        processor_version__in=[
-            *[processor_version(model) for model in available_models()],
-            f"sentence-pair-v2:{settings.OPENAI_TRANSLATION_QUALITY_MODEL}",
-        ],
-    ).order_by("created_at", "id")
-    artifacts = {
-        a.input_hash: {
+    from django.db.models import Q
+
+    from almonium_book_processor.catalog import sentence_adjudication
+
+    offline = [processor_version(model) for model in available_models()]
+    candidates = list(
+        EditionArtifact.objects.filter(
+            Q(
+                processor_version__in=[
+                    *offline,
+                    f"sentence-pair-v2:{settings.OPENAI_TRANSLATION_QUALITY_MODEL}",
+                ]
+            )
+            | Q(processor_version__startswith=f"{sentence_adjudication.VERSION}:"),
+            edition__in=[edition, other],
+            kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,
+            is_current=True,
+        ).order_by("created_at", "id")
+    )
+
+    def served(a):
+        return {
             **a.payload,
             "provenance": {
                 "artifact_id": str(a.id),
@@ -97,13 +108,28 @@ def inherited_payload(edition, other):
                 "segmentation": a.payload.get("segmentation", "sentences"),
             },
         }
+
+    adjudicated = [a for a in candidates if "adjudication" in a.payload]
+    artifacts = {
+        a.input_hash: served(a)
         for a in sorted(
-            candidates,
-            key=lambda a: (
-                a.processor_version in [processor_version(model) for model in available_models()]
-            ),
+            (a for a in candidates if "adjudication" not in a.payload),
+            key=lambda a: a.processor_version in offline,
         )
     }
+    # A model's reading of the unconfirmed stretches stands in for the offline artifact it
+    # was made from, and for no other: a later offline version is read as it is until its
+    # own stretches are judged (the newest judgment wins where two models read one pair).
+    for a in sorted(adjudicated, key=lambda a: a.updated_at):
+        base = artifacts.get(a.input_hash)
+        if base and base["provenance"]["processor_version"] == a.payload["adjudication"]["base"]:
+            artifacts[a.input_hash] = {
+                **served(a),
+                "provenance": {
+                    **served(a)["provenance"],
+                    "adjudicated_by": a.payload["adjudication"]["model"],
+                },
+            }
     return {
         "schema_version": 2,
         "primary_edition": edition.slug,

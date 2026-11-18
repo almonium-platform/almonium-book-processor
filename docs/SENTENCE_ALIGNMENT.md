@@ -107,6 +107,44 @@ says the maid,"), which the margin test usually catches and leaves unconfirmed. 
 has the lowest clause share because the German often joins two French comma pieces into
 one phrase.
 
+## A model reads what stayed unconfirmed
+
+Running the offline aligner again gives the same answer, so the stretches it leaves
+unconfirmed (8% of groups in v9, in 28% of paragraph pairs) need a different judge.
+`catalog/sentence_adjudication.py` shows a model each maximal run of unconfirmed groups
+in a paragraph pair, as numbered clauses, and takes back their grouping with a verdict
+per group. Confirmed groups are never sent and never change.
+
+- **Run it** from the host, where the plans are signed in:
+  `./plan-manage adjudicate_sentence_alignment [--dry-run] [--sample N] [--work <slug>]
+  [--model <model or seat>] [--workers N] [--apply-only]`. Nothing queues it.
+- **Model**: `SENTENCE_ADJUDICATION_MODEL` (default `gpt-5.6-luna`), a bare model, so it
+  runs on a plan where `AI_PLANS` has one that serves it.
+- **Bought once**: a stretch's judgment (`AlignmentJudgment`) is keyed by the adjudication
+  version, the model, the two languages and the stretch's clause texts. No block, edition,
+  run or offline version is in the key, so a later offline version or a re-ingested book
+  finds every stretch whose clauses did not change. About twelve stretches share a call;
+  a call that was paid for and killed before its answers were kept is read from the
+  ledger. An answer that does not cover its stretch is asked once more and then left. A
+  refused allowance stops the pass and counts as no attempt.
+- **Result**: a second `sentence_alignment` artifact under the same pair hash, processor
+  version `sentence-adjudication-v1:<model>`, holding the offline payload with the judged
+  stretches' groups replaced (`acceptance: llm_adjudication`, no similarity). The reader
+  (`parallel_content.inherited_payload`) serves it in place of the offline artifact it was
+  made from (`adjudication.base`) and of no other. After a text correction or a new offline
+  version, `--apply-only` rewrites the artifacts from the judgments already paid for.
+- Stretches longer than 40 clauses a side are not asked (31 in the library).
+
+### Sample, 2026-11-18 (claude-sonnet-5-5 on the Claude plan)
+
+200 paragraphs spread over 100 edition pairs: 260 stretches in 101 calls, about three
+seconds each, $0.035 of the plan. 246 answered, 14 answers did not cover their stretch.
+In the answered stretches 276 unconfirmed groups became 375, of which 340 (90%) the model
+confirmed. Read by hand on 45 stretches: the confirmed groups were right, and the ones it
+left unconfirmed were real differences (an adaptation that adds a sentence, a clause with
+half its content on the other side). Much of the offline doubt was punctuation: a French
+guillemet or a Spanish dash split off as its own "sentence".
+
 ## The alignment page
 
 `/editions/<id>/sentence-preview/<other>/` has two views. **Rows** puts each group on its
