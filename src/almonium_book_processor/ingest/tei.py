@@ -178,15 +178,22 @@ def _extract_section(
             return
         if tag == "figure":
             graphics = [child for child in element.iter() if _local_name(child) == "graphic"]
+            description = " ".join(
+                text
+                for child in element
+                if _local_name(child) == "figDesc" and (text := _normalized_text(child))
+            )
+            image_attributes = attributes(element)
+            if description:
+                image_attributes["alt"] = description
             for graphic in graphics:
                 image_ref = graphic.get("url") or graphic.get("target")
                 if image_ref:
                     builder.add(
                         chapter=chapter,
                         block_type=BlockType.IMAGE,
-                        text=_normalized_text(element),
                         source_ref=image_ref,
-                        attributes=attributes(element),
+                        attributes=image_attributes,
                     )
                 else:
                     builder.warnings.append(
@@ -197,8 +204,10 @@ def _extract_section(
                             chapter=chapter,
                         )
                     )
-            if graphics:
-                return
+            for child in element:
+                if _local_name(child) in {"head", "label", "p", "ab"} and _normalized_text(child):
+                    add_text(child, BlockType.PARAGRAPH, role="caption")
+            return
         if tag in {"milestone", "space"}:
             builder.add(
                 chapter=chapter,

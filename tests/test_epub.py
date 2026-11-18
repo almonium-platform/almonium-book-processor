@@ -26,7 +26,8 @@ def test_epub_uses_metadata_spine_order_and_resolves_images(tmp_path) -> None:
     first = epub.EpubHtml(title="First", file_name="text/first.xhtml", lang="de")
     first.content = (
         '<h2 id="one">Eins</h2><p>Der erste Abschnitt.</p>'
-        '<p><img src="../images/plate.jpg" alt="Bild"/></p>'
+        '<figure><p><img src="../images/plate.jpg" alt="Bild"/></p>'
+        "<figcaption>Eine sichtbare Bildunterschrift.</figcaption></figure>"
     )
     book.add_item(second)
     book.add_item(first)
@@ -46,8 +47,14 @@ def test_epub_uses_metadata_spine_order_and_resolves_images(tmp_path) -> None:
     assert [block.text for block in artifact.blocks[:2]] == ["Eins", "Der erste Abschnitt."]
     assert artifact.blocks[2].type == BlockType.IMAGE
     assert artifact.blocks[2].source_ref == "images/plate.jpg"
-    assert [block.text for block in artifact.blocks[3:]] == ["Zwei", "Der zweite Abschnitt."]
-    assert [block.chapter for block in artifact.blocks] == [0, 0, 0, 1, 1]
+    assert artifact.blocks[2].text == ""
+    assert artifact.blocks[2].attributes["alt"] == "Bild"
+    assert [block.text for block in artifact.blocks[3:]] == [
+        "Eine sichtbare Bildunterschrift.",
+        "Zwei",
+        "Der zweite Abschnitt.",
+    ]
+    assert [block.chapter for block in artifact.blocks] == [0, 0, 0, 0, 1, 1]
 
 
 def _cover_epub(tmp_path, *, cover_page: str, extra=()) -> str:

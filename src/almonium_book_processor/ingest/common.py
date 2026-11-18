@@ -254,7 +254,6 @@ def extract_blocks(
             builder.add(
                 chapter=chapter,
                 block_type=BlockType.IMAGE,
-                text=str(tag.get("alt", "")).strip(),
                 source_ref=image_ref,
                 attributes={
                     key: str(tag[key])

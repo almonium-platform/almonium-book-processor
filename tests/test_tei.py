@@ -81,6 +81,32 @@ def _tei_with_body(body: str) -> str:
     return TEI_FIXTURE[:start] + f"<body>{body}</body>" + TEI_FIXTURE[end:]
 
 
+def test_tei_figure_keeps_alt_as_metadata_and_emits_visible_captions_once(tmp_path):
+    source = tmp_path / "illustrated.xml"
+    source.write_text(
+        _tei_with_body(
+            '<div><head>Chapter One</head><figure type="plate">'
+            '<graphic url="left.jpg"/><graphic target="right.jpg"/>'
+            "<figDesc>A map of the <hi>harbor</hi>.</figDesc>"
+            '<head xml:id="caption">The old harbor</head><p>Drawn in 1842.</p>'
+            "</figure><p>The story continues.</p></div>"
+        )
+    )
+
+    artifact = ingest_tei(source, edition_slug="tei-novel-en-orig", work_slug="tei-novel")
+
+    images = [block for block in artifact.blocks if block.type == BlockType.IMAGE]
+    assert [image.source_ref for image in images] == ["left.jpg", "right.jpg"]
+    assert all(image.text == "" for image in images)
+    assert all(image.attributes["alt"] == "A map of the harbor." for image in images)
+    captions = [block for block in artifact.blocks if block.attributes.get("role") == "caption"]
+    assert [(block.type, block.text) for block in captions] == [
+        (BlockType.PARAGRAPH, "The old harbor"),
+        (BlockType.PARAGRAPH, "Drawn in 1842."),
+    ]
+    assert captions[0].source_ref == "ENG-TEST#caption"
+
+
 def test_a_page_break_only_division_is_a_notice_and_claims_no_chapter(tmp_path) -> None:
     source = tmp_path / "novel.xml"
     source.write_text(
