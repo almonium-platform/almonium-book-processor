@@ -18,9 +18,17 @@ no paid API, no plan allowance.
    touched.
 3. Sub-clause (phrase or word) correspondence is not attempted.
 
-The job is **started by staff**, from the alignment page ("Align all chapters"), and
-re-queued automatically only for pairs that were aligned before when a correction
-retires their artifacts. New productions do not start it; see "Open" below.
+The pipeline **queues it by itself** (`catalog/sentence_alignment_queue.py`): when a
+translation's or adaptation's sentences are split, its pair with the original is
+queued; when an original's sentences change, every edition made from it is. Only
+public works; a pair already current, queued or running is left alone. Staff can still
+start one from the alignment page. The job runs on its own Celery queue
+(`SENTENCE_ALIGNMENT_QUEUE`, "alignment") and container, `aligner`, so a book's minutes
+of alignment never hold the worker the productions' local steps run on.
+`manage.py queue_sentence_alignment [--dry-run] [--work <slug>]` catches up books that
+existed before (403 pairs on 2026-11-18), original by original so each original is
+embedded once. Alignment artifacts travel with promotion bundles, so aligning where the
+books are produced is enough.
 
 A killed run (worker restart) is closed by the janitor after two hours of silence, like
 the other one-process jobs, and starting it again resumes: every finished paragraph
@@ -162,7 +170,6 @@ and about 6 of 4,680 groups differed.
 
 ## Open
 
-- Start the job automatically when a production's edition is ready, on its own worker.
 - Speed: measure the deployment host (ARM64, no native bf16 on Neoverse N1: fp32 there).
 - Calibrated accuracy: a hand-labelled sample per language pair, so "confirmed" has a
   measured error rate rather than a reading.
