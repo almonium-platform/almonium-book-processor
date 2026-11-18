@@ -27,6 +27,7 @@ from almonium_book_processor.catalog.models import (
     AIRun,
     Edition,
     EditionTombstone,
+    PipelineRun,
     SpendGuardReport,
 )
 
@@ -148,6 +149,36 @@ def guard_report(*, window: timedelta = WINDOW) -> dict:
         "twins": twins,
         "purged": purged,
         "purged_usd": str(purged_usd.quantize(Decimal("0.0001"))),
+        "modal_embeddings": _modal_embeddings(since),
+    }
+
+
+def _modal_embeddings(since) -> dict:
+    """GPU time offline alignment bought on Modal, from the runs' own records.
+
+    A pair's vectors are kept once its artifact is written, so a run that finishes pays for
+    each text once. A run that fails has paid for the window it prefetched and had not yet
+    written; its retry buys that window again, which is reported apart, as the price of the
+    failure.
+    """
+
+    usd, failed_usd, seconds, runs = Decimal("0"), Decimal("0"), 0.0, 0
+    for status, embedding in PipelineRun.objects.filter(
+        stage=PipelineRun.Stage.ALIGN,
+        updated_at__gte=since,
+        summary__embedding__modal_calls__gt=0,
+    ).values_list("status", "summary__embedding"):
+        runs += 1
+        cost = Decimal(embedding.get("usd") or "0")
+        usd += cost
+        seconds += float(embedding.get("gpu_seconds") or 0)
+        if status == PipelineRun.Status.FAILED:
+            failed_usd += cost
+    return {
+        "runs": runs,
+        "gpu_seconds": round(seconds, 1),
+        "usd": str(usd.quantize(Decimal("0.0001"))),
+        "failed_usd": str(failed_usd.quantize(Decimal("0.0001"))),
     }
 
 
@@ -185,4 +216,10 @@ def summary_line(report: SpendGuardReport) -> str:
         parts.append(f"{retries} retr{'y' if retries == 1 else 'ies'} after a failed answer")
     if report.purged_usd > 0:
         parts.append(f"${report.purged_usd:.2f} of paid text purged")
+    modal = report.report.get("modal_embeddings") or {}
+    if modal.get("runs"):
+        part = f"Modal GPU ${Decimal(modal['usd']):.2f} over {modal['runs']} alignment run(s)"
+        if Decimal(modal["failed_usd"]) > 0:
+            part += f", ${Decimal(modal['failed_usd']):.2f} in failed runs"
+        parts.append(part)
     return " · ".join(parts)

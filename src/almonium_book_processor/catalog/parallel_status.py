@@ -9,8 +9,10 @@ measures that gap per pair and re-queues the job where one used to exist.
 
 import logging
 
+from django.conf import settings
 from django.db.models import Q
 
+from almonium_book_processor.catalog import estimates
 from almonium_book_processor.catalog.models import Edition, EditionArtifact, PipelineRun
 from almonium_book_processor.catalog.offline_sentence_alignment import (
     available_models,
@@ -87,7 +89,8 @@ def pair_status(edition, other):
     ).values_list("input_hash", "is_current")
     current_hashes = {digest for digest, is_current in rows if is_current}
     retired_hashes = {digest for digest, is_current in rows if not is_current}
-    for forward, backward in digests:
+    embed_chars = 0
+    for (forward, backward), (primary, secondary) in zip(digests, pairs, strict=True):
         if forward in current_hashes or backward in current_hashes:
             status["current"] += 1
         elif forward in retired_hashes or backward in retired_hashes:
@@ -95,6 +98,12 @@ def pair_status(edition, other):
             status["reusable"] += 1
         else:
             status["changed"] += 1
+            embed_chars += len(primary.text) + len(secondary.text)
+    status["embed_chars"] = embed_chars
+    model = status["model"] if status["model"] in available_models() else None
+    status["estimate"] = estimates.offline_alignment(
+        embed_chars, model or settings.NLP_EMBEDDING_MODEL
+    )
     if run and run.status in (PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING):
         status["state"] = "running"
     elif status["current"] == len(pairs):

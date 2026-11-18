@@ -457,6 +457,52 @@ def alignment_review(edition: Edition) -> Estimate:
     )
 
 
+# Offline sentence alignment on Modal -------------------------------------------
+
+# Tokens a second one Modal GPU embeds, taken low until the first runs' recorded GPU seconds
+# (the run's summary, "embedding") calibrate them. The container's start and idle minute
+# dominate a book's price at these rates.
+EMBEDDING_TOKENS_PER_SECOND = {"sentence-transformers/LaBSE": 50_000}
+EMBEDDING_TOKENS_PER_SECOND_DEFAULT = 200_000
+# Each block is embedded as its sentences and again as its clauses.
+EMBEDDING_PASSES = 2
+
+
+def offline_alignment(chars: int, model: str) -> Estimate | None:
+    """The GPU time for the blocks still to embed, or None where embedding is free.
+
+    On the worker's own CPU the job costs nothing and carries no price, and so does a run
+    that would pass this month's Modal budget, because it then embeds on the CPU. On Modal
+    it is billed per GPU second against the free monthly credits; one container starts for
+    the run and idles a minute after it.
+    """
+
+    from django.conf import settings
+
+    from almonium_book_processor.catalog import modal_budget
+    from almonium_book_processor.processing import remote_embeddings
+
+    if settings.NLP_EMBEDDING_BACKEND != "modal" or chars <= 0:
+        return None
+    rate = EMBEDDING_TOKENS_PER_SECOND.get(model, EMBEDDING_TOKENS_PER_SECOND_DEFAULT)
+    seconds = tokens(chars * EMBEDDING_PASSES) / rate
+    try:
+        usd = remote_embeddings.cost_usd(seconds, containers=1)
+    except remote_embeddings.RemoteEmbeddingError as error:
+        return unavailable(str(error))
+    if not modal_budget.allows(usd):
+        return None
+    return Estimate(
+        usd,
+        f"About {math.ceil(seconds)} s on a Modal {remote_embeddings.gpu()}, plus a "
+        "container's start and idle minute, from the free monthly credits "
+        f"(${modal_budget.spent_this_month():.2f} of "
+        f"${settings.MODAL_MONTHLY_BUDGET_USD:.2f} used). Blocks embedded before are "
+        "reused for free.",
+        action="Align these sentences on Modal",
+    )
+
+
 class EditionEstimates:
     """The edition page's prices, each computed only when the template reads it."""
 

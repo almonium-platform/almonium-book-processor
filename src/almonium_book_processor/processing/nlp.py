@@ -117,8 +117,26 @@ def _resolve_runtime(torch: Any, device: str, precision: str, batch_size: int) -
     return EmbeddingRuntime(device, precision, batch_size or (32 if device == "cpu" else 128))
 
 
-@lru_cache(maxsize=1)
 def embedding_runtime() -> EmbeddingRuntime:
+    """The device, precision and batch size an embedding made here and now runs with.
+
+    Inside ``remote_embeddings.public_text()`` with NLP_EMBEDDING_BACKEND=modal that is the
+    Modal GPU; everywhere else it is this process's own hardware, decided once.
+    """
+
+    from almonium_book_processor.processing import remote_embeddings
+
+    if remote_embeddings.active():
+        return EmbeddingRuntime(
+            f"modal:{remote_embeddings.gpu()}",
+            remote_embeddings.precision(),
+            settings.NLP_EMBEDDING_BATCH_SIZE or 128,
+        )
+    return _local_runtime()
+
+
+@lru_cache(maxsize=1)
+def _local_runtime() -> EmbeddingRuntime:
     """The device, precision and batch size this process embeds with, decided once."""
 
     try:
@@ -149,15 +167,20 @@ def _embedding_model(model_name: str) -> Any:
         from sentence_transformers import SentenceTransformer
     except ImportError as error:
         raise RuntimeError("Install the worker dependency group to compute embeddings") from error
-    return SentenceTransformer(model_name, device=embedding_runtime().device)
+    # Under Modal this copy only tokenizes and chunks; it always lives on local hardware.
+    return SentenceTransformer(model_name, device=_local_runtime().device)
 
 
-def _encode(model: Any, texts: list[str]) -> np.ndarray:
+def _encode(model: Any, texts: list[str], model_name: str) -> np.ndarray:
     """The model's forward pass in the runtime's precision; vectors come back as float32."""
 
     if not texts:
         return np.zeros((0, 0), dtype=np.float32)
     runtime = embedding_runtime()
+    if runtime.device.startswith("modal:"):
+        from almonium_book_processor.processing import remote_embeddings
+
+        return remote_embeddings.encode(model_name, texts, runtime.batch_size)
     context = contextlib.nullcontext()
     if runtime.precision != "fp32":
         import torch
@@ -183,7 +206,8 @@ def embed_texts(
 ) -> list[list[float]]:
     """Create normalized multilingual embeddings with the configured local model."""
 
-    model = _embedding_model(model_name or settings.NLP_EMBEDDING_MODEL)
+    model_name = model_name or settings.NLP_EMBEDDING_MODEL
+    model = _embedding_model(model_name)
     if chunk_long:
         # Split original text, then re-tokenize every leaf, including special tokens.
         # No decoded-token round trip and no silent encoder truncation.
@@ -212,7 +236,7 @@ def embed_texts(
             collect(text, owner)
         if not chunks:
             return []
-        encoded = _encode(model, chunks)
+        encoded = _encode(model, chunks, model_name)
         result = []
         for owner in range(len(texts)):
             parts = [(v, w) for v, w, o in zip(encoded, weights, owners, strict=True) if o == owner]
@@ -224,7 +248,7 @@ def embed_texts(
         tokens = model.tokenizer(texts, truncation=False, padding=False)["input_ids"]
         if any(len(ids) > model.max_seq_length for ids in tokens):
             raise ValueError("Sentence exceeds embedding token limit")
-    return [vector.tolist() for vector in _encode(model, texts)]
+    return [vector.tolist() for vector in _encode(model, texts, model_name)]
 
 
 def _cosine(left, right) -> float:

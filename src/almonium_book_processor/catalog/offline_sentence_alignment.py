@@ -1,8 +1,10 @@
 """Idempotent, pair-specific offline sentence jobs. Never changes edition approval."""
 
+import contextlib
 import hashlib
 import json
 from collections import Counter
+from decimal import Decimal
 
 from django.conf import settings
 from django.db import transaction
@@ -16,6 +18,7 @@ from almonium_book_processor.catalog.models import (
     Work,
 )
 from almonium_book_processor.catalog.parallel_content import inherited_pairs, pair_hash
+from almonium_book_processor.processing import remote_embeddings
 from almonium_book_processor.processing.nlp import embedding_runtime
 from almonium_book_processor.processing.sentence_correspondence import (
     VERSION,
@@ -118,6 +121,9 @@ def run_alignment(run_id):
     if not claimed:
         return
     run = PipelineRun.objects.get(pk=run_id)
+    remote = contextlib.ExitStack()
+    spent_before = remote_embeddings.usage()
+    runtime = {}
     try:
         model = run.summary["model"]
         if model not in available_models() or run.processor_version != processor_version(model):
@@ -137,6 +143,9 @@ def run_alignment(run_id):
                 input_hash__in=digests,
             ).values_list("input_hash", flat=True)
         )
+        if _on_modal(pairs, digests, done, model):
+            # Public works only (_pairs), inside this month's free Modal credits.
+            remote.enter_context(remote_embeddings.public_text())
         runtime = embedding_runtime().as_record()
         ahead = 0
         for index, (primary, secondary) in enumerate(pairs):
@@ -239,11 +248,48 @@ def run_alignment(run_id):
                 "fallback_reasons": dict(fallback_reasons),
                 "uncertain_groups": uncertain_groups,
                 "unmatched_sentences": unmatched_sentences,
-                "embedding": runtime,
+                "embedding": _embedding_record(runtime, spent_before),
             },
         )
     except Exception as error:
-        PipelineRun.objects.filter(pk=run.id).update(
-            status=PipelineRun.Status.FAILED, error=str(error)[:1000], finished_at=timezone.now()
-        )
+        failed = {"status": PipelineRun.Status.FAILED, "error": str(error)[:1000]}
+        if remote_embeddings.usage().since(spent_before).calls:
+            # What a failed run bought on Modal stays on the record for the spend guard.
+            failed["summary"] = {
+                **run.summary,
+                "embedding": _embedding_record(runtime, spent_before),
+            }
+        PipelineRun.objects.filter(pk=run.id).update(**failed, finished_at=timezone.now())
         raise
+    finally:
+        remote.close()
+
+
+def _on_modal(pairs, digests, done, model):
+    """Whether this run embeds on Modal: the backend says so and the month's budget has room."""
+
+    from almonium_book_processor.catalog import estimates
+
+    chars = sum(
+        len(primary.text) + len(secondary.text)
+        for (primary, secondary), digest in zip(pairs, digests, strict=True)
+        if digest not in done
+    )
+    return chars > 0 and estimates.offline_alignment(chars, model) is not None
+
+
+def _embedding_record(runtime, spent_before):
+    """Where the run embedded and, on Modal, what it bought there."""
+
+    spent = remote_embeddings.usage().since(spent_before)
+    if not spent.calls:
+        return runtime
+    return {
+        **runtime,
+        "modal_calls": spent.calls,
+        "modal_texts": spent.texts,
+        "gpu_seconds": round(spent.seconds, 2),
+        "usd": str(
+            remote_embeddings.cost_usd(spent.seconds, containers=1).quantize(Decimal("0.0001"))
+        ),
+    }

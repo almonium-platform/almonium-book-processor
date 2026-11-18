@@ -23,6 +23,13 @@ class Command(BaseCommand):
             f"{len(report['twins'])} twin edition group(s); {report['reasked_windows']} window(s) "
             f"re-asked; ${report['purged_usd']} of paid text purged in the window."
         )
+        modal = report["modal_embeddings"]
+        if modal["runs"]:
+            self.stdout.write(
+                f"Modal embeddings: {modal['runs']} alignment run(s), "
+                f"{modal['gpu_seconds']} GPU s, ${modal['usd']} "
+                f"(${modal['failed_usd']} in failed runs)."
+            )
         for twin in report["twins"]:
             self.stdout.write(self.style.WARNING(f"  twins: {', '.join(twin)}"))
         for entry in report["duplicates"][:5]:

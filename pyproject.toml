@@ -37,6 +37,8 @@ dev = [
 ]
 worker = [
   "openai>=2.8,<3",
+  # NLP_EMBEDDING_BACKEND=modal: the client that calls modal_apps/embeddings.py.
+  "modal>=1.6,<2",
   "sentence-transformers>=5.1,<6",
   "simplemma>=1.1,<2",
   "spacy>=3.8,<4",

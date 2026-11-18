@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import Http404
@@ -10,6 +11,12 @@ from almonium_book_processor.catalog.offline_sentence_alignment import available
 from almonium_book_processor.catalog.parallel_content import inherited_payload
 from almonium_book_processor.catalog.sentence_rows import LOW, chapter_rows, short_model
 from almonium_book_processor.processing.sentence_correspondence import VERSION
+
+
+def _cost_note():
+    if settings.NLP_EMBEDDING_BACKEND == "modal":
+        return "Embedded on a Modal GPU, billed per second."
+    return "No paid API calls."
 
 
 @staff_member_required
@@ -28,7 +35,7 @@ def sentence_preview(request, edition_id, other_id):
             run = queue_alignment(primary.id, secondary.id, model=request.POST.get("model") or None)
             messages.success(
                 request,
-                f"Offline sentence alignment: {run.get_status_display()}. No paid API calls.",
+                f"Offline sentence alignment: {run.get_status_display()}. {_cost_note()}",
             )
         except ValueError as error:
             messages.error(request, str(error))
@@ -44,6 +51,11 @@ def sentence_preview(request, edition_id, other_id):
     positions = {item.sequence: index for index, item in enumerate(chapters)}
     index = positions.get(chapter)
     models = available_models()
+    from almonium_book_processor.catalog import estimates
+    from almonium_book_processor.catalog.parallel_status import pair_status
+
+    embed_chars = pair_status(primary, secondary)["embed_chars"]
+    model_costs = {model: estimates.offline_alignment(embed_chars, model) for model in models}
     return render(
         request,
         "catalog/sentence_preview.html",
@@ -56,6 +68,8 @@ def sentence_preview(request, edition_id, other_id):
             "default_model": "sentence-transformers/LaBSE"
             if "sentence-transformers/LaBSE" in models
             else models[0],
+            "model_costs": model_costs if any(model_costs.values()) else None,
+            "on_modal": settings.NLP_EMBEDDING_BACKEND == "modal",
             "primary": primary,
             "secondary": secondary,
             "primary_level": primary.cefr_level,
@@ -89,7 +103,7 @@ def queue_sentence_alignment(request, edition_id, other_id):
         messages.success(
             request,
             f"Offline sentence alignment with {other.language.upper()}: "
-            f"{run.get_status_display()}. No paid API calls.",
+            f"{run.get_status_display()}. {_cost_note()}",
         )
     except ValueError as error:
         messages.error(request, str(error))

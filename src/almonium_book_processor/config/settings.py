@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parents[3]
 
@@ -203,6 +204,19 @@ NLP_EMBEDDING_THREADS = int(os.getenv("NLP_EMBEDDING_THREADS", "0"))
 # original paired with several companions is embedded once (about 3 KB a text).
 NLP_EMBEDDING_PREFETCH_TEXTS = int(os.getenv("NLP_EMBEDDING_PREFETCH_TEXTS", "2048"))
 NLP_EMBEDDING_CACHE_TEXTS = int(os.getenv("NLP_EMBEDDING_CACHE_TEXTS", "50000"))
+
+# Where the embedding forward pass runs: "local" on this worker, or "modal" on a GPU of the
+# Modal app in modal_apps/embeddings.py (docs/MODAL.md), billed per GPU second. Modal's own
+# client reads MODAL_TOKEN_ID, MODAL_TOKEN_SECRET and MODAL_ENVIRONMENT from the environment.
+NLP_EMBEDDING_BACKEND = os.getenv("NLP_EMBEDDING_BACKEND", "local")
+if NLP_EMBEDDING_BACKEND not in {"local", "modal"}:
+    raise ImproperlyConfigured("NLP_EMBEDDING_BACKEND must be local or modal")
+MODAL_EMBEDDING_APP = os.getenv("MODAL_EMBEDDING_APP", "almonium-books-embeddings")
+# The GPU the deployed app was deployed with; prices and the run's record are read from it.
+MODAL_EMBEDDING_GPU = os.getenv("MODAL_EMBEDDING_GPU", "L4")
+# Modal runs only inside the free monthly credits ($30 on Starter): past this recorded spend
+# in a calendar month a run embeds on the worker's CPU instead (catalog/modal_budget.py).
+MODAL_MONTHLY_BUDGET_USD = float(os.getenv("MODAL_MONTHLY_BUDGET_USD", "25"))
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_ALIGNMENT_PRIMARY_MODEL = os.getenv("OPENAI_ALIGNMENT_PRIMARY_MODEL", "gpt-5.6-luna")

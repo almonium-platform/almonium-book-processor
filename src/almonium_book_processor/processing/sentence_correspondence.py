@@ -92,16 +92,19 @@ def sentence_texts(block):
     return result
 
 
-# Vectors this worker has computed, newest last, keyed by model, precision and text. An
+# Vectors this worker has computed, newest last, keyed by model, device, precision and text. An
 # original paired with several companions is embedded once, and a run embeds ahead in
 # large calls (prefetch) instead of one small call per paragraph pair.
-_vectors: OrderedDict[tuple[str, str, str], np.ndarray] = OrderedDict()
+_vectors: OrderedDict[tuple[str, str, str, str], np.ndarray] = OrderedDict()
 
 
 def _key(model_name, text):
+    # The device too: a vector from a Modal GPU must not be recorded as the worker's own.
+    runtime = embedding_runtime()
     return (
         model_name or settings.NLP_EMBEDDING_MODEL,
-        embedding_runtime().precision,
+        runtime.device,
+        runtime.precision,
         text.strip(),
     )
 
