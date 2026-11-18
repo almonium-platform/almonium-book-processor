@@ -279,17 +279,21 @@ def _on_modal(pairs, digests, done, model):
 
 
 def _embedding_record(runtime, spent_before):
-    """Where the run embedded and, on Modal, what it bought there."""
+    """Where the run embedded and, on Modal, what it bought there.
+
+    Calls are priced at the card that ran them; the container's start and idle minute,
+    whose card is not reported, at the dearest the app may be scheduled on.
+    """
 
     spent = remote_embeddings.usage().since(spent_before)
     if not spent.calls:
         return runtime
+    usd = spent.usd + remote_embeddings.cost_usd(0, containers=1)
     return {
         **runtime,
         "modal_calls": spent.calls,
         "modal_texts": spent.texts,
         "gpu_seconds": round(spent.seconds, 2),
-        "usd": str(
-            remote_embeddings.cost_usd(spent.seconds, containers=1).quantize(Decimal("0.0001"))
-        ),
+        "gpus": spent.seconds_by_gpu,
+        "usd": str(usd.quantize(Decimal("0.0001"))),
     }

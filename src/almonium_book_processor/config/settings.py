@@ -212,8 +212,11 @@ NLP_EMBEDDING_BACKEND = os.getenv("NLP_EMBEDDING_BACKEND", "local")
 if NLP_EMBEDDING_BACKEND not in {"local", "modal"}:
     raise ImproperlyConfigured("NLP_EMBEDDING_BACKEND must be local or modal")
 MODAL_EMBEDDING_APP = os.getenv("MODAL_EMBEDDING_APP", "almonium-books-embeddings")
-# The GPU the deployed app was deployed with; prices and the run's record are read from it.
-MODAL_EMBEDDING_GPU = os.getenv("MODAL_EMBEDDING_GPU", "L4")
+# The GPUs the app was deployed with, in its order of preference (modal_apps/embeddings.py).
+# Each call is priced at the card that ran it; estimates assume the dearest.
+MODAL_EMBEDDING_GPUS = [
+    gpu.strip() for gpu in os.getenv("MODAL_EMBEDDING_GPUS", "L4,A10,L40S").split(",") if gpu
+]
 # Modal runs only inside the free monthly credits ($30 on Starter): past this recorded spend
 # in a calendar month a run embeds on the worker's CPU instead (catalog/modal_budget.py).
 MODAL_MONTHLY_BUDGET_USD = float(os.getenv("MODAL_MONTHLY_BUDGET_USD", "25"))

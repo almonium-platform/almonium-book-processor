@@ -6,7 +6,7 @@ twice); this app only runs the forward pass. It holds no book text after a call 
 
 Deploy (once per Modal environment, and again whenever this file changes):
 
-    MODAL_EMBEDDING_GPU=L4 modal deploy modal_apps/embeddings.py
+    modal deploy modal_apps/embeddings.py
 
 The worker finds it by name (MODAL_EMBEDDING_APP) with the token in MODAL_TOKEN_ID and
 MODAL_TOKEN_SECRET. docs/MODAL.md has the rest.
@@ -19,7 +19,9 @@ import time
 import modal
 
 APP_NAME = os.environ.get("MODAL_EMBEDDING_APP", "almonium-books-embeddings")
-GPU = os.environ.get("MODAL_EMBEDDING_GPU", "L4")
+# GPUs in order of preference; Modal schedules the first one with capacity. L4 alone waited
+# 13 minutes in Modal's queue on 18 November 2026. All of these multiply in bf16 natively.
+GPUS = [g.strip() for g in os.environ.get("MODAL_EMBEDDING_GPUS", "L4,A10,L40S").split(",")]
 # Every model offline_sentence_alignment.available_models() can name. Weights are baked
 # into the image, so a cold container never downloads from Hugging Face.
 MODELS = (
@@ -54,7 +56,7 @@ app = modal.App(APP_NAME, image=image)
 
 
 @app.cls(
-    gpu=GPU,
+    gpu=GPUS,
     # Idle GPU time is billed; a book's alignment calls arrive seconds apart, so a minute
     # keeps one container warm through a run without paying for the gaps between runs.
     scaledown_window=60,
@@ -98,5 +100,6 @@ class Embedder:
             "vectors": vectors.tobytes(),
             "shape": list(vectors.shape),
             "seconds": time.monotonic() - started,
-            "gpu": GPU,
+            # The card that ran, as Modal names it in GPUS ("NVIDIA L40S" -> "L40S").
+            "gpu": torch.cuda.get_device_name(0).removeprefix("NVIDIA ").strip(),
         }

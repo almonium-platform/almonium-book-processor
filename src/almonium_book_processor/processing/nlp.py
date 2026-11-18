@@ -128,7 +128,8 @@ def embedding_runtime() -> EmbeddingRuntime:
 
     if remote_embeddings.active():
         return EmbeddingRuntime(
-            f"modal:{remote_embeddings.gpu()}",
+            # which card ran each call is recorded beside the run's usage
+            "modal",
             remote_embeddings.precision(),
             settings.NLP_EMBEDDING_BATCH_SIZE or 128,
         )
@@ -177,7 +178,7 @@ def _encode(model: Any, texts: list[str], model_name: str) -> np.ndarray:
     if not texts:
         return np.zeros((0, 0), dtype=np.float32)
     runtime = embedding_runtime()
-    if runtime.device.startswith("modal:"):
+    if runtime.device == "modal":
         from almonium_book_processor.processing import remote_embeddings
 
         return remote_embeddings.encode(model_name, texts, runtime.batch_size)

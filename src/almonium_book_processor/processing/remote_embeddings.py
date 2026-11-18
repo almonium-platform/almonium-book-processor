@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from functools import lru_cache
 from typing import Any
@@ -26,7 +26,8 @@ from typing import Any
 import numpy as np
 from django.conf import settings
 
-# Modal's list prices per GPU second (modal.com/pricing, November 2026). The container's
+# Modal's list prices per GPU second (modal.com/pricing, November 2026), by the name Modal
+# schedules a card under and the app reports it by. The container's
 # CPU and memory are billed beside the GPU and add about a tenth for these small models.
 GPU_USD_PER_SECOND = {
     "T4": Decimal("0.000164"),
@@ -75,12 +76,24 @@ class Usage:
     calls: int = 0
     texts: int = 0
     seconds: float = 0.0
+    # priced call by call at the card that ran it
+    usd: Decimal = field(default_factory=Decimal)
+    seconds_by_gpu: dict[str, float] = field(default_factory=dict)
+
+    def copy(self) -> Usage:
+        return Usage(self.calls, self.texts, self.seconds, self.usd, dict(self.seconds_by_gpu))
 
     def since(self, earlier: Usage) -> Usage:
         return Usage(
             self.calls - earlier.calls,
             self.texts - earlier.texts,
             self.seconds - earlier.seconds,
+            self.usd - earlier.usd,
+            {
+                gpu: round(seconds - earlier.seconds_by_gpu.get(gpu, 0.0), 2)
+                for gpu, seconds in self.seconds_by_gpu.items()
+                if seconds != earlier.seconds_by_gpu.get(gpu, 0.0)
+            },
         )
 
 
@@ -90,30 +103,39 @@ _usage = Usage()
 def usage() -> Usage:
     """This process's Modal calls so far; subtract an earlier reading to get one run's."""
 
-    return Usage(_usage.calls, _usage.texts, _usage.seconds)
+    return _usage.copy()
 
 
-def gpu() -> str:
-    return settings.MODAL_EMBEDDING_GPU
+def gpus() -> list[str]:
+    return list(settings.MODAL_EMBEDDING_GPUS)
 
 
 def precision() -> str:
-    """The precision the remote GPU runs in: native bf16 where it has it, else fp16."""
+    """The precision the remote GPU runs in: bf16 when every listed card has it, else fp16."""
 
     chosen = settings.NLP_EMBEDDING_PRECISION
     if chosen == "auto":
-        return "fp16" if gpu() in _NO_BF16 else "bf16"
+        return "fp16" if _NO_BF16 & set(gpus()) else "bf16"
     return chosen
 
 
-def cost_usd(seconds: float, *, containers: int = 0) -> Decimal:
-    """What Modal bills for this much GPU time, plus each container's start and idle tail."""
+def price(gpu: str) -> Decimal:
+    try:
+        return GPU_USD_PER_SECOND[gpu]
+    except KeyError:
+        raise RemoteEmbeddingError(f"No price known for Modal GPU {gpu!r}") from None
 
-    price = GPU_USD_PER_SECOND.get(gpu())
-    if price is None:
-        raise RemoteEmbeddingError(f"No price known for Modal GPU {gpu()!r}")
+
+def cost_usd(seconds: float, *, containers: int = 0, gpu: str | None = None) -> Decimal:
+    """What Modal bills for this much GPU time, plus each container's start and idle tail.
+
+    Without a card named, the dearest one the app may be scheduled on: an estimate before
+    the call cannot know which card Modal will find free.
+    """
+
+    rate = price(gpu) if gpu else max(price(listed) for listed in gpus())
     billed = Decimal(str(seconds)) + containers * (COLD_START_SECONDS + IDLE_SECONDS)
-    return billed * price * OVERHEAD
+    return billed * rate * OVERHEAD
 
 
 @lru_cache(maxsize=4)
@@ -158,7 +180,13 @@ def encode(model_name: str, texts: list[str], batch_size: int) -> np.ndarray:
     vectors = np.frombuffer(answer["vectors"], dtype=np.float32).reshape(answer["shape"])
     if len(vectors) != len(texts):
         raise RemoteEmbeddingError(f"Modal returned {len(vectors)} vectors for {len(texts)} texts")
+    seconds = float(answer["seconds"])
+    ran_on = str(answer.get("gpu") or "")
     _usage.calls += 1
     _usage.texts += len(texts)
-    _usage.seconds += float(answer["seconds"])
+    _usage.seconds += seconds
+    _usage.usd += cost_usd(seconds, gpu=ran_on if ran_on in GPU_USD_PER_SECOND else None)
+    _usage.seconds_by_gpu[ran_on or "unknown"] = (
+        _usage.seconds_by_gpu.get(ran_on or "unknown", 0.0) + seconds
+    )
     return vectors

@@ -494,7 +494,8 @@ def offline_alignment(chars: int, model: str) -> Estimate | None:
         return None
     return Estimate(
         usd,
-        f"About {math.ceil(seconds)} s on a Modal {remote_embeddings.gpu()}, plus a "
+        f"About {math.ceil(seconds)} s on a Modal GPU ({', '.join(remote_embeddings.gpus())}, "
+        "priced at the dearest), plus a "
         "container's start and idle minute, from the free monthly credits "
         f"(${modal_budget.spent_this_month():.2f} of "
         f"${settings.MODAL_MONTHLY_BUDGET_USD:.2f} used). Blocks embedded before are "

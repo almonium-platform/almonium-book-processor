@@ -47,7 +47,7 @@ class LocalModel:
 @pytest.fixture
 def stack(monkeypatch, settings):
     settings.NLP_EMBEDDING_BACKEND = "modal"
-    settings.MODAL_EMBEDDING_GPU = "L4"
+    settings.MODAL_EMBEDDING_GPUS = ["L4", "A10"]
     settings.NLP_EMBEDDING_PRECISION = "auto"
     local = LocalModel()
     monkeypatch.setattr(nlp, "_embedding_model", lambda _: local)
@@ -58,7 +58,12 @@ def stack(monkeypatch, settings):
         def remote(self, texts, precision, batch_size):
             sent.append((list(texts), precision))
             vectors = np.asarray([VECTORS[t.strip()] for t in texts], dtype=np.float32)
-            return {"vectors": vectors.tobytes(), "shape": list(vectors.shape), "seconds": 2.0}
+            return {
+                "vectors": vectors.tobytes(),
+                "shape": list(vectors.shape),
+                "seconds": 2.0,
+                "gpu": "A10",
+            }
 
     class Embedder:
         def __init__(self, model_name):
@@ -82,13 +87,15 @@ def test_a_public_run_embeds_on_modal_and_records_what_it_bought(pair, stack):  
     assert sorted(sent[0][0]) == ["Again.", "Hello!", "Hello."]
     assert sent[0][1] == "bf16"
     embedding = run.summary["embedding"]
-    assert embedding["device"] == "modal:L4"
+    assert embedding["device"] == "modal"
+    assert embedding["gpus"] == {"A10": 2.0}
     assert embedding["precision"] == "bf16"
     assert (embedding["modal_calls"], embedding["modal_texts"]) == (1, 3)
     assert embedding["gpu_seconds"] == 2.0
-    assert embedding["usd"] == str(
-        remote_embeddings.cost_usd(2.0, containers=1).quantize(Decimal("0.0001"))
+    expected = remote_embeddings.cost_usd(2.0, gpu="A10") + remote_embeddings.cost_usd(
+        0, containers=1
     )
+    assert embedding["usd"] == str(expected.quantize(Decimal("0.0001")))
     # Nothing outside the run may reach Modal afterwards.
     assert not remote_embeddings.active()
 

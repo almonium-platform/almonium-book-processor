@@ -27,7 +27,7 @@ class NotFoundError(Exception):
 @pytest.fixture
 def fake_modal(monkeypatch, settings):
     settings.NLP_EMBEDDING_BACKEND = "modal"
-    settings.MODAL_EMBEDDING_GPU = "L4"
+    settings.MODAL_EMBEDDING_GPUS = ["L4", "A10"]
     settings.NLP_EMBEDDING_PRECISION = "auto"
     calls = []
 
@@ -40,7 +40,13 @@ def fake_modal(monkeypatch, settings):
             if texts == ["missing app"]:
                 raise NotFoundError("App not found")
             vectors = np.arange(len(texts) * 3, dtype=np.float32).reshape(len(texts), 3)
-            return {"vectors": vectors.tobytes(), "shape": [len(texts), 3], "seconds": 1.5}
+            gpu = "L4" if len(calls) == 1 else "A10"
+            return {
+                "vectors": vectors.tobytes(),
+                "shape": [len(texts), 3],
+                "seconds": 1.5,
+                "gpu": gpu,
+            }
 
     class Embedder:
         def __init__(self, model_name):
@@ -86,10 +92,15 @@ def test_vectors_come_back_in_order_and_every_call_is_metered(fake_modal):
     assert fake_modal[0] == ("labse", ["a", "b"], "bf16", 128)
     spent = remote_embeddings.usage().since(before)
     assert (spent.calls, spent.texts, spent.seconds) == (2, 3, 3.0)
+    # each call priced at the card that ran it
+    assert spent.seconds_by_gpu == {"L4": 1.5, "A10": 1.5}
+    assert spent.usd == remote_embeddings.cost_usd(1.5, gpu="L4") + remote_embeddings.cost_usd(
+        1.5, gpu="A10"
+    )
 
 
 def test_a_t4_runs_in_fp16_and_an_explicit_precision_wins(fake_modal, settings):
-    settings.MODAL_EMBEDDING_GPU = "T4"
+    settings.MODAL_EMBEDDING_GPUS = ["L4", "T4"]
     assert remote_embeddings.precision() == "fp16"
     settings.NLP_EMBEDDING_PRECISION = "fp32"
     assert remote_embeddings.precision() == "fp32"
@@ -105,10 +116,15 @@ def test_an_undeployed_app_says_how_to_deploy_it(fake_modal):
 
 
 def test_cost_counts_gpu_seconds_and_each_container_start_and_idle_tail(settings):
-    settings.MODAL_EMBEDDING_GPU = "L4"
-    usd = remote_embeddings.cost_usd(15, containers=1)
-    assert usd == Decimal("100") * Decimal("0.000222") * Decimal("1.1")
-    settings.MODAL_EMBEDDING_GPU = "B9000"
+    settings.MODAL_EMBEDDING_GPUS = ["L4", "A10"]
+    assert remote_embeddings.cost_usd(15, containers=1, gpu="L4") == (
+        Decimal("100") * Decimal("0.000222") * Decimal("1.1")
+    )
+    # no card named: the dearest the app may be scheduled on
+    assert remote_embeddings.cost_usd(15, containers=1) == (
+        Decimal("100") * Decimal("0.000306") * Decimal("1.1")
+    )
+    settings.MODAL_EMBEDDING_GPUS = ["B9000"]
     with pytest.raises(remote_embeddings.RemoteEmbeddingError, match="No price"):
         remote_embeddings.cost_usd(1)
 
@@ -119,11 +135,11 @@ def test_offline_alignment_is_free_on_the_worker_and_priced_on_modal(settings):
     assert estimates.offline_alignment(1_000_000, "sentence-transformers/LaBSE") is None
     settings.NLP_EMBEDDING_BACKEND = "modal"
     assert estimates.offline_alignment(0, "sentence-transformers/LaBSE") is None
-    settings.MODAL_EMBEDDING_GPU = "L4"
+    settings.MODAL_EMBEDDING_GPUS = ["L4", "A10"]
     labse = estimates.offline_alignment(1_000_000, "sentence-transformers/LaBSE")
     mini = estimates.offline_alignment(1_000_000, "other-model")
     assert Decimal("0.01") < mini.usd < labse.usd < estimates.CONFIRM_ABOVE
-    assert "Modal L4" in labse.note
+    assert "L4, A10" in labse.note
     assert labse.label.startswith("~$")
 
 
@@ -136,7 +152,7 @@ def _modal_run(edition, key, usd, *, status=PipelineRun.Status.SUCCEEDED):
         idempotency_key=key,
         status=status,
         summary={
-            "embedding": {"device": "modal:L4", "modal_calls": 3, "gpu_seconds": 12.5, "usd": usd}
+            "embedding": {"device": "modal", "modal_calls": 3, "gpu_seconds": 12.5, "usd": usd}
         },
     )
 
@@ -146,7 +162,7 @@ def test_past_the_monthly_budget_a_run_embeds_free_on_the_cpu(settings):
     from almonium_book_processor.catalog import modal_budget
 
     settings.NLP_EMBEDDING_BACKEND = "modal"
-    settings.MODAL_EMBEDDING_GPU = "L4"
+    settings.MODAL_EMBEDDING_GPUS = ["L4", "A10"]
     settings.MODAL_MONTHLY_BUDGET_USD = 1.0
     work = Work.objects.create(slug="b", title="B", author="A")
     edition = Edition.objects.create(work=work, slug="b-en", language="en", status="ready")

@@ -46,8 +46,10 @@ a pair), from the owner's desktop; nothing was written:
 
 The GPU does its part in two seconds; the rest of the wall time is the worker tokenizing
 each text locally and the vectors (about 24 MB a pair) coming back over the network. The
-very first call after a deploy waited 13 minutes while Modal fetched the new image; later
-starts are seconds. Modal billed $0.045 for four passes and the deploy, where the runs
+first calls waited 13 and 3 minutes, and Modal's log says why: "waiting to be scheduled on
+a GPU_L4 worker", a queue for capacity, not a download (the weights are in the image and
+load in under a second). Queued time is not billed but it stalls the run, so the app asks
+for L4, A10 or L40S, whichever Modal has free, all bf16-capable. Modal billed $0.045 for four passes and the deploy, where the runs
 recorded $0.085: the record errs high, as a budget against free credits should. The OCI
 worker's ARM cores are slower than the desktop's, so the gain there should be larger;
 measure it there before relying on it.
@@ -60,7 +62,7 @@ measure it there before relying on it.
 | `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` | The workspace token (Modal dashboard → Settings → API Tokens). A secret, kept in the infra vault. |
 | `MODAL_ENVIRONMENT` | Optional Modal environment; Modal's default when empty |
 | `MODAL_EMBEDDING_APP` | Deployed app name, `almonium-books-embeddings` |
-| `MODAL_EMBEDDING_GPU` | The GPU the app was deployed with (`L4`); prices and run records read it |
+| `MODAL_EMBEDDING_GPUS` | The GPUs the app was deployed with, in order of preference (`L4,A10,L40S`); each call is priced at the card that ran it, estimates at the dearest |
 | `MODAL_MONTHLY_BUDGET_USD` | Recorded Modal spend per calendar month past which runs embed on the CPU (25) |
 | `NLP_EMBEDDING_PRECISION` | `auto` picks bf16 on the GPU (fp16 on a T4) |
 
@@ -75,8 +77,8 @@ before any environment switches to `modal`:
 
 ```bash
 uvx --from 'modal>=1.6,<2' modal deploy modal_apps/embeddings.py
-# a different GPU must be named in both places:
-MODAL_EMBEDDING_GPU=A10 uvx --from 'modal>=1.6,<2' modal deploy modal_apps/embeddings.py
+# a different GPU list must be named in both places, the deploy and the worker:
+MODAL_EMBEDDING_GPUS=A10,L40S uvx --from 'modal>=1.6,<2' modal deploy modal_apps/embeddings.py
 ```
 
 The image bakes in the weights of every model `offline_sentence_alignment.available_models()`
