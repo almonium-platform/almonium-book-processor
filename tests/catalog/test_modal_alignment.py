@@ -65,11 +65,12 @@ def stack(monkeypatch, settings):
     sent = []
 
     class Method:
-        def remote(self, texts, precision, batch_size):
+        def remote(self, texts, precision, batch_size, wire="float32"):
             sent.append((list(texts), precision))
-            vectors = np.asarray([VECTORS[t.strip()] for t in texts], dtype=np.float32)
+            vectors = np.asarray([VECTORS[t.strip()] for t in texts], dtype=wire)
             return {
                 "vectors": vectors.tobytes(),
+                "dtype": str(vectors.dtype),
                 "shape": list(vectors.shape),
                 "seconds": 2.0,
                 "gpu": "A10",

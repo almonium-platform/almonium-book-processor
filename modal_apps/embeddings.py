@@ -76,8 +76,15 @@ class Embedder:
         self.model = SentenceTransformer(self.model_name, device="cuda")
 
     @modal.method()
-    def encode(self, texts: list[str], precision: str, batch_size: int) -> dict:
-        """Normalized float32 vectors for texts, in order, and the GPU seconds they took."""
+    def encode(
+        self, texts: list[str], precision: str, batch_size: int, wire: str = "float32"
+    ) -> dict:
+        """Normalized vectors for texts, in order, and the GPU seconds they took.
+
+        ``wire`` is the dtype the vectors travel in. Bringing 2,048 float32 vectors back
+        is about 6 MB and most of a call's time; "float16" halves it. A caller that names
+        no wire gets float32, so a worker built before this change keeps working.
+        """
 
         import contextlib
 
@@ -97,8 +104,12 @@ class Embedder:
                 show_progress_bar=False,
             )
         vectors = np.asarray(vectors, dtype=np.float32)
+        if wire == "float16":
+            # Computed in bf16, whose 8-bit mantissa fp16's 11 bits hold: little is lost.
+            vectors = vectors.astype(np.float16)
         return {
             "vectors": vectors.tobytes(),
+            "dtype": str(vectors.dtype),
             "shape": list(vectors.shape),
             "seconds": time.monotonic() - started,
             # The card that ran, as Modal names it in GPUS ("NVIDIA L40S" -> "L40S").

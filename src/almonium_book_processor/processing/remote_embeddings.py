@@ -247,13 +247,21 @@ def encode(model_name: str, texts: list[str], batch_size: int) -> np.ndarray:
         return np.zeros((0, 0), dtype=np.float32)
     if not _public.get():
         raise RemoteEmbeddingError("Only text a caller marked public may be sent to Modal")
+    # The vectors come back as float16 when the GPU computes in reduced precision anyway:
+    # half the bytes of the transfer that is most of a call's time. fp32 stays exact.
+    chosen = precision()
+    wire = "float32" if chosen == "fp32" else "float16"
     try:
-        answer = _embedder(model_name).encode.remote(texts, precision(), batch_size)
+        answer = _embedder(model_name).encode.remote(texts, chosen, batch_size, wire)
     except RemoteEmbeddingError:
         raise
     except Exception as error:
         raise RemoteEmbeddingError(_explain(error)) from error
-    vectors = np.frombuffer(answer["vectors"], dtype=np.float32).reshape(answer["shape"])
+    vectors = (
+        np.frombuffer(answer["vectors"], dtype=answer.get("dtype", "float32"))
+        .reshape(answer["shape"])
+        .astype(np.float32)
+    )
     if len(vectors) != len(texts):
         raise RemoteEmbeddingError(f"Modal returned {len(vectors)} vectors for {len(texts)} texts")
     seconds = float(answer["seconds"])

@@ -24,25 +24,34 @@ class NotFoundError(Exception):
     pass
 
 
+# The dtype each fake call asked its vectors to travel in.
+WIRES: list[str] = []
+
+
 @pytest.fixture
 def fake_modal(monkeypatch, settings):
     settings.NLP_EMBEDDING_BACKEND = "modal"
     settings.MODAL_EMBEDDING_GPUS = ["L4", "A10"]
     settings.NLP_EMBEDDING_PRECISION = "auto"
     calls = []
+    WIRES.clear()
+    wires = WIRES
 
     class Method:
         def __init__(self, model_name):
             self.model_name = model_name
 
-        def remote(self, texts, precision, batch_size):
+        def remote(self, texts, precision, batch_size, wire="float32"):
             calls.append((self.model_name, list(texts), precision, batch_size))
+            wires.append(wire)
             if texts == ["missing app"]:
                 raise NotFoundError("App not found")
             vectors = np.arange(len(texts) * 3, dtype=np.float32).reshape(len(texts), 3)
+            vectors = vectors.astype(wire)
             gpu = "L4" if len(calls) == 1 else "A10"
             return {
                 "vectors": vectors.tobytes(),
+                "dtype": str(vectors.dtype),
                 "shape": [len(texts), 3],
                 "seconds": 1.5,
                 "gpu": gpu,
@@ -272,3 +281,33 @@ def test_modals_own_bill_is_the_spend_every_environment_shares(monkeypatch, sett
     assert remote_embeddings.billed_by_day(since) is None
     assert budgets.spent("modal", since) == Decimal("0")
     cache.clear()
+
+
+def test_vectors_travel_as_float16_when_the_gpu_computes_in_reduced_precision(fake_modal, settings):
+    import numpy as np
+
+    with remote_embeddings.public_text():
+        settings.NLP_EMBEDDING_PRECISION = "bf16"
+        vectors = remote_embeddings.encode("sentence-transformers/LaBSE", ["a", "b"], 64)
+        settings.NLP_EMBEDDING_PRECISION = "fp32"
+        exact = remote_embeddings.encode("sentence-transformers/LaBSE", ["c"], 64)
+    assert WIRES == ["float16", "float32"]
+    assert vectors.dtype == np.float32 and exact.dtype == np.float32
+    assert vectors.tolist() == [[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]
+
+
+def test_a_reply_without_a_dtype_is_float32_as_before(fake_modal, monkeypatch):
+    import numpy as np
+
+    class Old:
+        def remote(self, texts, precision, batch_size, wire="float32"):
+            vectors = np.ones((len(texts), 2), dtype=np.float32)
+            return {"vectors": vectors.tobytes(), "shape": [len(texts), 2], "seconds": 1.0}
+
+    def embedder(name):
+        return types.SimpleNamespace(encode=Old())
+
+    embedder.cache_clear = lambda: None  # the fixture clears the real one's cache after
+    monkeypatch.setattr(remote_embeddings, "_embedder", embedder)
+    with remote_embeddings.public_text():
+        assert remote_embeddings.encode("m", ["x"], 8).tolist() == [[1.0, 1.0]]
