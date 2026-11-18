@@ -131,11 +131,15 @@ services:
         condition: service_completed_successfully
 
   # Offline sentence alignment only (SENTENCE_ALIGNMENT_QUEUE): minutes per book, so it
-  # never holds the worker above. One process; the embedding model uses the cores itself.
+  # never holds the worker above. One process by default; with embeddings on Modal the
+  # matching is single-core Python, so ALIGNER_CONCURRENCY=2 roughly halves a backfill.
   aligner:
     build: .
     environment: *app-environment
-    command: celery -A almonium_book_processor.config worker --loglevel=INFO --concurrency=1 --queues=${SENTENCE_ALIGNMENT_QUEUE:-alignment} --hostname=aligner@%h
+    # Each process loads the model; a ceiling makes a short machine kill one alignment
+    # (it resumes when queued again) rather than swap the whole host.
+    mem_limit: ${ALIGNER_MEMORY_LIMIT:-0}
+    command: celery -A almonium_book_processor.config worker --loglevel=INFO --concurrency=${ALIGNER_CONCURRENCY:-1} --queues=${SENTENCE_ALIGNMENT_QUEUE:-alignment} --hostname=aligner@%h
     volumes:
       - books-models:/app/models
     depends_on:
