@@ -29,6 +29,10 @@ charged even if an estimate here is wrong. The alignment buttons show the price
 when the backend is `modal` (`catalog/estimates.offline_alignment`) and show "No API cost"
 when it is `local`.
 
+Only the OpenAI API costs money. Modal's dollars on the Spending page are credits used,
+shown against the $30 a month (`MODAL_MONTHLY_CREDITS_USD`), never charged while the
+workspace's spend limit is $0.
+
 The cap and the Spending page read Modal's own bill (`remote_embeddings.billed_by_day`,
 the workspace's billing report, cached ten minutes): every environment that holds the token
 spends the same credits, so local, staging and prod all hold one figure. When the report
@@ -60,6 +64,25 @@ for L4, A10 or L40S, whichever Modal has free, all bf16-capable. Modal billed $0
 recorded $0.085: the record errs high, as a budget against free credits should. The OCI
 worker's ARM cores are slower than the desktop's, so the gain there should be larger;
 measure it there before relying on it.
+
+## When the credits run out: the OCI CPU (18 November 2026)
+
+Past the month's cap (or once the workspace's $30 is spent and Modal's $0 spend limit stops
+its workloads) an alignment embeds on the worker's own CPU. On the OCI host that is four
+Neoverse-N1 cores without bf16, shared with the backend; the aligner runs in fp32. The same
+read-only script, one pair, the staging aligner:
+
+| Where | Frankenstein en->uk, 23,890 texts | Throughput |
+| --- | --- | --- |
+| Modal, called from OCI (A10G, warm) | 48 s (6.7 GPU s) | ~500 texts/s |
+| OCI CPU, fp32, the aligner's thread cap | 969 s (16 min) | 25 texts/s |
+| Owner's desktop CPU, bf16, 16 cores (Jekyll, earlier) | about 2.5 min by its rate | 160-185 texts/s |
+
+That is the embedding alone; the matching that follows is CPU work either way. So expect a
+pair to take about twenty times longer on OCI's CPU than on Modal, a whole book of four or
+five companions an hour or more, while the host serves the backend at the same time. Nothing
+fails and nothing is held: runs only slow down until the month turns. Books are normally
+aligned on the owner's machine and promoted, which keeps OCI's share small either way.
 
 ## Is LaBSE the model to keep? (18 November 2026)
 

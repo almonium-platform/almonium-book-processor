@@ -226,6 +226,9 @@ MODAL_EMBEDDING_GPUS = [
 # in a calendar month a run embeds on the worker's CPU instead (catalog/budgets.py; a cap
 # set on the dashboard replaces this default).
 MODAL_MONTHLY_BUDGET_USD = float(os.getenv("MODAL_MONTHLY_BUDGET_USD", "25"))
+# The Starter plan's free credits a month: what Modal's spend is shown against. Nothing past
+# them is charged while the workspace's spend limit is $0.
+MODAL_MONTHLY_CREDITS_USD = float(os.getenv("MODAL_MONTHLY_CREDITS_USD", "30"))
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_ALIGNMENT_PRIMARY_MODEL = os.getenv("OPENAI_ALIGNMENT_PRIMARY_MODEL", "gpt-5.6-luna")

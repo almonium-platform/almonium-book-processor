@@ -28,12 +28,21 @@ from django.utils import timezone
 from almonium_book_processor.ai.cli_calls import BudgetReached
 from almonium_book_processor.catalog.models import AIRun, PipelineRun, ProviderBudget
 
-# provider -> (name on the dashboard, whether the dollars leave the owner's pocket)
+# provider -> (name on the dashboard, whether it is metered rather than a plan)
 PROVIDERS = {
     "openai": ("OpenAI API", True),
     "modal": ("Modal GPU", True),
     "claude-code": ("Claude plan", False),
     "codex": ("Codex plan", False),
+}
+# What a provider's dollars are: only the OpenAI API's leave the owner's pocket. Modal runs on
+# the workspace's free monthly credits behind a $0 spend limit, so its dollars are credits
+# used; the plans are a fixed subscription, their calls valued at API prices.
+NOTES = {
+    "openai": "paid in dollars",
+    "modal": "free credits, not charged",
+    "claude-code": "plan, valued at API prices",
+    "codex": "plan, valued at API prices",
 }
 
 
@@ -131,6 +140,10 @@ class Line:
         if not self.cap:
             return None
         return min(100, int(self.spent * 100 / self.cap))
+
+    @property
+    def note(self) -> str:
+        return NOTES.get(self.provider, "paid in dollars" if self.metered else "")
 
     @property
     def reached(self) -> bool:

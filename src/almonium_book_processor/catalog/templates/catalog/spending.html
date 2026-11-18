@@ -7,7 +7,7 @@
   <div>
     <p class="eyebrow">Book pipeline</p>
     <h1>Spending</h1>
-    <p class="muted">What each provider cost, from this environment's own records. The OpenAI API and Modal are billed in dollars; the Claude and Codex plans are a fixed subscription, so their calls are valued at what the API would have charged, and charted apart. Modal's figures are its own bill for the whole workspace, every environment that holds the token, refreshed every ten minutes. Days, weeks and months are UTC, as the caps count them.</p>
+    <p class="muted">What each provider cost. Only the OpenAI API is paid in dollars, from this environment's ledger. Modal runs on its free monthly credits behind a $0 spend limit, so it is never charged: its figures are the credits used, from Modal's own bill for the whole workspace (every environment that holds the token, refreshed every ten minutes). The Claude and Codex plans are a fixed subscription, so their calls are valued at what the API would have charged, and charted apart. Days, weeks and months are UTC, as the caps count them.</p>
   </div>
 </div>
 
@@ -15,8 +15,8 @@
   {% for span in totals %}
   <div class="spend-tile">
     <span class="spend-tile-name">{{ span.name }}</span>
-    <strong class="spend-tile-value">{{ span.billed }}</strong>
-    <span class="spend-tile-note">billed · plans valued at {{ span.plans }}</span>
+    <strong class="spend-tile-value">{{ span.paid }}</strong>
+    <span class="spend-tile-note">paid · Modal {{ span.credits }}{% if span.of_credits %} of {{ span.of_credits }}{% endif %} free credits · plans valued at {{ span.plans }}</span>
   </div>
   {% endfor %}
 </section>
@@ -56,9 +56,9 @@
   <summary><span class="summary-title">Every {{ period }}, as a table</span></summary>
   <div class="spend-table-wrap">
   <table class="ops-table spend-table">
-    <thead><tr><th scope="col">{{ period|capfirst }}</th>{% for name in series_names %}<th scope="col">{{ name }}</th>{% endfor %}<th scope="col">Billed</th><th scope="col">Plans valued</th></tr></thead>
+    <thead><tr><th scope="col">{{ period|capfirst }}</th>{% for name in series_names %}<th scope="col">{{ name }}</th>{% endfor %}<th scope="col">Plans valued</th></tr></thead>
     <tbody>
-      {% for row in rows %}<tr><th scope="row">{{ row.label }}</th>{% for value in row.values %}<td>{{ value }}</td>{% endfor %}<td><strong>{{ row.billed }}</strong></td><td>{{ row.plans }}</td></tr>{% endfor %}
+      {% for row in rows %}<tr><th scope="row">{{ row.label }}</th>{% for value in row.values %}<td>{{ value }}</td>{% endfor %}<td>{{ row.plans }}</td></tr>{% endfor %}
     </tbody>
   </table>
   </div>
@@ -71,7 +71,7 @@
   <table class="ops-table spend-table">
     <thead><tr><th scope="col">Provider</th><th scope="col">Job</th><th scope="col">Model</th><th scope="col">Calls</th><th scope="col">Tokens</th><th scope="col">Cost</th></tr></thead>
     <tbody>
-      {% for line in breakdown %}<tr><td>{{ line.provider_name }}{% if not line.metered %} <small class="muted">valued</small>{% endif %}</td><td>{{ line.purpose }}</td><td>{{ line.model|model_name }}</td><td>{{ line.calls }}</td><td>{% if line.tokens is not None %}{{ line.tokens }}{% else %}—{% endif %}</td><td><strong>{{ line.usd_label }}</strong></td></tr>{% endfor %}
+      {% for line in breakdown %}<tr><td>{{ line.provider_name }}{% if line.tag %} <small class="muted">{{ line.tag }}</small>{% endif %}</td><td>{{ line.purpose }}</td><td>{{ line.model|model_name }}</td><td>{{ line.calls }}</td><td>{% if line.tokens is not None %}{{ line.tokens }}{% else %}—{% endif %}</td><td><strong>{{ line.usd_label }}</strong></td></tr>{% endfor %}
     </tbody>
   </table>
   </div>
@@ -83,7 +83,7 @@
   <form method="post" action="{% url 'catalog:set-budgets' %}">{% csrf_token %}
     <input type="hidden" name="return" value="spending">
     {% for line in caps %}<div class="book-queue-row spending-row">
-      <span>{{ line.name }}<small class="muted"> · {% if line.metered %}billed in dollars{% else %}plan, valued at API prices{% endif %}</small></span>
+      <span>{{ line.name }}<small class="muted"> · {{ line.note }}</small></span>
       <span class="spending-spent{% if line.reached %} is-reached{% endif %}">{{ line.spent|usd }}{% if line.cap is not None %} of {{ line.cap|usd }}{% endif %}</span>
       {% if line.share is not None %}<span class="spending-meter" aria-hidden="true"><span class="spending-meter-fill{% if line.reached %} is-reached{% endif %}" style="width: {{ line.share }}%"></span></span>{% else %}<span class="muted spending-nocap">no cap</span>{% endif %}
       <label class="spending-cap"><span>cap $</span><input type="number" name="cap-{{ line.provider }}" min="0" step="0.01" value="{{ line.cap|default_if_none:'' }}" placeholder="none" aria-label="{{ line.name }} monthly cap in dollars"></label>

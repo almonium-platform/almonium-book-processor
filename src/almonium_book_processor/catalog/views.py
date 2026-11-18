@@ -2244,8 +2244,10 @@ def spending_view(request: HttpRequest) -> HttpResponse:
     context = report(request.GET.get("by", "day"))
     context["charts"] = [
         (
-            "Billed",
-            "Dollars that leave the account: the OpenAI API and Modal's GPUs.",
+            "OpenAI API and Modal",
+            "The OpenAI API is paid in dollars. Modal runs on the free monthly credits behind a "
+            "$0 spend limit, so it is never charged; its bars show the credits it used, in "
+            "dollars.",
             context["billed_chart"],
         ),
         (

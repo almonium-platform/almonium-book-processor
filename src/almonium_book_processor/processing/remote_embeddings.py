@@ -22,7 +22,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from functools import lru_cache
 from typing import Any
@@ -51,8 +51,11 @@ OVERHEAD = Decimal("1.1")
 # (scaledown_window in modal_apps/embeddings.py) before Modal stops billing it.
 COLD_START_SECONDS = 25
 IDLE_SECONDS = 15
-# Modal's own bill is asked at most this often per process and start day.
+# How long Modal's bill is kept: the days under way for ten minutes, a finished 30-day window
+# for a week. Nothing was billed before the workspace's first use.
 BILLING_CACHE_SECONDS = 600
+BILLING_FINISHED_SECONDS = 7 * 24 * 3600
+BILLING_EPOCH = datetime(2026, 11, 1, tzinfo=UTC)
 # GPUs older than Ampere multiply in fp16 but not bf16.
 _NO_BF16 = {"T4"}
 
@@ -82,36 +85,62 @@ def billed_by_day(since: datetime) -> dict[date, Decimal] | None:
 
     The workspace's free credits are spent by every environment that holds the token, so this
     is the figure a cap has to hold, where a run's own record is an estimate of one
-    environment's share. None when Modal cannot be asked (no client, no token, an error); the
-    caller then falls back to the runs' records.
+    environment's share. None when Modal cannot be asked (no client, no token, an error, its
+    rate limit); the caller then falls back to the runs' records.
+
+    Modal's report leaves out the day under way, spans 31 days at most by day and seven by the
+    hour, starts no more than a year back, and is rate limited. So whole days come in 30-day
+    windows counted from the workspace's first use, a finished window cached for a week (a past
+    day's bill does not change); the window under way and today, by the hour, for ten minutes.
     """
 
     if not os.environ.get("MODAL_TOKEN_ID"):
         return None
-    key = f"modal-billed:{since.date().isoformat()}"
+    today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    start = max(BILLING_EPOCH, since, today - timedelta(days=364))
+    windows = []
+    edge = BILLING_EPOCH + timedelta(days=30) * ((start - BILLING_EPOCH).days // 30)
+    while edge < today:
+        windows.append((edge, min(edge + timedelta(days=30), today), "d"))
+        edge += timedelta(days=30)
+    windows.append((today, None, "h"))
+    days: dict[date, Decimal] = defaultdict(Decimal)
+    for window_start, window_end, resolution in windows:
+        found = _billed_window(window_start, window_end, resolution, today)
+        if found is None:
+            return None
+        for day, cost in found.items():
+            if day >= start.date():
+                days[day] += cost
+    return dict(days)
+
+
+def _billed_window(start, end, resolution, today) -> dict[date, Decimal] | None:
+    key = (
+        f"modal-billed:{resolution}:{start:%Y%m%d}:{end:%Y%m%d}"
+        if end
+        else (f"modal-billed:{resolution}:{start:%Y%m%d}")
+    )
     found = cache.get(key)
     if found is not None:
         return found
-    # A daily report leaves out the day under way, and an hourly one may not span more than
-    # seven days: whole days come by day, today by the hour (an hour behind at most).
-    today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     try:
         import modal
 
         billing = modal.Workspace.from_context().billing
-        items = []
-        if since < today:
-            items += billing.report(start=since, end=today, resolution="d")
-        items += billing.report(start=max(since, today), resolution="h")
+        if end is None:
+            items = billing.report(start=start, resolution=resolution)
+        else:
+            items = billing.report(start=start, end=end, resolution=resolution)
     except Exception as error:  # the bill is a better figure, never a condition of working
         logger.warning("Could not read Modal's billing report: %s", error)
         return None
     days: dict[date, Decimal] = defaultdict(Decimal)
     for item in items:
         days[item.interval_start.date()] += Decimal(str(item.cost))
-    found = dict(days)
-    cache.set(key, found, BILLING_CACHE_SECONDS)
-    return found
+    finished = end is not None and end <= today and (end - start).days == 30
+    cache.set(key, dict(days), BILLING_FINISHED_SECONDS if finished else BILLING_CACHE_SECONDS)
+    return dict(days)
 
 
 class RemoteEmbeddingError(RuntimeError):

@@ -96,9 +96,12 @@ def test_all_time_counts_every_month_not_only_this_one(ledger):
     call("openai", "9.00", datetime(2026, 8, 1, tzinfo=UTC))
     modal("0.5000", datetime(2026, 9, 1, tzinfo=UTC))
     spans = {span["name"]: span for span in spending_report.totals(NOW)}
-    assert spans["All time"]["billed"] == "$10.50"
-    assert spans["This month"]["billed"] == "$1.00"
-    assert spans["Today"]["billed"] == "$1.00"
+    # only the OpenAI API is money; Modal's dollars are free credits used
+    assert spans["All time"]["paid"] == "$10.00"
+    assert spans["All time"]["credits"] == "$0.50"
+    assert spans["This month"]["paid"] == "$1.00"
+    assert spans["This month"]["of_credits"] == "$30.00"
+    assert spans["Today"]["paid"] == "$1.00" and spans["Today"]["of_credits"] == ""
 
 
 def test_the_chart_stacks_each_provider_in_its_own_colour_and_scales_to_the_peak(ledger):
@@ -111,7 +114,10 @@ def test_the_chart_stacks_each_provider_in_its_own_colour_and_scales_to_the_peak
     last = chart["columns"][-1]
     assert [s["provider"] for s in last["segments"]] == ["openai"]
     assert last["show_label"]
-    assert chart["providers"] == [("openai", "OpenAI API", 1), ("modal", "Modal GPU", 2)]
+    assert chart["providers"] == [
+        ("openai", "OpenAI API (paid)", 1),
+        ("modal", "Modal GPU (free credits)", 2),
+    ]
 
 
 def test_staff_see_the_page_and_save_caps_back_to_it(client, ledger):
@@ -125,6 +131,8 @@ def test_staff_see_the_page_and_save_caps_back_to_it(client, ledger):
         assert client.get(reverse("catalog:spending"), {"by": by}).status_code == 200
     page = client.get(reverse("catalog:spending")).content.decode()
     assert "What it went on" in page and "Sentence alignment embeddings" in page
+    assert "Modal GPU (free credits)" in page and "free credits, not charged" in page
+    assert "billed in dollars" not in page
     response = client.post(
         reverse("catalog:set-budgets"), {"cap-openai": "3", "return": "spending"}
     )

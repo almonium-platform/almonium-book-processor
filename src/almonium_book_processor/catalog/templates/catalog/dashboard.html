@@ -116,7 +116,7 @@
     </summary>
     <form method="post" action="{% url 'catalog:set-budgets' %}">{% csrf_token %}
       {% for line in budgets.lines %}<div class="book-queue-row spending-row">
-        <span>{{ line.name }}<small class="muted"> · {% if line.metered %}billed in dollars{% else %}plan, valued at API prices{% endif %}</small></span>
+        <span>{{ line.name }}<small class="muted"> · {{ line.note }}</small></span>
         <span class="spending-spent{% if line.reached %} is-reached{% endif %}">{{ line.spent|usd }}{% if line.cap is not None %} of {{ line.cap|usd }}{% endif %}</span>
         {% if line.share is not None %}<span class="spending-meter" aria-hidden="true"><span class="spending-meter-fill{% if line.reached %} is-reached{% endif %}" style="width: {{ line.share }}%"></span></span>{% else %}<span class="muted spending-nocap">no cap</span>{% endif %}
         <label class="spending-cap"><span>cap $</span><input type="number" name="cap-{{ line.provider }}" min="0" step="0.01" value="{{ line.cap|default_if_none:'' }}" placeholder="none" aria-label="{{ line.name }} monthly cap in dollars"></label>

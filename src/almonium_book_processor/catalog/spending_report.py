@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from django.conf import settings
 from django.db.models import Count, Sum
 from django.db.models.functions import TruncDay, TruncMonth, TruncWeek
 from django.utils import timezone
@@ -27,6 +28,13 @@ from almonium_book_processor.processing import remote_embeddings
 SERIES = ("openai", "modal", "claude-code", "codex")
 BILLED = ("openai", "modal")
 PLANS = ("claude-code", "codex")
+# How each series is named where its dollars are shown: Modal's are credits, not money.
+LEGEND = {
+    "openai": "OpenAI API (paid)",
+    "modal": "Modal GPU (free credits)",
+    "claude-code": "Claude plan",
+    "codex": "Codex plan",
+}
 PERIODS = {
     "day": ("Days", 30, TruncDay),
     "week": ("Weeks", 12, TruncWeek),
@@ -141,14 +149,18 @@ def totals(now: datetime | None = None) -> list[dict]:
     for name, since in spans:
         values = {provider: budgets.spent(provider, since) for provider in PLANS + ("openai",)}
         values["modal"] = budgets.spent("modal", since)
-        billed = values["openai"] + values["modal"]
         plans = values["claude-code"] + values["codex"]
         out.append(
             {
                 "name": name,
-                "billed": format_usd(billed),
+                "paid": format_usd(values["openai"]),
+                "credits": format_usd(values["modal"]),
                 "plans": format_usd(plans),
-                "values": {p: format_usd(values[p]) for p in SERIES},
+                "of_credits": (
+                    format_usd(Decimal(str(settings.MODAL_MONTHLY_CREDITS_USD)))
+                    if name == "This month"
+                    else ""
+                ),
             }
         )
     return out
@@ -198,6 +210,7 @@ def breakdown(since: datetime) -> list[dict]:
         name, metered = budgets.PROVIDERS.get(line["provider"], (line["provider"], True))
         line["provider_name"] = name
         line["metered"] = metered
+        line["tag"] = {"modal": "credits"}.get(line["provider"], "" if metered else "valued")
         line["usd_label"] = format_usd(line["usd"])
         line["calls"] = f"{line['calls']:,}"
     return sorted(lines, key=lambda line: (not line["metered"], -line["usd"]))
@@ -276,7 +289,7 @@ def chart(series: list[Bucket], providers: tuple[str, ...]) -> dict:
                 "show_label": (len(series) - 1 - index) % every == 0,
                 "total": format_usd(bucket.total(providers)),
                 "parts": [
-                    (SERIES.index(p) + 1, budgets.PROVIDERS[p][0], format_usd(bucket.values[p]))
+                    (SERIES.index(p) + 1, LEGEND[p], format_usd(bucket.values[p]))
                     for p in providers
                 ],
             }
@@ -294,7 +307,7 @@ def chart(series: list[Bucket], providers: tuple[str, ...]) -> dict:
         "label_y": HEIGHT - 8,
         "ticks": ticks,
         "columns": columns,
-        "providers": [(p, budgets.PROVIDERS[p][0], SERIES.index(p) + 1) for p in providers],
+        "providers": [(p, LEGEND[p], SERIES.index(p) + 1) for p in providers],
         "empty": peak <= 0,
     }
 
@@ -314,12 +327,11 @@ def report(period: str) -> dict:
             {
                 "label": bucket.label,
                 "values": [format_usd(bucket.values[p]) for p in SERIES],
-                "billed": format_usd(bucket.billed),
                 "plans": format_usd(bucket.plans),
             }
             for bucket in reversed(series)
         ],
-        "series_names": [budgets.PROVIDERS[p][0] for p in SERIES],
+        "series_names": [LEGEND[p] for p in SERIES],
         "breakdown": breakdown(since),
         "caps": budgets.overview(),
         "month": budgets.month_start(),

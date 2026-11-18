@@ -248,6 +248,24 @@ def test_modals_own_bill_is_the_spend_every_environment_shares(monkeypatch, sett
     assert days[-1].values["modal"] == Decimal("0.30")
     assert days[-2].values["modal"] == Decimal("0.40")
 
+    # Modal refuses a start more than a year back: an all-time question asks from a year ago
+    cache.clear()
+    asked.clear()
+    workspace.billing.report = lambda *, start, resolution, end=None: asked.append(start) or []
+    remote_embeddings.billed_by_day(datetime(2000, 1, 1, tzinfo=UTC))
+    epoch = remote_embeddings.BILLING_EPOCH
+    # from the workspace's first use (and never more than a year back), in daily windows of 30
+    # days on fixed edges (Modal allows 31), then today by the hour
+    assert asked[0] >= max(epoch, today - timedelta(days=394))
+    assert (asked[0] - epoch).days % 30 == 0
+    assert all(b - a == timedelta(days=30) for a, b in zip(asked[:-2], asked[1:-1], strict=True))
+    assert asked[-1] == today
+    # a finished window is kept: asking again repeats only the window under way and today
+    count = len(asked)
+    cache.delete(f"modal-billed:h:{today:%Y%m%d}")
+    remote_embeddings.billed_by_day(datetime(2000, 1, 1, tzinfo=UTC))
+    assert len(asked) == count + 1
+
     # an unreadable bill never stops the work: the records answer instead
     cache.clear()
     monkeypatch.setattr(workspace.billing, "report", lambda **_: 1 / 0)
