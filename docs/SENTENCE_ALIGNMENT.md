@@ -246,8 +246,9 @@ All 412 pairs (every public translation or adaptation with its original) aligned
 1 h 44 min, 19:50–21:34, with no failure: 683,820 paragraph pairs, 3,171,262 groups,
 **91.8% confirmed**, 69.1% at clause level. 258,765 groups stayed unconfirmed (8.2%), in
 27.1% of paragraph pairs: 140,433 sentence matches under the bar, 111,235 clause pairs in
-unconfirmed stretches, 5,351 placed by position. 1,961 paragraph pairs have no groups
-because one side was never sentence-split (`missing_sentences`).
+unconfirmed stretches, 5,351 placed by position. 1,961 paragraph pairs have no groups,
+reported as `missing_sentences`: all of them are textless blocks both editions keep, 1,310
+scene-break separators and 651 images. Nothing is missing; there is no text to match.
 
 What set the pace, measured during the run on an 8-core laptop with embeddings on Modal:
 
@@ -266,9 +267,22 @@ What set the pace, measured during the run on an 8-core laptop with embeddings o
 
 - Re-promote the aligned books: alignment artifacts reach staging and production only
   in a promotion bundle, and these were promoted before they were aligned.
-- Re-split the sentences of the 1,961 paragraph pairs with none on one side.
-- Speed: measure the deployment host (ARM64, no native bf16 on Neoverse N1: fp32 there),
-  and embed each original once for all its companions (one task per family), now that
-  the transfer, not the matching, sets the pace.
+- Speed: embed each original once for all its companions (one task per family), now
+  that the transfer, not the matching, sets the pace. The deployment host is measured in
+  [MODAL.md](MODAL.md): about 25 texts/s on its CPU against about 500 on Modal.
 - Calibrated accuracy: a hand-labelled sample per language pair, so "confirmed" has a
   measured error rate rather than a reading.
+
+## Punctuation-only sentences, 2026-11-18
+
+spaCy's small models gave a lone «, » or dialogue dash a sentence of its own: 125,954 of
+879,739 French sentences (14.3%), 23.7% of Italian and 7.8% of Portuguese ones, 1-4% in
+several other languages. `processing/punctuation.py` keeps the one inventory of quotation
+and dialogue marks per language (German and Danish set »…« pointing inward, so » opens
+there and closes in French) and folds each such piece into the sentence it belongs to: a
+mark set against text without a space goes with that text, otherwise opening marks and
+dashes go with what follows and closing marks with what came before. Sentence splitting
+does this as it splits (`a59a997`); `manage.py repair_sentence_punctuation` folded the
+existing blocks in place and re-queued the alignment of the pairs they are in. 368 French
+pieces remain, each a whole paragraph of marks (decorative rules, dot leaders, scene
+breaks) with no sentence to join.
