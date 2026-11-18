@@ -179,6 +179,15 @@ def at(mapping, key):
 
 
 @register.filter
+def series_slot(provider):
+    """A provider's fixed colour slot on the Spending charts."""
+
+    from almonium_book_processor.catalog.spending_report import SERIES
+
+    return SERIES.index(provider) + 1 if provider in SERIES else 0
+
+
+@register.filter
 def usd(value):
     """Dollars as the AI spend panel prints them."""
 

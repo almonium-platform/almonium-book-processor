@@ -1,0 +1,94 @@
+{% extends "catalog/base.html" %}
+{% load catalog_extras static %}
+{% block title %}Spending · Almonium Books{% endblock %}
+{% block content %}
+<script src="{% static 'catalog/spending.js' %}" defer></script>
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Book pipeline</p>
+    <h1>Spending</h1>
+    <p class="muted">What each provider cost, from this environment's own records. The OpenAI API and Modal are billed in dollars; the Claude and Codex plans are a fixed subscription, so their calls are valued at what the API would have charged, and charted apart. Days, weeks and months are UTC, as the caps count them.</p>
+  </div>
+</div>
+
+<section class="spend-tiles" aria-label="Totals">
+  {% for span in totals %}
+  <div class="spend-tile">
+    <span class="spend-tile-name">{{ span.name }}</span>
+    <strong class="spend-tile-value">{{ span.billed }}</strong>
+    <span class="spend-tile-note">billed · plans valued at {{ span.plans }}</span>
+  </div>
+  {% endfor %}
+</section>
+
+<nav class="ops-filters" aria-label="Group by">
+  {% for key, label, count in periods %}<a href="?by={{ key }}" {% if key == period %}class="is-on" aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
+
+<div class="spend-charts">
+{% for title, note, c in charts %}
+  <section class="panel spend-chart">
+    <div class="spend-chart-head">
+      <h2>{{ title }} <span class="muted">· {{ span }}</span></h2>
+      <ul class="spend-legend">{% for provider, name, slot in c.providers %}<li><span class="spend-swatch spend-series-{{ slot }}"></span>{{ name }}</li>{% endfor %}</ul>
+    </div>
+    <p class="muted spend-chart-note">{{ note }}</p>
+    {% if c.empty %}<p class="muted">Nothing spent in this span.</p>{% else %}
+    <div class="spend-svg-wrap">
+    <svg class="spend-svg" viewBox="0 0 {{ c.width }} {{ c.height }}" role="img" aria-label="{{ title }} by {{ period }}, {{ span }}; the table below has every value">
+      {% for tick in c.ticks %}<line class="spend-grid" x1="{{ c.left }}" x2="{{ c.right }}" y1="{{ tick.y }}" y2="{{ tick.y }}"></line><text class="spend-axis" x="{{ c.left|add:-6 }}" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle">{{ tick.label }}</text>{% endfor %}
+      {% for column in c.columns %}
+      <g class="spend-column" tabindex="0" role="img" aria-label="{{ column.bucket.label }}: {{ column.total }}" data-label="{{ column.bucket.label }}" data-total="{{ column.total }}" data-parts="{% for slot, name, value in column.parts %}{{ slot }}|{{ name }}|{{ value }}{% if not forloop.last %};{% endif %}{% endfor %}">
+        <rect class="spend-hit" x="{{ column.hit_x }}" y="0" width="{{ column.hit_w }}" height="{{ c.baseline }}"></rect>
+        {% for segment in column.segments %}<path class="spend-series-{{ segment.provider|series_slot }}" d="{{ segment.path }}"></path>{% endfor %}
+        {% if column.show_label %}<text class="spend-axis" x="{{ column.label_x }}" y="{{ c.label_y }}" text-anchor="middle">{{ column.bucket.label }}</text>{% endif %}
+      </g>
+      {% endfor %}
+      <line class="spend-baseline" x1="{{ c.left }}" x2="{{ c.right }}" y1="{{ c.baseline }}" y2="{{ c.baseline }}"></line>
+    </svg>
+    </div>
+    {% endif %}
+  </section>
+{% endfor %}
+</div>
+
+<details class="panel collapsible-panel spend-table-panel">
+  <summary><span class="summary-title">Every {{ period }}, as a table</span></summary>
+  <div class="spend-table-wrap">
+  <table class="ops-table spend-table">
+    <thead><tr><th scope="col">{{ period|capfirst }}</th>{% for name in series_names %}<th scope="col">{{ name }}</th>{% endfor %}<th scope="col">Billed</th><th scope="col">Plans valued</th></tr></thead>
+    <tbody>
+      {% for row in rows %}<tr><th scope="row">{{ row.label }}</th>{% for value in row.values %}<td>{{ value }}</td>{% endfor %}<td><strong>{{ row.billed }}</strong></td><td>{{ row.plans }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+</details>
+
+<section class="panel">
+  <h2>What it went on <span class="muted">· {{ span }}</span></h2>
+  {% if breakdown %}
+  <div class="spend-table-wrap">
+  <table class="ops-table spend-table">
+    <thead><tr><th scope="col">Provider</th><th scope="col">Job</th><th scope="col">Model</th><th scope="col">Calls</th><th scope="col">Tokens</th><th scope="col">Cost</th></tr></thead>
+    <tbody>
+      {% for line in breakdown %}<tr><td>{{ line.provider_name }}{% if not line.metered %} <small class="muted">valued</small>{% endif %}</td><td>{{ line.purpose }}</td><td>{{ line.model|model_name }}</td><td>{{ line.calls }}</td><td>{% if line.tokens is not None %}{{ line.tokens }}{% else %}—{% endif %}</td><td><strong>{{ line.usd_label }}</strong></td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">No paid calls in this span.</p>{% endif %}
+</section>
+
+<section class="panel" id="caps">
+  <h2>Monthly caps <span class="muted">· {{ month|date:"F" }}</span></h2>
+  <form method="post" action="{% url 'catalog:set-budgets' %}">{% csrf_token %}
+    <input type="hidden" name="return" value="spending">
+    {% for line in caps %}<div class="book-queue-row spending-row">
+      <span>{{ line.name }}<small class="muted"> · {% if line.metered %}billed in dollars{% else %}plan, valued at API prices{% endif %}</small></span>
+      <span class="spending-spent{% if line.reached %} is-reached{% endif %}">{{ line.spent|usd }}{% if line.cap is not None %} of {{ line.cap|usd }}{% endif %}</span>
+      {% if line.share is not None %}<span class="spending-meter" aria-hidden="true"><span class="spending-meter-fill{% if line.reached %} is-reached{% endif %}" style="width: {{ line.share }}%"></span></span>{% else %}<span class="muted spending-nocap">no cap</span>{% endif %}
+      <label class="spending-cap"><span>cap $</span><input type="number" name="cap-{{ line.provider }}" min="0" step="0.01" value="{{ line.cap|default_if_none:'' }}" placeholder="none" aria-label="{{ line.name }} monthly cap in dollars"></label>
+    </div>{% endfor %}
+    <div class="book-queue-actions"><button class="button button-small" type="submit">Save caps</button><small class="muted">A provider at its cap is not asked again this month: its books wait, uncounted, and go on once the cap is raised or the month turns. Modal falls back to the worker's CPU instead. An empty cap is none.</small></div>
+  </form>
+</section>
+{% endblock %}

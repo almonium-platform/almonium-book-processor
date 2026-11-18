@@ -2236,6 +2236,28 @@ def run_spend_guard_view(request: HttpRequest) -> HttpResponse:
 
 
 @staff_member_required
+def spending_view(request: HttpRequest) -> HttpResponse:
+    """What each provider cost by day, week or month, what it went on, and the caps."""
+
+    from almonium_book_processor.catalog.spending_report import report
+
+    context = report(request.GET.get("by", "day"))
+    context["charts"] = [
+        (
+            "Billed",
+            "Dollars that leave the account: the OpenAI API and Modal's GPUs.",
+            context["billed_chart"],
+        ),
+        (
+            "Plans, valued at API prices",
+            "Claude and Codex calls on the owner's subscriptions, at what the API would charge.",
+            context["plans_chart"],
+        ),
+    ]
+    return render(request, "catalog/spending.html", context)
+
+
+@staff_member_required
 @require_POST
 def set_budgets_view(request: HttpRequest) -> HttpResponse:
     """The monthly caps from the dashboard's spending panel; an empty field is no cap."""
@@ -2244,6 +2266,11 @@ def set_budgets_view(request: HttpRequest) -> HttpResponse:
 
     from almonium_book_processor.catalog import budgets
 
+    back = (
+        reverse("catalog:spending") + "#caps"
+        if request.POST.get("return") == "spending"
+        else reverse("catalog:dashboard") + "#spending"
+    )
     caps: dict[str, Decimal | None] = {}
     for line in budgets.overview():
         raw = (request.POST.get(f"cap-{line.provider}") or "").strip()
@@ -2256,11 +2283,11 @@ def set_budgets_view(request: HttpRequest) -> HttpResponse:
             value = Decimal("-1")
         if value < 0 or not value.is_finite():
             messages.error(request, f"{line.name}: a cap is an amount of dollars, 0 or more.")
-            return redirect(reverse("catalog:dashboard") + "#spending")
+            return redirect(back)
         caps[line.provider] = value.quantize(Decimal("0.01"))
     budgets.set_caps(caps)
     messages.success(request, "Monthly caps saved; the next call is checked against them.")
-    return redirect(reverse("catalog:dashboard") + "#spending")
+    return redirect(back)
 
 
 @staff_member_required
