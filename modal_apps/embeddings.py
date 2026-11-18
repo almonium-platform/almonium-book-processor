@@ -12,8 +12,7 @@ The worker finds it by name (MODAL_EMBEDDING_APP) with the token in MODAL_TOKEN_
 MODAL_TOKEN_SECRET. docs/MODAL.md has the rest.
 """
 
-from __future__ import annotations
-
+# No ``from __future__ import annotations``: Modal reads the real type of a class parameter.
 import os
 import time
 
