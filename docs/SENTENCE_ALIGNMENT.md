@@ -145,6 +145,13 @@ fp32 at cosine ≥ 0.9968; over the 72 paragraph pairs, 71 came out identical an
 million texts for the library (412 pairs, 115 works); embedding each edition once and
 reusing it across its companions needs 8.1 million, 34% less.
 
+**Implemented 2026-11-18** (`a1fa836`): device and precision from the hardware (bf16 only
+where native, fp32 otherwise, a GPU when visible; `NLP_EMBEDDING_*` overrides), look-ahead
+calls of 2,048 texts, and a worker cache so an original is embedded once for all its
+companions. Jekyll and Hyde, 352 paragraphs: EN → DE 158 s → 80 s; the next companion,
+EN → UK, 134 s → 40 s. Against the old fp32 path, 700 of 704 paragraphs came out identical
+and about 6 of 4,680 groups differed.
+
 **Whole library** (686,000 paragraph pairs):
 
 | Setting | Time |
@@ -156,7 +163,6 @@ reusing it across its companions needs 8.1 million, 34% less.
 ## Open
 
 - Start the job automatically when a production's edition is ready, on its own worker.
-- Speed: one call per chapter, each edition embedded once, bf16 where the CPU has it
-  (with precision in the processor version); measure the deployment host.
+- Speed: measure the deployment host (ARM64, no native bf16 on Neoverse N1: fp32 there).
 - Calibrated accuracy: a hand-labelled sample per language pair, so "confirmed" has a
   measured error rate rather than a reading.
