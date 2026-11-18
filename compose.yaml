@@ -135,7 +135,12 @@ services:
   # matching is single-core Python, so ALIGNER_CONCURRENCY=2 roughly halves a backfill.
   aligner:
     build: .
-    environment: *app-environment
+    environment:
+      <<: *app-environment
+      # NumPy's OpenBLAS starts a thread per core for every small matrix product in the
+      # matching and spins them: as fast on one, without taking the cores (measured).
+      # Torch keeps its own threads for local embedding.
+      OPENBLAS_NUM_THREADS: "1"
     # Each process loads the model; a ceiling makes a short machine kill one alignment
     # (it resumes when queued again) rather than swap the whole host.
     mem_limit: ${ALIGNER_MEMORY_LIMIT:-0}
