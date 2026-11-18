@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from almonium_book_processor.catalog.models import AIRun, Chapter, ContentBlock, Edition, Work
-from almonium_book_processor.catalog.parallel_content import inherited_payload
+from almonium_book_processor.catalog.parallel_content import inherited_pairs, inherited_payload
 from almonium_book_processor.catalog.sentence_alignment import (
     generate_sentence_preview,
     validate_mapping,
@@ -61,6 +61,37 @@ def test_missing_or_duplicate_groups_refuse_inherited_pair(pair):
     block.align_group = uuid.uuid4()
     block.save()
     assert inherited_payload(p, s) is None
+
+
+def test_a_textless_block_the_translation_skipped_does_not_refuse_the_pair(pair):
+    p, s = pair
+    chapter = p.chapters.get()
+    ContentBlock.objects.create(
+        edition=p,
+        chapter=chapter,
+        block_id="c11.sep2",
+        sequence=2,
+        block_type=ContentBlock.BlockType.SEPARATOR,
+        align_group=uuid.uuid4(),
+        text="",
+    )
+    pairs = inherited_pairs(p, s)
+    assert [(a.block_id, b.block_id) for a, b in pairs] == [("c11.p1", "c11.p1")]
+    assert inherited_payload(s, p)["blocks"][0]["primary_block_id"] == "c11.p1"
+
+
+def test_a_one_sided_block_with_text_still_refuses_the_pair(pair):
+    p, s = pair
+    ContentBlock.objects.create(
+        edition=p,
+        chapter=p.chapters.get(),
+        block_id="c11.p2",
+        sequence=2,
+        align_group=uuid.uuid4(),
+        text="A paragraph the translation lost.",
+    )
+    assert inherited_pairs(p, s) == []
+    assert inherited_pairs(s, p) == []
 
 
 def test_identical_sentences_need_no_paid_alignment(pair, monkeypatch):

@@ -45,16 +45,25 @@ def inherited_pairs(edition, other):
         other.blocks.select_related("chapter", "edition").order_by("chapter__sequence", "sequence")
     )
     # This path promises complete 1:1 inherited groups, never guesses or drops a gap.
+    # A block without text (a scene-break separator, a bare image) is never sent to
+    # translation, so a parallel edition lacks it by design; it has nothing to read
+    # beside anything and is the only kind of group allowed to be one-sided.
     left = {b.align_group: b for b in primary if b.align_group}
     right = {b.align_group: b for b in secondary if b.align_group}
+    one_sided = [
+        block
+        for blocks, other in ((left, right), (right, left))
+        for group, block in blocks.items()
+        if group not in other
+    ]
     if (
         not primary
         or len(left) != len(primary)
         or len(right) != len(secondary)
-        or left.keys() != right.keys()
+        or any(block.text.strip() for block in one_sided)
     ):
         return []
-    return [(b, right[b.align_group]) for b in primary]
+    return [(b, right[b.align_group]) for b in primary if b.align_group in right]
 
 
 def inherited_payload(edition, other):
