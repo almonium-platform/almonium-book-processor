@@ -1,9 +1,11 @@
 """Idempotent, pair-specific offline sentence jobs. Never changes edition approval."""
 
 import contextlib
+import contextvars
 import hashlib
 import json
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 
 from django.conf import settings
@@ -122,6 +124,34 @@ def queue_alignment(primary_id, secondary_id, model=None):
     return run
 
 
+class _LookAhead:
+    """Embed the next window on one background thread while this one is matched.
+
+    A Modal call for 2,048 texts takes 4-6 s, mostly bringing the vectors back over the
+    network, and matching those paragraphs takes about as long: done one after the other
+    the aligner waited half its time. The thread runs in a copy of the run's context, so
+    text the run marked public (remote_embeddings.public_text) may go to Modal from it,
+    and nothing else may.
+    """
+
+    def __init__(self):
+        self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="alignment-ahead")
+        self._pending = None
+
+    def start(self, function, *args):
+        self._pending = self._pool.submit(contextvars.copy_context().run, function, *args)
+
+    def wait(self):
+        """Block until the window started last is embedded; its error is raised here."""
+
+        pending, self._pending = self._pending, None
+        if pending is not None:
+            pending.result()
+
+    def close(self):
+        self._pool.shutdown(wait=True, cancel_futures=True)
+
+
 def run_alignment(run_id):
     claimed = PipelineRun.objects.filter(pk=run_id, status=PipelineRun.Status.QUEUED).update(
         status=PipelineRun.Status.RUNNING, started_at=timezone.now(), updated_at=timezone.now()
@@ -155,19 +185,31 @@ def run_alignment(run_id):
             # Public works only (_pairs), inside this month's free Modal credits.
             remote.enter_context(remote_embeddings.public_text())
         runtime = embedding_runtime().as_record()
-        ahead = 0
+
+        def window_from(start):
+            """The next stretch of pairs whose unaligned texts fill one large call."""
+
+            texts, end = [], start
+            while end < len(pairs) and len(texts) < settings.NLP_EMBEDDING_PREFETCH_TEXTS:
+                if digests[end] not in done:
+                    texts += pair_texts(*pairs[end])
+                end += 1
+            return end, texts
+
+        # Embed in large calls, not one small call per paragraph pair, and fetch the next
+        # call's vectors while this stretch is matched. Closed before the Modal context.
+        ahead = _LookAhead()
+        remote.callback(ahead.close)
+        window_end, (next_end, next_texts) = 0, window_from(0)
+        ahead.start(prefetch, next_texts, model)
         for index, (primary, secondary) in enumerate(pairs):
             digest = digests[index]
-            if index >= ahead:
-                # Embed the next stretch of unaligned pairs in large calls; one small call
-                # per paragraph pair leaves most of the model's throughput unused.
-                texts = []
-                ahead = index
-                while ahead < len(pairs) and len(texts) < settings.NLP_EMBEDDING_PREFETCH_TEXTS:
-                    if digests[ahead] not in done:
-                        texts += pair_texts(*pairs[ahead])
-                    ahead += 1
-                prefetch(texts, model_name=model)
+            if index >= window_end:
+                ahead.wait()  # this stretch's vectors are in
+                window_end = next_end
+                if window_end < len(pairs):
+                    next_end, next_texts = window_from(window_end)
+                    ahead.start(prefetch, next_texts, model)
             cached = EditionArtifact.objects.filter(
                 edition_id=run.edition_id,
                 kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,

@@ -1,6 +1,7 @@
 """Bounded offline correspondence within an already aligned paragraph pair."""
 
 import re
+import threading
 from collections import OrderedDict
 
 import numpy as np
@@ -103,6 +104,12 @@ def sentence_texts(block):
 # original paired with several companions is embedded once, and a run embeds ahead in
 # large calls (prefetch) instead of one small call per paragraph pair.
 _vectors: OrderedDict[tuple[str, str, str, str], np.ndarray] = OrderedDict()
+# A run fetches the next window on a look-ahead thread while it matches this one
+# (catalog/offline_sentence_alignment). The cache lock is held only for dictionary work,
+# never across a call; embedding calls are taken one at a time, because the model and
+# remote_embeddings' usage counters are not made for two at once.
+_cache_lock = threading.Lock()
+_call_lock = threading.Lock()
 
 
 def _key(model_name, text):
@@ -118,9 +125,10 @@ def _key(model_name, text):
 
 def _normalized(texts, model_name):
     # float32, as the model returns them: the worker cache holds tens of thousands.
-    vectors = np.asarray(
-        embed_texts(texts, chunk_long=True, model_name=model_name), dtype=np.float32
-    )
+    with _call_lock:
+        vectors = np.asarray(
+            embed_texts(texts, chunk_long=True, model_name=model_name), dtype=np.float32
+        )
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
     return vectors / np.where(norms, norms, np.float32(1))
 
@@ -140,21 +148,24 @@ def prefetch(texts, model_name=None):
     """
 
     missing, seen = [], set()
-    for text in texts:
-        stripped = text.strip()
-        if not stripped or stripped in seen:
-            continue
-        seen.add(stripped)
-        key = _key(model_name, stripped)
-        if key in _vectors:
-            _vectors.move_to_end(key)
-        else:
-            missing.append(stripped)
+    with _cache_lock:
+        for text in texts:
+            stripped = text.strip()
+            if not stripped or stripped in seen:
+                continue
+            seen.add(stripped)
+            key = _key(model_name, stripped)
+            if key in _vectors:
+                _vectors.move_to_end(key)
+            else:
+                missing.append(stripped)
     size = max(settings.NLP_EMBEDDING_PREFETCH_TEXTS, 1)
     for start in range(0, len(missing), size):
         window = missing[start : start + size]
-        for text, vector in zip(window, _normalized(window, model_name), strict=True):
-            _remember(_key(model_name, text), vector)
+        vectors = _normalized(window, model_name)
+        with _cache_lock:
+            for text, vector in zip(window, vectors, strict=True):
+                _remember(_key(model_name, text), vector)
 
 
 def pair_texts(primary, secondary):
@@ -181,19 +192,21 @@ def _embed(texts, model_name, cache):
 
     keys = [t.strip() for t in texts]
     known = {}
-    for key in keys:
-        if key in cache:
-            known[key] = cache[key]
-        elif (shared := _vectors.get(_key(model_name, key))) is not None:
-            _vectors.move_to_end(_key(model_name, key))  # least recently used goes first
-            known[key] = shared
+    with _cache_lock:
+        for key in keys:
+            if key in cache:
+                known[key] = cache[key]
+            elif (shared := _vectors.get(_key(model_name, key))) is not None:
+                _vectors.move_to_end(_key(model_name, key))  # least recently used goes first
+                known[key] = shared
     missing = [k for k in keys if k not in known]
     fresh = iter(())
     if missing:
         vectors = _normalized(missing, model_name)
-        for key, vector in zip(missing, vectors, strict=True):
-            cache[key] = vector
-            _remember(_key(model_name, key), vector)
+        with _cache_lock:
+            for key, vector in zip(missing, vectors, strict=True):
+                cache[key] = vector
+                _remember(_key(model_name, key), vector)
         fresh = iter(vectors)
     return (
         np.array([known[k] if k in known else next(fresh) for k in keys])

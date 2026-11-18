@@ -716,3 +716,88 @@ def test_long_texts_pool_their_pieces_as_the_text_by_text_loop_did(monkeypatch):
         mean = [sum(float(v[d]) * w for v, w in parts) for d in range(6)]
         norm = math.sqrt(sum(v * v for v in mean))
         assert pooled[owner] == pytest.approx([v / norm for v in mean], abs=1e-12)
+
+
+def _more_pairs(p, s, texts):
+    """Paragraph pairs c11.p2... beside the fixture's c11.p1, each two sentences a side."""
+    from almonium_book_processor.catalog.models import ContentBlock
+
+    for number, (left, right) in enumerate(texts, start=2):
+        group = uuid.uuid5(uuid.NAMESPACE_URL, f"look-ahead-{number}")
+        for edition, text in ((p, left), (s, right)):
+            first = text.index(" ") if text.count(".") == 2 else len(text)
+            cut = text.index(".") + 1
+            ContentBlock.objects.create(
+                edition=edition,
+                chapter=edition.chapters.get(),
+                block_id=f"c11.p{number}",
+                sequence=number,
+                align_group=group,
+                text=text,
+                sentences=[{"start": 0, "end": cut}, {"start": cut + 1, "end": len(text)}],
+            )
+            assert first  # two sentences, split at the first full stop
+
+
+def test_the_next_window_is_fetched_while_this_one_is_matched(pair, settings):  # noqa: F811
+    import threading
+
+    from almonium_book_processor.catalog import offline_sentence_alignment
+
+    p, s = pair
+    _more_pairs(
+        p,
+        s,
+        [
+            ("Alpha one. Beta one.", "Alpha uno. Beta uno."),
+            ("Alpha two. Beta two.", "Alpha dos. Beta dos."),
+        ],
+    )
+    settings.NLP_EMBEDDING_PREFETCH_TEXTS = 2  # one paragraph pair per window
+    fetched_on, second_started = [], threading.Event()
+
+    def embed(texts, **_):
+        fetched_on.append(threading.current_thread().name)
+        if any(text.strip().endswith(("one.", "uno.")) for text in texts):
+            second_started.set()  # window 2's own texts are on the way
+        return [[1, 0] if t.strip().startswith(("Hello", "Alpha")) else [0, 1] for t in texts]
+
+    matched = offline_sentence_alignment.correspond
+
+    def correspond(primary, secondary, **kwargs):
+        if primary.block_id == "c11.p1":
+            # A sequential run would fetch window 2 only after this match: it would wait here.
+            assert second_started.wait(5), "window 2 was not fetched while window 1 was matched"
+        return matched(primary, secondary, **kwargs)
+
+    with (
+        patch(
+            "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+            side_effect=embed,
+        ),
+        patch.object(offline_sentence_alignment, "correspond", side_effect=correspond),
+    ):
+        run = queue_alignment(p.id, s.id)
+        run_alignment(run.id)
+    run.refresh_from_db()
+    assert run.status == PipelineRun.Status.SUCCEEDED
+    assert len(fetched_on) == 6  # three windows, each four texts in calls of two
+    assert all(name.startswith("alignment-ahead") for name in fetched_on)
+    assert all(block["sentence_alignment"] for block in inherited_payload(p, s)["blocks"])
+
+
+def test_the_look_ahead_thread_may_send_what_the_run_marked_public_and_nothing_else():
+    from almonium_book_processor.catalog.offline_sentence_alignment import _LookAhead
+    from almonium_book_processor.processing import remote_embeddings
+
+    seen = []
+    ahead = _LookAhead()
+    try:
+        ahead.start(lambda: seen.append(remote_embeddings._public.get()))
+        ahead.wait()
+        with remote_embeddings.public_text():
+            ahead.start(lambda: seen.append(remote_embeddings._public.get()))
+            ahead.wait()
+    finally:
+        ahead.close()
+    assert seen == [False, True]
