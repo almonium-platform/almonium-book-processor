@@ -57,9 +57,10 @@ app = modal.App(APP_NAME, image=image)
 
 @app.cls(
     gpu=GPUS,
-    # Idle GPU time is billed; a book's alignment calls arrive seconds apart, so a minute
-    # keeps one container warm through a run without paying for the gaps between runs.
-    scaledown_window=60,
+    # Idle GPU time is billed, and a cold start on the GPU list takes about 3 s: a container
+    # that waits 15 s after its last call stays warm through a run's bursts but is not paid
+    # for through the minutes of matching between them.
+    scaledown_window=15,
     timeout=600,
     max_containers=2,
 )

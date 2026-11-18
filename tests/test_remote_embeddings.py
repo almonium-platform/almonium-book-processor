@@ -118,11 +118,11 @@ def test_an_undeployed_app_says_how_to_deploy_it(fake_modal):
 def test_cost_counts_gpu_seconds_and_each_container_start_and_idle_tail(settings):
     settings.MODAL_EMBEDDING_GPUS = ["L4", "A10"]
     assert remote_embeddings.cost_usd(15, containers=1, gpu="L4") == (
-        Decimal("100") * Decimal("0.000222") * Decimal("1.1")
+        Decimal("55") * Decimal("0.000222") * Decimal("1.1")
     )
     # no card named: the dearest the app may be scheduled on
     assert remote_embeddings.cost_usd(15, containers=1) == (
-        Decimal("100") * Decimal("0.000306") * Decimal("1.1")
+        Decimal("55") * Decimal("0.000306") * Decimal("1.1")
     )
     # Modal schedules an "A10" that reports itself as an A10G; both are priced alike
     assert remote_embeddings.price("A10G") == remote_embeddings.price("A10")
@@ -201,3 +201,49 @@ def test_spend_guard_adds_up_modal_gpu_spend_and_what_failed_runs_paid():
 
     modal = guard_report()["modal_embeddings"]
     assert modal == {"runs": 2, "gpu_seconds": 25.0, "usd": "0.0400", "failed_usd": "0.0100"}
+
+
+@pytest.mark.django_db
+def test_modals_own_bill_is_the_spend_every_environment_shares(monkeypatch, settings):
+    from datetime import UTC, date, datetime
+
+    from django.core.cache import cache
+
+    from almonium_book_processor.catalog import budgets, spending_report
+
+    cache.clear()
+    asked = []
+
+    def report(*, start, resolution):
+        asked.append((start, resolution))
+        return [
+            types.SimpleNamespace(interval_start=datetime(2026, 11, 17, tzinfo=UTC), cost="0.40"),
+            types.SimpleNamespace(interval_start=datetime(2026, 11, 18, tzinfo=UTC), cost="0.25"),
+            types.SimpleNamespace(interval_start=datetime(2026, 11, 18, tzinfo=UTC), cost="0.05"),
+        ]
+
+    workspace = types.SimpleNamespace(billing=types.SimpleNamespace(report=report))
+    module = types.SimpleNamespace(Workspace=types.SimpleNamespace(from_context=lambda: workspace))
+    monkeypatch.setitem(sys.modules, "modal", module)
+    since = datetime(2026, 11, 1, tzinfo=UTC)
+
+    # no token: Modal is not asked, and the runs' records stand in
+    monkeypatch.delenv("MODAL_TOKEN_ID", raising=False)
+    assert remote_embeddings.billed_by_day(since) is None
+
+    monkeypatch.setenv("MODAL_TOKEN_ID", "ak-test")
+    billed = remote_embeddings.billed_by_day(since)
+    assert billed == {date(2026, 11, 17): Decimal("0.40"), date(2026, 11, 18): Decimal("0.30")}
+    remote_embeddings.billed_by_day(since)
+    assert len(asked) == 1  # cached
+    assert budgets.spent("modal", since) == Decimal("0.70")
+    now = datetime(2026, 11, 18, 12, tzinfo=UTC)
+    days = spending_report.buckets("day", now)
+    assert days[-1].values["modal"] == Decimal("0.30")
+
+    # an unreadable bill never stops the work: the records answer instead
+    cache.clear()
+    monkeypatch.setattr(workspace.billing, "report", lambda **_: 1 / 0)
+    assert remote_embeddings.billed_by_day(since) is None
+    assert budgets.spent("modal", since) == Decimal("0")
+    cache.clear()

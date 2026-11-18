@@ -29,6 +29,13 @@ charged even if an estimate here is wrong. The alignment buttons show the price
 when the backend is `modal` (`catalog/estimates.offline_alignment`) and show "No API cost"
 when it is `local`.
 
+The cap and the Spending page read Modal's own bill (`remote_embeddings.billed_by_day`,
+the workspace's billing report, cached ten minutes): every environment that holds the token
+spends the same credits, so local, staging and prod all hold one figure. When the report
+cannot be read they fall back to this environment's run records, which overstate: on
+18 November 30 backfill runs recorded $1.57 where Modal billed $0.87 for the day, because a
+record charges each run a container's start and idle tail that concurrent runs share.
+
 Each run records its Modal use in `summary.embedding`: `modal_calls`, `modal_texts`,
 `gpu_seconds`, `usd`. `./plan-manage spend_guard` and the dashboard's guard line add these
 up. A pair's vectors are bought once: a finished pair's artifact is reused, and a retry only

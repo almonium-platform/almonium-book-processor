@@ -15,16 +15,23 @@ only on Modal's invoice (catalog/budgets.py keeps it inside the credits).
 
 from __future__ import annotations
 
+import logging
+import os
+from collections import defaultdict
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from decimal import Decimal
 from functools import lru_cache
 from typing import Any
 
 import numpy as np
 from django.conf import settings
+from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 # Modal's list prices per GPU second (modal.com/pricing, November 2026), by the name Modal
 # schedules a card under and the app reports it by. The container's
@@ -40,10 +47,12 @@ GPU_USD_PER_SECOND = {
     "H100": Decimal("0.001097"),
 }
 OVERHEAD = Decimal("1.1")
-# A container that starts for a run loads its model first and idles a minute after the
-# last call (scaledown_window) before Modal stops billing it.
+# A container that starts for a run loads its model first and idles after the last call
+# (scaledown_window in modal_apps/embeddings.py) before Modal stops billing it.
 COLD_START_SECONDS = 25
-IDLE_SECONDS = 60
+IDLE_SECONDS = 15
+# Modal's own bill is asked at most this often per process and start day.
+BILLING_CACHE_SECONDS = 600
 # GPUs older than Ampere multiply in fp16 but not bf16.
 _NO_BF16 = {"T4"}
 
@@ -66,6 +75,36 @@ def active() -> bool:
     """Whether an embedding made here and now runs on Modal."""
 
     return settings.NLP_EMBEDDING_BACKEND == "modal" and _public.get()
+
+
+def billed_by_day(since: datetime) -> dict[date, Decimal] | None:
+    """What Modal billed the whole workspace per UTC day since ``since``, from its own report.
+
+    The workspace's free credits are spent by every environment that holds the token, so this
+    is the figure a cap has to hold, where a run's own record is an estimate of one
+    environment's share. None when Modal cannot be asked (no client, no token, an error); the
+    caller then falls back to the runs' records.
+    """
+
+    if not os.environ.get("MODAL_TOKEN_ID"):
+        return None
+    key = f"modal-billed:{since.date().isoformat()}"
+    found = cache.get(key)
+    if found is not None:
+        return found
+    try:
+        import modal
+
+        items = modal.Workspace.from_context().billing.report(start=since, resolution="d")
+    except Exception as error:  # the bill is a better figure, never a condition of working
+        logger.warning("Could not read Modal's billing report: %s", error)
+        return None
+    days: dict[date, Decimal] = defaultdict(Decimal)
+    for item in items:
+        days[item.interval_start.date()] += Decimal(str(item.cost))
+    found = dict(days)
+    cache.set(key, found, BILLING_CACHE_SECONDS)
+    return found
 
 
 class RemoteEmbeddingError(RuntimeError):

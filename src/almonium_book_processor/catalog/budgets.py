@@ -51,10 +51,19 @@ def next_month(start: datetime) -> datetime:
 
 
 def spent(provider: str, since: datetime | None = None) -> Decimal:
-    """What the provider's calls cost since ``since`` (this month's start by default)."""
+    """What the provider's calls cost since ``since`` (this month's start by default).
+
+    Modal's is what Modal billed the workspace, every environment together, when its report
+    can be read; otherwise what this environment's runs recorded.
+    """
 
     since = since or month_start()
     if provider == "modal":
+        from almonium_book_processor.processing import remote_embeddings
+
+        billed = remote_embeddings.billed_by_day(since)
+        if billed is not None:
+            return sum(billed.values(), Decimal("0"))
         return sum(
             (
                 Decimal(str(usd or "0"))

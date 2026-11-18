@@ -21,6 +21,7 @@ from django.utils import timezone
 from almonium_book_processor.catalog import budgets
 from almonium_book_processor.catalog.models import AIRun, PipelineRun
 from almonium_book_processor.catalog.spend import format_usd, purpose_label
+from almonium_book_processor.processing import remote_embeddings
 
 # Fixed order, fixed colour slot: a provider keeps its colour on every chart and period.
 SERIES = ("openai", "modal", "claude-code", "codex")
@@ -111,10 +112,18 @@ def buckets(period: str, now: datetime | None = None) -> list[Bucket]:
         bucket = found.get(_floor(row["bucket"], period))
         if bucket is not None and provider in bucket.values:
             bucket.values[provider] += row["usd"] or ZERO
-    for updated_at, usd, _ in _modal_runs(starts[0]):
-        bucket = found.get(_floor(updated_at, period))
-        if bucket is not None:
-            bucket.values["modal"] += usd
+    billed = remote_embeddings.billed_by_day(starts[0])
+    if billed is not None:  # Modal's own bill, every environment together
+        for day, usd in billed.items():
+            moment = datetime(day.year, day.month, day.day, tzinfo=UTC)
+            bucket = found.get(_floor(moment, period))
+            if bucket is not None:
+                bucket.values["modal"] += usd
+    else:
+        for updated_at, usd, _ in _modal_runs(starts[0]):
+            bucket = found.get(_floor(updated_at, period))
+            if bucket is not None:
+                bucket.values["modal"] += usd
     return list(found.values())
 
 
@@ -131,7 +140,7 @@ def totals(now: datetime | None = None) -> list[dict]:
     out = []
     for name, since in spans:
         values = {provider: budgets.spent(provider, since) for provider in PLANS + ("openai",)}
-        values["modal"] = sum((usd for _, usd, _ in _modal_runs(since)), ZERO)  # all its runs
+        values["modal"] = budgets.spent("modal", since)
         billed = values["openai"] + values["modal"]
         plans = values["claude-code"] + values["codex"]
         out.append(
@@ -182,7 +191,7 @@ def breakdown(since: datetime) -> list[dict]:
                 "model": "GPU",
                 "calls": sum(calls for _, _, calls in modal),
                 "tokens": None,
-                "usd": sum((usd for _, usd, _ in modal), ZERO),
+                "usd": budgets.spent("modal", since),
             }
         )
     for line in lines:
