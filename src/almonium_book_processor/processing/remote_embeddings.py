@@ -22,7 +22,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from functools import lru_cache
 from typing import Any
@@ -92,10 +92,17 @@ def billed_by_day(since: datetime) -> dict[date, Decimal] | None:
     found = cache.get(key)
     if found is not None:
         return found
+    # A daily report leaves out the day under way, and an hourly one may not span more than
+    # seven days: whole days come by day, today by the hour (an hour behind at most).
+    today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     try:
         import modal
 
-        items = modal.Workspace.from_context().billing.report(start=since, resolution="d")
+        billing = modal.Workspace.from_context().billing
+        items = []
+        if since < today:
+            items += billing.report(start=since, end=today, resolution="d")
+        items += billing.report(start=max(since, today), resolution="h")
     except Exception as error:  # the bill is a better figure, never a condition of working
         logger.warning("Could not read Modal's billing report: %s", error)
         return None

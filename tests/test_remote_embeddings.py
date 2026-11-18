@@ -205,7 +205,7 @@ def test_spend_guard_adds_up_modal_gpu_spend_and_what_failed_runs_paid():
 
 @pytest.mark.django_db
 def test_modals_own_bill_is_the_spend_every_environment_shares(monkeypatch, settings):
-    from datetime import UTC, date, datetime
+    from datetime import UTC, datetime
 
     from django.core.cache import cache
 
@@ -214,12 +214,18 @@ def test_modals_own_bill_is_the_spend_every_environment_shares(monkeypatch, sett
     cache.clear()
     asked = []
 
-    def report(*, start, resolution):
-        asked.append((start, resolution))
+    today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday = today - timedelta(days=1)
+
+    def report(*, start, resolution, end=None):
+        asked.append((start, end, resolution))
+        if resolution == "d":  # whole days only: Modal leaves out the day under way
+            assert end == today
+            return [types.SimpleNamespace(interval_start=yesterday, cost="0.40")]
+        assert resolution == "h" and start == today and end is None
         return [
-            types.SimpleNamespace(interval_start=datetime(2026, 11, 17, tzinfo=UTC), cost="0.40"),
-            types.SimpleNamespace(interval_start=datetime(2026, 11, 18, tzinfo=UTC), cost="0.25"),
-            types.SimpleNamespace(interval_start=datetime(2026, 11, 18, tzinfo=UTC), cost="0.05"),
+            types.SimpleNamespace(interval_start=today.replace(hour=9), cost="0.25"),
+            types.SimpleNamespace(interval_start=today.replace(hour=10), cost="0.05"),
         ]
 
     workspace = types.SimpleNamespace(billing=types.SimpleNamespace(report=report))
@@ -232,14 +238,15 @@ def test_modals_own_bill_is_the_spend_every_environment_shares(monkeypatch, sett
     assert remote_embeddings.billed_by_day(since) is None
 
     monkeypatch.setenv("MODAL_TOKEN_ID", "ak-test")
+    since = yesterday
     billed = remote_embeddings.billed_by_day(since)
-    assert billed == {date(2026, 11, 17): Decimal("0.40"), date(2026, 11, 18): Decimal("0.30")}
+    assert billed == {yesterday.date(): Decimal("0.40"), today.date(): Decimal("0.30")}
     remote_embeddings.billed_by_day(since)
-    assert len(asked) == 1  # cached
+    assert len(asked) == 2  # one daily and one hourly report, then cached
     assert budgets.spent("modal", since) == Decimal("0.70")
-    now = datetime(2026, 11, 18, 12, tzinfo=UTC)
-    days = spending_report.buckets("day", now)
+    days = spending_report.buckets("day", today.replace(hour=12))
     assert days[-1].values["modal"] == Decimal("0.30")
+    assert days[-2].values["modal"] == Decimal("0.40")
 
     # an unreadable bill never stops the work: the records answer instead
     cache.clear()
