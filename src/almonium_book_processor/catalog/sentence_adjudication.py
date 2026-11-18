@@ -10,8 +10,9 @@ What is bought is one stretch's grouping (``AlignmentJudgment``), found again by
 content: the adjudication version, the model, the two languages and the stretch's own
 clause texts. No block, edition, run or offline version is part of it, so a paragraph
 realigned by a later offline version, or a book ingested again, finds every stretch whose
-clauses did not change. Several stretches share one call; a call is one ``AIRun``, named by
-the stretches in it, and a call that succeeded but was killed before its answers were kept
+clauses did not change. Switching models reuses usable judgments and counts prior attempts
+from the same adjudication version. Several stretches share one ``AIRun``, named by the
+stretches in it, and a call that succeeded but was killed before its answers were kept
 is read from the ledger, not asked again. An answer that does not cover its stretch is the
 model's failure: the stretch is asked ``ATTEMPTS`` times in all and then left as the
 offline aligner had it. A refused allowance or a network that is down stops the pass and
@@ -484,6 +485,7 @@ def _in_thread(*args) -> _Outcome:
         connections.close_all()
 
 
+@transaction.atomic
 def _keep(outcome: _Outcome, regions, version, tally: Tally) -> None:
     """Record one call's cost and each stretch's judgment."""
 
@@ -511,22 +513,20 @@ def _keep(outcome: _Outcome, regions, version, tally: Tally) -> None:
         )
         tally.errors.append(recorded_error(outcome.error))
         tally.calls += 1
+        return
+    if outcome.reread:
+        tally.reread += 1
     else:
-        if outcome.reread:
-            tally.reread += 1
-        else:
-            _record_usage(outcome.ai_id, outcome.response, keep=True)
-            tally.calls += 1
-        try:
-            answer = Answer.model_validate(
-                json.loads(response_output_text(outcome.response)), strict=True
-            )
-            answers = {item.id: [g.model_dump() for g in item.groups] for item in answer.items}
-        except ValueError:
-            tally.errors.append("An answer was not the JSON asked for")
-        AIRun.objects.filter(pk=outcome.ai_id).update(
-            status=AIRun.Status.SUCCEEDED, finished_at=now
+        _record_usage(outcome.ai_id, outcome.response, keep=True)
+        tally.calls += 1
+    try:
+        answer = Answer.model_validate(
+            json.loads(response_output_text(outcome.response)), strict=True
         )
+        answers = {item.id: [g.model_dump() for g in item.groups] for item in answer.items}
+    except ValueError:
+        tally.errors.append("An answer was not the JSON asked for")
+    AIRun.objects.filter(pk=outcome.ai_id).update(status=AIRun.Status.SUCCEEDED, finished_at=now)
     for number, identity in enumerate(outcome.pack):
         groups = validated(answers[number], regions[identity]) if number in answers else None
         judgment, _ = AlignmentJudgment.objects.get_or_create(
@@ -555,29 +555,31 @@ def _write(paragraph: Paragraph, judgments: dict, model: str, tally: Tally) -> N
     """The adjudicated artifact of one paragraph pair, when a stretch of it was judged."""
 
     judged = [
-        (region, judgments[region.identity(model)])
+        (region, judgment)
         for region in paragraph.regions
-        if judgments.get(region.identity(model)) is not None
+        if (judgment := judgments.get(region.identity(model))) is not None
     ]
     if not judged:
         return
     offline = paragraph.artifact
-    for region, groups in judged:
+    models = sorted({j.processor_version.removeprefix(f"{VERSION}:") for _, j in judged})
+    for region, judgment in judged:
+        groups = judgment.groups
         tally.before_groups += len(region.positions)
         tally.after_groups += len(groups)
         tally.after_certain += sum(group["certain"] for group in groups)
         tally.reordered += _crossing(groups)
     payload = {
-        **adjudicated_payload(offline.payload, judged),
+        **adjudicated_payload(offline.payload, [(region, j.groups) for region, j in judged]),
         "adjudication": {
             "version": VERSION,
-            "model": model,
+            "model": ", ".join(models),
             "base": offline.processor_version,
             "stretches": len(judged),
             "left": len(paragraph.regions) - len(judged) + paragraph.oversized,
         },
     }
-    version = processor_version(model)
+    version = processor_version(models[0] if len(models) == 1 else "mixed")
     existing = EditionArtifact.objects.filter(
         edition_id=offline.edition_id,
         kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,
@@ -636,6 +638,29 @@ def known(identities: list[str]) -> dict[str, AlignmentJudgment]:
     return found
 
 
+def judgment_history(regions: dict[str, Region], model: str) -> dict[str, list[AlignmentJudgment]]:
+    """Find the current prompt's judgments across models, keyed for the selected model."""
+    previous_models = (
+        ModelConfiguration.objects.filter(purpose=PURPOSE, name__startswith=f"{VERSION}-")
+        .order_by()
+        .values_list("model", flat=True)
+        .distinct()
+    )
+    history = {identity: [] for identity in regions}
+    for previous in sorted({model, *previous_models}):
+        keys = {region.identity(previous): identity for identity, region in regions.items()}
+        for key, judgment in known(list(keys)).items():
+            history[keys[key]].append(judgment)
+    return history
+
+
+def needs_judgment(history: list[AlignmentJudgment]) -> bool:
+    return (
+        not any(j.groups is not None for j in history)
+        and sum(j.attempts for j in history) < ATTEMPTS
+    )
+
+
 def adjudicate(
     work: list[Paragraph],
     *,
@@ -662,22 +687,25 @@ def adjudicate(
         for region in paragraph.regions:
             tally.regions += 1
             regions.setdefault(region.identity(model), region)
-    judgments = known(list(regions))
+    history = judgment_history(regions, model)
     pending = {}
     for identity, region in regions.items():
-        judgment = judgments.get(identity)
-        if judgment is None:
+        judgments = history[identity]
+        if needs_judgment(judgments):
             pending[identity] = region
-        elif judgment.groups is not None:
+        elif any(j.groups is not None for j in judgments):
             tally.found += 1
-        elif judgment.attempts < ATTEMPTS:
-            pending[identity] = region
         else:
             tally.given_up += 1
     if ask and pending:
         configuration, prompt = _ledger(seat)
         held = threading.Event()
-        asked = {identity: judgment.attempts for identity, judgment in judgments.items()}
+        asked = {
+            j.identity: j.attempts
+            for judgments in history.values()
+            for j in judgments
+            if j.processor_version == version
+        }
         packs = _packs(pending)
         arguments = [
             (pack, regions, seat, edition_id, configuration, prompt, held, provider, asked)
@@ -696,7 +724,11 @@ def adjudicate(
                 if progress:
                     progress(done, len(packs))
     if write:
-        answers = {identity: judgment.groups for identity, judgment in known(list(regions)).items()}
+        answers = {}
+        for identity, judgments in judgment_history(regions, model).items():
+            usable = [j for j in judgments if j.groups is not None]
+            if usable:
+                answers[identity] = min(usable, key=lambda j: (j.updated_at, j.identity))
         for paragraph in work:
             _write(paragraph, answers, model, tally)
     return tally

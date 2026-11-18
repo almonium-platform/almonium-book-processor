@@ -17,6 +17,7 @@ from tests.catalog.test_sentence_alignment import pair  # noqa: F401
 pytestmark = pytest.mark.django_db
 
 MODEL = "gpt-5.6-luna"
+FALLBACK = "claude-code:claude-sonnet-5-5"
 OFFLINE = processor_version()
 
 
@@ -86,10 +87,10 @@ def aligned(pair, settings):  # noqa: F811
     return run
 
 
-def judge(run, fake, **options):
+def judge(run, fake, model=MODEL, **options):
     return adjudication.adjudicate(
         adjudication.paragraphs(run),
-        model_setting=MODEL,
+        model_setting=model,
         edition_id=run.edition_id,
         provider=fake,
         **options,
@@ -178,6 +179,58 @@ def test_a_refused_allowance_holds_the_pass_and_counts_no_attempt(aligned):
     assert (tally.answered, tally.written) == (1, 1)
     assert AIRun.objects.get().status == AIRun.Status.SUCCEEDED
     assert AlignmentJudgment.objects.get().attempts == 1
+
+
+def test_switching_models_spends_only_on_unjudged_stretches_and_serves_both(aligned):
+    primary, secondary = aligned.edition, aligned.edition.derived_editions.get()
+    p, s = primary.blocks.get(), secondary.blocks.get()
+    for block in (p, s):
+        block.text += " Later."
+        block.sentences.append({"start": 14, "end": 20})
+        block.save()
+    artifact = EditionArtifact.objects.get(processor_version=OFFLINE)
+    artifact.input_hash = pair_hash(p, s)
+    artifact.payload["groups"] = [
+        {"primary": [0], "secondary": [0], "certain": False},
+        {"primary": [1], "secondary": [1], "certain": True},
+        {"primary": [2], "secondary": [2], "certain": True},
+    ]
+    artifact.save()
+    judge(aligned, Fake())
+
+    artifact.payload["groups"][2]["certain"] = False
+    artifact.save()
+    fake = Fake()
+    tally = judge(aligned, fake, model=FALLBACK)
+    assert (tally.found, tally.answered, tally.calls, tally.written) == (1, 1, 1, 1)
+    items = json.loads(fake.bodies[0]["input"])["items"]
+    assert len(items) == 1
+    assert items[0]["primary"] == [{"n": 0, "text": "Later."}]
+    mixed = EditionArtifact.objects.get(processor_version=f"{adjudication.VERSION}:mixed")
+    assert mixed.payload["adjudication"]["model"] == "claude-sonnet-5-5, gpt-5.6-luna"
+    assert (
+        inherited_payload(primary, secondary)["blocks"][0]["alignment_provenance"][
+            "processor_version"
+        ]
+        == mixed.processor_version
+    )
+    assert all(group["certain"] for group in mixed.payload["groups"])
+    again = judge(aligned, Fake())
+    assert (again.found, again.calls, again.written) == (2, 0, 0)
+
+
+def test_switching_models_respects_the_shared_retry_limit(aligned):
+    fake = Fake(groups=[{"primary": [0, 1], "secondary": [0], "certain": True}])
+    assert judge(aligned, fake).unusable == 1
+    assert judge(aligned, fake, model=FALLBACK).unusable == 1
+    assert judge(aligned, Fake()).given_up == 1
+
+
+def test_a_broken_call_leaves_the_stretch_retryable(aligned):
+    tally = judge(aligned, Fake(error=RuntimeError("CLI stopped before returning")))
+    assert tally.errors and tally.unusable == 0
+    assert not AlignmentJudgment.objects.exists()
+    assert judge(aligned, Fake(), model=FALLBACK).answered == 1
 
 
 def test_a_paid_call_killed_before_its_answers_were_kept_is_read_not_asked_again(aligned):

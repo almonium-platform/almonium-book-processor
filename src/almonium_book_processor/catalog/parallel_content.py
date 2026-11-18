@@ -119,8 +119,12 @@ def inherited_payload(edition, other):
     }
     # A model's reading of the unconfirmed stretches stands in for the offline artifact it
     # was made from, and for no other: a later offline version is read as it is until its
-    # own stretches are judged (the newest judgment wins where two models read one pair).
-    for a in sorted(adjudicated, key=lambda a: a.updated_at):
+    # own stretches are judged. Prefer the most complete overlay for the same base.
+    for a in sorted(
+        adjudicated,
+        key=lambda a: (a.payload["adjudication"]["stretches"], a.updated_at),
+        reverse=True,
+    ):
         base = artifacts.get(a.input_hash)
         if base and base["provenance"]["processor_version"] == a.payload["adjudication"]["base"]:
             artifacts[a.input_hash] = {

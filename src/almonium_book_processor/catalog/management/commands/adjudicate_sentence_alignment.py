@@ -141,12 +141,11 @@ class Command(BaseCommand):
                 oversized += paragraph.oversized
                 for region in paragraph.regions:
                     regions.setdefault(region.identity(model), region)
-        paid = adjudication.known(list(regions))
+        history = adjudication.judgment_history(regions, model)
         pending = {
             identity: region
             for identity, region in regions.items()
-            if identity not in paid
-            or (paid[identity].groups is None and paid[identity].attempts < adjudication.ATTEMPTS)
+            if adjudication.needs_judgment(history[identity])
         }
         calls = len(adjudication._packs(pending))
         chars = sum(region.chars for region in pending.values())

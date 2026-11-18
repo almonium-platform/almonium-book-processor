@@ -123,12 +123,14 @@ per group. Confirmed groups are never sent and never change.
 - **Bought once**: a stretch's judgment (`AlignmentJudgment`) is keyed by the adjudication
   version, the model, the two languages and the stretch's clause texts. No block, edition,
   run or offline version is in the key, so a later offline version or a re-ingested book
-  finds every stretch whose clauses did not change. About twelve stretches share a call;
+  finds every stretch whose clauses did not change. Switching models reuses usable judgments
+  and carries over failed attempts for the same adjudication version. About twelve stretches share a call;
   a call that was paid for and killed before its answers were kept is read from the
   ledger. An answer that does not cover its stretch is asked once more and then left. A
   refused allowance stops the pass and counts as no attempt.
 - **Result**: a second `sentence_alignment` artifact under the same pair hash, processor
-  version `sentence-adjudication-v1:<model>`, holding the offline payload with the judged
+  version `sentence-adjudication-v1:<model>` (or `sentence-adjudication-v1:mixed` for a
+  paragraph judged by several models), holding the offline payload with the judged
   stretches' groups replaced (`acceptance: llm_adjudication`, no similarity). The reader
   (`parallel_content.inherited_payload`) serves it in place of the offline artifact it was
   made from (`adjudication.base`) and of no other. After a text correction or a new offline
