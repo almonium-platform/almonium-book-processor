@@ -17,10 +17,10 @@
 
 <div class="align-status">
   <span class="status">Preview</span>
-  <span>{% if alignment_run.status == "running" or alignment_run.status == "queued" %}Aligning · {{ alignment_run.progress }}% · {% endif %}{% if stats.aligned %}Chapter {{ chapter }} aligned{% if stats.aligned_at %} {{ stats.aligned_at|date:"j M" }}{% endif %} · {{ stats.groups }} group{{ stats.groups|pluralize }}, {{ stats.low }} below {{ low_threshold }}%{% else %}Chapter {{ chapter }} not aligned yet{% endif %} · {% if other_aligned %}{{ other_aligned }} other chapter{{ other_aligned|pluralize }} aligned{% else %}other chapters not aligned yet{% endif %}. Nothing here is published.</span>
+  <span>{% if alignment_run.status == "running" or alignment_run.status == "queued" %}Aligning · {{ alignment_run.progress }}% · {% endif %}{% if stats.aligned %}Chapter {{ chapter }} aligned{% if stats.aligned_at %} {{ stats.aligned_at|date:"j M" }}{% endif %} · {{ stats.groups }} group{{ stats.groups|pluralize }}, {{ stats.low }} unconfirmed{% else %}Chapter {{ chapter }} not aligned yet{% endif %} · {% if other_aligned %}{{ other_aligned }} other chapter{{ other_aligned|pluralize }} aligned{% else %}other chapters not aligned yet{% endif %}. Nothing here is published.</span>
   <details class="align-how">
     <summary>How alignment works</summary>
-    <p>Blocks pair through the canonical groups both editions inherit, so the paragraphs are already exact. Inside each pair a local multilingual embedding model matches sentences: no paid API is called. Semicolon clauses are refined inside accepted groups. A group the model is unsure of keeps its similarity, and one below {{ low_threshold }}% is marked for a look; a paragraph it cannot split stays paragraph-aligned. This checks structure, not fidelity: paired passages still need editorial review.</p>
+    <p>Blocks pair through the canonical groups both editions inherit, so the paragraphs are already exact. Inside each pair a local multilingual embedding model matches sentences: no paid API is called. Each matched sentence group is then cut at clause punctuation (commas, semicolons, colons, dashes) and the clauses are matched again; a clause pair that is weak, or that resembles a crossing partner nearly as well as its own, is merged back with its neighbour, so a clause moved to the other end of the sentence stays one group. In the paragraph view each group has one tint on both sides; a solid tint is confident, a dashed underline is not. A group the model did not confirm keeps its similarity and is marked for a look; a paragraph it cannot split stays paragraph-aligned. This checks structure, not fidelity: paired passages still need editorial review.</p>
     {% if alignment_run %}<p>Latest job: {{ alignment_run.get_status_display }} · {{ alignment_run.summary.model|default:"" }} · {{ alignment_run.processor_version }}{% if alignment_run.summary.completed_blocks %} · {{ alignment_run.summary.completed_blocks }} blocks, {{ alignment_run.summary.highlighted_groups }} confident groups, {{ alignment_run.summary.paragraph_fallback_blocks }} paragraph-aligned{% endif %}.</p>{% endif %}
   </details>
 </div>
@@ -29,18 +29,22 @@
 <div class="reader-toolbar">
   <div class="reader-toolbar-inner">
     <form class="toolbar-group" method="get" action="">
-      {% if previous_chapter %}<a class="toolbar-step" href="?chapter={{ previous_chapter.sequence }}" title="Previous chapter" aria-label="Previous chapter">‹</a>{% else %}<span class="toolbar-step" aria-hidden="true">‹</span>{% endif %}
+      {% if paragraphs %}<input type="hidden" name="view" value="paragraphs">{% endif %}
+      {% if previous_chapter %}<a class="toolbar-step" href="?chapter={{ previous_chapter.sequence }}{% if paragraphs %}&view=paragraphs{% endif %}" title="Previous chapter" aria-label="Previous chapter">‹</a>{% else %}<span class="toolbar-step" aria-hidden="true">‹</span>{% endif %}
       <select class="toolbar-select" name="chapter" aria-label="Chapter" data-autosubmit data-short-labels>
         {% for item in chapters %}<option value="{{ item.sequence }}"{% if item.sequence == chapter %} selected{% endif %} data-short="{{ item.title|short_title:primary|default:'Untitled chapter' }} · {{ forloop.counter }} of {{ chapters|length }}">{{ item.title|display_title:primary|default:"Untitled chapter" }} · {{ forloop.counter }} of {{ chapters|length }}</option>{% endfor %}
       </select>
-      {% if next_chapter %}<a class="toolbar-step" href="?chapter={{ next_chapter.sequence }}" title="Next chapter" aria-label="Next chapter">›</a>{% else %}<span class="toolbar-step" aria-hidden="true">›</span>{% endif %}
+      {% if next_chapter %}<a class="toolbar-step" href="?chapter={{ next_chapter.sequence }}{% if paragraphs %}&view=paragraphs{% endif %}" title="Next chapter" aria-label="Next chapter">›</a>{% else %}<span class="toolbar-step" aria-hidden="true">›</span>{% endif %}
     </form>
     {% if stats.aligned %}
     <span class="toolbar-divider" aria-hidden="true"></span>
+    <span class="toolbar-segments"><a href="?chapter={{ chapter }}"{% if not paragraphs %} class="is-active" aria-current="true"{% endif %}>Rows</a><a href="?chapter={{ chapter }}&view=paragraphs"{% if paragraphs %} class="is-active" aria-current="true"{% endif %}>Paragraphs</a></span>
+    {% if not paragraphs %}
     <div class="toolbar-group align-filters">
       <button class="difficulty-chip is-active" type="button" data-align-filter="all">All groups</button>
-      <button class="difficulty-chip" type="button" data-align-filter="low"{% if not stats.low %} disabled{% endif %}>Below {{ low_threshold }}% · {{ stats.low }}</button>
+      <button class="difficulty-chip" type="button" data-align-filter="low"{% if not stats.low %} disabled{% endif %}>Unconfirmed · {{ stats.low }}</button>
     </div>
+    {% endif %}
     {% endif %}
     <a class="toolbar-link align-edit-link" href="{% url 'catalog:edition-reader' primary.id %}?chapter={{ chapter }}&parallel={{ secondary.id }}">Edit side by side</a>
   </div>
@@ -55,6 +59,22 @@
   <div class="reader-heading"><h2>{{ current_chapter.title|display_title:primary|default:"Untitled chapter" }}</h2></div>
   <div class="align-blocks">
   {% for row in rows %}
+  {% if paragraphs %}
+  <div class="align-block align-para{% if row.heading %} is-heading{% endif %}" data-align-pair>
+    <div class="align-line align-ids"><code>{{ row.primary_block_id }}</code><span></span><code>{{ row.secondary_block_id }}</code></div>
+    <div class="align-line">
+      {% if row.primary_pieces %}
+      <p lang="{{ primary.language }}">{% for piece in row.primary_pieces %}{% if piece.group %}<span class="chunk tint-{{ piece.tint }}{% if not piece.certain %} is-uncertain{% endif %}" data-g="{{ piece.group }}"{% if piece.confidence %} title="Group {{ piece.group }} · similarity {{ piece.confidence }}%{% if not piece.certain %} · not confirmed{% endif %}"{% endif %}>{{ piece.text }}</span>{% else %}{{ piece.text }}{% endif %}{% endfor %}</p>
+      <span class="align-mark"></span>
+      <p lang="{{ secondary.language }}">{% for piece in row.secondary_pieces %}{% if piece.group %}<span class="chunk tint-{{ piece.tint }}{% if not piece.certain %} is-uncertain{% endif %}" data-g="{{ piece.group }}"{% if piece.confidence %} title="Group {{ piece.group }} · similarity {{ piece.confidence }}%{% if not piece.certain %} · not confirmed{% endif %}"{% endif %}>{{ piece.text }}</span>{% else %}{{ piece.text }}{% endif %}{% endfor %}</p>
+      {% else %}{% with group=row.groups.0 %}
+      <p lang="{{ primary.language }}">{{ group.primary }}</p>
+      <span class="align-mark">{% if group.paragraph and row.aligned %}<span class="align-paragraph">Paragraph-aligned</span>{% endif %}</span>
+      <p lang="{{ secondary.language }}">{{ group.secondary }}</p>
+      {% endwith %}{% endif %}
+    </div>
+  </div>
+  {% else %}
   <div class="align-block{% if row.heading %} is-heading{% endif %}" data-low="{% for group in row.groups %}{% if group.low %}1{% endif %}{% endfor %}">
     <div class="align-line align-ids"><code>{{ row.primary_block_id }}</code><span></span><code>{{ row.secondary_block_id }}</code></div>
     {% for group in row.groups %}
@@ -65,6 +85,7 @@
     </div>
     {% endfor %}
   </div>
+  {% endif %}
   {% empty %}
   <p class="muted">This chapter has no paired blocks.</p>
   {% endfor %}

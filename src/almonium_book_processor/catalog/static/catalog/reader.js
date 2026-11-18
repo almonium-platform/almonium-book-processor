@@ -5,7 +5,8 @@
 // label while closed and the full titles in its list. Edit replaces a block's
 // text in place with a textarea as tall as its content; Save stays disabled
 // until the text differs and a reason is given, and Cancel or Esc restores it.
-// Provenance opens as a popover; the sentence alignment page filters its groups. Everything listens on the document, so it
+// Provenance opens as a popover; the sentence alignment page filters its groups and
+// lights a chunk's partner. Everything listens on the document, so it
 // survives live.js swapping the page.
 (function () {
   "use strict";
@@ -142,6 +143,21 @@
     var scope = event.target.closest && event.target.closest("[data-edit-scope]");
     if (scope && event.target.closest("[data-editor]")) { close(scope); return; }
     closePopovers();
+  });
+
+  // Alignment paragraph view: pointing at a chunk lights every chunk of its group in that pair.
+  function light(chunk, on) {
+    var pair = chunk.closest("[data-align-pair]");
+    if (!pair) return;
+    pair.querySelectorAll('.chunk[data-g="' + chunk.dataset.g + '"]').forEach(function (node) {
+      node.classList.toggle("is-lit", on);
+    });
+  }
+  ["mouseover", "mouseout"].forEach(function (type) {
+    document.addEventListener(type, function (event) {
+      var chunk = event.target.closest && event.target.closest(".chunk[data-g]");
+      if (chunk) light(chunk, type === "mouseover");
+    });
   });
 
   document.addEventListener("DOMContentLoaded", shortenAll);

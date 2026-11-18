@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
+import numpy as np
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -127,17 +128,16 @@ def embed_texts(
     return [vector.tolist() for vector in vectors]
 
 
-def _cosine(left: list[float], right: list[float]) -> float:
-    numerator = sum(a * b for a, b in zip(left, right, strict=True))
-    left_norm = math.sqrt(sum(value * value for value in left))
-    right_norm = math.sqrt(sum(value * value for value in right))
-    if not left_norm or not right_norm:
-        return 0.0
-    return numerator / (left_norm * right_norm)
+def _cosine(left, right) -> float:
+    left, right = np.asarray(left, dtype=float), np.asarray(right, dtype=float)
+    if left.shape != right.shape:
+        raise ValueError("Vectors must have the same dimensions")
+    norms = float(np.linalg.norm(left) * np.linalg.norm(right))
+    return float(left @ right) / norms if norms else 0.0
 
 
-def _mean_vector(vectors: list[list[float]]) -> list[float]:
-    return [sum(values) / len(vectors) for values in zip(*vectors, strict=True)]
+def _mean_vector(vectors) -> list[float]:
+    return np.mean(np.asarray(vectors, dtype=float), axis=0).tolist()
 
 
 def aggregate_embeddings(
@@ -205,7 +205,7 @@ def align_embeddings(
     candidates without assuming translations have identical lengths.
     """
 
-    if not source or not target:
+    if len(source) == 0 or len(target) == 0:
         return []
     dimensions = {len(vector) for vector in [*source, *target]}
     if len(dimensions) != 1:

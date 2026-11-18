@@ -171,7 +171,7 @@ def test_semicolon_clauses_refine_without_changing_text_or_sentence_spans():
     # Use exact lengths, not byte lengths for Unicode.
     p.sentences[0]["end"] = len(p.text)
     s.sentences[0]["end"] = len(s.text)
-    spans = clause_spans(p)
+    [spans] = clause_spans(p)
     assert [p.text[x["start"] : x["end"]] for x in spans] == [
         "Yellow skin;",
         "black hair;",
@@ -251,7 +251,7 @@ def test_newer_reverse_model_result_wins_over_older_direct(pair):  # noqa: F811
     assert result["provenance"]["created_at"] == "2026-09-16"
 
 
-def test_one_uncertain_clause_does_not_hide_other_confident_clauses():
+def test_a_weak_clause_merges_with_its_neighbour_and_the_rest_stay_apart():
     p = SimpleNamespace(text="Yellow skin; black hair; white teeth.", sentences=[])
     s = SimpleNamespace(text="Жовта шкіра; чорне волосся; білі зуби.", sentences=[])
     for block in [p, s]:
@@ -264,10 +264,101 @@ def test_one_uncertain_clause_does_not_hide_other_confident_clauses():
             [0, 0, 1, 0],
             [1, 0, 0, 0],
             [0, 1, 0, 0],
-            [0, 0, 0.70, 0.714],
+            [0, 0.5, 0.4, 0.768],
         ],
     ):
         result = correspond(p, s)
-    assert len(result["groups"]) == 3
-    assert [g["certain"] for g in result["groups"]] == [True, True, False]
-    assert result["groups"][0]["primary"] == [0]
+    assert [(g["primary"], g["secondary"]) for g in result["groups"]] == [
+        ([0], [0]),
+        ([1, 2], [1, 2]),
+    ]
+    assert all(g["granularity"] == "clause" for g in result["groups"])
+
+
+def test_comma_clauses_keep_list_items_whole_and_a_german_verb_with_its_clause():
+    from almonium_book_processor.processing.sentence_correspondence import clause_spans
+
+    def chunks(text):
+        block = SimpleNamespace(text=text, sentences=[{"start": 0, "end": len(text)}])
+        return [text[x["start"] : x["end"]] for x in clause_spans(block)[0]]
+
+    assert chunks(
+        "Als die Droschke vor der angegebenen Adresse hielt, hob sich der Nebel ein wenig."
+    ) == ["Als die Droschke vor der angegebenen Adresse hielt,", "hob sich der Nebel ein wenig."]
+    assert chunks("Spiel, Trotz, Genuß ist übrigens darin!") == [
+        "Spiel, Trotz, Genuß ist übrigens darin!"
+    ]
+    assert chunks("He caught up the next paper; it was a note.") == [
+        "He caught up the next paper;",
+        "it was a note.",
+    ]
+
+
+def test_a_crossing_clause_order_is_not_split():
+    p = SimpleNamespace(
+        text="When he arrived at the house, it was raining very hard.", sentences=[]
+    )
+    s = SimpleNamespace(text="Es regnete sehr stark, als er beim Haus ankam.", sentences=[])
+    for block in [p, s]:
+        block.sentences = [{"start": 0, "end": len(block.text)}]
+    with patch(
+        "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+        return_value=[[1, 0.2], [0.2, 1], [0.25, 1], [1, 0.25]],
+    ):
+        result = correspond(p, s)
+    assert [(g["primary"], g["secondary"]) for g in result["groups"]] == [([0, 1], [0, 1])]
+    assert result["groups"][0]["granularity"] == "sentence"
+
+
+def test_paragraph_view_tints_each_group_alike_on_both_sides(client, pair):  # noqa: F811
+    from django.contrib.auth import get_user_model
+
+    p, s = pair
+    with patch(
+        "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+        return_value=[[1, 0], [0, 1], [1, 0], [0, 1]],
+    ):
+        run_alignment(queue_alignment(p.id, s.id).id)
+    client.force_login(get_user_model().objects.create_user(username="tints", is_staff=True))
+    page = client.get(f"/editions/{p.id}/sentence-preview/{s.id}/?chapter=11&view=paragraphs")
+    html = page.content.decode()
+    assert page.status_code == 200
+    assert html.count('class="chunk tint-0" data-g="1"') == 2
+    assert html.count('class="chunk tint-1" data-g="2"') == 2
+    assert ">Hello.</span> <span" in html  # the space between chunks is kept, outside them
+    assert 'data-align-filter="low"' not in html
+
+
+def test_chunks_find_partners_across_a_sentence_boundary_the_languages_draw_apart():
+    def block(text, ends):
+        starts = [0, *[e + 1 for e in ends[:-1]]]
+        return SimpleNamespace(
+            text=text, sentences=[{"start": a, "end": b} for a, b in zip(starts, ends, strict=True)]
+        )
+
+    p_text = "One two three four, five six seven eight. Nine ten eleven twelve."
+    s_text = "Uno dos tres cuatro. Cinco seis siete ocho, nueve diez once doce."
+    p = block(p_text, [p_text.index(".") + 1, len(p_text)])
+    s = block(s_text, [s_text.index(".") + 1, len(s_text)])
+    vectors = {
+        # Sentences: the first English one holds a chunk the Spanish puts in its second.
+        "One two three four, five six seven eight.": [1, 1, 0],
+        "Uno dos tres cuatro.": [1, 0, 0],
+        "Cinco seis siete ocho, nueve diez once doce.": [0, 1, 1],
+        # Chunks
+        "One two three four,": [1, 0, 0],
+        "five six seven eight.": [0, 1, 0],
+        "Nine ten eleven twelve.": [0, 0, 1],
+        "Cinco seis siete ocho,": [0, 1, 0],
+        "nueve diez once doce.": [0, 0, 1],
+    }
+    with patch(
+        "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+        side_effect=lambda texts, **_: [vectors[t.strip()] for t in texts],
+    ):
+        result = correspond(p, s)
+    assert [(g["primary"], g["secondary"], g["certain"]) for g in result["groups"]] == [
+        ([0], [0], True),
+        ([1], [1], True),
+        ([2], [2], True),
+    ]

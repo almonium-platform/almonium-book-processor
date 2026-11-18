@@ -50,6 +50,7 @@ def sentence_preview(request, edition_id, other_id):
         {
             "rows": rows,
             "stats": stats,
+            "paragraphs": request.GET.get("view") == "paragraphs",
             "other_aligned": len(aligned_chapters - {chapter}),
             "models": [{"id": model, "label": short_model(model)} for model in models],
             "default_model": "sentence-transformers/LaBSE"

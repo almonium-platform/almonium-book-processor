@@ -110,6 +110,12 @@ Implemented 2026-09-18 in the processor; see
 - [x] Offline sentence alignment survives corrections and each companion pair
   shows its state on the edition page (2026-09-18, `055b2af`). Promotion
   ships only current artifacts: check that table before bundling.
+- [x] Clause-level offline alignment (v9) across DE, EN, FR, ES and UK pairs, the
+  paragraph view with one tint per group, and a translation's missing textless
+  separators no longer refusing the pair (2026-11-18,
+  [SENTENCE_ALIGNMENT.md](SENTENCE_ALIGNMENT.md)).
+- [ ] Start offline sentence alignment automatically for a finished production, on a
+  worker of its own; embed the shared side once per book.
 - [x] Frankenstein EN–FR calibration run and its 8.6% residual diagnosed
   (2026-08-30; figures in [CHANGELOG.md](CHANGELOG.md)). The residual is
   chapter division and letter segmentation, not translator digression.

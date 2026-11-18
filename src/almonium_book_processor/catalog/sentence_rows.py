@@ -2,7 +2,8 @@
 
 A block pair becomes a run of rows, one per sentence group, so a sentence and its
 counterpart always sit side by side and nobody has to click to find one. A group the
-model matched carries its similarity; below ``LOW`` the page marks it for a look. A block
+model matched carries its similarity; one the aligner did not confirm (or, in an artifact
+without that verdict, one below ``LOW``) the page marks for a look. A block
 the aligner could not split (or that no job has aligned yet) is one paragraph row, and a
 heading is always one row set as a heading.
 """
@@ -25,6 +26,38 @@ def _order(group: dict) -> tuple:
         min(group["primary"], default=float("inf")),
         min(group["secondary"], default=float("inf")),
     )
+
+
+# Paragraph view: a group's chunks share one of these tints on both sides. Six is
+# enough for neighbours never to share one; numbering follows reading order.
+TINTS = 6
+
+
+def _pieces(text: str, spans: list[dict], owner: dict[int, dict]) -> list[dict]:
+    """A side's text cut at its display spans, each span tagged with its group."""
+
+    def tagged(piece_text, group):
+        return {
+            "text": piece_text,
+            "group": group["number"] if group else None,
+            "tint": (group["number"] - 1) % TINTS if group else None,
+            "certain": bool(group and group["certain"]),
+            "confidence": group["confidence"] if group else None,
+        }
+
+    pieces, cursor = [], 0
+    for index, span in enumerate(spans):
+        group = owner.get(index)
+        if span["start"] > cursor:
+            # The space inside one group carries its tint, so a group of several
+            # chunks reads as one stretch, not as neighbours that share a colour.
+            inside = group is not None and owner.get(index - 1) is group
+            pieces.append(tagged(text[cursor : span["start"]], group if inside else None))
+        pieces.append(tagged(text[span["start"] : span["end"]], group))
+        cursor = span["end"]
+    if cursor < len(text):
+        pieces.append({"text": text[cursor:]})
+    return pieces
 
 
 def block_rows(block: dict, primary, secondary) -> dict:
@@ -53,8 +86,16 @@ def block_rows(block: dict, primary, secondary) -> dict:
             }
         )
         return row
+    p_owner, s_owner = {}, {}
     for number, group in enumerate(sorted(groups, key=_order), 1):
         similarity = group.get("similarity")
+        tag = {
+            "number": number,
+            "certain": bool(group.get("certain")),
+            "confidence": round(similarity * 100) if similarity is not None else None,
+        }
+        p_owner.update(dict.fromkeys(group["primary"], tag))
+        s_owner.update(dict.fromkeys(group["secondary"], tag))
         row["groups"].append(
             {
                 "number": number,
@@ -65,12 +106,19 @@ def block_rows(block: dict, primary, secondary) -> dict:
                     block["secondary_text"], block["secondary_sentences"], group["secondary"]
                 ),
                 "confidence": round(similarity * 100) if similarity is not None else None,
-                "low": similarity is not None and similarity < LOW,
+                # The aligner's own verdict decides: a confirmed clause pair often
+                # scores under LOW, which was set for whole sentences.
+                "low": similarity is not None and not group.get("certain", similarity >= LOW),
                 "positional": group.get("acceptance") == "positional_fallback",
                 "unmatched": not group["primary"] or not group["secondary"],
                 "paragraph": False,
+                "clause": group.get("granularity") == "clause",
             }
         )
+    row["primary_pieces"] = _pieces(block["primary_text"], block["primary_sentences"], p_owner)
+    row["secondary_pieces"] = _pieces(
+        block["secondary_text"], block["secondary_sentences"], s_owner
+    )
     return row
 
 
@@ -86,6 +134,7 @@ def chapter_rows(blocks: list[dict], primary, secondary) -> tuple[list[dict], di
         "aligned": any(row["aligned"] for row in rows),
         "aligned_at": datetime.fromisoformat(max(stamps)) if stamps else None,
         "groups": sum(1 for g in groups if not g["paragraph"]),
+        "clauses": sum(1 for g in groups if g.get("clause")),
         "low": sum(1 for g in groups if g["low"]),
     }
     return rows, stats
