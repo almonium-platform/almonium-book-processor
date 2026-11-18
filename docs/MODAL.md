@@ -34,6 +34,24 @@ Each run records its Modal use in `summary.embedding`: `modal_calls`, `modal_tex
 up. A pair's vectors are bought once: a finished pair's artifact is reused, and a retry only
 re-embeds the window that the failed run had prefetched but not yet written.
 
+## Measured (18 November 2026)
+
+The Jekyll pairs with LaBSE, every text a run embeds (about 8,000 texts, 0.5 M characters
+a pair), from the owner's desktop; nothing was written:
+
+| Pair | Modal L4, warm | GPU seconds | CPU, desktop (16 cores, bf16) |
+| --- | --- | --- | --- |
+| EN-DE | 20.9 s | 2.0 | 42.9 s |
+| EN-UK | 20.6 s | 2.1 | 51.2 s |
+
+The GPU does its part in two seconds; the rest of the wall time is the worker tokenizing
+each text locally and the vectors (about 24 MB a pair) coming back over the network. The
+very first call after a deploy waited 13 minutes while Modal fetched the new image; later
+starts are seconds. Modal billed $0.045 for four passes and the deploy, where the runs
+recorded $0.085: the record errs high, as a budget against free credits should. The OCI
+worker's ARM cores are slower than the desktop's, so the gain there should be larger;
+measure it there before relying on it.
+
 ## Settings
 
 | Variable | Meaning |
