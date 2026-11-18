@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -193,6 +194,18 @@ def weak_regions(payload: dict, primary, secondary) -> tuple[list[Region], int]:
     return regions, oversized
 
 
+def _lone_marks(block) -> bool:
+    """Whether the splitter made a "sentence" of punctuation alone (a lone guillemet or dash).
+
+    Such a block's sentences are due to be split again, which changes its clauses; what is
+    asked about it now would be asked again then, so it waits.
+    """
+
+    return any(
+        not re.search(r"\w", block.text[span["start"] : span["end"]]) for span in block.sentences
+    )
+
+
 def paragraphs(run: PipelineRun) -> list[Paragraph]:
     """An aligned edition pair's paragraphs that hold a stretch worth asking about."""
 
@@ -211,7 +224,7 @@ def paragraphs(run: PipelineRun) -> list[Paragraph]:
     result = []
     for primary, secondary in pairs:
         artifact = artifacts.get(pair_hash(primary, secondary))
-        if artifact is None:
+        if artifact is None or _lone_marks(primary) or _lone_marks(secondary):
             continue
         regions, oversized = weak_regions(artifact.payload, primary, secondary)
         if regions or oversized:

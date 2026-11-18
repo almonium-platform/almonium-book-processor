@@ -220,3 +220,15 @@ def test_a_stretch_too_long_to_ask_is_counted_and_left(aligned, monkeypatch):
     fake = Fake()
     tally = judge(aligned, fake)
     assert (tally.oversized, tally.regions, tally.calls) == (1, 0, 0)
+
+
+def test_a_paragraph_with_a_punctuation_only_sentence_waits_for_its_resplit(aligned):
+    block = aligned.edition.blocks.get()
+    block.text = "Hello. « Again."
+    block.sentences = [{"start": 0, "end": 6}, {"start": 7, "end": 8}, {"start": 9, "end": 15}]
+    block.save()
+    assert adjudication._lone_marks(block)
+    EditionArtifact.objects.update(
+        input_hash=pair_hash(block, aligned.edition.derived_editions.get().blocks.get())
+    )
+    assert adjudication.paragraphs(aligned) == []

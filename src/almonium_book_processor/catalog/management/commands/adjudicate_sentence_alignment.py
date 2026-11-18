@@ -13,6 +13,7 @@ nothing. A refused allowance stops the pass where it is.
 
 from __future__ import annotations
 
+import hashlib
 import random
 from decimal import Decimal
 
@@ -43,6 +44,11 @@ class Command(BaseCommand):
         )
         parser.add_argument("--seed", type=int, default=1, help="The sample's seed.")
         parser.add_argument("--workers", type=int, default=3, help="Calls in flight at once.")
+        parser.add_argument(
+            "--shard",
+            help="i/n: only the works whose slug falls in part i of n, for several processes"
+            " at once. A work is never split, so no two processes ask about the same book.",
+        )
         parser.add_argument("--dry-run", action="store_true", help="Count and price; ask nothing.")
         parser.add_argument(
             "--apply-only", action="store_true", help="Write what is already paid for; ask nothing."
@@ -61,18 +67,28 @@ class Command(BaseCommand):
         ).select_related("edition__work")
         if options["work"]:
             runs = runs.filter(edition__work__slug=options["work"])
-        work = []
-        for run in runs.order_by("edition__work__slug", "created_at"):
-            try:
-                paragraphs = adjudication.paragraphs(run)
-            except ValueError:
-                continue  # withdrawn, or no longer a complete pair
-            if not paragraphs:
-                continue
-            other = paragraphs[0].secondary.edition
-            if options["edition"] and other.slug != options["edition"]:
-                continue
-            work.append((run, other, paragraphs))
+        part, parts = (int(x) for x in (options["shard"] or "0/1").split("/"))
+
+        def pairs():
+            for run in runs.order_by("edition__work__slug", "created_at"):
+                slug = run.edition.work.slug
+                if int(hashlib.sha256(slug.encode()).hexdigest(), 16) % parts != part:
+                    continue
+                try:
+                    paragraphs = adjudication.paragraphs(run)
+                except ValueError:
+                    continue  # withdrawn, or no longer a complete pair
+                if not paragraphs:
+                    continue
+                other = paragraphs[0].secondary.edition
+                if options["edition"] and other.slug != options["edition"]:
+                    continue
+                yield run, other, paragraphs
+
+        # a pair is read and judged before the next is read: the first call goes out at once
+        work = pairs()
+        if options["sample"] or options["dry_run"]:
+            work = list(work)
         if options["sample"]:
             chooser = random.Random(options["seed"])
             share = max(1, -(-options["sample"] // max(1, len(work))))
@@ -109,6 +125,7 @@ class Command(BaseCommand):
                 f" {tally.found} already paid, {tally.answered} answered in {tally.calls} call(s),"
                 f" {tally.unusable} unusable, {tally.written} artifact(s) written"
             )
+            self.stdout.flush()
             if tally.held:
                 self.stdout.write(f"Held: {tally.held}")
                 break
