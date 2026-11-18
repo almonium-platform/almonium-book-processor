@@ -70,6 +70,7 @@ from almonium_book_processor.processing.nlp import (
     embed_texts,
     split_sentences,
 )
+from almonium_book_processor.processing.punctuation import fold_punctuation
 from almonium_book_processor.processing.source_qa import (
     SOURCE_QA_PROCESSOR_VERSION,
     SOURCE_QA_SCHEMA_VERSION,
@@ -847,17 +848,23 @@ def split_edition_sentences(edition_id: str) -> None:
         updated_at = timezone.now()
         for block in blocks:
             offset = 0
-            spans = []
-            for sequence, sentence in enumerate(
-                split_sentences(block.text, edition.language), start=1
-            ):
+            found = []
+            for sentence in split_sentences(block.text, edition.language):
                 start = block.text.find(sentence, offset)
                 if start < 0:
                     start = offset
                 end = start + len(sentence)
-                spans.append({"id": f"{block.block_id}.s{sequence}", "start": start, "end": end})
-                sentence_count += 1
+                found.append({"start": start, "end": end})
                 offset = end
+            # spaCy gives a lone «, » or dialogue dash a sentence of its own (14% of French
+            # sentences): each joins the sentence it belongs to (processing/punctuation.py).
+            spans = [
+                {"id": f"{block.block_id}.s{sequence}", **span}
+                for sequence, span in enumerate(
+                    fold_punctuation(block.text, found, edition.language), start=1
+                )
+            ]
+            sentence_count += len(spans)
             block.sentences = spans
             block.updated_at = updated_at
         ContentBlock.objects.bulk_update(blocks, ["sentences", "updated_at"], batch_size=1000)
