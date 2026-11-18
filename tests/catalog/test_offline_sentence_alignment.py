@@ -146,6 +146,8 @@ def test_chunking_preserves_all_text_and_never_exceeds_encoder_window(monkeypatc
 
     class Tokenizer:
         def __call__(self, text, **kwargs):
+            if isinstance(text, list):  # a batch, as the real tokenizer takes one
+                return {"input_ids": [[0, *item, 0] for item in text]}
             return {"input_ids": [0] + list(text) + [0]}
 
         def num_special_tokens_to_add(self):
@@ -437,3 +439,280 @@ def test_a_second_companion_reuses_the_original_the_worker_already_embedded(pair
         run_alignment(queue_alignment(p.id, s.id).id)
         run_alignment(queue_alignment(p.id, other.id).id)
     assert encode.call_args_list[1].args[0] == ["Hello?"]
+
+
+def _refine_as_it_was(primary, secondary, p_texts, s_texts):
+    """The v9 merge loop, which compared every pairing in the region: the reference."""
+    import numpy as np
+
+    from almonium_book_processor.processing.nlp import align_embeddings
+    from almonium_book_processor.processing.sentence_correspondence import (
+        CHUNK_MINIMUM_MARGIN,
+        CHUNK_MINIMUM_SIMILARITY,
+    )
+
+    primary, secondary = np.asarray(primary, float), np.asarray(secondary, float)
+
+    def unit(matrix, indexes):
+        mean = matrix[indexes].mean(axis=0)
+        norm = np.linalg.norm(mean)
+        return mean / norm if norm else mean
+
+    def similarity(group):
+        return float(unit(primary, group[0]) @ unit(secondary, group[1]))
+
+    def margin(index):
+        p_units = np.array([unit(primary, g[0]) for g in groups])
+        s_units = np.array([unit(secondary, g[1]) for g in groups])
+        matrix = p_units @ s_units.T
+        crossing = np.concatenate(
+            [np.delete(matrix[index], index), np.delete(matrix[:, index], index)]
+        )
+        return float(matrix[index, index]) - float(crossing.max(initial=-1.0))
+
+    whole = [list(range(len(primary))), list(range(len(secondary)))]
+    candidates = align_embeddings(
+        primary,
+        secondary,
+        source_lengths=list(map(len, p_texts)),
+        target_lengths=list(map(len, s_texts)),
+        minimum_confidence=0.3,
+        sentence_groups=True,
+    )
+    groups, p_cursor, s_cursor = [], 0, 0
+    for candidate in candidates:
+        p_indexes = list(range(p_cursor, candidate.source_indices[-1] + 1))
+        s_indexes = list(range(s_cursor, candidate.target_indices[-1] + 1))
+        groups.append([p_indexes, s_indexes])
+        p_cursor, s_cursor = p_indexes[-1] + 1, s_indexes[-1] + 1
+    if not groups:
+        return [(*whole, similarity(whole), None)]
+    groups[-1][0].extend(range(p_cursor, len(primary)))
+    groups[-1][1].extend(range(s_cursor, len(secondary)))
+    while len(groups) > 1:
+        scores = [(similarity(g), margin(i)) for i, g in enumerate(groups)]
+        worst = min(
+            range(len(groups)),
+            key=lambda i: min(
+                scores[i][0] - CHUNK_MINIMUM_SIMILARITY, scores[i][1] - CHUNK_MINIMUM_MARGIN
+            ),
+        )
+        if (
+            scores[worst][0] >= CHUNK_MINIMUM_SIMILARITY
+            and scores[worst][1] >= CHUNK_MINIMUM_MARGIN
+        ):
+            break
+        options = []
+        for neighbour in (worst - 1, worst + 1):
+            if 0 <= neighbour < len(groups):
+                a, b = sorted((worst, neighbour))
+                merged = [groups[a][0] + groups[b][0], groups[a][1] + groups[b][1]]
+                options.append((similarity(merged), a, b, merged))
+        _, a, b, merged = max(options)
+        groups[a : b + 1] = [merged]
+    if len(groups) == 1:
+        return [(*groups[0], similarity(groups[0]), None)]
+    return [(g[0], g[1], similarity(g), margin(i)) for i, g in enumerate(groups)]
+
+
+def test_within_a_sentence_the_window_merges_exactly_as_the_full_recount_did():
+    import numpy as np
+
+    from almonium_book_processor.processing.sentence_correspondence import _refine
+
+    rng = np.random.default_rng(7)
+    for _ in range(40):
+        n, m = rng.integers(2, 8, size=2)
+        meaning = rng.normal(size=(max(n, m), 16))
+        primary = meaning[:n] + rng.normal(scale=rng.uniform(0.2, 2.0), size=(n, 16))
+        secondary = meaning[:m] + rng.normal(scale=rng.uniform(0.2, 2.0), size=(m, 16))
+        texts = ["x" * int(k) for k in rng.integers(5, 60, size=max(n, m))]
+        got = _refine(primary, secondary, texts[:n], texts[:m])
+        want = _refine_as_it_was(primary, secondary, texts[:n], texts[:m])
+        assert [(g[0], g[1]) for g in got] == [(g[0], g[1]) for g in want]
+        for a, b in zip(got, want, strict=True):
+            assert a[2] == pytest.approx(b[2], abs=1e-9)
+            assert (a[3] is None) == (b[3] is None)
+            assert a[3] is None or a[3] == pytest.approx(b[3], abs=1e-9)
+
+
+def test_a_page_long_paragraph_refines_in_seconds():
+    import time
+
+    import numpy as np
+
+    from almonium_book_processor.processing.sentence_correspondence import _refine
+
+    rng = np.random.default_rng(1)
+    meaning = rng.normal(size=(250, 64))
+    primary = meaning + rng.normal(scale=3.0, size=(250, 64))
+    secondary = meaning + rng.normal(scale=3.0, size=(250, 64))
+    started = time.perf_counter()
+    _refine(primary, secondary, ["x" * 30] * 250, ["y" * 30] * 250)
+    assert time.perf_counter() - started < 10
+
+
+def test_the_precomputed_window_table_aligns_exactly_as_the_cell_by_cell_cosines(monkeypatch):
+    import numpy as np
+
+    from almonium_book_processor.processing import nlp
+
+    rng = np.random.default_rng(11)
+    cases = []
+    for _ in range(30):
+        n, m = rng.integers(1, 12, size=2)
+        meaning = rng.normal(size=(max(n, m), 12))
+        source = (meaning[:n] + rng.normal(scale=1.0, size=(n, 12))).tolist()
+        target = (meaning[:m] + rng.normal(scale=1.0, size=(m, 12))).tolist()
+        lengths = (rng.integers(5, 80, size=n).tolist(), rng.integers(5, 80, size=m).tolist())
+        cases.append((source, target, lengths, bool(rng.integers(0, 2))))
+
+    def run():
+        return [
+            [
+                (c.source_indices, c.target_indices, round(c.confidence, 9))
+                for c in nlp.align_embeddings(
+                    source,
+                    target,
+                    source_lengths=lengths[0] if with_lengths else None,
+                    target_lengths=lengths[1] if with_lengths else None,
+                    minimum_confidence=0.3,
+                    sentence_groups=True,
+                )
+            ]
+            for source, target, lengths, with_lengths in cases
+        ]
+
+    fast = run()
+    monkeypatch.setattr(
+        nlp,
+        "_confidence_table",
+        lambda source, target, sl, tl: (
+            lambda si, ti: nlp._alignment_confidence(source, target, sl, tl, si, ti)
+        ),
+    )
+    assert fast == run()
+
+
+def test_a_long_region_is_not_merged_away_by_a_phrase_repeated_far_off():
+    import numpy as np
+
+    from almonium_book_processor.processing.sentence_correspondence import _refine
+
+    # Twenty clauses, each matching its own partner; clause 15 repeats clause 0 word for
+    # word ("sagte K."). Against the whole region clause 0 has a perfect rival and would
+    # merge; only its neighbours compete with it now.
+    rng = np.random.default_rng(3)
+    meaning = rng.normal(size=(20, 32))
+    meaning[15] = meaning[0]
+    primary = meaning + rng.normal(scale=0.2, size=meaning.shape)
+    secondary = meaning + rng.normal(scale=0.2, size=meaning.shape)
+    texts = ["x" * 40] * 20
+    groups = _refine(primary, secondary, texts, texts)
+    assert [(g[0], g[1]) for g in groups] == [([i], [i]) for i in range(20)]
+
+
+def test_a_paragraph_of_a_hundred_sentences_is_aligned_sentence_by_sentence():
+    from almonium_book_processor.processing.sentence_correspondence import correspond
+
+    def block(word, count):
+        text = " ".join(f"{word} {i}." for i in range(count))
+        spans, cursor = [], 0
+        for i in range(count):
+            piece = f"{word} {i}."
+            start = text.index(piece, cursor)
+            spans.append({"start": start, "end": start + len(piece)})
+            cursor = start + len(piece)
+        return SimpleNamespace(text=text, sentences=spans)
+
+    p, s = block("Eins", 100), block("One", 100)
+
+    def embed(texts, **_):
+        vectors = []
+        for text in texts:
+            vector = [0.0] * 100
+            vector[int(text.split()[1].rstrip("."))] = 1.0
+            vectors.append(vector)
+        return vectors
+
+    with patch(
+        "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+        side_effect=embed,
+    ):
+        result = correspond(p, s)
+    assert result["method"] == "offline_embeddings"
+    assert len(result["groups"]) == 100
+    assert all(g["certain"] and g["primary"] == g["secondary"] for g in result["groups"])
+
+
+def test_a_text_read_from_the_worker_cache_outlives_ones_never_read_again(settings):
+    settings.NLP_EMBEDDING_CACHE_TEXTS = 3
+    with patch(
+        "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+        side_effect=lambda texts, **_: [[1.0, float(i)] for i, _ in enumerate(texts)],
+    ):
+        sentence_correspondence.prefetch(["original", "first companion", "spare"])
+        sentence_correspondence._embed(["original"], None, {})  # read: the youngest now
+        sentence_correspondence.prefetch(["second companion"])
+    texts = [key[-1] for key in sentence_correspondence._vectors]
+    assert texts == ["spare", "original", "second companion"]
+
+
+def test_long_texts_pool_their_pieces_as_the_text_by_text_loop_did(monkeypatch):
+    import math
+
+    import numpy as np
+
+    from almonium_book_processor.processing import nlp
+
+    class Tokenizer:
+        def __call__(self, text, **kwargs):
+            if isinstance(text, list):
+                return {"input_ids": [[0, *item, 0] for item in text]}
+            return {"input_ids": [0, *text, 0]}
+
+        def num_special_tokens_to_add(self):
+            return 2
+
+    rng = np.random.default_rng(9)
+
+    class Model:
+        tokenizer = Tokenizer()
+        max_seq_length = 12
+
+        def encode(self, texts, **kwargs):
+            self.texts = list(texts)
+            return rng.normal(size=(len(texts), 6)).astype(np.float32)
+
+    model = Model()
+    monkeypatch.setattr(nlp, "_embedding_model", lambda _: model)
+    texts = ["short", "a much longer text that must be split", "mid sized one", "x" * 30]
+    pooled = nlp.embed_texts(texts, chunk_long=True)
+
+    # The reference: each text's pieces found by scanning every piece, summed in Python.
+    owners, weights = [], []
+    for owner, text in enumerate(texts):
+
+        def leaves(piece):
+            if len(piece) + 2 <= model.max_seq_length:
+                return [piece]
+            middle = len(piece) // 2
+            spaces = [
+                i
+                for i, c in enumerate(piece)
+                if c.isspace() and len(piece) // 4 <= i <= 3 * len(piece) // 4
+            ]
+            split = min(spaces, key=lambda i: abs(i - middle)) + 1 if spaces else middle
+            return leaves(piece[:split]) + leaves(piece[split:])
+
+        for leaf in leaves(text):
+            owners.append(owner)
+            weights.append(max(1, len(leaf)))
+    # The fake model's vectors again: the same seed, the same single draw.
+    encoded = np.random.default_rng(9).normal(size=(len(owners), 6)).astype(np.float32)
+    assert len(model.texts) == len(owners)
+    for owner in range(len(texts)):
+        parts = [(v, w) for v, w, o in zip(encoded, weights, owners, strict=True) if o == owner]
+        mean = [sum(float(v[d]) * w for v, w in parts) for d in range(6)]
+        norm = math.sqrt(sum(v * v for v in mean))
+        assert pooled[owner] == pytest.approx([v / norm for v in mean], abs=1e-12)

@@ -24,6 +24,8 @@ VECTORS = {"Hello.": [1, 0], "Hello!": [1, 0], "Again.": [0, 1]}
 
 class Tokenizer:
     def __call__(self, text, **kwargs):
+        if isinstance(text, list):  # a batch, as the real tokenizer takes one
+            return {"input_ids": [[0, *range(len(item.split())), 0] for item in text]}
         return {"input_ids": [0, *range(len(text.split())), 0]}
 
     def num_special_tokens_to_add(self):

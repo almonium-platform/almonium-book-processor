@@ -34,12 +34,13 @@ A killed run (worker restart) is closed by the janitor after two hours of silenc
 the other one-process jobs, and starting it again resumes: every finished paragraph
 comes back from its artifact.
 
-## How v9 matches
+## How v10 matches
 
 1. spaCy sentence spans on both sides; LaBSE embeds the sentences; a monotonic dynamic
    programme over cosine similarity proposes 1:1, 1:2, 2:1, 2:2, 1:3 and 3:1 groups with a
    small length prior. A group is confirmed at similarity ≥ 0.82, or ≥ 0.75 when it beats
-   every crossing alternative by 0.10. Gaps get positional groups, unconfirmed.
+   every crossing alternative by 0.10. Gaps get positional groups, unconfirmed. Paragraphs
+   of up to 600 sentences a side are matched this way (v9 stopped at 80).
 2. Every sentence is cut into clause chunks at `;` (two words a side suffice) and at
    `,` `:` `—` `–` `--` (four words a side), never rewriting text or offsets.
 3. Confirmed sentence groups are refined one by one. **Consecutive unconfirmed groups are
@@ -47,10 +48,10 @@ comes back from its artifact.
    languages put a sentence boundary in different places, and a chunk must be free to
    find its partner across it.
 4. Inside a group or region, the same dynamic programme pairs chunks. A chunk pair stands
-   when its similarity is ≥ 0.6 **and** it beats every crossing pairing in the region by
-   ≥ 0.2; the weakest pair otherwise merges with the neighbour it fits best, and this
-   repeats until every pair stands or one group is left (then the sentence groups are
-   kept as they were).
+   when its similarity is ≥ 0.6 **and** it beats, by ≥ 0.2, the crossing pairings of the
+   groups up to six places either side (every chunk of 99.4% of sentences); the weakest
+   pair otherwise merges with the neighbour it fits best, and this repeats until every
+   pair stands or one group is left (then the sentence groups are kept as they were).
 5. A chunk pair is confirmed when its sentence group was, or when it is small (≤ 3 chunks
    a side) and has similarity ≥ 0.7. A large pair left over in an unconfirmed region is a
    remainder, not a match, and stays unconfirmed.
@@ -79,6 +80,7 @@ the whole verb. Finer than this needs word alignment, which is out of scope.
 | v7 | 2026-09-23 | Every sentence gets a partner: positional, unconfirmed groups fill the gaps. |
 | v8 | 2026-11-17 | Comma, colon and dash clauses refined inside every sentence group, with the margin test. Never committed: a pilot page showed it lumping 16 German chunks with 5 English ones and confirming the lump. |
 | v9 | 2026-11-18 | Unconfirmed sentence groups refined as one region; large remainders stay unconfirmed; vector arithmetic in NumPy and each text embedded once per paragraph pair. |
+| v10 | 2026-11-18 | Sentence matching up to 600 sentences a side, not 80; a chunk pair competes with its neighbours, not the whole region. Same result as v9 on 160 of 160 sampled ordinary paragraphs. |
 
 The version is part of each artifact's processor version; v7 artifacts stay in the
 database but are no longer read.
@@ -167,6 +169,36 @@ and about 6 of 4,680 groups differed.
 | Today (0.66 s a pair) | about 126 h |
 | One call per chapter + bf16 + 8 threads + each edition embedded once | about 17 h of model time plus about 10 h of matching, which a second process overlaps |
 | A rented GPU for the embeddings | not measured here; the matching (about 10 h on one core, splittable across processes) becomes the floor |
+
+## The review of 2026-11-18
+
+The v9 backfill stalled on Der Prozess: a paragraph of 234 pairs ran for half an hour.
+Nothing had been timed on the library's largest paragraphs, only on samples. What the
+review found, worst first:
+
+- **Paragraphs over 80 sentences were never sentence-matched.** One hundred of them
+  (most of Der Prozess, Emma c50.p13, Pride and Prejudice c3.p91) became a single region
+  of up to 670 chunks, and the margin test against the *whole* region merged every pair
+  away: v9 confirmed none of their groups. v10 matches their sentences first and compares
+  a chunk only with its neighbours: Der Prozess c5.p4 went from 0 to 395 of 438 groups
+  confirmed.
+- **Cubic and quadratic loops in pure Python.** The chunk merge recomputed every margin
+  from scratch after each merge (n³); the dynamic programme took a Python mean and cosine
+  per cell; pooling a long text's pieces scanned every piece for every text, which the
+  2,048-text look-ahead calls made quadratic. All three keep their arithmetic and now run
+  as matrix operations: the worst paragraph matches in 1.1 s, not 25+ minutes.
+- **NumPy's OpenBLAS spun a thread per core** for each small product: three aligner
+  processes held 13 cores. One thread is as fast (`OPENBLAS_NUM_THREADS=1` on the aligner).
+- **The worker cache stored float64 and never refreshed on a read**, so a full cache could
+  push out the original's text a second companion was about to use. Now float32
+  (half the memory) and least-recently-*used* goes first.
+
+The lesson kept here: time and read the library's largest paragraphs, not a random
+sample, before a full run.
+
+Not changed: French spaCy makes a lone "«" its own sentence (harmless to alignment);
+under Modal each process still loads the whole model to tokenize (about 330 MB more than
+the tokenizer alone).
 
 ## Open
 

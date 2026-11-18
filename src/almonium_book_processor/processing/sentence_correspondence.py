@@ -12,7 +12,14 @@ from almonium_book_processor.processing.nlp import (
     embedding_runtime,
 )
 
-VERSION = "offline-sentence-v9"
+VERSION = "offline-sentence-v10"
+
+# The sentence stage aligns paragraphs of up to this many sentences a side. It stopped at
+# 80 while its dynamic programme took a Python mean and cosine per cell; with the window
+# table in nlp.align_embeddings 350 sentences take about a second, and a paragraph left
+# without sentence anchors was refined as one region of hundreds of chunks (v9 confirmed
+# nothing in Der Prozess's page-long paragraphs).
+SENTENCE_LIMIT = 600
 
 
 def _cover_groups(primary_count, secondary_count, groups):
@@ -110,9 +117,12 @@ def _key(model_name, text):
 
 
 def _normalized(texts, model_name):
-    vectors = np.asarray(embed_texts(texts, chunk_long=True, model_name=model_name), float)
+    # float32, as the model returns them: the worker cache holds tens of thousands.
+    vectors = np.asarray(
+        embed_texts(texts, chunk_long=True, model_name=model_name), dtype=np.float32
+    )
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-    return vectors / np.where(norms, norms, 1)
+    return vectors / np.where(norms, norms, np.float32(1))
 
 
 def _remember(key, vector):
@@ -123,11 +133,23 @@ def _remember(key, vector):
 
 
 def prefetch(texts, model_name=None):
-    """Embed every text not yet known, in calls of NLP_EMBEDDING_PREFETCH_TEXTS."""
+    """Embed every text not yet known, in calls of NLP_EMBEDDING_PREFETCH_TEXTS.
 
-    missing = list(
-        dict.fromkeys(t.strip() for t in texts if t.strip() and _key(model_name, t) not in _vectors)
-    )
+    A text already known is moved to the young end first: it is about to be read, and the
+    new texts must push out what has been used, not what is needed next.
+    """
+
+    missing, seen = [], set()
+    for text in texts:
+        stripped = text.strip()
+        if not stripped or stripped in seen:
+            continue
+        seen.add(stripped)
+        key = _key(model_name, stripped)
+        if key in _vectors:
+            _vectors.move_to_end(key)
+        else:
+            missing.append(stripped)
     size = max(settings.NLP_EMBEDDING_PREFETCH_TEXTS, 1)
     for start in range(0, len(missing), size):
         window = missing[start : start + size]
@@ -163,6 +185,7 @@ def _embed(texts, model_name, cache):
         if key in cache:
             known[key] = cache[key]
         elif (shared := _vectors.get(_key(model_name, key))) is not None:
+            _vectors.move_to_end(_key(model_name, key))  # least recently used goes first
             known[key] = shared
     missing = [k for k in keys if k not in known]
     fresh = iter(())
@@ -200,7 +223,7 @@ def _correspond(primary, secondary, model_name=None, cache=None):
             "groups": [{"primary": [0], "secondary": [0], "certain": True}],
         }
     # Bound CPU and avoid quietly feeding oversized sentences to a truncating encoder.
-    if max(len(left), len(right)) > 80 or max(map(len, left + right)) > 12000:
+    if max(len(left), len(right)) > SENTENCE_LIMIT or max(map(len, left + right)) > 12000:
         return {"groups": [], "method": "paragraph_fallback", "fallback_reason": "size_limit"}
     try:
         vectors = _embed(left + right, model_name, {} if cache is None else cache)
@@ -217,16 +240,19 @@ def _correspond(primary, secondary, model_name=None, cache=None):
         sentence_groups=True,
     )
     groups = []
-    similarities = (vectors[: len(left)] @ vectors[len(left) :].T).tolist()
+    similarities = vectors[: len(left)] @ vectors[len(left) :].T
     for c in candidates:
         margin = None
         # Lower-score acceptance is limited to distinct reciprocal 1:1 matches.
         # Split/merged groups keep the existing stricter acceptance rule.
         if len(c.source_indices) == len(c.target_indices) == 1:
             i, j = c.source_indices[0], c.target_indices[0]
-            competitors = [similarities[i][k] for k in range(len(right)) if k != j]
-            competitors += [similarities[k][j] for k in range(len(left)) if k != i]
-            margin = similarities[i][j] - max(competitors, default=1.0)
+            competitors = np.concatenate(
+                [np.delete(similarities[i], j), np.delete(similarities[:, j], i)]
+            )
+            margin = float(similarities[i, j]) - (
+                float(competitors.max()) if competitors.size else 1.0
+            )
         relative = c.confidence >= 0.75 and margin is not None and margin >= 0.10
         certain = c.confidence >= 0.82 or relative
         groups.append(
@@ -282,6 +308,11 @@ CHUNK_CERTAIN_SIMILARITY = 0.7
 # Inside a region the sentence matcher did not confirm, only a small chunk pair
 # can be confirmed on its own evidence; a large one is what is left over.
 CHUNK_CERTAIN_SIZE = 3
+# A chunk pair need only beat the pairings of the groups this close on either side. An
+# in-order alignment cannot mistake a chunk for one forty chunks away, but against the
+# whole of a page-long region some repeated phrase ("sagte K.") always comes close, and
+# every pair merged away. Six covers every chunk of 99.4% of sentences (2026-11-18).
+CHUNK_MARGIN_WINDOW = 6
 
 
 def _words(text):
@@ -337,17 +368,6 @@ def _refine(primary, secondary, p_texts, s_texts):
     def similarity(group):
         return float(unit(primary, group[0]) @ unit(secondary, group[1]))
 
-    def margin(index):
-        # Each group's side as a unit mean; the crossing similarities of every
-        # pair of groups are then one matrix product, not a loop of cosines.
-        p_units = np.array([unit(primary, g[0]) for g in groups])
-        s_units = np.array([unit(secondary, g[1]) for g in groups])
-        matrix = p_units @ s_units.T
-        crossing = np.concatenate(
-            [np.delete(matrix[index], index), np.delete(matrix[:, index], index)]
-        )
-        return float(matrix[index, index]) - float(crossing.max(initial=-1.0))
-
     whole = [list(range(len(primary))), list(range(len(secondary)))]
     if len(primary) == 1 and len(secondary) == 1:
         return [(*whole, similarity(whole), None)]
@@ -371,18 +391,35 @@ def _refine(primary, secondary, p_texts, s_texts):
     groups[-1][0].extend(range(p_cursor, len(primary)))
     groups[-1][1].extend(range(s_cursor, len(secondary)))
 
+    # Every group's two sides as unit means, and the similarity of every primary side
+    # to every secondary side: the diagonal is a group's own similarity, the cells near
+    # it its crossing pairings with its neighbours. A merge replaces two rows and
+    # columns with one, so a region of n chunks costs n² once, not n³ per pass (Kafka's
+    # page-long paragraphs held the aligner for half an hour).
+    p_units = [unit(primary, g[0]) for g in groups]
+    s_units = [unit(secondary, g[1]) for g in groups]
+    matrix = np.array(p_units) @ np.array(s_units).T
+
+    def scores():
+        own = np.diag(matrix).copy()
+        count = len(groups)
+        if count == 1:
+            return own, [None]
+        # Group i against group i+d: matrix[i, i+d] and matrix[i+d, i], for both.
+        rivals = np.full(count, -np.inf)
+        for distance in range(1, min(CHUNK_MARGIN_WINDOW, count - 1) + 1):
+            crossing = np.maximum(np.diagonal(matrix, distance), np.diagonal(matrix, -distance))
+            rivals[:-distance] = np.maximum(rivals[:-distance], crossing)
+            rivals[distance:] = np.maximum(rivals[distance:], crossing)
+        return own, own - np.maximum(rivals, -1.0)
+
     while len(groups) > 1:
-        scores = [(similarity(g), margin(i)) for i, g in enumerate(groups)]
+        own, margins = scores()
         worst = min(
             range(len(groups)),
-            key=lambda i: min(
-                scores[i][0] - CHUNK_MINIMUM_SIMILARITY, scores[i][1] - CHUNK_MINIMUM_MARGIN
-            ),
+            key=lambda i: min(own[i] - CHUNK_MINIMUM_SIMILARITY, margins[i] - CHUNK_MINIMUM_MARGIN),
         )
-        if (
-            scores[worst][0] >= CHUNK_MINIMUM_SIMILARITY
-            and scores[worst][1] >= CHUNK_MINIMUM_MARGIN
-        ):
+        if own[worst] >= CHUNK_MINIMUM_SIMILARITY and margins[worst] >= CHUNK_MINIMUM_MARGIN:
             break
         options = []
         for neighbour in (worst - 1, worst + 1):
@@ -392,9 +429,15 @@ def _refine(primary, secondary, p_texts, s_texts):
                 options.append((similarity(merged), a, b, merged))
         _, a, b, merged = max(options)
         groups[a : b + 1] = [merged]
+        p_units[a : b + 1] = [unit(primary, merged[0])]
+        s_units[a : b + 1] = [unit(secondary, merged[1])]
+        matrix = np.delete(np.delete(matrix, b, axis=0), b, axis=1)
+        matrix[a, :] = p_units[a] @ np.array(s_units).T
+        matrix[:, a] = np.array(p_units) @ s_units[a]
     if len(groups) == 1:
         return [(*groups[0], similarity(groups[0]), None)]
-    return [(g[0], g[1], similarity(g), margin(i)) for i, g in enumerate(groups)]
+    own, margins = scores()
+    return [(g[0], g[1], float(own[i]), float(margins[i])) for i, g in enumerate(groups)]
 
 
 def correspond(primary, secondary, model_name=None):

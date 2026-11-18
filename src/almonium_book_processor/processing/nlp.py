@@ -212,14 +212,18 @@ def embed_texts(
     if chunk_long:
         # Split original text, then re-tokenize every leaf, including special tokens.
         # No decoded-token round trip and no silent encoder truncation.
+        tokenizer = model.tokenizer
+        limit = model.max_seq_length
+        special = tokenizer.num_special_tokens_to_add()
         chunks, owners, weights = [], [], []
 
-        def collect(text, owner, depth=0):
-            ids = model.tokenizer(text, truncation=False, padding=False)["input_ids"]
-            if len(ids) <= model.max_seq_length:
+        def collect(text, owner, ids=None, depth=0):
+            if ids is None:
+                ids = tokenizer(text, truncation=False, padding=False)["input_ids"]
+            if len(ids) <= limit:
                 chunks.append(text)
                 owners.append(owner)
-                weights.append(max(1, len(ids) - model.tokenizer.num_special_tokens_to_add()))
+                weights.append(max(1, len(ids) - special))
                 return
             if depth >= 12 or len(text) < 2:
                 raise ValueError("Sentence exceeds embedding token limit")
@@ -230,21 +234,24 @@ def embed_texts(
                 if c.isspace() and len(text) // 4 <= i <= 3 * len(text) // 4
             ]
             split = min(spaces, key=lambda i: abs(i - middle)) + 1 if spaces else middle
-            collect(text[:split], owner, depth + 1)
-            collect(text[split:], owner, depth + 1)
+            collect(text[:split], owner, None, depth + 1)
+            collect(text[split:], owner, None, depth + 1)
 
-        for owner, text in enumerate(texts):
-            collect(text, owner)
+        # One batched call tokenizes every text; only the few too long for the encoder
+        # are split and their pieces tokenized one by one.
+        first = tokenizer(list(texts), truncation=False, padding=False)["input_ids"]
+        for owner, (text, ids) in enumerate(zip(texts, first, strict=True)):
+            collect(text, owner, ids)
         if not chunks:
             return []
-        encoded = _encode(model, chunks, model_name)
-        result = []
-        for owner in range(len(texts)):
-            parts = [(v, w) for v, w, o in zip(encoded, weights, owners, strict=True) if o == owner]
-            mean = [sum(float(v[d]) * w for v, w in parts) for d in range(len(parts[0][0]))]
-            norm = math.sqrt(sum(v * v for v in mean))
-            result.append([v / norm for v in mean] if norm else mean)
-        return result
+        encoded = np.asarray(_encode(model, chunks, model_name), dtype=float)
+        # Each text's pieces are consecutive: their token-weighted sum, normalized, is the
+        # text's vector. One reduction, not a scan of every piece for every text.
+        owner_ids = np.asarray(owners)
+        starts = np.flatnonzero(np.r_[True, owner_ids[1:] != owner_ids[:-1]])
+        sums = np.add.reduceat(encoded * np.asarray(weights, dtype=float)[:, None], starts, axis=0)
+        norms = np.linalg.norm(sums, axis=1, keepdims=True)
+        return (sums / np.where(norms, norms, 1.0)).tolist()
     if reject_truncation:
         tokens = model.tokenizer(texts, truncation=False, padding=False)["input_ids"]
         if any(len(ids) > model.max_seq_length for ids in tokens):
@@ -312,6 +319,60 @@ def _alignment_confidence(
     return 0.9 * semantic + 0.1 * length_prior
 
 
+def _confidence_table(
+    source: Any,
+    target: Any,
+    source_lengths: list[int] | None,
+    target_lengths: list[int] | None,
+) -> Any:
+    """_alignment_confidence for every window of one to three items, computed up front.
+
+    The dynamic programme asks for the confidence of every 1-3 source window against
+    every 1-3 target window. Each window's mean, normalized, is computed once, and the
+    cosines of all windows of two sizes are one matrix product, so a paragraph of a few
+    hundred chunks costs nine products instead of a Python mean and cosine per cell.
+    """
+
+    def unit_windows(vectors: Any) -> dict[int, Any]:
+        matrix = np.asarray(vectors, dtype=float)
+        sums = np.vstack([np.zeros((1, matrix.shape[1])), np.cumsum(matrix, axis=0)])
+        windows = {}
+        for size in (1, 2, 3):
+            if len(matrix) >= size:
+                means = (sums[size:] - sums[:-size]) / size
+                norms = np.linalg.norm(means, axis=1, keepdims=True)
+                windows[size] = means / np.where(norms, norms, 1.0)
+        return windows
+
+    source_windows, target_windows = unit_windows(source), unit_windows(target)
+    cosines = {
+        (source_size, target_size): np.maximum(
+            source_windows[source_size] @ target_windows[target_size].T, 0.0
+        )
+        for source_size in source_windows
+        for target_size in target_windows
+    }
+
+    def confidence(source_indices: tuple[int, ...], target_indices: tuple[int, ...]) -> float:
+        semantic = float(
+            cosines[(len(source_indices), len(target_indices))][
+                source_indices[0], target_indices[0]
+            ]
+        )
+        if source_lengths is None or target_lengths is None:
+            return semantic
+        source_length = sum(source_lengths[index] for index in source_indices)
+        target_length = sum(target_lengths[index] for index in target_indices)
+        length_prior = (
+            min(source_length, target_length) / max(source_length, target_length)
+            if source_length and target_length
+            else 0.0
+        )
+        return 0.9 * semantic + 0.1 * length_prior
+
+    return confidence
+
+
 def align_embeddings(
     source: list[list[float]],
     target: list[list[float]],
@@ -339,6 +400,7 @@ def align_embeddings(
     if target_lengths is not None and len(target_lengths) != len(target):
         raise ValueError("target_lengths must match the target vectors")
 
+    confidence_of = _confidence_table(source, target, source_lengths, target_lengths)
     best = [[float("-inf")] * (len(target) + 1) for _ in range(len(source) + 1)]
     decision = [["done"] * (len(target) + 1) for _ in range(len(source) + 1)]
     best[len(source)][len(target)] = 0.0
@@ -369,14 +431,7 @@ def align_embeddings(
                     continue
                 source_indices = tuple(range(source_index, next_source))
                 target_indices = tuple(range(target_index, next_target))
-                confidence = _alignment_confidence(
-                    source,
-                    target,
-                    source_lengths,
-                    target_lengths,
-                    source_indices,
-                    target_indices,
-                )
+                confidence = confidence_of(source_indices, target_indices)
                 if confidence >= minimum_confidence:
                     consumed = (source_count + target_count) / 2
                     choices.append(
@@ -409,14 +464,7 @@ def align_embeddings(
                 AlignmentCandidate(
                     source_indices,
                     target_indices,
-                    _alignment_confidence(
-                        source,
-                        target,
-                        source_lengths,
-                        target_lengths,
-                        source_indices,
-                        target_indices,
-                    ),
+                    confidence_of(source_indices, target_indices),
                 )
             )
             source_index += source_count
