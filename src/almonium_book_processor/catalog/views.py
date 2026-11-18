@@ -131,6 +131,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "meters": (meters := plan_meters()),
             "routing": plan_routing(meters),
             "guard": _guard_context(),
+            "budgets": _budgets_context(),
             "factory": _factory_context(),
         },
     )
@@ -148,6 +149,19 @@ def _factory_context() -> dict:
         "queue": queue,
         "paused_count": sum(row["paused"] for row in queue),
         "max": settings.FACTORY_MAX_PRODUCTIONS,
+    }
+
+
+def _budgets_context() -> dict:
+    """Each provider's month against its cap, for the dashboard's spending panel."""
+
+    from almonium_book_processor.catalog import budgets
+
+    lines = budgets.overview()
+    return {
+        "lines": lines,
+        "month": budgets.month_start(),
+        "reached": [line.name for line in lines if line.reached],
     }
 
 
@@ -2219,6 +2233,34 @@ def run_spend_guard_view(request: HttpRequest) -> HttpResponse:
     run_spend_guard.delay()
     messages.info(request, "The spend guard is reading the ledger; the line updates in a minute.")
     return redirect("catalog:dashboard")
+
+
+@staff_member_required
+@require_POST
+def set_budgets_view(request: HttpRequest) -> HttpResponse:
+    """The monthly caps from the dashboard's spending panel; an empty field is no cap."""
+
+    from decimal import Decimal, InvalidOperation
+
+    from almonium_book_processor.catalog import budgets
+
+    caps: dict[str, Decimal | None] = {}
+    for line in budgets.overview():
+        raw = (request.POST.get(f"cap-{line.provider}") or "").strip()
+        if raw == "":
+            caps[line.provider] = None
+            continue
+        try:
+            value = Decimal(raw)
+        except InvalidOperation:
+            value = Decimal("-1")
+        if value < 0 or not value.is_finite():
+            messages.error(request, f"{line.name}: a cap is an amount of dollars, 0 or more.")
+            return redirect(reverse("catalog:dashboard") + "#spending")
+        caps[line.provider] = value.quantize(Decimal("0.01"))
+    budgets.set_caps(caps)
+    messages.success(request, "Monthly caps saved; the next call is checked against them.")
+    return redirect(reverse("catalog:dashboard") + "#spending")
 
 
 @staff_member_required

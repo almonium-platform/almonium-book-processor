@@ -78,6 +78,10 @@ seams between them were not.
   add any new one with a test.
 - Never purge text that was paid for unless the owner asks or a copyright
   claim requires it; a dropped level is a verdict, a broken call is not.
+- Every paid call passes `catalog/budgets.check(provider)` first (the
+  adapters in `ai/` do it), so the owner's monthly cap per provider on the
+  dashboard holds the book (`BudgetReached`, an `AllowanceUsedUp`) instead of
+  spending past it. A new provider gets a line in `budgets.PROVIDERS`.
 - Before and after any change to how calls are keyed, judged, retried or
   re-queued, run `./plan-manage spend_guard` and read its numbers. Keep the
   dashboard's guard line green. A design that cannot be checked by that

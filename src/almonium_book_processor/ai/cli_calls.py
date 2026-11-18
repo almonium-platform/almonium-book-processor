@@ -32,6 +32,8 @@ _ALLOWANCE_USED_UP = re.compile(
 )
 # A run's error that holds this text was refused for a used-up allowance, not for its own fault.
 ALLOWANCE_USED_UP = "Allowance used up"
+# ... one that holds this text was refused by the owner's monthly cap on the provider ...
+BUDGET_REACHED = "Budget reached"
 # ... and one that holds this text could not reach the provider at all: the machine's network
 # was down, as it was on the evening of 25 October 2026 when every book burned its starts.
 NETWORK_DOWN = "Network unreachable"
@@ -69,6 +71,18 @@ class AllowanceUsedUp(CallFailed):
         super().__init__(f"{ALLOWANCE_USED_UP}: {message[:300]}", spent)
         found = _TRY_AGAIN.search(message)
         self.until = found.group(1).strip() if found else None
+
+
+class BudgetReached(AllowanceUsedUp):
+    """The owner's monthly cap on a provider is spent (``catalog/budgets.py``).
+
+    An ``AllowanceUsedUp``, so every job records it in full and every production waits on it
+    uncounted, as on a plan's wall; its message starts with ``BUDGET_REACHED`` instead.
+    """
+
+    def __init__(self, message: str, spent: dict[str, Any] | None = None) -> None:
+        CallFailed.__init__(self, f"{BUDGET_REACHED}: {message[:300]}", spent)
+        self.until = None
 
 
 class NetworkDown(CallFailed):

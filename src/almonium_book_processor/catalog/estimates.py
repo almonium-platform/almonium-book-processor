@@ -479,7 +479,7 @@ def offline_alignment(chars: int, model: str) -> Estimate | None:
 
     from django.conf import settings
 
-    from almonium_book_processor.catalog import modal_budget
+    from almonium_book_processor.catalog import budgets
     from almonium_book_processor.processing import remote_embeddings
 
     if settings.NLP_EMBEDDING_BACKEND != "modal" or chars <= 0:
@@ -490,15 +490,15 @@ def offline_alignment(chars: int, model: str) -> Estimate | None:
         usd = remote_embeddings.cost_usd(seconds, containers=1)
     except remote_embeddings.RemoteEmbeddingError as error:
         return unavailable(str(error))
-    if not modal_budget.allows(usd):
+    if not budgets.allows("modal", usd):
         return None
     return Estimate(
         usd,
         f"About {math.ceil(seconds)} s on a Modal GPU ({', '.join(remote_embeddings.gpus())}, "
         "priced at the dearest), plus a "
         "container's start and idle minute, from the free monthly credits "
-        f"(${modal_budget.spent_this_month():.2f} of "
-        f"${settings.MODAL_MONTHLY_BUDGET_USD:.2f} used). Blocks embedded before are "
+        f"(${budgets.spent('modal'):.2f} of ${budgets.cap('modal'):.2f} used). "
+        "Blocks embedded before are "
         "reused for free.",
         action="Align these sentences on Modal",
     )

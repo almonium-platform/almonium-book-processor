@@ -42,6 +42,7 @@ from django.utils.dateparse import parse_datetime
 
 from almonium_book_processor.ai.cli_calls import (
     ALLOWANCE_USED_UP,
+    BUDGET_REACHED,
     NETWORK_DOWN,
     AllowanceUsedUp,
     NetworkDown,
@@ -66,7 +67,15 @@ QUEUED_TIMEOUT = timedelta(hours=12)
 # How long a book waits after a plan refused one of its jobs before the job is started again.
 REFUSAL_RETRY = timedelta(minutes=30)
 # The words a refused job's error starts with: its message, or its type where only that was kept.
-REFUSALS = (ALLOWANCE_USED_UP, NETWORK_DOWN, "AllowanceUsedUp", "NetworkDown")
+# The owner's monthly cap on a provider (catalog/budgets.py) holds like a plan's wall.
+REFUSALS = (
+    ALLOWANCE_USED_UP,
+    BUDGET_REACHED,
+    NETWORK_DOWN,
+    "AllowanceUsedUp",
+    "BudgetReached",
+    "NetworkDown",
+)
 # How often one thing is started before the book is held: the first time and once more.
 STARTS = 2
 # How often corrections are applied and the changed chapters audited again. Each round
@@ -171,12 +180,13 @@ def queue_production(
 CIRCUMSTANTIAL_HOLDS = (
     "was started",
     ALLOWANCE_USED_UP,
+    BUDGET_REACHED,
     NETWORK_DOWN,
     "Left behind",
     "Nothing finished",
 )
 # The holds the meter's timer lifts by itself once a provider answers again.
-PROVIDER_HOLDS = (ALLOWANCE_USED_UP, NETWORK_DOWN)
+PROVIDER_HOLDS = (ALLOWANCE_USED_UP, BUDGET_REACHED, NETWORK_DOWN)
 
 
 def requeue_held(

@@ -10,7 +10,7 @@ the setting is ignored and the worker embeds on its own CPU.
 
 Modal bills GPU seconds against the free monthly credits: every call adds to a process meter
 that a run reads before and after its work and records, so the spend is on the run and not
-only on Modal's invoice (catalog/modal_budget.py keeps it inside the credits).
+only on Modal's invoice (catalog/budgets.py keeps it inside the credits).
 """
 
 from __future__ import annotations

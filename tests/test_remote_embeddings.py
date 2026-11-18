@@ -159,7 +159,7 @@ def _modal_run(edition, key, usd, *, status=PipelineRun.Status.SUCCEEDED):
 
 @pytest.mark.django_db
 def test_past_the_monthly_budget_a_run_embeds_free_on_the_cpu(settings):
-    from almonium_book_processor.catalog import modal_budget
+    from almonium_book_processor.catalog import budgets
 
     settings.NLP_EMBEDDING_BACKEND = "modal"
     settings.MODAL_EMBEDDING_GPUS = ["L4", "A10"]
@@ -168,12 +168,12 @@ def test_past_the_monthly_budget_a_run_embeds_free_on_the_cpu(settings):
     edition = Edition.objects.create(work=work, slug="b-en", language="en", status="ready")
     last_month = _modal_run(edition, "last-month", "5.0000")
     PipelineRun.objects.filter(pk=last_month.pk).update(
-        updated_at=modal_budget.month_start() - timedelta(seconds=1)
+        updated_at=budgets.month_start() - timedelta(seconds=1)
     )
     _modal_run(edition, "this-month", "0.9900")
-    assert modal_budget.spent_this_month() == Decimal("0.99")
-    assert modal_budget.allows(Decimal("0.01"))
-    assert not modal_budget.allows(Decimal("0.02"))
+    assert budgets.spent("modal") == Decimal("0.99")
+    assert budgets.allows("modal", Decimal("0.01"))
+    assert not budgets.allows("modal", Decimal("0.02"))
     assert estimates.offline_alignment(1_000_000, "sentence-transformers/LaBSE") is None
     settings.MODAL_MONTHLY_BUDGET_USD = 25.0
     assert "$0.99 of $25.00 used" in estimates.offline_alignment(1_000, "m").note

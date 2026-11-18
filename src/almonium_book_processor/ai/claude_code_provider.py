@@ -220,6 +220,9 @@ class ClaudeCodeProvider:
         none left the call raises ``AllowanceUsedUp``, which holds the book without a start.
         """
 
+        from almonium_book_processor.catalog import budgets
+
+        budgets.check("claude-code")  # the owner's monthly cap, before any account is asked
         return on_open_account(
             "Claude",
             self.accounts(),

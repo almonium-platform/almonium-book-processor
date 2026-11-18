@@ -21,3 +21,16 @@ def no_remembered_vectors():
     sentence_correspondence._vectors.clear()
     yield
     sentence_correspondence._vectors.clear()
+
+
+@pytest.fixture(autouse=True)
+def no_budget_check_without_a_database(request, monkeypatch):
+    """A provider's unit test has no database to read caps from; a database test checks them."""
+
+    if request.node.get_closest_marker("django_db") or {"db", "transactional_db"} & set(
+        request.fixturenames
+    ):
+        return
+    from almonium_book_processor.catalog import budgets
+
+    monkeypatch.setattr(budgets, "check", lambda *args, **kwargs: None)

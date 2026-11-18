@@ -108,6 +108,22 @@
     <span title="The ledger read for money paid twice: identical requests, twin editions, windows re-asked, paid text purged. The host runs it daily.">Spend guard{% if guard %} · {{ guard.report.created_at|timesince }} ago · {{ guard.line }}{% else %} · not run yet{% endif %}</span>
     <form method="post" action="{% url 'catalog:run-spend-guard' %}">{% csrf_token %}<button class="button button-small button-secondary" type="submit">Run now</button></form>
   </div>
+  <details class="book-queue spending" id="spending"{% if budgets.reached %} open{% endif %}>
+    <summary class="book-queue-head">
+      <strong>Spending · {{ budgets.month|date:"F" }}</strong>
+      <span class="book-queue-tick">{% for line in budgets.lines %}{{ line.name }} {{ line.spent|usd }}{% if line.cap is not None %} of {{ line.cap|usd }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+      {% if budgets.reached %}<span class="status status-failed">Cap reached · {{ budgets.reached|join:", " }}</span>{% endif %}
+    </summary>
+    <form method="post" action="{% url 'catalog:set-budgets' %}">{% csrf_token %}
+      {% for line in budgets.lines %}<div class="book-queue-row spending-row">
+        <span>{{ line.name }}<small class="muted"> · {% if line.metered %}billed in dollars{% else %}plan, valued at API prices{% endif %}</small></span>
+        <span class="spending-spent{% if line.reached %} is-reached{% endif %}">{{ line.spent|usd }}{% if line.cap is not None %} of {{ line.cap|usd }}{% endif %}</span>
+        {% if line.share is not None %}<span class="spending-meter" aria-hidden="true"><span class="spending-meter-fill{% if line.reached %} is-reached{% endif %}" style="width: {{ line.share }}%"></span></span>{% else %}<span class="muted spending-nocap">no cap</span>{% endif %}
+        <label class="spending-cap"><span>cap $</span><input type="number" name="cap-{{ line.provider }}" min="0" step="0.01" value="{{ line.cap|default_if_none:'' }}" placeholder="none" aria-label="{{ line.name }} monthly cap in dollars"></label>
+      </div>{% endfor %}
+      <div class="book-queue-actions"><button class="button button-small" type="submit">Save caps</button><small class="muted">A provider at its cap is not asked again this month: its books wait, uncounted, and go on once the cap is raised or the month turns. Modal falls back to the worker's CPU instead. An empty cap is none.</small></div>
+    </form>
+  </details>
   {% if factory.enabled or factory.queue %}
   <details class="book-queue">
     <summary class="book-queue-head">

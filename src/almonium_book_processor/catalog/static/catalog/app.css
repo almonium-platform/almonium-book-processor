@@ -851,6 +851,19 @@ span.toolbar-step { color: var(--line); background: transparent; }
 /* The spend guard's line: quiet when clean, red when anything was paid twice. */
 .spend-guard { color: var(--muted, #6b7280); }
 .spend-guard-waste { color: var(--danger, #b91c1c); font-weight: 600; }
+.spending-spent { font-variant-numeric: tabular-nums; color: var(--ink); }
+.spending-spent.is-reached { color: var(--red); font-weight: 600; }
+.spending-meter { display: block; height: 6px; border-radius: 3px; background: #ede4d6; overflow: hidden; }
+.spending-meter-fill { display: block; height: 100%; background: var(--accent); }
+.spending-meter-fill.is-reached { background: var(--red); }
+.spending-cap { display: inline-flex; align-items: center; gap: .3rem; color: var(--muted); white-space: nowrap; }
+.spending-cap input { width: 7.5rem; height: 30px; padding: 0 .5rem; border: 1px solid var(--line); border-radius: 8px; background: #fff; font: inherit; text-align: right; }
+@media (max-width: 700px) {
+  .spending-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .spending-meter { grid-column: 1 / -1; }
+  .spending-nocap { display: none; }
+  .spending-cap { grid-column: 1 / -1; justify-self: end; }
+}
 .book-queue { margin: .9rem 0; background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; font-size: .82rem; }
 .book-queue-head { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; padding: .7rem 1rem; cursor: pointer; list-style: none; }
 .book-queue-head::-webkit-details-marker { display: none; }

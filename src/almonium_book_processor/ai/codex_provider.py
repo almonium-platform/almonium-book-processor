@@ -193,6 +193,9 @@ class CodexProvider:
         is still read from that account's own probe (``codex_meter``).
         """
 
+        from almonium_book_processor.catalog import budgets
+
+        budgets.check("codex")  # the owner's monthly cap, before any account is asked
         return on_open_account(
             "Codex",
             self.accounts(),

@@ -13,6 +13,14 @@ from django.conf import settings
 DIRECT_TIMEOUT_SECONDS = 1800.0
 
 
+def _within_budget() -> None:
+    """Refuse before the request leaves once the owner's monthly cap is spent."""
+
+    from almonium_book_processor.catalog import budgets
+
+    budgets.check("openai")
+
+
 class OpenAIBatchProvider:
     """Small provider boundary around the OpenAI Batch API."""
 
@@ -37,6 +45,7 @@ class OpenAIBatchProvider:
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
     def submit(self, requests: Iterable[dict[str, Any]], *, metadata: dict[str, str]) -> Any:
+        _within_budget()
         temporary_path: Path | None = None
         try:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as stream:
@@ -102,6 +111,7 @@ class OpenAIBatchProvider:
         # The SDK would retry a slow or 5xx request twice on its own, and a generation the
         # server finished is billed each time: one request, one bill. Connection errors
         # before the request is sent are the caller's to retry.
+        _within_budget()
         client = self.client.with_options(max_retries=0, timeout=DIRECT_TIMEOUT_SECONDS)
         response = client.responses.create(**body)
         return response.model_dump()

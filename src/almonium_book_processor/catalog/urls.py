@@ -270,6 +270,7 @@ urlpatterns = [
     ),
     path("promote-behind/", views.promote_behind_view, name="promote-behind"),
     path("spend-guard/run/", views.run_spend_guard_view, name="run-spend-guard"),
+    path("spending/caps/", views.set_budgets_view, name="set-budgets"),
     path("plan-accounts/pause/", views.plan_account_pause_view, name="plan-account-pause"),
     path("plan-accounts/details/", views.plan_account_details_view, name="plan-account-details"),
     path("plan-accounts/routing/", views.plan_routing_view, name="plan-routing"),

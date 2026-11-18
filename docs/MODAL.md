@@ -19,7 +19,7 @@ after a call returns.
 Nothing, by design: Modal is used only inside the Starter plan's free $30 of monthly
 credits. Modal bills GPU seconds (an L4 is $0.000222/s) plus the container's start and its
 idle minute after the last call, so a whole book is cents of credit. Before a run starts on
-Modal, `catalog/modal_budget.py` adds this month's recorded spend to the run's estimate; a
+Modal, `catalog/budgets.py` adds this month's recorded spend to the run's estimate; a
 run that would pass `MODAL_MONTHLY_BUDGET_USD` (25, under the credits because recorded cost
 is an estimate) embeds on the worker's CPU instead, free and never held.
 

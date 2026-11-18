@@ -1192,6 +1192,20 @@ class SourceShape(TimestampedModel):
         return f"{self.title or self.source_url}: {self.verdict}"
 
 
+class ProviderBudget(TimestampedModel):
+    """The owner's monthly cap on one provider's spend (``catalog/budgets.py``).
+
+    No row is no cap, except Modal's, which defaults to MODAL_MONTHLY_BUDGET_USD; a row with
+    no amount lifts it.
+    """
+
+    provider = models.CharField(max_length=50, primary_key=True)
+    monthly_usd = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f"{self.provider}: {self.monthly_usd}"
+
+
 class SpendGuardReport(TimestampedModel):
     """One run of the spend guard (``catalog/spend_guard.py``): where money went twice.
 

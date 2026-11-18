@@ -223,7 +223,8 @@ MODAL_EMBEDDING_GPUS = [
     gpu.strip() for gpu in os.getenv("MODAL_EMBEDDING_GPUS", "L4,A10,L40S").split(",") if gpu
 ]
 # Modal runs only inside the free monthly credits ($30 on Starter): past this recorded spend
-# in a calendar month a run embeds on the worker's CPU instead (catalog/modal_budget.py).
+# in a calendar month a run embeds on the worker's CPU instead (catalog/budgets.py; a cap
+# set on the dashboard replaces this default).
 MODAL_MONTHLY_BUDGET_USD = float(os.getenv("MODAL_MONTHLY_BUDGET_USD", "25"))
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
