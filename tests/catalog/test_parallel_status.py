@@ -27,7 +27,14 @@ from almonium_book_processor.catalog.tasks import refresh_edition_after_revision
 
 pytestmark = pytest.mark.django_db
 
-VECTORS = [[1, 0], [0, 1], [1, 0], [0, 1]]
+
+def fake_embed(texts, **_):
+    """First sentence of a block one way, second the other; as many vectors as asked for,
+    since texts the worker already embedded are not asked for again."""
+
+    return [[1, 0] if index % 2 == 0 else [0, 1] for index in range(len(texts))]
+
+
 EMBED = "almonium_book_processor.processing.sentence_correspondence.embed_texts"
 
 
@@ -86,7 +93,7 @@ def tree():
 
 
 def align(primary, secondary, model=None):
-    with patch(EMBED, return_value=VECTORS):
+    with patch(EMBED, side_effect=fake_embed):
         run = queue_alignment(primary.id, secondary.id, model=model)
         run_alignment(run.id)
     run.refresh_from_db()
@@ -153,7 +160,7 @@ def test_revision_refresh_requeues_only_pairs_that_were_aligned(tree):
     assert not PipelineRun.objects.filter(summary__secondary_id=str(original.id)).exists()
 
     # Running the queued job embeds only the changed block.
-    with patch(EMBED, return_value=VECTORS) as encode:
+    with patch(EMBED, side_effect=fake_embed) as encode:
         run_alignment(run.id)
     assert encode.call_count == 1
     assert pair_status(adapted, ukrainian)["state"] == "current"
@@ -188,7 +195,7 @@ def test_reverted_text_serves_the_succeeded_run_again(tree):
     revise(adapted, block, "Hello! Again.")
     assert pair_status(adapted, ukrainian)["state"] == "stale"
 
-    with patch(EMBED, return_value=VECTORS) as encode:
+    with patch(EMBED, side_effect=fake_embed) as encode:
         run = queue_alignment(adapted.id, ukrainian.id)
         assert run.id == first.id
         assert run.status == PipelineRun.Status.QUEUED

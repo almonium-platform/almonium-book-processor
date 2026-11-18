@@ -1,3 +1,4 @@
+import uuid
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -9,10 +10,19 @@ from almonium_book_processor.catalog.offline_sentence_alignment import (
     run_alignment,
 )
 from almonium_book_processor.catalog.parallel_content import inherited_payload
+from almonium_book_processor.processing import sentence_correspondence
 from almonium_book_processor.processing.sentence_correspondence import _cover_groups, correspond
 from tests.catalog.test_sentence_alignment import pair  # noqa: F401
 
 pytestmark = pytest.mark.django_db
+
+HELLO = {"Hello.": [1, 0], "Hello!": [1, 0], "Again.": [0, 1]}
+
+
+def hello(texts, **_):
+    """The pair fixture's sentences by text: a run asks for each distinct text once."""
+
+    return [HELLO[text.strip()] for text in texts]
 
 
 def test_offline_job_caches_inverts_and_keeps_review_status(pair, monkeypatch):  # noqa: F811
@@ -21,7 +31,7 @@ def test_offline_job_caches_inverts_and_keeps_review_status(pair, monkeypatch): 
     s.save()
     with patch(
         "almonium_book_processor.processing.sentence_correspondence.embed_texts",
-        return_value=[[1, 0], [0, 1], [1, 0], [0, 1]],
+        side_effect=hello,
     ) as encode:
         run = queue_alignment(p.id, s.id)
         run_alignment(run.id)
@@ -90,6 +100,7 @@ def test_one_to_three_and_oversized_fallback():
         payload = correspond(p, s)
     assert payload["groups"][0]["primary"] == [0]
     assert payload["groups"][0]["secondary"] == [0, 1, 2]
+    sentence_correspondence._vectors.clear()  # the model's failure, not a remembered answer
     with patch(
         "almonium_book_processor.processing.sentence_correspondence.embed_texts",
         side_effect=ValueError("Sentence exceeds embedding token limit"),
@@ -121,6 +132,7 @@ def test_distinct_lower_score_matches_highlight_but_ambiguous_ones_do_not(pair):
         payload = correspond(p.blocks.get(), s.blocks.get())
     assert all(g["certain"] for g in payload["groups"])
     assert all(g["acceptance"] == "reciprocal_margin" for g in payload["groups"])
+    sentence_correspondence._vectors.clear()  # a second, hypothetical model of the same text
     with patch(
         "almonium_book_processor.processing.sentence_correspondence.embed_texts",
         return_value=[[1, 0], [1, 0], [0.79, 0.613], [0.79, 0.613]],
@@ -316,7 +328,7 @@ def test_paragraph_view_tints_each_group_alike_on_both_sides(client, pair):  # n
     p, s = pair
     with patch(
         "almonium_book_processor.processing.sentence_correspondence.embed_texts",
-        return_value=[[1, 0], [0, 1], [1, 0], [0, 1]],
+        side_effect=hello,
     ):
         run_alignment(queue_alignment(p.id, s.id).id)
     client.force_login(get_user_model().objects.create_user(username="tints", is_staff=True))
@@ -362,3 +374,66 @@ def test_chunks_find_partners_across_a_sentence_boundary_the_languages_draw_apar
         ([1], [1], True),
         ([2], [2], True),
     ]
+
+
+def test_a_run_embeds_its_paragraphs_ahead_in_one_call_and_records_how(pair):  # noqa: F811
+    from almonium_book_processor.catalog.models import ContentBlock
+
+    p, s = pair
+    for edition in (p, s):
+        chapter = edition.chapters.get()
+        for number, text in ((2, "Hello. Again."), (3, "Hello. Again.")):
+            ContentBlock.objects.create(
+                edition=edition,
+                chapter=chapter,
+                block_id=f"c11.p{number}",
+                sequence=number,
+                align_group=uuid.uuid5(uuid.NAMESPACE_URL, f"group-{number}"),
+                text=text if edition == p else text.replace(".", "!", 1),
+                sentences=[{"start": 0, "end": 6}, {"start": 7, "end": 13}],
+            )
+    with patch(
+        "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+        side_effect=hello,
+    ) as encode:
+        run = queue_alignment(p.id, s.id)
+        run_alignment(run.id)
+    # Three paragraph pairs, one call: each distinct text asked for once.
+    assert encode.call_count == 1
+    assert sorted(encode.call_args.args[0]) == ["Again.", "Hello!", "Hello."]
+    run.refresh_from_db()
+    assert run.status == PipelineRun.Status.SUCCEEDED
+    assert set(run.summary["embedding"]) == {"device", "precision"}
+    block = inherited_payload(p, s)["blocks"][0]
+    assert block["sentence_alignment"]
+
+
+def test_a_second_companion_reuses_the_original_the_worker_already_embedded(pair):  # noqa: F811
+    from almonium_book_processor.catalog.models import Chapter, ContentBlock, Edition
+
+    p, s = pair
+    other = Edition.objects.create(
+        work=p.work,
+        slug="other",
+        language="en",
+        source_edition=p,
+        parallel_role="parallel",
+        status="published",
+    )
+    source = p.blocks.get()
+    ContentBlock.objects.create(
+        edition=other,
+        chapter=Chapter.objects.create(edition=other, sequence=11, title="V"),
+        block_id="c11.p1",
+        sequence=1,
+        align_group=source.align_group,
+        text="Hello? Again.",
+        sentences=[{"start": 0, "end": 6}, {"start": 7, "end": 13}],
+    )
+    with patch(
+        "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+        side_effect=lambda texts, **_: [HELLO.get(t.strip(), [1, 0]) for t in texts],
+    ) as encode:
+        run_alignment(queue_alignment(p.id, s.id).id)
+        run_alignment(queue_alignment(p.id, other.id).id)
+    assert encode.call_args_list[1].args[0] == ["Hello?"]

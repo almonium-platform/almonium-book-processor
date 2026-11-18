@@ -1,12 +1,15 @@
 """Bounded offline correspondence within an already aligned paragraph pair."""
 
 import re
+from collections import OrderedDict
 
 import numpy as np
+from django.conf import settings
 
 from almonium_book_processor.processing.nlp import (
     align_embeddings,
     embed_texts,
+    embedding_runtime,
 )
 
 VERSION = "offline-sentence-v9"
@@ -89,19 +92,82 @@ def sentence_texts(block):
     return result
 
 
+# Vectors this worker has computed, newest last, keyed by model, precision and text. An
+# original paired with several companions is embedded once, and a run embeds ahead in
+# large calls (prefetch) instead of one small call per paragraph pair.
+_vectors: OrderedDict[tuple[str, str, str], np.ndarray] = OrderedDict()
+
+
+def _key(model_name, text):
+    return (
+        model_name or settings.NLP_EMBEDDING_MODEL,
+        embedding_runtime().precision,
+        text.strip(),
+    )
+
+
+def _normalized(texts, model_name):
+    vectors = np.asarray(embed_texts(texts, chunk_long=True, model_name=model_name), float)
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    return vectors / np.where(norms, norms, 1)
+
+
+def _remember(key, vector):
+    _vectors[key] = vector
+    _vectors.move_to_end(key)
+    while len(_vectors) > max(settings.NLP_EMBEDDING_CACHE_TEXTS, 0):
+        _vectors.popitem(last=False)
+
+
+def prefetch(texts, model_name=None):
+    """Embed every text not yet known, in calls of NLP_EMBEDDING_PREFETCH_TEXTS."""
+
+    missing = list(
+        dict.fromkeys(t.strip() for t in texts if t.strip() and _key(model_name, t) not in _vectors)
+    )
+    size = max(settings.NLP_EMBEDDING_PREFETCH_TEXTS, 1)
+    for start in range(0, len(missing), size):
+        window = missing[start : start + size]
+        for text, vector in zip(window, _normalized(window, model_name), strict=True):
+            _remember(_key(model_name, text), vector)
+
+
+def pair_texts(primary, secondary):
+    """Every text correspond() may embed for this paragraph pair."""
+
+    if primary.text == secondary.text:
+        return []
+    texts = []
+    for block in (primary, secondary):
+        try:
+            texts += sentence_texts(block)
+            texts += [block.text[c["start"] : c["end"]] for s in clause_spans(block) for c in s]
+        except ValueError:  # correspond() reports invalid offsets itself
+            continue
+    return texts
+
+
 def _embed(texts, model_name, cache):
-    """Embed a text once per paragraph pair: a sentence that is its own single chunk
-    comes back from the cache, and LaBSE is most of the job's time."""
+    """Vectors for texts: from this pair's own memo, then the worker's, then the model.
+
+    Texts embedded in one call come back by position, so two equal strings in one call
+    get the model's answer for each.
+    """
 
     keys = [t.strip() for t in texts]
-    known = dict(cache)
+    known = {}
+    for key in keys:
+        if key in cache:
+            known[key] = cache[key]
+        elif (shared := _vectors.get(_key(model_name, key))) is not None:
+            known[key] = shared
     missing = [k for k in keys if k not in known]
     fresh = iter(())
     if missing:
-        vectors = np.asarray(embed_texts(missing, chunk_long=True, model_name=model_name), float)
-        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-        vectors = vectors / np.where(norms, norms, 1)
-        cache.update(zip(missing, vectors, strict=True))
+        vectors = _normalized(missing, model_name)
+        for key, vector in zip(missing, vectors, strict=True):
+            cache[key] = vector
+            _remember(_key(model_name, key), vector)
         fresh = iter(vectors)
     return (
         np.array([known[k] if k in known else next(fresh) for k in keys])

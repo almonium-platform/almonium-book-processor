@@ -10,3 +10,14 @@ def no_resting_plan_accounts():
     cli_calls._resting_until.clear()
     yield
     cli_calls._resting_until.clear()
+
+
+@pytest.fixture(autouse=True)
+def no_remembered_vectors():
+    """Fake embeddings from one test must not answer for the same text in the next."""
+
+    from almonium_book_processor.processing import sentence_correspondence
+
+    sentence_correspondence._vectors.clear()
+    yield
+    sentence_correspondence._vectors.clear()

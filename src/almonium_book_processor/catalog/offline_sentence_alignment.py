@@ -16,7 +16,13 @@ from almonium_book_processor.catalog.models import (
     Work,
 )
 from almonium_book_processor.catalog.parallel_content import inherited_pairs, pair_hash
-from almonium_book_processor.processing.sentence_correspondence import VERSION, correspond
+from almonium_book_processor.processing.nlp import embedding_runtime
+from almonium_book_processor.processing.sentence_correspondence import (
+    VERSION,
+    correspond,
+    pair_texts,
+    prefetch,
+)
 
 
 def available_models():
@@ -122,8 +128,29 @@ def run_alignment(run_id):
         highlighted = fallback = 0
         fallback_reasons = Counter()
         uncertain_groups = unmatched_sentences = 0
+        digests = [pair_hash(p, s) for p, s in pairs]
+        done = set(
+            EditionArtifact.objects.filter(
+                edition_id=run.edition_id,
+                kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,
+                processor_version=run.processor_version,
+                input_hash__in=digests,
+            ).values_list("input_hash", flat=True)
+        )
+        runtime = embedding_runtime().as_record()
+        ahead = 0
         for index, (primary, secondary) in enumerate(pairs):
-            digest = pair_hash(primary, secondary)
+            digest = digests[index]
+            if index >= ahead:
+                # Embed the next stretch of unaligned pairs in large calls; one small call
+                # per paragraph pair leaves most of the model's throughput unused.
+                texts = []
+                ahead = index
+                while ahead < len(pairs) and len(texts) < settings.NLP_EMBEDDING_PREFETCH_TEXTS:
+                    if digests[ahead] not in done:
+                        texts += pair_texts(*pairs[ahead])
+                    ahead += 1
+                prefetch(texts, model_name=model)
             cached = EditionArtifact.objects.filter(
                 edition_id=run.edition_id,
                 kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,
@@ -136,6 +163,7 @@ def run_alignment(run_id):
                 else {
                     **correspond(primary, secondary, model_name=model),
                     "model": model,
+                    "embedding": runtime,
                 }
             )
             for side, block in (("primary", primary), ("secondary", secondary)):
@@ -211,6 +239,7 @@ def run_alignment(run_id):
                 "fallback_reasons": dict(fallback_reasons),
                 "uncertain_groups": uncertain_groups,
                 "unmatched_sentences": unmatched_sentences,
+                "embedding": runtime,
             },
         )
     except Exception as error:

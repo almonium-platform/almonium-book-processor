@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 import math
 from dataclasses import dataclass
@@ -61,13 +62,116 @@ def split_sentences(text: str, language: str) -> list[str]:
     return [sentence.text.strip() for sentence in document.sents if sentence.text.strip()]
 
 
+@dataclass(frozen=True, slots=True)
+class EmbeddingRuntime:
+    """Where and how embeddings are computed; recorded beside what they produce."""
+
+    device: str
+    precision: str
+    batch_size: int
+
+    def as_record(self) -> dict[str, str]:
+        return {"device": self.device, "precision": self.precision}
+
+
+def _cpu_has_native_bf16(torch: Any) -> bool:
+    """bf16 is only faster where the CPU multiplies in it; elsewhere it is emulated and slower."""
+
+    import platform
+
+    machine = platform.machine().lower()
+    if machine in {"x86_64", "amd64"}:
+        cpu = getattr(torch, "cpu", None)
+        checks = ("_is_avx512_bf16_supported", "_is_amx_tile_supported")
+        return any(bool(getattr(cpu, name, lambda: False)()) for name in checks)
+    if machine in {"aarch64", "arm64"}:
+        try:
+            with open("/proc/cpuinfo", encoding="utf-8") as cpuinfo:
+                return any(
+                    line.lower().startswith("features") and " bf16" in f" {line.lower()}"
+                    for line in cpuinfo
+                )
+        except OSError:
+            return False
+    return False
+
+
+def _resolve_runtime(torch: Any, device: str, precision: str, batch_size: int) -> EmbeddingRuntime:
+    if device == "auto":
+        mps = getattr(torch.backends, "mps", None)
+        if torch.cuda.is_available():
+            device = "cuda"
+        elif mps is not None and mps.is_available():
+            device = "mps"
+        else:
+            device = "cpu"
+    if precision == "auto":
+        if device == "cuda":
+            precision = "bf16" if torch.cuda.is_bf16_supported() else "fp16"
+        elif device == "cpu" and _cpu_has_native_bf16(torch):
+            precision = "bf16"
+        else:
+            precision = "fp32"
+    if precision not in {"fp32", "bf16", "fp16"}:
+        raise ValueError(f"Unknown embedding precision {precision!r}")
+    return EmbeddingRuntime(device, precision, batch_size or (32 if device == "cpu" else 128))
+
+
+@lru_cache(maxsize=1)
+def embedding_runtime() -> EmbeddingRuntime:
+    """The device, precision and batch size this process embeds with, decided once."""
+
+    try:
+        import torch
+    except ImportError:  # no worker extra: nothing can embed, and nothing reduces precision
+        return EmbeddingRuntime("cpu", "fp32", settings.NLP_EMBEDDING_BATCH_SIZE or 32)
+    if settings.NLP_EMBEDDING_THREADS:
+        torch.set_num_threads(settings.NLP_EMBEDDING_THREADS)
+    runtime = _resolve_runtime(
+        torch,
+        settings.NLP_EMBEDDING_DEVICE,
+        settings.NLP_EMBEDDING_PRECISION,
+        settings.NLP_EMBEDDING_BATCH_SIZE,
+    )
+    logger.info(
+        "Embeddings on %s in %s, batches of %s, %s torch threads",
+        runtime.device,
+        runtime.precision,
+        runtime.batch_size,
+        torch.get_num_threads(),
+    )
+    return runtime
+
+
 @lru_cache(maxsize=2)
 def _embedding_model(model_name: str) -> Any:
     try:
         from sentence_transformers import SentenceTransformer
     except ImportError as error:
         raise RuntimeError("Install the worker dependency group to compute embeddings") from error
-    return SentenceTransformer(model_name)
+    return SentenceTransformer(model_name, device=embedding_runtime().device)
+
+
+def _encode(model: Any, texts: list[str]) -> np.ndarray:
+    """The model's forward pass in the runtime's precision; vectors come back as float32."""
+
+    if not texts:
+        return np.zeros((0, 0), dtype=np.float32)
+    runtime = embedding_runtime()
+    context = contextlib.nullcontext()
+    if runtime.precision != "fp32":
+        import torch
+
+        dtype = torch.bfloat16 if runtime.precision == "bf16" else torch.float16
+        context = torch.autocast(device_type=runtime.device, dtype=dtype)
+    with context:
+        vectors = model.encode(
+            texts,
+            batch_size=runtime.batch_size,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+    return np.asarray(vectors, dtype=np.float32)
 
 
 def embed_texts(
@@ -108,7 +212,7 @@ def embed_texts(
             collect(text, owner)
         if not chunks:
             return []
-        encoded = model.encode(chunks, normalize_embeddings=True, show_progress_bar=False)
+        encoded = _encode(model, chunks)
         result = []
         for owner in range(len(texts)):
             parts = [(v, w) for v, w, o in zip(encoded, weights, owners, strict=True) if o == owner]
@@ -120,12 +224,7 @@ def embed_texts(
         tokens = model.tokenizer(texts, truncation=False, padding=False)["input_ids"]
         if any(len(ids) > model.max_seq_length for ids in tokens):
             raise ValueError("Sentence exceeds embedding token limit")
-    vectors = model.encode(
-        texts,
-        normalize_embeddings=True,
-        show_progress_bar=False,
-    )
-    return [vector.tolist() for vector in vectors]
+    return [vector.tolist() for vector in _encode(model, texts)]
 
 
 def _cosine(left, right) -> float:

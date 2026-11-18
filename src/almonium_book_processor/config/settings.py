@@ -188,6 +188,21 @@ NLP_EMBEDDING_MODEL = os.getenv(
     "NLP_EMBEDDING_MODEL",
     "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
 )
+# How embeddings are computed. "auto" decides from the hardware the worker finds at start:
+# a GPU when one is visible, and a reduced precision only where the hardware does it
+# natively (bf16 on a CPU with avx512_bf16/AMX or Arm bf16; fp16 or bf16 on a GPU). Set
+# a value to override: device cpu|cuda|mps, precision fp32|bf16|fp16.
+NLP_EMBEDDING_DEVICE = os.getenv("NLP_EMBEDDING_DEVICE", "auto")
+NLP_EMBEDDING_PRECISION = os.getenv("NLP_EMBEDDING_PRECISION", "auto")
+# Texts per forward batch; 0 picks 32 on a CPU (measured best) and 128 on a GPU.
+NLP_EMBEDDING_BATCH_SIZE = int(os.getenv("NLP_EMBEDDING_BATCH_SIZE", "0"))
+# Torch threads; 0 keeps torch's default, which is the physical core count.
+NLP_EMBEDDING_THREADS = int(os.getenv("NLP_EMBEDDING_THREADS", "0"))
+# Sentence alignment embeds this many texts ahead in one call instead of one call per
+# paragraph pair, and keeps up to NLP_EMBEDDING_CACHE_TEXTS vectors in the worker so an
+# original paired with several companions is embedded once (about 3 KB a text).
+NLP_EMBEDDING_PREFETCH_TEXTS = int(os.getenv("NLP_EMBEDDING_PREFETCH_TEXTS", "2048"))
+NLP_EMBEDDING_CACHE_TEXTS = int(os.getenv("NLP_EMBEDDING_CACHE_TEXTS", "50000"))
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_ALIGNMENT_PRIMARY_MODEL = os.getenv("OPENAI_ALIGNMENT_PRIMARY_MODEL", "gpt-5.6-luna")
