@@ -61,3 +61,14 @@ def test_the_repair_folds_only_blocks_with_lone_marks_and_queues_their_alignment
     out = StringIO()
     call_command("repair_sentence_punctuation", stdout=out)
     assert "0 edition(s) changed" in out.getvalue()
+
+
+def test_the_repair_queues_a_pair_once_when_both_editions_change(pair):  # noqa: F811
+    text = "« Hello. »"
+    for edition in pair:
+        edition.blocks.update(text=text, sentences=spans(text, ["«", "Hello.", "»"]))
+
+    with patch("almonium_book_processor.catalog.sentence_alignment_queue.queue_pair") as queue:
+        call_command("repair_sentence_punctuation", stdout=StringIO())
+
+    queue.assert_called_once_with(*pair)

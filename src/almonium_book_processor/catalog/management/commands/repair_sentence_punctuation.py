@@ -40,7 +40,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, language=None, edition=None, dry_run=False, **options) -> None:
-        from almonium_book_processor.catalog.sentence_alignment_queue import queue_for
+        from almonium_book_processor.catalog.sentence_alignment_queue import pairs_for, queue_pair
 
         editions = Edition.objects.order_by("language", "slug")
         if language:
@@ -52,7 +52,8 @@ class Command(BaseCommand):
         for item in editions:
             with transaction.atomic():
                 blocks = (
-                    item.blocks.exclude(text="")
+                    ContentBlock.objects.filter(edition=item)
+                    .exclude(text="")
                     .only("id", "block_id", "text", "sentences", "updated_at")
                     .order_by("id")
                 )
@@ -76,8 +77,13 @@ class Command(BaseCommand):
                 changed.append(item)
         queued = 0
         if not dry_run:
+            seen = set()
             for item in changed:
-                queued += len(queue_for(item))
+                for original, companion in pairs_for(item):
+                    pair = (original.id, companion.id)
+                    if pair not in seen:
+                        seen.add(pair)
+                        queued += queue_pair(original, companion) is not None
         verb = "would fold" if dry_run else "folded"
         for code in sorted(blocks_by_language, key=lambda c: -sentences_by_language[c]):
             self.stdout.write(
