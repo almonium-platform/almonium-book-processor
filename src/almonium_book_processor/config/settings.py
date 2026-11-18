@@ -204,6 +204,11 @@ NLP_EMBEDDING_THREADS = int(os.getenv("NLP_EMBEDDING_THREADS", "0"))
 # original paired with several companions is embedded once (about 3 KB a text).
 NLP_EMBEDDING_PREFETCH_TEXTS = int(os.getenv("NLP_EMBEDDING_PREFETCH_TEXTS", "2048"))
 NLP_EMBEDDING_CACHE_TEXTS = int(os.getenv("NLP_EMBEDDING_CACHE_TEXTS", "50000"))
+# Offline sentence alignment runs on its own Celery queue and worker (compose `aligner`),
+# so a book's alignment, minutes long, never holds the pipeline's local steps. The
+# pipeline queues every new translation or adaptation with its original in this model.
+SENTENCE_ALIGNMENT_QUEUE = os.getenv("SENTENCE_ALIGNMENT_QUEUE", "alignment")
+SENTENCE_ALIGNMENT_MODEL = os.getenv("SENTENCE_ALIGNMENT_MODEL", "sentence-transformers/LaBSE")
 
 # Where the embedding forward pass runs: "local" on this worker, or "modal" on a GPU of the
 # Modal app in modal_apps/embeddings.py (docs/MODAL.md), billed per GPU second. Modal's own
@@ -312,6 +317,9 @@ def plan_task_routes(*seat_settings: str) -> dict[str, dict[str, str]]:
 CELERY_TASK_ROUTES = plan_task_routes(
     ADAPTATION_GENERATOR, DIFFICULTY_JUDGES, FIDELITY_AUDITORS, GLOSS_WRITER
 )
+CELERY_TASK_ROUTES["almonium_book_processor.catalog.tasks.align_edition_sentences"] = {
+    "queue": SENTENCE_ALIGNMENT_QUEUE
+}
 # Private-import metadata is one small call per book; the cheaper tier is plenty.
 OPENAI_METADATA_MODEL = os.getenv("OPENAI_METADATA_MODEL", "gpt-5.6-luna")
 # The fidelity audit reads adapted text beside its source; "quality" is the

@@ -876,6 +876,14 @@ def split_edition_sentences(edition_id: str) -> None:
         run.error = str(error)[:10000]
         run.save(update_fields=["status", "finished_at", "error", "updated_at"])
         raise
+    # The sentences are final: align this edition with its original (or, for an original,
+    # every edition made from it). Its own queue and worker; never a reason to fail here.
+    try:
+        from almonium_book_processor.catalog.sentence_alignment_queue import queue_for
+
+        queue_for(edition)
+    except Exception:
+        logger.exception("Could not queue sentence alignment for edition %s", edition.id)
 
 
 @shared_task(acks_late=True)

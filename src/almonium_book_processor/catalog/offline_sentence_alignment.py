@@ -29,7 +29,15 @@ from almonium_book_processor.processing.sentence_correspondence import (
 
 
 def available_models():
-    return list(dict.fromkeys([settings.NLP_EMBEDDING_MODEL, "sentence-transformers/LaBSE"]))
+    return list(
+        dict.fromkeys(
+            [
+                settings.NLP_EMBEDDING_MODEL,
+                settings.SENTENCE_ALIGNMENT_MODEL,
+                "sentence-transformers/LaBSE",
+            ]
+        )
+    )
 
 
 def processor_version(model=None):

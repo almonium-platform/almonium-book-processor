@@ -12,6 +12,7 @@ x-app-environment: &app-environment
   ALMONIUM_BOOKS_PROMOTION_TARGETS: ${ALMONIUM_BOOKS_PROMOTION_TARGETS:-}
   ALMONIUM_BOOKS_PROMOTION_TOKEN_STAGING: ${ALMONIUM_BOOKS_PROMOTION_TOKEN_STAGING:-}
   NLP_EMBEDDING_MODEL: ${NLP_EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
+  SENTENCE_ALIGNMENT_QUEUE: ${SENTENCE_ALIGNMENT_QUEUE:-alignment}
   NLP_EMBEDDING_BACKEND: ${NLP_EMBEDDING_BACKEND:-local}
   MODAL_EMBEDDING_APP: ${MODAL_EMBEDDING_APP:-almonium-books-embeddings}
   MODAL_EMBEDDING_GPUS: ${MODAL_EMBEDDING_GPUS:-L4,A10,L40S}
@@ -122,6 +123,20 @@ services:
     command: celery -A almonium_book_processor.config worker --loglevel=INFO --concurrency=1
     volumes:
       - books-media:/app/media
+      - books-models:/app/models
+    depends_on:
+      web:
+        condition: service_healthy
+      model-cache-init:
+        condition: service_completed_successfully
+
+  # Offline sentence alignment only (SENTENCE_ALIGNMENT_QUEUE): minutes per book, so it
+  # never holds the worker above. One process; the embedding model uses the cores itself.
+  aligner:
+    build: .
+    environment: *app-environment
+    command: celery -A almonium_book_processor.config worker --loglevel=INFO --concurrency=1 --queues=${SENTENCE_ALIGNMENT_QUEUE:-alignment} --hostname=aligner@%h
+    volumes:
       - books-models:/app/models
     depends_on:
       web:
