@@ -231,6 +231,12 @@ MODAL_MONTHLY_BUDGET_USD = float(os.getenv("MODAL_MONTHLY_BUDGET_USD", "25"))
 MODAL_MONTHLY_CREDITS_USD = float(os.getenv("MODAL_MONTHLY_CREDITS_USD", "30"))
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+# The owner's plans this environment can call, by comma: codex, claude-code. Their CLIs are
+# signed in only on the owner's machine, so a deployed environment names none. Every step
+# that names a model alone (the OPENAI_*_MODEL settings below, and a seat setting left empty)
+# runs it on the plan that serves it where that plan is named here, else on the API
+# (ai/gateway.py). A plan has no Batch service, so a batching step calls it directly.
+AI_PLANS = os.getenv("AI_PLANS", "")
 OPENAI_ALIGNMENT_PRIMARY_MODEL = os.getenv("OPENAI_ALIGNMENT_PRIMARY_MODEL", "gpt-5.6-luna")
 OPENAI_ALIGNMENT_ESCALATION_MODEL = os.getenv("OPENAI_ALIGNMENT_ESCALATION_MODEL", "gpt-5.6-terra")
 OPENAI_ALIGNMENT_CONFIDENCE = float(os.getenv("OPENAI_ALIGNMENT_CONFIDENCE", "0.80"))
@@ -241,10 +247,11 @@ OPENAI_TRANSLATION_DRAFT_MODEL = os.getenv("OPENAI_TRANSLATION_DRAFT_MODEL", "gp
 # Who does a job is named the same way for every job that has a choice: a seat, written
 # "provider:model" or "provider:model:effort", with provider codex or claude-code (the owner's
 # plans) or openai (the metered API). See ai/seats.py. The seats: ADAPTATION_GENERATOR,
-# GLOSS_WRITER, DIFFICULTY_JUDGES, FIDELITY_AUDITORS, TRANSLATION_REVIEWERS. Translating
-# itself is still ordered by tier, because the product's API orders it that way
-# (catalog/ai_translation.py), and the OPENAI_*_MODEL settings name what each tier and each
-# API-only job runs.
+# GLOSS_WRITER, DIFFICULTY_JUDGES, FIDELITY_AUDITORS, TRANSLATION_REVIEWERS. Each also takes a
+# model alone, which runs where AI_PLANS says. Translating is still ordered by tier, because
+# the product's API orders it that way (catalog/ai_translation.py), and the OPENAI_*_MODEL
+# settings name the model of each tier and of each step with no seat; despite their names
+# they run on a plan where AI_PLANS has one that serves them.
 #
 # A translation's two editors, from different vendors on purpose, and never the model that
 # translated: since gpt-6.1-sol translates, the GPT editor is gpt-6-astra. An editor reads at
@@ -294,13 +301,14 @@ ADAPTATION_WRITE_WORKERS = int(os.getenv("ADAPTATION_WRITE_WORKERS", "3"))
 # those three settings sends them, and the edition's fidelity audit, there. An edition's
 # chapter analysis goes with them: where judges are configured they are the analysis. So
 # does a production, which mends chapters itself. With no plan seat configured nothing is
-# routed.
+# routed. The routes themselves are set beside the last of the settings they read, below.
 PLAN_QUEUE = "plans"
 
 
-def plan_task_routes(*seat_settings: str) -> dict[str, dict[str, str]]:
-    seats = [seat.strip() for setting in seat_settings for seat in setting.split(",")]
-    if not any(seat.partition(":")[0] in ("codex", "claude-code") for seat in seats):
+def plan_task_routes(*seat_settings: str, plans: str = "") -> dict[str, dict[str, str]]:
+    from almonium_book_processor.ai.gateway import on_plan
+
+    if not on_plan(*seat_settings, plans=plans):
         return {}
     return {
         f"almonium_book_processor.catalog.tasks.{task}": {"queue": PLAN_QUEUE}
@@ -318,18 +326,63 @@ def plan_task_routes(*seat_settings: str) -> dict[str, dict[str, str]]:
     }
 
 
-CELERY_TASK_ROUTES = plan_task_routes(
-    ADAPTATION_GENERATOR, DIFFICULTY_JUDGES, FIDELITY_AUDITORS, GLOSS_WRITER
+# The tasks of the steps that name a model alone, by the models they name: each goes to the
+# host worker when one of its models runs on a plan here (ai/gateway.py). The host worker
+# reaches the API too, so a step with one model on each goes there.
+STEP_TASKS = (
+    (("translate_edition_inline", "prepare_translation"), ("quality", "draft")),
+    (("translate_edition_metadata", "modernisation_advice"), ("quality",)),
+    (("prepare_ai_alignment", "poll_ai_alignment_batch"), ("primary", "escalation")),
+    (("detect_edition_metadata",), ("metadata",)),
 )
-CELERY_TASK_ROUTES["almonium_book_processor.catalog.tasks.align_edition_sentences"] = {
-    "queue": SENTENCE_ALIGNMENT_QUEUE
-}
+
+
+def step_task_routes(models: dict[str, str], plans: str = "") -> dict[str, dict[str, str]]:
+    from almonium_book_processor.ai.gateway import on_plan
+
+    return {
+        f"almonium_book_processor.catalog.tasks.{task}": {"queue": PLAN_QUEUE}
+        for tasks, steps in STEP_TASKS
+        if on_plan(*(models[step] for step in steps), plans=plans)
+        for task in tasks
+    }
+
+
 # Private-import metadata is one small call per book; the cheaper tier is plenty.
 OPENAI_METADATA_MODEL = os.getenv("OPENAI_METADATA_MODEL", "gpt-5.6-luna")
 # The fidelity audit reads adapted text beside its source; "quality" is the
 # translation quality model, "draft" the cheaper tier, about a tenth the cost.
 OPENAI_FIDELITY_TIER = os.getenv("OPENAI_FIDELITY_TIER", "quality")
 OPENAI_BATCH_POLL_SECONDS = int(os.getenv("OPENAI_BATCH_POLL_SECONDS", "60"))
+
+# A step with no seat of its own falls back to a model, which may itself run on a plan here.
+CELERY_TASK_ROUTES = {
+    **step_task_routes(
+        {
+            "quality": OPENAI_TRANSLATION_QUALITY_MODEL,
+            "draft": OPENAI_TRANSLATION_DRAFT_MODEL,
+            "primary": OPENAI_ALIGNMENT_PRIMARY_MODEL,
+            "escalation": OPENAI_ALIGNMENT_ESCALATION_MODEL,
+            "metadata": OPENAI_METADATA_MODEL,
+        },
+        plans=AI_PLANS,
+    ),
+    **plan_task_routes(
+        ADAPTATION_GENERATOR or OPENAI_TRANSLATION_QUALITY_MODEL,
+        DIFFICULTY_JUDGES or OPENAI_TRANSLATION_DRAFT_MODEL,
+        FIDELITY_AUDITORS
+        or (
+            OPENAI_TRANSLATION_QUALITY_MODEL
+            if OPENAI_FIDELITY_TIER == "quality"
+            else OPENAI_TRANSLATION_DRAFT_MODEL
+        ),
+        GLOSS_WRITER or OPENAI_TRANSLATION_QUALITY_MODEL,
+        plans=AI_PLANS,
+    ),
+    "almonium_book_processor.catalog.tasks.align_edition_sentences": {
+        "queue": SENTENCE_ALIGNMENT_QUEUE
+    },
+}
 
 # The Claude Code CLI on the owner's subscription, for output-heavy generation
 # run from the owner's machine. Never set on a deployed worker: the CLI needs a

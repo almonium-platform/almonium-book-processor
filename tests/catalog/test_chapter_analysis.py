@@ -738,26 +738,6 @@ def test_non_staff_cannot_queue_paid_work(edition):
     assert not edition.pipeline_runs.exists()
 
 
-def test_chapter_analysis_provider_disables_hidden_retries(monkeypatch):
-    from almonium_book_processor.ai.chapter_analysis import OpenAIChapterAnalysisProvider
-
-    options = {}
-
-    def configure(**kwargs):
-        options.update(kwargs)
-        return "configured-client"
-
-    def init(self):
-        self.client = SimpleNamespace(with_options=configure)
-
-    monkeypatch.setattr(
-        "almonium_book_processor.ai.openai_provider.OpenAIBatchProvider.__init__", init
-    )
-    provider = OpenAIChapterAnalysisProvider()
-    assert options == {"timeout": 120.0, "max_retries": 0}
-    assert provider.client == "configured-client"
-
-
 def test_broker_failure_is_visible_and_same_job_can_be_requeued(
     edition,
     monkeypatch,

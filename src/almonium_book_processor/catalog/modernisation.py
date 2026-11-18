@@ -11,8 +11,10 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.cli_calls import recorded_error
-from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai.openai_provider import response_output_text
+from almonium_book_processor.ai.seats import Seat
 from almonium_book_processor.catalog.adaptation import digest, record_response
 from almonium_book_processor.catalog.ai_translation import TRANSLATION_MODEL_PRICING
 from almonium_book_processor.catalog.chapter_analysis import analysis_context
@@ -165,11 +167,12 @@ def ready_to_generate(edition: Edition) -> bool:
 def queue_advice(edition_id, *, dispatch=True) -> PipelineRun:
     from almonium_book_processor.catalog.tasks import modernisation_advice
 
-    if not settings.OPENAI_API_KEY:
-        raise ValueError("Configure an OpenAI key to request advice.")
+    seat = gateway.route(settings.OPENAI_TRANSLATION_QUALITY_MODEL)
+    if reason := gateway.unavailable(seat):
+        raise ValueError(reason)
     edition = Edition.objects.select_for_update().select_related("work").get(pk=edition_id)
     source = snapshot(edition)
-    model = settings.OPENAI_TRANSLATION_QUALITY_MODEL
+    model = seat.model
     schema = Advice.model_json_schema()
     spec = {
         "model": model,
@@ -195,14 +198,18 @@ def queue_advice(edition_id, *, dispatch=True) -> PipelineRun:
     }:
         return run
     config, _ = ModelConfiguration.objects.get_or_create(
-        name=f"modernisation-advice-{digest(model)[:16]}-v1",
+        name=(
+            f"modernisation-advice-{digest(model)[:16]}-v1"
+            if seat.provider == "openai"
+            else f"modernisation-advice-{seat.provider}-{digest(model)[:16]}-v1"
+        ),
         defaults={
-            "provider": "openai",
+            "provider": seat.provider,
             "model": model,
             "purpose": "level_adaptation",
             "parameters": {
                 "reasoning_effort": "medium",
-                "pricing_per_million": TRANSLATION_MODEL_PRICING["quality"],
+                "pricing_per_million": gateway.prices(seat, TRANSLATION_MODEL_PRICING["quality"]),
             },
         },
     )
@@ -279,7 +286,8 @@ def run_advice(run_id, *, provider=None) -> None:
         ai.status = AIRun.Status.SUBMITTED
         ai.started_at = timezone.now()
         ai.save(update_fields=["status", "started_at", "updated_at"])
-        response = (provider or OpenAIBatchProvider()).respond(ai.request_payload["body"])
+        seat = Seat(ai.model_configuration.provider, ai.model_configuration.model)
+        response = (provider or gateway.provider(seat)).respond(ai.request_payload["body"])
         record_response(ai.id, response)
         if response.get("status") != "completed":
             raise ValueError("Provider did not complete advice.")

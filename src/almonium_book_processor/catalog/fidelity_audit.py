@@ -21,6 +21,7 @@ from django.conf import settings
 from django.db import connection, transaction
 from django.utils import timezone
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown, recorded_error
 from almonium_book_processor.ai.fidelity import (
     MAX_OUTPUT_TOKENS,
@@ -38,7 +39,7 @@ from almonium_book_processor.ai.fidelity import (
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
 from almonium_book_processor.ai.pricing import has_price, plan_priced, seat_prices
-from almonium_book_processor.ai.seats import parse_seat, provider_for
+from almonium_book_processor.ai.seats import Seat
 from almonium_book_processor.catalog.adaptation import (
     PILOT_VERSIONS,
     digest,
@@ -110,7 +111,7 @@ def auditor_specs() -> list[dict]:
         return [base]
     specs = []
     for setting in settings.FIDELITY_AUDITORS.split(","):
-        seat = parse_seat(setting)
+        seat = gateway.route(setting)
         if not has_price(seat.model):
             raise ValueError(f"No price is known for {seat.model}; add it to ai/pricing.py")
         specs.append(
@@ -312,7 +313,9 @@ def _audit_window(run, window: dict, spec: dict, configuration, prompt, provider
         request_payload={"body": body, "window": window["data"]},
     )
     try:
-        response = (provider or provider_for(spec["provider"], spec["model"])).respond(body)
+        response = (provider or gateway.provider(Seat(spec["provider"], spec["model"]))).respond(
+            body
+        )
         _record_usage(ai.id, response, spec)
         if response.get("status") != "completed":
             raise ValueError("Provider did not complete the audit; partial output is not accepted.")
@@ -460,7 +463,9 @@ def _second_opinion(run, spec: dict, items: list[dict], pairs: list[dict], langu
             request_payload={"body": body},
         )
         try:
-            response = (provider or provider_for(spec["provider"], spec["model"])).respond(body)
+            response = (
+                provider or gateway.provider(Seat(spec["provider"], spec["model"]))
+            ).respond(body)
             _record_usage(ai.id, response, spec)
             opinion = SecondOpinion.model_validate_json(response_output_text(response))
             ai.refresh_from_db()

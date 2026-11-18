@@ -14,10 +14,10 @@ from __future__ import annotations
 import uuid
 from decimal import Decimal
 
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.adaptation import pilot_prompt
 from almonium_book_processor.ai.cli_calls import recorded_error
 from almonium_book_processor.catalog.adaptation import (
@@ -216,8 +216,8 @@ def probe_sample(edition: Edition) -> list[Chapter]:
 def queue_probe(source_id, target_level: str, *, dispatch: bool = True) -> PipelineRun:
     from almonium_book_processor.catalog.tasks import run_floor_probe
 
-    if not settings.OPENAI_API_KEY:
-        raise ValueError("Configure an OpenAI key to probe a level.")
+    if reason := gateway.unavailable(generator_seat()):
+        raise ValueError(reason)
     if target_level not in PROBE_LEVELS:
         raise ValueError("Choose B2 or B1 for a floor probe.")
     source = Edition.objects.select_for_update().select_related("work").get(pk=source_id)

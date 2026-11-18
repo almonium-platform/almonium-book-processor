@@ -703,4 +703,4 @@ def test_detect_button_refuses_without_a_model(settings, monkeypatch) -> None:
         reverse("catalog:queue-metadata-detection", args=[edition.id]), follow=True
     )
 
-    assert "No OpenAI key is configured" in response.content.decode()
+    assert "no model to ask" in response.content.decode()

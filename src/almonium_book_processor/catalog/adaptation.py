@@ -11,6 +11,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.adaptation import (
     ChapterAdaptation,
     pilot_prompt,
@@ -18,11 +19,9 @@ from almonium_book_processor.ai.adaptation import (
 from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown, recorded_error
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
-from almonium_book_processor.ai.pricing import call_cost, plan_priced
-from almonium_book_processor.ai.seats import Seat, parse_seat, provider_for
+from almonium_book_processor.ai.seats import Seat
 from almonium_book_processor.catalog.ai_translation import (
     TRANSLATION_MODEL_PRICING,
-    _estimated_cost,
 )
 from almonium_book_processor.catalog.models import (
     AIRun,
@@ -47,11 +46,11 @@ MAX_BLOCKS = 100
 
 
 def generator_seat() -> Seat:
-    """Who writes adaptations here: the configured seat, or the API's quality model."""
+    """Who writes adaptations here: the configured seat, or the quality model wherever it runs."""
 
     if settings.ADAPTATION_GENERATOR:
-        return parse_seat(settings.ADAPTATION_GENERATOR)
-    return Seat("openai", settings.OPENAI_TRANSLATION_QUALITY_MODEL)
+        return gateway.route(settings.ADAPTATION_GENERATOR)
+    return gateway.route(settings.OPENAI_TRANSLATION_QUALITY_MODEL)
 
 
 def source_snapshot(chapter, block_ids=None, *, target_level=TARGET_LEVEL):
@@ -427,7 +426,7 @@ def run_pilot(run_id, *, provider=None):
         if response is None:
             configuration = ai.model_configuration
             response = (
-                provider or provider_for(configuration.provider, configuration.model)
+                provider or gateway.provider(Seat(configuration.provider, configuration.model))
             ).respond(ai.request_payload["body"])
             record_response(ai.id, response)
         ai.refresh_from_db()
@@ -521,20 +520,14 @@ def record_response(ai_id, response):
             cached_input_tokens=cached,
             output_tokens=outputs,
             reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
-            # a plan call costs the share of the plan it used; an API call its list price
-            estimated_cost_usd=(
-                plan_priced(
-                    response,
-                    call_cost(
-                        configuration.provider,
-                        configuration.model,
-                        input_tokens=inputs,
-                        cached_input_tokens=cached,
-                        output_tokens=outputs,
-                    ),
-                )
-                if configuration.provider in ("codex", "claude-code")
-                else _estimated_cost("quality", inputs, cached, outputs, discounted=False)
+            # a plan call costs the share of the plan it used; an API call the quality table
+            estimated_cost_usd=gateway.cost(
+                Seat(configuration.provider, configuration.model),
+                input_tokens=inputs,
+                cached_input_tokens=cached,
+                output_tokens=outputs,
+                api_table=TRANSLATION_MODEL_PRICING["quality"],
+                response=response,
             ),
             plan_account=response.get("plan_account", ""),
         )

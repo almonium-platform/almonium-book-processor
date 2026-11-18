@@ -31,10 +31,11 @@ from django.db.models import Q
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.cli_calls import recorded_error
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.pricing import call_cost, has_price, plan_priced
-from almonium_book_processor.ai.seats import parse_seat, provider_for
+from almonium_book_processor.ai.seats import Seat
 from almonium_book_processor.catalog.ai_translation import language_name
 from almonium_book_processor.catalog.fidelity_audit import (
     SEVERITIES,
@@ -146,7 +147,7 @@ def reviewers() -> list[dict]:
 def _seat(setting: str, name: str | None = None) -> dict:
     """A reviewer from a "provider:model" setting, with an optional ":effort" for its review."""
 
-    seat = parse_seat(setting)
+    seat = gateway.route(setting)
     if not has_price(seat.model):
         # every review call is priced, API ones too; refused before any call is made
         raise ValueError(f"No price is known for {seat.model}; add it to ai/pricing.py")
@@ -254,7 +255,7 @@ def _effort(reviewer: dict) -> str:
 
 
 def _provider(reviewer: dict):
-    return provider_for(reviewer["provider"], reviewer["model"])
+    return gateway.provider(Seat(reviewer["provider"], reviewer["model"]))
 
 
 def _usage(reviewer: dict, response: dict) -> dict:

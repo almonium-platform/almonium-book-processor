@@ -24,10 +24,11 @@ from statistics import mean
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.adaptation import ChapterAdaptation, pilot_prompt
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.pricing import list_cost
-from almonium_book_processor.ai.seats import parse_seat, provider_for, versioned
+from almonium_book_processor.ai.seats import versioned
 from almonium_book_processor.ai.translation import (
     TRANSLATION_OUTPUT_SCHEMA,
     TRANSLATION_SYSTEM_PROMPT,
@@ -240,7 +241,7 @@ def write(task, source, passage, seat, folder, **options):
     )
     record = {"writer": short(seat), "passage": passage["id"]}
     try:
-        response = provider_for(seat.provider, seat.model).respond(body)
+        response = gateway.provider(seat).respond(body)
         text = response_output_text(response)
         model = ChapterTranslation if task == "translation" else ChapterAdaptation
         parsed = model.model_validate_json(text)
@@ -314,7 +315,7 @@ def judge(task, source, passage, writers, seat, folder, lock, **options):
     }
     row = {"passage": passage["id"], "judge": short(seat), "key": key}
     try:
-        response = provider_for(seat.provider, seat.model).respond(body)
+        response = gateway.provider(seat).respond(body)
         answer = json.loads(response_output_text(response))
         scores = {item["label"]: int(item["score"]) for item in answer.get("scores", [])}
         errors = {item["label"]: item.get("slips") or [] for item in answer.get("errors", [])}
@@ -560,9 +561,11 @@ class Command(BaseCommand):
             source = Edition.objects.select_related("work").get(slug=options["source"])
         except Edition.DoesNotExist as error:
             raise CommandError(f"No edition {options['source']}") from error
-        writers = [parse_seat(s) for s in options["writers"].split(",")]
+        writers = [gateway.route(s) for s in options["writers"].split(",")]
         judges = (
-            [parse_seat(s) for s in options["judges"].split(",")] if options["judges"] else writers
+            [gateway.route(s) for s in options["judges"].split(",")]
+            if options["judges"]
+            else writers
         )
         aim = options["target"] if task == "translation" else options["level"]
         folder = ROOT / f"{task}-{source.slug}-{aim}"

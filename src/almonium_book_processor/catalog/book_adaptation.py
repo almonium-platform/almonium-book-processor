@@ -8,6 +8,7 @@ from django.conf import settings
 from django.db import close_old_connections, transaction
 from django.utils import timezone
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.adaptation import ChapterAdaptation, pilot_prompt
 from almonium_book_processor.catalog.adaptation import (
     MAX_BLOCKS,
@@ -144,8 +145,8 @@ def _stranded(source, target_level: str, modernisation: bool):
 def queue_book(source_id, *, target_level=TARGET_LEVEL):
     from almonium_book_processor.catalog.tasks import adapt_book
 
-    if not settings.OPENAI_API_KEY:
-        raise ValueError("Configure an OpenAI key to generate an adaptation.")
+    if reason := gateway.unavailable(generator_seat()):
+        raise ValueError(reason)
     source = Edition.objects.select_for_update().select_related("work").get(pk=source_id)
     modernisation = target_level in {"C1", "C2"}
     if modernisation and (

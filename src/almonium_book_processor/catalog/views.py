@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from almonium_book_processor import __version__
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.catalog import difficulty_notes
 from almonium_book_processor.catalog.adaptation import (
     PILOT_VERSIONS,
@@ -27,6 +28,7 @@ from almonium_book_processor.catalog.adaptation import (
 from almonium_book_processor.catalog.adaptation import (
     TARGET_LEVEL as ADAPTATION_TARGET_LEVEL,
 )
+from almonium_book_processor.catalog.ai_alignment import tier_seat as alignment_seat
 from almonium_book_processor.catalog.ai_translation import (
     create_parallel_translation,
     last_translation_mode,
@@ -55,6 +57,7 @@ from almonium_book_processor.catalog.metadata import (
     confirm_metadata,
     form_provenance,
     has_provisional_slug,
+    metadata_seat,
 )
 from almonium_book_processor.catalog.models import (
     AlignmentGroupReview,
@@ -274,8 +277,8 @@ def queue_metadata_detection(request: HttpRequest, edition_id: str) -> HttpRespo
     edition = get_object_or_404(Edition.objects.select_related("work"), id=edition_id)
     if edition.work.visibility == Work.Visibility.PRIVATE:
         messages.error(request, "Private imports are confirmed by their owner in Almonium.")
-    elif not settings.OPENAI_API_KEY:
-        messages.error(request, "No OpenAI key is configured, so there is no model to ask.")
+    elif reason := gateway.unavailable(metadata_seat()):
+        messages.error(request, f"There is no model to ask: {reason}")
     elif not edition.blocks.exists():
         messages.error(request, "Nothing to read yet: the source has not been ingested.")
     else:
@@ -1517,7 +1520,7 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
                 "chapter_numbers": [],
                 "alignment_groups": [],
                 "recent_ai_runs": edition.ai_runs.select_related("model_configuration")[:5],
-                "ai_enabled": bool(settings.OPENAI_API_KEY),
+                "ai_enabled": not gateway.unavailable(alignment_seat("primary")),
             },
         )
     unresolved_warnings = list(
@@ -1756,7 +1759,7 @@ def alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
                 edition.block_revisions.filter(block__chapter__sequence=chapter)
             ),
             "ai_run_summaries": ai_run_summaries,
-            "ai_enabled": bool(settings.OPENAI_API_KEY),
+            "ai_enabled": not gateway.unavailable(alignment_seat("primary")),
             "ai_estimate": alignment_estimate(edition),
         },
     )
@@ -1773,8 +1776,8 @@ def _review_redirect(edition_id: str, chapter: str, view_filter: str = "") -> Ht
 @require_POST
 def queue_ai_alignment_review(request: HttpRequest, edition_id: str) -> HttpResponse:
     edition = _inferred_alignment_edition(edition_id)
-    if not settings.OPENAI_API_KEY:
-        messages.error(request, "OPENAI_API_KEY is not configured for this service.")
+    if reason := gateway.unavailable(alignment_seat("primary")):
+        messages.error(request, reason)
     else:
         prepare_ai_alignment.delay(str(edition.id))
         messages.success(

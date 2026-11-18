@@ -98,8 +98,8 @@ def test_identical_sentences_need_no_paid_alignment(pair, monkeypatch):
     p, s = pair
     s.blocks.update(text=p.blocks.get().text)
     monkeypatch.setattr(
-        "almonium_book_processor.catalog.sentence_alignment.OpenAIBatchProvider",
-        lambda: pytest.fail("Identical text must not call AI"),
+        "almonium_book_processor.ai.gateway.provider",
+        lambda seat: pytest.fail("Identical text must not call AI"),
     )
     generate_sentence_preview(str(p.id), str(s.id), 11)
     assert not AIRun.objects.exists()
@@ -126,9 +126,7 @@ def test_failed_output_is_recorded_and_retryable(monkeypatch, pair):
         def respond(self, body):
             return {"id": "failed-output", "output": []}
 
-    monkeypatch.setattr(
-        "almonium_book_processor.catalog.sentence_alignment.OpenAIBatchProvider", Fake
-    )
+    monkeypatch.setattr("almonium_book_processor.ai.gateway.provider", lambda seat: Fake())
     p, s = pair
     for _ in range(2):
         with pytest.raises(ValueError):
@@ -165,9 +163,7 @@ def test_paid_preview_cached_and_invalidated(monkeypatch, pair):
                 ],
             }
 
-    monkeypatch.setattr(
-        "almonium_book_processor.catalog.sentence_alignment.OpenAIBatchProvider", Fake
-    )
+    monkeypatch.setattr("almonium_book_processor.ai.gateway.provider", lambda seat: Fake())
     p, s = pair
     generate_sentence_preview(str(p.id), str(s.id), 11)
     generate_sentence_preview(str(p.id), str(s.id), 11)

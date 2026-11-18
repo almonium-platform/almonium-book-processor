@@ -24,11 +24,11 @@ from django.db import connection, transaction
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown, recorded_error
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_rewritten_language
 from almonium_book_processor.ai.pricing import call_cost, has_price, plan_priced
-from almonium_book_processor.ai.seats import provider_for
 from almonium_book_processor.catalog.chapter_analysis import (
     _hash,
     _json,
@@ -507,7 +507,7 @@ def _ask_spot_fix(
         request_payload={"body": body},
     )
     try:
-        response = (provider or provider_for(seat.provider, seat.model)).respond(body)
+        response = (provider or gateway.provider(seat)).respond(body)
         usage = response.get("usage") or {}
         tokens = {
             "input_tokens": usage.get("input_tokens", 0),

@@ -69,7 +69,7 @@ def fake_provider(monkeypatch, sink: dict) -> None:
         return SimpleNamespace(id="batch_tr", status="validating", input_file_id="file_tr")
 
     monkeypatch.setattr(
-        "almonium_book_processor.catalog.ai_translation.OpenAIBatchProvider.submit",
+        "almonium_book_processor.ai.openai_provider.OpenAIBatchProvider.submit",
         fake_submit,
     )
     monkeypatch.setattr(
@@ -733,7 +733,7 @@ def test_a_plan_translation_calls_the_open_accounts_in_the_dashboards_order(monk
     """A paused account is skipped and the priority holds for translations too: on
     16 November 2026 they went to a paused Codex account while the one expiring that day idled."""
 
-    from almonium_book_processor.catalog import ai_translation
+    from almonium_book_processor.ai import codex_provider
     from almonium_book_processor.catalog.ai_translation import CODEX_TIER, run_translation_inline
     from almonium_book_processor.catalog.plan_pause import open_codex_accounts
 
@@ -755,7 +755,8 @@ def test_a_plan_translation_calls_the_open_accounts_in_the_dashboards_order(monk
             )
             return line["response"]["body"]
 
-    monkeypatch.setattr(ai_translation, "CodexProvider", RecordingCodex)
+    # the gateway builds every caller
+    monkeypatch.setattr(codex_provider, "CodexProvider", RecordingCodex)
     edition = create_parallel_translation(
         source_edition=canonical_edition(),
         target_language="uk",
@@ -766,3 +767,52 @@ def test_a_plan_translation_calls_the_open_accounts_in_the_dashboards_order(monk
     run_translation_inline(str(edition.id), tier=CODEX_TIER)
 
     assert built == [{"accounts": open_codex_accounts}]
+
+
+def test_the_quality_tier_runs_its_model_on_a_plan_where_one_serves_it(settings) -> None:
+    from almonium_book_processor.ai.pricing import PLAN_SHARE_OF_LIST, list_cost
+    from almonium_book_processor.catalog.ai_translation import (
+        run_translation_inline,
+        submit_translation_batch,
+    )
+
+    settings.AI_PLANS = "codex"
+    source = canonical_edition()
+    edition = create_parallel_translation(
+        source_edition=source, target_language="uk", register="period-faithful", tier="quality"
+    )
+
+    # a plan has no Batch service: a Batch request is refused before anything is prepared
+    with pytest.raises(ValueError, match="Batch"):
+        submit_translation_batch(str(edition.id), tier="quality")
+    assert not AIRun.objects.exists()
+
+    class FakeCodex:
+        def respond(self, body):
+            return output_line(
+                "chapter-1",
+                [
+                    translated("c1.h1", "Розділ I"),
+                    translated(
+                        "c1.p2",
+                        "Похмурої листопадової ночі я побачив завершення своїх трудів.",
+                    ),
+                ],
+            )["response"]["body"]
+
+    ai_run = run_translation_inline(str(edition.id), tier="quality", provider=FakeCodex())
+
+    ai_run.refresh_from_db()
+    assert ai_run.status == AIRun.Status.SUCCEEDED
+    assert ai_run.model_configuration.provider == "codex"
+    assert ai_run.model_configuration.model == settings.OPENAI_TRANSLATION_QUALITY_MODEL
+    assert ai_run.model_configuration.name == "codex-translation-quality-v1"
+    at_list = list_cost(
+        ai_run.model_configuration.model,
+        input_tokens=900,
+        cached_input_tokens=0,
+        output_tokens=1100,
+    )
+    assert float(ai_run.estimated_cost_usd) == pytest.approx(
+        float(at_list * PLAN_SHARE_OF_LIST["codex"]), abs=1e-6
+    )

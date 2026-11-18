@@ -22,12 +22,10 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from almonium_book_processor.ai.claude_code_provider import ClaudeCodeProvider
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.cli_calls import spent_by
-from almonium_book_processor.ai.codex_provider import CodexProvider
-from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
 from almonium_book_processor.ai.output_language import set_in_capitals, validate_output_language
-from almonium_book_processor.ai.pricing import call_cost
+from almonium_book_processor.ai.seats import Seat
 from almonium_book_processor.ai.translation import (
     TRANSLATION_OUTPUT_SCHEMA,
     TRANSLATION_SYSTEM_PROMPT,
@@ -67,17 +65,31 @@ TRANSLATION_MODEL_PRICING = {
     "quality": {"input": "2.00", "cached_input": "0.20", "output": "12.00"},
 }
 
-# Not members of TRANSLATION_MODEL_PRICING on purpose: the admin's tier choices
-# and price estimates come from that table, and these tiers cannot be started
-# from a deployed worker. They run through a CLI signed in to one of the owner's
-# plans, from the translate_on_plan command: "subscription" through Claude Code,
-# "codex" through Codex. Their cost is the share of the plan they use up.
+# A tier names who translates. "quality" and "draft" name a model (the stronger and the
+# cheaper), which ai/gateway.py runs on the owner's plan where this environment has one and on
+# the API elsewhere; the API's Batch service is used only on the API. "subscription" and
+# "codex" name a plan and its model outright, for the owner's machine. Only the model tiers
+# are offered to the product's API and priced in TRANSLATION_MODEL_PRICING.
 SUBSCRIPTION_TIER = "subscription"
 CODEX_TIER = "codex"
 PLAN_TIERS = {
     SUBSCRIPTION_TIER: {"provider": "claude-code", "model_setting": "CLAUDE_CODE_MODEL"},
     CODEX_TIER: {"provider": "codex", "model_setting": "CODEX_TRANSLATION_MODEL"},
 }
+
+
+def tier_seat(tier: str) -> Seat:
+    """Who translates for a tier here."""
+
+    if tier in PLAN_TIERS:
+        plan = PLAN_TIERS[tier]
+        return Seat(plan["provider"], getattr(settings, plan["model_setting"]))
+    if tier == "draft":
+        return gateway.route(settings.OPENAI_TRANSLATION_DRAFT_MODEL)
+    if tier == "quality":
+        return gateway.route(settings.OPENAI_TRANSLATION_QUALITY_MODEL)
+    raise ValueError(f"Unknown translation tier: {tier}")
+
 
 logger = logging.getLogger(__name__)
 
@@ -95,39 +107,32 @@ def language_name(code: str) -> str:
 
 
 def _configuration(tier: str) -> tuple[ModelConfiguration, PromptTemplate]:
+    seat = tier_seat(tier)
+    model = seat.model
+    # the names past runs were saved under: a plan tier's, and a model tier's on the API
     if tier in PLAN_TIERS:
-        plan = PLAN_TIERS[tier]
-        model = getattr(settings, plan["model_setting"])
-        configuration, _ = ModelConfiguration.objects.get_or_create(
-            name=f"{plan['provider']}-translation-v1",
-            defaults={
-                "provider": plan["provider"],
-                "model": model,
-                "purpose": "literary_translation",
-                "parameters": {"reasoning_effort": "medium", "batch_discount": 0},
-            },
-        )
-    elif tier in TRANSLATION_MODEL_PRICING:
-        model = (
-            settings.OPENAI_TRANSLATION_DRAFT_MODEL
-            if tier == "draft"
-            else settings.OPENAI_TRANSLATION_QUALITY_MODEL
-        )
-        configuration, _ = ModelConfiguration.objects.get_or_create(
-            name=f"openai-translation-{tier}-v1",
-            defaults={
-                "provider": "openai",
-                "model": model,
-                "purpose": "literary_translation",
-                "parameters": {
-                    "reasoning_effort": "medium",
-                    "batch_discount": 0.5,
-                    "pricing_per_million": TRANSLATION_MODEL_PRICING[tier],
-                },
-            },
-        )
+        name = f"{seat.provider}-translation-v1"
+    elif seat.provider == "openai":
+        name = f"openai-translation-{tier}-v1"
     else:
-        raise ValueError(f"Unknown translation tier: {tier}")
+        name = f"{seat.provider}-translation-{tier}-v1"
+    configuration, _ = ModelConfiguration.objects.get_or_create(
+        name=name,
+        defaults={
+            "provider": seat.provider,
+            "model": model,
+            "purpose": "literary_translation",
+            "parameters": {
+                "reasoning_effort": "medium",
+                "batch_discount": 0.5 if gateway.batches(seat) else 0,
+                **(
+                    {"pricing_per_million": TRANSLATION_MODEL_PRICING[tier]}
+                    if seat.provider == "openai"
+                    else {}
+                ),
+            },
+        },
+    )
     if configuration.model != model:
         configuration.model = model
         configuration.save(update_fields=["model", "updated_at"])
@@ -340,13 +345,15 @@ def _prepare_translation_run(
 def submit_translation_batch(edition_id: str, *, tier: str = "quality") -> AIRun:
     """Submit the translation through the Batch API (cheapest, up to 24 hours)."""
 
+    if not gateway.batches(tier_seat(tier)):
+        raise ValueError("Only the API has a Batch service; translate this tier directly.")
     prepared = _prepare_translation_run(edition_id, tier=tier)
     if isinstance(prepared, AIRun):
         return prepared
     ai_run, requests = prepared
     edition = ai_run.edition
     try:
-        batch = OpenAIBatchProvider().submit(
+        batch = gateway.batch().submit(
             requests,
             metadata={
                 "edition_id": str(edition.id),
@@ -445,6 +452,7 @@ def _validate_chapter(
 
 
 def _estimated_cost(
+    configuration: ModelConfiguration,
     tier: str,
     input_tokens: int,
     cached_input_tokens: int,
@@ -452,23 +460,14 @@ def _estimated_cost(
     *,
     discounted: bool,
 ) -> Decimal:
-    if tier in PLAN_TIERS:
-        plan = PLAN_TIERS[tier]
-        return call_cost(
-            plan["provider"],
-            getattr(settings, plan["model_setting"]),
-            input_tokens=input_tokens,
-            cached_input_tokens=cached_input_tokens,
-            output_tokens=output_tokens,
-        )
-    pricing = TRANSLATION_MODEL_PRICING[tier]
-    uncached = max(0, input_tokens - cached_input_tokens)
-    standard = (
-        Decimal(uncached) * Decimal(pricing["input"])
-        + Decimal(cached_input_tokens) * Decimal(pricing["cached_input"])
-        + Decimal(output_tokens) * Decimal(pricing["output"])
-    ) / Decimal(1_000_000)
-    return standard * Decimal("0.5") if discounted else standard
+    return gateway.cost(
+        Seat(configuration.provider, configuration.model),
+        input_tokens=input_tokens,
+        cached_input_tokens=cached_input_tokens,
+        output_tokens=output_tokens,
+        api_table=TRANSLATION_MODEL_PRICING.get(tier),
+        batch=discounted,
+    )
 
 
 def _materialize_chapter(
@@ -697,7 +696,12 @@ def _complete_translation_batch_locked(
         output_tokens=output_tokens,
         reasoning_tokens=reasoning_tokens,
         estimated_cost_usd=_estimated_cost(
-            tier, input_tokens, cached_tokens, output_tokens, discounted=discounted
+            ai_run.model_configuration,
+            tier,
+            input_tokens,
+            cached_tokens,
+            output_tokens,
+            discounted=discounted,
         ),
     )
     ai_run.finished_at = timezone.now()
@@ -816,7 +820,7 @@ def last_translation_mode(edition: Edition) -> str:
 DIRECT_TRANSLATION_WORKERS = 4
 
 
-def _direct_output_line(provider: OpenAIBatchProvider, request: dict[str, Any]) -> dict[str, Any]:
+def _direct_output_line(provider, request: dict[str, Any]) -> dict[str, Any]:
     """Execute one Batch-shaped request directly, in Batch output-line shape."""
 
     try:
@@ -872,24 +876,14 @@ def run_translation_inline(edition_id: str, *, tier: str = "quality", provider=N
         ]
     )
 
+    # a retry resumes on the provider the run began on, so its spending stays on one ledger
+    seat = Seat(ai_run.model_configuration.provider, ai_run.model_configuration.model)
     if provider is None:
-        # the open accounts in the dashboard's order, as every other plan step calls them: a
-        # paused account is skipped and the account spent first is the one the owner chose
-        from almonium_book_processor.catalog.plan_pause import (
-            open_claude_accounts,
-            open_codex_accounts,
-        )
-
-        if tier == SUBSCRIPTION_TIER:
-            provider = ClaudeCodeProvider(accounts=open_claude_accounts)
-        elif tier == CODEX_TIER:
-            provider = CodexProvider(accounts=open_codex_accounts)
-        else:
-            provider = OpenAIBatchProvider()
+        provider = gateway.provider(seat)
     workers = {
-        SUBSCRIPTION_TIER: settings.CLAUDE_CODE_WORKERS,
-        CODEX_TIER: settings.CODEX_WORKERS,
-    }.get(tier, DIRECT_TRANSLATION_WORKERS)
+        "claude-code": settings.CLAUDE_CODE_WORKERS,
+        "codex": settings.CODEX_WORKERS,
+    }.get(seat.provider, DIRECT_TRANSLATION_WORKERS)
     todo = [request for request in requests if request["custom_id"] not in kept]
     lines = dict(kept)
 

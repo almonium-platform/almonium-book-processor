@@ -20,6 +20,7 @@ from django.conf import settings
 from django.db import connection, transaction
 from django.utils import timezone
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.chapter_analysis import (
     LOCALIZED_PROCESSOR_VERSION,
     LOCALIZED_PROMPT_VERSION,
@@ -34,7 +35,6 @@ from almonium_book_processor.ai.chapter_analysis import (
     PROMPT_VERSION,
     SYSTEM_PROMPT,
     ChapterAnalysis,
-    OpenAIChapterAnalysisProvider,
 )
 from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown
 from almonium_book_processor.ai.openai_provider import response_output_text
@@ -43,6 +43,7 @@ from almonium_book_processor.ai.output_language import (
     validate_analysis_language,
 )
 from almonium_book_processor.ai.pricing import plan_priced
+from almonium_book_processor.ai.seats import Seat
 from almonium_book_processor.catalog.ai_translation import TRANSLATION_MODEL_PRICING
 from almonium_book_processor.catalog.models import (
     AIRun,
@@ -100,10 +101,11 @@ def analysis_spec(language: str = "en") -> dict:
     # Reuse the deployed draft-model setting, but snapshot it independently.
     # No translation configuration or historical price row is mutated.
     localized = language != "en"
+    seat = gateway.route(settings.OPENAI_TRANSLATION_DRAFT_MODEL)
     return {
-        "provider": "openai",
-        "model": settings.OPENAI_TRANSLATION_DRAFT_MODEL,
-        "pricing_per_million": TRANSLATION_MODEL_PRICING["draft"],
+        "provider": seat.provider,
+        "model": seat.model,
+        "pricing_per_million": gateway.prices(seat, TRANSLATION_MODEL_PRICING["draft"]),
         "processor_version": LOCALIZED_PROCESSOR_VERSION if localized else PROCESSOR_VERSION,
         "prompt_version": LOCALIZED_PROMPT_VERSION if localized else PROMPT_VERSION,
         "system_prompt": LOCALIZED_SYSTEM_PROMPT if localized else SYSTEM_PROMPT,
@@ -601,7 +603,9 @@ def _attempt(
     }
     result = None
     try:
-        response = (provider or OpenAIChapterAnalysisProvider()).respond(body)
+        response = (provider or gateway.provider(Seat(spec["provider"], spec["model"]))).respond(
+            body
+        )
         if not _record_response(ai_run, response, spec):
             raise StaleAnalysis("Edition was removed while the provider was responding.")
         if response.get("status") != "completed":

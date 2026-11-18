@@ -4,13 +4,15 @@ import hashlib
 import json
 import uuid
 from collections import defaultdict
-from decimal import Decimal
+from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from typing import Any
 
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.alignment import (
     ALIGNMENT_OUTPUT_SCHEMA,
     ALIGNMENT_SYSTEM_PROMPT,
@@ -18,7 +20,8 @@ from almonium_book_processor.ai.alignment import (
     ChapterAdjudication,
     render_block,
 )
-from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
+from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown
+from almonium_book_processor.ai.seats import Seat
 from almonium_book_processor.catalog.models import (
     AIRun,
     AlignmentGroupReview,
@@ -40,24 +43,41 @@ MODEL_PRICING = {
 }
 
 
-def _configuration(tier: str) -> tuple[ModelConfiguration, PromptTemplate]:
+# A direct run silent this long was left by a worker that died, and may be taken up again.
+DIRECT_RUN_STALL = timedelta(minutes=45)
+DIRECT_WORKERS = 4
+
+
+def tier_seat(tier: str) -> Seat:
+    """Who adjudicates a tier here: its model, on a plan where this environment has one."""
+
     if tier not in MODEL_PRICING:
         raise ValueError(f"Unknown AI alignment tier: {tier}")
-    model = (
+    return gateway.route(
         settings.OPENAI_ALIGNMENT_PRIMARY_MODEL
         if tier == "primary"
         else settings.OPENAI_ALIGNMENT_ESCALATION_MODEL
     )
+
+
+def _configuration(tier: str) -> tuple[ModelConfiguration, PromptTemplate]:
+    seat = tier_seat(tier)
+    model = seat.model
     configuration, _ = ModelConfiguration.objects.get_or_create(
-        name=f"openai-alignment-{tier}-v1",
+        # the API's rows keep the names their past runs were saved under
+        name=(
+            f"openai-alignment-{tier}-v1"
+            if seat.provider == "openai"
+            else f"{seat.provider}-alignment-{tier}-v1"
+        ),
         defaults={
-            "provider": "openai",
+            "provider": seat.provider,
             "model": model,
             "purpose": "alignment_adjudication",
             "parameters": {
                 "reasoning_effort": "medium",
-                "batch_discount": 0.5,
-                "pricing_per_million": MODEL_PRICING[tier],
+                "batch_discount": 0.5 if gateway.batches(seat) else 0,
+                "pricing_per_million": gateway.prices(seat, MODEL_PRICING[tier]),
             },
         },
     )
@@ -189,8 +209,16 @@ def submit_alignment_batch(
             "input_hash": input_hash,
         },
     )
-    if not created and ai_run.status in {AIRun.Status.SUBMITTED, AIRun.Status.SUCCEEDED}:
+    if not created and ai_run.status == AIRun.Status.SUCCEEDED:
         return ai_run
+    # A Batch run has work in flight at the provider. A direct run that is "submitted" is
+    # being made by another worker, unless nothing has touched it for longer than it takes.
+    if not created and ai_run.status == AIRun.Status.SUBMITTED:
+        direct = (ai_run.request_payload or {}).get("execution") == "direct"
+        if not direct or ai_run.updated_at > timezone.now() - DIRECT_RUN_STALL:
+            return ai_run
+    # a retry resumes on the provider the run began on, so its spending stays on one ledger
+    seat = Seat(ai_run.model_configuration.provider, ai_run.model_configuration.model)
 
     requests = []
     manifest = {}
@@ -214,13 +242,20 @@ def submit_alignment_batch(
             "target_block_ids": [str(block.id) for block in group["target_blocks"]],
         }
 
+    if not gateway.batches(seat):
+        return _adjudicate_directly(ai_run, seat, tier, requests, manifest)
     ai_run.status = AIRun.Status.QUEUED
     ai_run.started_at = timezone.now()
     ai_run.error = ""
-    ai_run.request_payload = {"tier": tier, "request_count": len(requests), "manifest": manifest}
+    ai_run.request_payload = {
+        "tier": tier,
+        "request_count": len(requests),
+        "manifest": manifest,
+        "execution": "batch",
+    }
     ai_run.save(update_fields=["status", "started_at", "error", "request_payload", "updated_at"])
     try:
-        batch = OpenAIBatchProvider().submit(
+        batch = gateway.batch().submit(
             requests,
             metadata={"edition_id": str(edition.id), "ai_run_id": str(ai_run.id), "tier": tier},
         )
@@ -242,6 +277,82 @@ def submit_alignment_batch(
         ]
     )
     return ai_run
+
+
+def _adjudicate_directly(
+    ai_run: AIRun, seat: Seat, tier: str, requests: list[dict], manifest: dict
+) -> AIRun:
+    """The same requests one by one, for a seat with no Batch service: a plan.
+
+    Each answer is kept on the run as it arrives, so a run stopped part way (a worker
+    restarted, an allowance used up) takes up again where it stopped and pays for no
+    answer twice. A refused allowance or cap holds the run without failing an answer.
+    """
+
+    # an answer kept from a stopped attempt is counted once, when the run completes
+    kept = {
+        custom_id: line
+        for custom_id, line in ((ai_run.response_payload or {}).get("direct_lines") or {}).items()
+        if custom_id in manifest and (line.get("response") or {}).get("status_code") == 200
+    }
+    ai_run.status = AIRun.Status.SUBMITTED
+    ai_run.started_at = ai_run.started_at or timezone.now()
+    ai_run.error = ""
+    ai_run.provider_request_id = f"direct:{ai_run.id}"
+    ai_run.request_payload = {
+        "tier": tier,
+        "request_count": len(requests),
+        "manifest": manifest,
+        "execution": "direct",
+    }
+    ai_run.response_payload = {"batch_status": "direct", "direct_lines": kept}
+    ai_run.save(
+        update_fields=[
+            "status",
+            "started_at",
+            "error",
+            "provider_request_id",
+            "request_payload",
+            "response_payload",
+            "updated_at",
+        ]
+    )
+    provider = gateway.provider(seat)
+    workers = {
+        "claude-code": settings.CLAUDE_CODE_WORKERS,
+        "codex": settings.CODEX_WORKERS,
+    }.get(seat.provider, DIRECT_WORKERS)
+    lines = dict(kept)
+    todo = [request for request in requests if request["custom_id"] not in kept]
+
+    def keep(line: dict[str, Any]) -> None:
+        lines[line["custom_id"]] = line
+        ai_run.response_payload = {**ai_run.response_payload, "direct_lines": lines}
+        ai_run.save(update_fields=["response_payload", "updated_at"])
+
+    try:
+        # threads only call the provider; every database write happens on this thread
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for line in pool.map(lambda request: gateway.direct_line(provider, request), todo):
+                keep(line)
+    except (AllowanceUsedUp, NetworkDown) as error:
+        # nothing was answered wrongly: the run waits, with what it has, to be taken up again
+        AIRun.objects.filter(pk=ai_run.id).update(
+            status=AIRun.Status.FAILED,
+            error=str(error)[:10000],
+            response_payload={**ai_run.response_payload, "direct_lines": lines},
+            finished_at=timezone.now(),
+            updated_at=timezone.now(),
+        )
+        raise
+    complete_alignment_batch(ai_run, [lines[request["custom_id"]] for request in requests])
+    done = AIRun.objects.get(id=ai_run.id)
+    # the answers are the edition's alignments now; their copies here have done their work
+    done.response_payload = {
+        key: value for key, value in done.response_payload.items() if key != "direct_lines"
+    }
+    done.save(update_fields=["response_payload", "updated_at"])
+    return done
 
 
 def _output_text(body: dict[str, Any]) -> str:
@@ -387,22 +498,6 @@ def _apply_adjudication(
     return False
 
 
-def _estimated_batch_cost(
-    tier: str,
-    input_tokens: int,
-    cached_input_tokens: int,
-    output_tokens: int,
-) -> Decimal:
-    pricing = MODEL_PRICING[tier]
-    uncached = max(0, input_tokens - cached_input_tokens)
-    standard = (
-        Decimal(uncached) * Decimal(pricing["input"])
-        + Decimal(cached_input_tokens) * Decimal(pricing["cached_input"])
-        + Decimal(output_tokens) * Decimal(pricing["output"])
-    ) / Decimal(1_000_000)
-    return standard * Decimal("0.5")
-
-
 def _record_invalid_output_warning(
     edition: Edition,
     manifest: dict[str, Any],
@@ -509,7 +604,14 @@ def _complete_alignment_batch_locked(
         cached_input_tokens=cached_tokens,
         output_tokens=output_tokens,
         reasoning_tokens=reasoning_tokens,
-        estimated_cost_usd=_estimated_batch_cost(tier, input_tokens, cached_tokens, output_tokens),
+        estimated_cost_usd=gateway.cost(
+            Seat(ai_run.model_configuration.provider, ai_run.model_configuration.model),
+            input_tokens=input_tokens,
+            cached_input_tokens=cached_tokens,
+            output_tokens=output_tokens,
+            api_table=MODEL_PRICING[tier],
+            batch=ai_run.request_payload.get("execution", "batch") == "batch",
+        ),
     )
     ai_run.response_payload = {
         **ai_run.response_payload,

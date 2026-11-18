@@ -14,7 +14,6 @@ import hashlib
 import json
 import logging
 import uuid
-from decimal import Decimal
 from typing import Any
 
 from django.conf import settings
@@ -23,6 +22,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from almonium_book_processor import __version__
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.metadata import (
     METADATA_EXCERPT_MAX_BLOCKS,
     METADATA_EXCERPT_MAX_CHARS,
@@ -31,8 +31,9 @@ from almonium_book_processor.ai.metadata import (
     METADATA_USER_TEMPLATE,
     BookMetadataProposal,
 )
-from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_output_language
+from almonium_book_processor.ai.seats import Seat
 from almonium_book_processor.catalog.models import (
     METADATA_FIELD_LABELS,
     AIRun,
@@ -171,7 +172,7 @@ def detect_metadata(edition_id: str, *, rerun: bool = False) -> PipelineRun:
     """
 
     edition = Edition.objects.select_related("work").get(id=edition_id)
-    ai_enabled = bool(settings.OPENAI_API_KEY)
+    ai_enabled = not gateway.unavailable(metadata_seat())
     # Keyed by the source and what the owner typed, not by the current values:
     # adopting a proposal must not make a retry look like new input.
     input_hash = hashlib.sha256(
@@ -452,12 +453,20 @@ def _owner_supplied(edition: Edition) -> dict[str, object]:
     }
 
 
+def metadata_seat() -> Seat:
+    """Who proposes metadata here (``OPENAI_METADATA_MODEL``, routed by ai/gateway.py)."""
+
+    return gateway.route(settings.OPENAI_METADATA_MODEL)
+
+
 def _configuration() -> tuple[ModelConfiguration, PromptTemplate]:
-    model = settings.OPENAI_METADATA_MODEL
+    seat = metadata_seat()
+    model = seat.model
     configuration, _ = ModelConfiguration.objects.get_or_create(
-        name="openai-metadata-v1",
+        # the API's row keeps the name its past runs were saved under
+        name="openai-metadata-v1" if seat.provider == "openai" else f"{seat.provider}-metadata-v1",
         defaults={
-            "provider": "openai",
+            "provider": seat.provider,
             "model": model,
             "purpose": "import_metadata",
             "parameters": {
@@ -530,6 +539,8 @@ def _propose_with_ai(edition: Edition, run: PipelineRun) -> AIRun | None:
     )
     if not created and ai_run.status == AIRun.Status.SUCCEEDED:
         return ai_run
+    # a retry resumes on the provider the run began on, so its spending stays on one ledger
+    seat = Seat(ai_run.model_configuration.provider, configuration.model)
 
     ai_run.status = AIRun.Status.SUBMITTED
     ai_run.provider_request_id = f"direct:{ai_run.id}"
@@ -567,7 +578,7 @@ def _propose_with_ai(edition: Edition, run: PipelineRun) -> AIRun | None:
         "store": False,
     }
     try:
-        response = OpenAIBatchProvider().respond(body)
+        response = gateway.provider(seat).respond(body)
         proposal = BookMetadataProposal.model_validate_json(response_output_text(response))
     except Exception as error:
         ai_run.status = AIRun.Status.FAILED
@@ -585,7 +596,14 @@ def _propose_with_ai(edition: Edition, run: PipelineRun) -> AIRun | None:
         cached_input_tokens=cached_input_tokens,
         output_tokens=output_tokens,
         reasoning_tokens=(usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0),
-        estimated_cost_usd=_estimated_cost(input_tokens, cached_input_tokens, output_tokens),
+        estimated_cost_usd=gateway.cost(
+            seat,
+            input_tokens=input_tokens,
+            cached_input_tokens=cached_input_tokens,
+            output_tokens=output_tokens,
+            api_table=METADATA_MODEL_PRICING,
+            response=response,
+        ),
     )
     try:
         validate_output_language([proposal.description], proposal.language)
@@ -612,15 +630,6 @@ def _propose_with_ai(edition: Edition, run: PipelineRun) -> AIRun | None:
         ]
     )
     return ai_run
-
-
-def _estimated_cost(input_tokens: int, cached_input_tokens: int, output_tokens: int) -> Decimal:
-    uncached = max(0, input_tokens - cached_input_tokens)
-    return (
-        Decimal(uncached) * Decimal(METADATA_MODEL_PRICING["input"])
-        + Decimal(cached_input_tokens) * Decimal(METADATA_MODEL_PRICING["cached_input"])
-        + Decimal(output_tokens) * Decimal(METADATA_MODEL_PRICING["output"])
-    ) / Decimal(1_000_000)
 
 
 def _supported_language(value: str) -> str:

@@ -15,12 +15,13 @@ import json
 import logging
 import time
 
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai import gateway
+from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import validate_output_language
+from almonium_book_processor.ai.seats import Seat
 from almonium_book_processor.ai.translation import (
     CHAPTER_SUMMARY_OUTPUT_SCHEMA,
     CHAPTER_SUMMARY_SYSTEM_PROMPT,
@@ -36,6 +37,7 @@ from almonium_book_processor.catalog.ai_translation import (
     _configuration,
     _response_request,
     language_name,
+    tier_seat,
 )
 from almonium_book_processor.catalog.models import (
     AIRun,
@@ -196,8 +198,8 @@ def queue_metadata_translation(edition_id: str, *, dispatch: bool = True) -> Pip
     edition = Edition.objects.select_for_update(of=("self",)).get(pk=edition_id)
     if not edition.is_parallel_translation:
         raise ValueError("Only a parallel translation is named and described from its source.")
-    if not settings.OPENAI_API_KEY:
-        raise ValueError("Configure an OpenAI key to translate metadata.")
+    if reason := gateway.unavailable(tier_seat("quality")):
+        raise ValueError(reason)
     plan = _plan(edition)
     input_hash = digest(plan)
     run, _ = PipelineRun.objects.get_or_create(
@@ -430,12 +432,12 @@ def run_metadata_translation(run_id: str, *, provider=None) -> None:
         pk=run_id
     )
     edition = run.edition
-    provider = provider or OpenAIBatchProvider()
     try:
         plan = _plan(edition)
         if digest(plan) != run.input_hash:
             raise ValueError("The source changed; a new run was queued for it.")
         configuration, _ = _configuration("quality")
+        provider = provider or gateway.provider(Seat(configuration.provider, configuration.model))
         title_template, summary_template = _templates()
         _, title_page = _title_page(edition, run, plan, configuration, title_template, provider)
         artifacts = []

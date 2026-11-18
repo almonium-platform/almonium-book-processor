@@ -1551,27 +1551,47 @@ def prepare_ai_alignment(edition_id: str) -> str:
 
     align_edition_to_source.run(edition_id)
     ai_run = submit_alignment_batch(edition_id, tier="primary")
-    if ai_run.status == ai_run.Status.SUBMITTED:
-        poll_ai_alignment_batch.apply_async(
-            args=[str(ai_run.id)], countdown=settings.OPENAI_BATCH_POLL_SECONDS
-        )
+    _follow_alignment(ai_run)
     return str(ai_run.id)
+
+
+def _follow_alignment(ai_run) -> None:
+    """What follows an adjudication run: its Batch polled, or its doubtful groups escalated.
+
+    A run on a plan answered directly and is finished when it returns; one in the Batch
+    service is polled until it is.
+    """
+
+    from almonium_book_processor.catalog.ai_alignment import submit_alignment_batch
+
+    if ai_run.status == AIRun.Status.SUBMITTED:
+        if (ai_run.request_payload or {}).get("execution", "batch") == "batch":
+            poll_ai_alignment_batch.apply_async(
+                args=[str(ai_run.id)], countdown=settings.OPENAI_BATCH_POLL_SECONDS
+            )
+        return
+    uncertain = (ai_run.response_payload or {}).get("uncertain_chapter_group_ids") or []
+    if (
+        ai_run.status == AIRun.Status.SUCCEEDED
+        and ai_run.request_payload.get("tier") == "primary"
+        and uncertain
+    ):
+        _follow_alignment(
+            submit_alignment_batch(str(ai_run.edition_id), tier="escalation", group_ids=uncertain)
+        )
 
 
 @shared_task(bind=True, acks_late=True, max_retries=1500)
 def poll_ai_alignment_batch(self, ai_run_id: str) -> None:
-    from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
-    from almonium_book_processor.catalog.ai_alignment import (
-        complete_alignment_batch,
-        submit_alignment_batch,
-    )
+    from almonium_book_processor.ai import gateway
+    from almonium_book_processor.catalog.ai_alignment import complete_alignment_batch
     from almonium_book_processor.catalog.models import AIRun
 
     ai_run = AIRun.objects.select_related("model_configuration").get(id=ai_run_id)
     if ai_run.status in {AIRun.Status.SUCCEEDED, AIRun.Status.FAILED}:
         return
     try:
-        provider = OpenAIBatchProvider()
+        provider = gateway.batch()
         batch = provider.retrieve(ai_run.provider_request_id)
         ai_run.response_payload = {
             **ai_run.response_payload,
@@ -1580,19 +1600,9 @@ def poll_ai_alignment_batch(self, ai_run_id: str) -> None:
         }
         ai_run.save(update_fields=["response_payload", "updated_at"])
         if batch.status == "completed":
-            uncertain_group_ids = complete_alignment_batch(
-                ai_run, provider.output_lines(batch.output_file_id)
-            )
-            if ai_run.request_payload["tier"] == "primary" and uncertain_group_ids:
-                escalation = submit_alignment_batch(
-                    str(ai_run.edition_id),
-                    tier="escalation",
-                    group_ids=uncertain_group_ids,
-                )
-                if escalation.status == AIRun.Status.SUBMITTED:
-                    poll_ai_alignment_batch.apply_async(
-                        args=[str(escalation.id)], countdown=settings.OPENAI_BATCH_POLL_SECONDS
-                    )
+            complete_alignment_batch(ai_run, provider.output_lines(batch.output_file_id))
+            ai_run.refresh_from_db()
+            _follow_alignment(ai_run)
             return
         if batch.status in {"failed", "expired", "cancelled"}:
             raise RuntimeError(f"OpenAI Batch ended with status {batch.status}")
@@ -1611,8 +1621,12 @@ def poll_ai_alignment_batch(self, ai_run_id: str) -> None:
 def prepare_translation(edition_id: str, *, tier: str = "quality") -> str:
     """Submit the Batch translation that fills a parallel edition."""
 
-    from almonium_book_processor.catalog.ai_translation import submit_translation_batch
+    from almonium_book_processor.ai import gateway
+    from almonium_book_processor.catalog.ai_translation import submit_translation_batch, tier_seat
 
+    if not gateway.batches(tier_seat(tier)):
+        # a plan has no Batch service: the same requests, made one by one
+        return translate_edition_inline.run(edition_id, tier)
     ai_run = submit_translation_batch(edition_id, tier=tier)
     if ai_run.status == AIRun.Status.SUBMITTED:
         poll_translation_batch.apply_async(
@@ -1623,14 +1637,14 @@ def prepare_translation(edition_id: str, *, tier: str = "quality") -> str:
 
 @shared_task(bind=True, acks_late=True, max_retries=1500)
 def poll_translation_batch(self, ai_run_id: str) -> None:
-    from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
+    from almonium_book_processor.ai import gateway
     from almonium_book_processor.catalog.ai_translation import complete_translation_batch
 
     ai_run = AIRun.objects.select_related("model_configuration").get(id=ai_run_id)
     if ai_run.status in {AIRun.Status.SUCCEEDED, AIRun.Status.FAILED}:
         return
     try:
-        provider = OpenAIBatchProvider()
+        provider = gateway.batch()
         batch = provider.retrieve(ai_run.provider_request_id)
         ai_run.response_payload = {
             **ai_run.response_payload,

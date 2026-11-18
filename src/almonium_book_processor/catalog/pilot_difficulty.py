@@ -7,6 +7,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.chapter_analysis import (
     LOCALIZED_WORDING_PROMPT_VERSION,
     WORDING_NOTE,
@@ -14,7 +15,7 @@ from almonium_book_processor.ai.chapter_analysis import (
 )
 from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, NetworkDown
 from almonium_book_processor.ai.pricing import has_price, seat_prices
-from almonium_book_processor.ai.seats import parse_seat, provider_for
+from almonium_book_processor.ai.seats import Seat
 from almonium_book_processor.catalog.adaptation import PILOT_VERSIONS
 from almonium_book_processor.catalog.chapter_analysis import (
     CitationRejected,
@@ -56,7 +57,7 @@ def judge_specs(language: str, *, wording: bool = True) -> list[dict]:
         return [base]
     specs = []
     for setting in settings.DIFFICULTY_JUDGES.split(","):
-        seat = parse_seat(setting)
+        seat = gateway.route(setting)
         if not has_price(seat.model):
             raise ValueError(f"No price is known for {seat.model}; add it to ai/pricing.py")
         specs.append(
@@ -242,7 +243,7 @@ def judge_text(
     try:
         configuration, prompt = _configuration(spec)
         if provider is None and spec["provider"] != "openai":
-            provider = provider_for(spec["provider"], spec["model"])
+            provider = gateway.provider(Seat(spec["provider"], spec["model"]))
         taken = []
         for reading in range(1, readings + 1):
             results = []

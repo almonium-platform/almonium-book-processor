@@ -6,8 +6,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
-
 PROMPT_NAME = "chapter-analysis"
 PROMPT_VERSION = 3
 PROCESSOR_VERSION = "chapter-analysis-v3"
@@ -123,11 +121,3 @@ philosophical point, or expresses strong feeling, when the sentences that carry 
 Raise it only for words a reader at that level would not know and the text does not explain,
 and for sentences whose structure the reader would have to untangle.
 """
-
-
-class OpenAIChapterAnalysisProvider(OpenAIBatchProvider):
-    """Direct worker requests with no hidden SDK retries and a bounded timeout."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.client = self.client.with_options(timeout=120.0, max_retries=0)

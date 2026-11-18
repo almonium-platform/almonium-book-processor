@@ -98,7 +98,7 @@ def test_submit_and_complete_alignment_batch(monkeypatch) -> None:
         return SimpleNamespace(id="batch_test", status="validating", input_file_id="file_test")
 
     monkeypatch.setattr(
-        "almonium_book_processor.catalog.ai_alignment.OpenAIBatchProvider.submit",
+        "almonium_book_processor.ai.openai_provider.OpenAIBatchProvider.submit",
         fake_submit,
     )
     monkeypatch.setattr(
@@ -177,7 +177,7 @@ def test_invalid_primary_output_is_escalated_without_failing_batch(monkeypatch) 
         )
 
     monkeypatch.setattr(
-        "almonium_book_processor.catalog.ai_alignment.OpenAIBatchProvider.submit",
+        "almonium_book_processor.ai.openai_provider.OpenAIBatchProvider.submit",
         fake_submit,
     )
     monkeypatch.setattr(
@@ -237,3 +237,93 @@ def test_invalid_primary_output_is_escalated_without_failing_batch(monkeypatch) 
     assert ai_run.status == AIRun.Status.SUCCEEDED
     assert custom_id in ai_run.response_payload["invalid_outputs"]
     assert ai_run.input_tokens == 50
+
+
+def _decision(source_block, target_block) -> dict:
+    return {
+        "same_text": True,
+        "confidence": 0.97,
+        "alignments": [
+            {
+                "source_block_ids": [str(source_block.id)],
+                "target_block_ids": [str(target_block.id)],
+                "relation": "1:1",
+                "confidence": 0.96,
+                "evidence": "Both passages describe leaving for Ingolstadt at seventeen.",
+            }
+        ],
+        "unmatched_source_block_ids": [],
+        "unmatched_target_block_ids": [],
+        "needs_human_review": False,
+        "notes": "Direct translation.",
+    }
+
+
+def test_on_a_plan_the_requests_are_answered_directly_with_no_batch(settings, monkeypatch):
+    target, source_block, target_block = aligned_edition()
+    settings.AI_PLANS = "codex"
+    calls = []
+
+    class Plan:
+        def respond(self, body):
+            calls.append(body["model"])
+            text = json.dumps(_decision(source_block, target_block))
+            return {
+                "id": "codex-call",
+                "output": [{"type": "message", "content": [{"type": "output_text", "text": text}]}],
+                "usage": {"input_tokens": 1000, "output_tokens": 100},
+            }
+
+    seats = []
+    monkeypatch.setattr(
+        "almonium_book_processor.ai.gateway.provider", lambda seat: seats.append(seat) or Plan()
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.ai.openai_provider.OpenAIBatchProvider.submit",
+        lambda *args, **kwargs: pytest.fail("a plan has no Batch service"),
+    )
+
+    ai_run = submit_alignment_batch(str(target.id))
+
+    assert ai_run.status == AIRun.Status.SUCCEEDED
+    assert seats[0].provider == "codex" and calls == [settings.OPENAI_ALIGNMENT_PRIMARY_MODEL]
+    assert ai_run.model_configuration.provider == "codex"
+    assert ai_run.request_payload["execution"] == "direct"
+    # the plan's share of the list price, not the Batch API's half price
+    assert ai_run.estimated_cost_usd > 0
+    assert "direct_lines" not in ai_run.response_payload
+    assert BlockAlignment.objects.filter(target_edition=target).count() == 1
+    # asked again, the answer is found, not bought again
+    assert submit_alignment_batch(str(target.id)).id == ai_run.id
+    assert len(calls) == 1
+
+
+def test_a_plan_run_stopped_by_a_used_up_allowance_resumes_without_paying_twice(
+    settings, monkeypatch
+):
+    from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+
+    target, source_block, target_block = aligned_edition()
+    settings.AI_PLANS = "codex"
+    answers = iter([AllowanceUsedUp("weekly limit"), _decision(source_block, target_block)])
+
+    class Plan:
+        def respond(self, body):
+            answer = next(answers)
+            if isinstance(answer, Exception):
+                raise answer
+            text = json.dumps(answer)
+            return {
+                "output": [{"type": "message", "content": [{"type": "output_text", "text": text}]}]
+            }
+
+    monkeypatch.setattr("almonium_book_processor.ai.gateway.provider", lambda seat: Plan())
+
+    with pytest.raises(AllowanceUsedUp):
+        submit_alignment_batch(str(target.id))
+    held = AIRun.objects.get()
+    assert held.status == AIRun.Status.FAILED
+
+    resumed = submit_alignment_batch(str(target.id))
+    assert resumed.id == held.id
+    assert resumed.status == AIRun.Status.SUCCEEDED

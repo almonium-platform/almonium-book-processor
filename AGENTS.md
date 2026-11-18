@@ -78,6 +78,12 @@ seams between them were not.
   add any new one with a test.
 - Never purge text that was paid for unless the owner asks or a copyright
   claim requires it; a dropped level is a verdict, a broken call is not.
+- Every model call gets its caller from `ai/gateway.py` (`route` a setting to
+  a seat, then `provider(seat)`); nothing outside `ai/` builds a provider, and
+  `tests/test_gateway.py` fails if something does. A setting naming a bare
+  model runs it on a plan where `AI_PLANS` has one that serves it, else on the
+  API; a plan has no Batch service, so a batching step calls it directly.
+  A retry stays on the provider its run began on.
 - Every paid call passes `catalog/budgets.check(provider)` first (the
   adapters in `ai/` do it), so the owner's monthly cap per provider on the
   dashboard holds the book (`BudgetReached`, an `AllowanceUsedUp`) instead of

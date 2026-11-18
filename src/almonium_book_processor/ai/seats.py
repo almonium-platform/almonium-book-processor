@@ -3,7 +3,8 @@
 Written as ``provider:model`` or ``provider:model:effort``. The provider is ``openai`` for the
 metered API, or ``codex`` or ``claude-code`` for a CLI signed in to one of the owner's plans.
 A plan seat works only on the machine where that CLI is signed in, so deployed settings name
-API seats and the owner's machine names plan seats for the same steps.
+API seats and the owner's machine names plan seats for the same steps. A setting may also name
+the model alone and leave the provider to ``ai/gateway.route``, which builds every caller.
 """
 
 from __future__ import annotations
@@ -51,22 +52,3 @@ def parse_seat(setting: str) -> Seat:
         # refused before any call is made, not after one used up part of the plan
         raise ValueError(f"No price is known for {model}; add it to ai/pricing.py")
     return Seat(provider, model, effort)
-
-
-def provider_for(provider: str, model: str):
-    """The provider object that makes a seat's calls."""
-
-    # imported here: the CLI providers read settings when they are built
-    from almonium_book_processor.ai.claude_code_provider import ClaudeCodeProvider
-    from almonium_book_processor.ai.codex_provider import CodexProvider
-    from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
-
-    if provider == "claude-code":
-        from almonium_book_processor.catalog.plan_pause import open_claude_accounts
-
-        return ClaudeCodeProvider(model=model, accounts=open_claude_accounts)
-    if provider == "codex":
-        from almonium_book_processor.catalog.plan_pause import open_codex_accounts
-
-        return CodexProvider(accounts=open_codex_accounts)
-    return OpenAIBatchProvider()

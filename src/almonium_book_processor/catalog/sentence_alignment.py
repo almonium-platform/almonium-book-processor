@@ -8,8 +8,10 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.ai.cli_calls import recorded_error
-from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai.openai_provider import response_output_text
+from almonium_book_processor.ai.seats import Seat
 from almonium_book_processor.catalog.adaptation import record_response
 from almonium_book_processor.catalog.models import (
     AIRun,
@@ -73,11 +75,18 @@ def generate_sentence_preview(primary_id, secondary_id, chapter, block_ids=None)
     ]
     if not pairs or len(pairs) > 100 or sum(len(p.text) + len(s.text) for p, s in pairs) > 100000:
         raise ValueError("Preview requires 1–100 paired blocks, at most 100,000 characters")
+    # The model, not who serves it, is the artifact's identity (``version`` below, and the
+    # reader's filter in parallel_content), so a pair paid for on the API is found on a plan.
+    seat = gateway.route(settings.OPENAI_TRANSLATION_QUALITY_MODEL)
     configuration, _ = ModelConfiguration.objects.get_or_create(
-        name=f"{VERSION}-{settings.OPENAI_TRANSLATION_QUALITY_MODEL}",
+        name=(
+            f"{VERSION}-{seat.model}"
+            if seat.provider == "openai"
+            else f"{VERSION}-{seat.provider}-{seat.model}"
+        ),
         defaults={
-            "provider": "openai",
-            "model": settings.OPENAI_TRANSLATION_QUALITY_MODEL,
+            "provider": seat.provider,
+            "model": seat.model,
             "purpose": "sentence_alignment",
         },
     )
@@ -164,7 +173,11 @@ def generate_sentence_preview(primary_id, secondary_id, chapter, block_ids=None)
             if not claimed:
                 raise ValueError("Sentence alignment already running or awaiting recovery")
         try:
-            response = OpenAIBatchProvider().respond(
+            # a retry stays on the provider its run began on, so its spending is on one ledger
+            caller = gateway.provider(
+                Seat(ai.model_configuration.provider, ai.model_configuration.model)
+            )
+            response = caller.respond(
                 {
                     "model": configuration.model,
                     "instructions": SYSTEM,

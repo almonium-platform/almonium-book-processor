@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from functools import cached_property
 
+from almonium_book_processor.ai import gateway
 from almonium_book_processor.catalog.ai_translation import TRANSLATION_MODEL_PRICING
 from almonium_book_processor.catalog.models import AIRun, Chapter, Edition, PipelineRun
 
@@ -324,13 +325,21 @@ def book_adaptation(
     )
 
 
+def _quality_prices() -> dict[str, str]:
+    """The quality tier's prices wherever its model runs here."""
+
+    from almonium_book_processor.catalog.ai_translation import tier_seat
+
+    return gateway.prices(tier_seat("quality"), TRANSLATION_MODEL_PRICING["quality"])
+
+
 def modernisation_advice() -> Estimate:
     from almonium_book_processor.catalog.modernisation import SYSTEM_PROMPT
 
     # Three chapters, three paragraphs each, at most 1,000 characters apiece.
     return Estimate(
         call_cost(
-            TRANSLATION_MODEL_PRICING["quality"],
+            _quality_prices(),
             tokens(9000 + len(SYSTEM_PROMPT)),
             ADVICE_OUTPUT_TOKENS,
         ),
@@ -376,7 +385,7 @@ def metadata_detection(edition: Edition) -> Estimate:
         METADATA_EXCERPT_MAX_CHARS,
         METADATA_SYSTEM_PROMPT,
     )
-    from almonium_book_processor.catalog.metadata import METADATA_MODEL_PRICING
+    from almonium_book_processor.catalog.metadata import METADATA_MODEL_PRICING, metadata_seat
 
     texts = edition.blocks.exclude(text="").order_by("sequence").values_list("text", flat=True)
     chars = min(
@@ -385,7 +394,7 @@ def metadata_detection(edition: Edition) -> Estimate:
     )
     return Estimate(
         call_cost(
-            METADATA_MODEL_PRICING,
+            gateway.prices(metadata_seat(), METADATA_MODEL_PRICING),
             tokens(chars + len(METADATA_SYSTEM_PROMPT)),
             METADATA_OUTPUT_TOKENS,
         ),
@@ -412,7 +421,7 @@ def metadata_translation(edition: Edition) -> Estimate:
 
     if not edition.source_edition_id:
         return unavailable("this edition has no source.")
-    pricing = TRANSLATION_MODEL_PRICING["quality"]
+    pricing = _quality_prices()
     items = [title_page_inputs(edition), *(row["descriptions"] for row in chapter_inputs(edition))]
     usd = Decimal(0)
     for item in items:
@@ -429,7 +438,7 @@ def alignment_review(edition: Edition) -> Estimate:
     target chapter.
     """
     from almonium_book_processor.ai.alignment import ALIGNMENT_SYSTEM_PROMPT
-    from almonium_book_processor.catalog.ai_alignment import MODEL_PRICING
+    from almonium_book_processor.catalog.ai_alignment import MODEL_PRICING, tier_seat
 
     source = edition.inferred_alignment_source
     if source is None:
@@ -443,17 +452,19 @@ def alignment_review(edition: Edition) -> Estimate:
     if not groups:
         return unavailable("this edition has no text.")
     text = tokens(chars) + ENVELOPE_TOKENS_PER_BLOCK * blocks
+    seat = tier_seat("primary")
+    batch = gateway.batches(seat)
     usd = call_cost(
-        MODEL_PRICING["primary"],
+        gateway.prices(seat, MODEL_PRICING["primary"]),
         text + groups * tokens(len(ALIGNMENT_SYSTEM_PROMPT)),
         math.ceil(text * ALIGNMENT_OUTPUT_RATIO),
-        batch=True,
+        batch=batch,
     )
+    where = "on the Batch API at half price" if batch else f"on the {seat.provider} plan"
     return Estimate(
         usd,
-        f"About {groups} chapter groups on the Batch API at half price. Groups that stay "
-        "uncertain are escalated to the quality model, which is not included. A repeat "
-        "on unchanged text is free.",
+        f"About {groups} chapter groups {where}. Groups that stay uncertain are escalated "
+        "to the quality model, which is not included. A repeat on unchanged text is free.",
     )
 
 

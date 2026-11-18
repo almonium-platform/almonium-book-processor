@@ -11,13 +11,14 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict
 
-from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider, response_output_text
+from almonium_book_processor.ai import gateway
+from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.output_language import (
     MIN_ASSESSABLE_LETTERS,
     OutputLanguageError,
     validate_output_language,
 )
-from almonium_book_processor.ai.seats import Seat, parse_seat, provider_for
+from almonium_book_processor.ai.seats import Seat
 from almonium_book_processor.catalog.adaptation import digest, record_response
 from almonium_book_processor.catalog.ai_translation import TRANSLATION_MODEL_PRICING
 from almonium_book_processor.catalog.models import (
@@ -210,7 +211,7 @@ def queue_book(edition: Edition, *, dispatch=True) -> dict[str, int]:
 
 
 def gloss_writer() -> Seat:
-    """Who writes the notes here: the configured seat, or the API's quality model.
+    """Who writes the notes here: the configured seat, or the quality model wherever it runs.
 
     On six passages of Frankenstein judged blind by two other models, gpt-6-astra's notes
     were ranked first (75 of 78 judgements good, none wrong) and the API model's last (56 of
@@ -218,8 +219,8 @@ def gloss_writer() -> Seat:
     """
 
     if settings.GLOSS_WRITER:
-        return parse_seat(settings.GLOSS_WRITER)
-    return Seat("openai", settings.OPENAI_TRANSLATION_QUALITY_MODEL)
+        return gateway.route(settings.GLOSS_WRITER)
+    return gateway.route(settings.OPENAI_TRANSLATION_QUALITY_MODEL)
 
 
 def generation_spec() -> dict:
@@ -337,8 +338,6 @@ def run_chapter(run_id, *, provider=None) -> None:
         if digest([chapter_snapshot(chapter), spec, VERSION]) != run.input_hash:
             raise ValueError("Chapter text changed; request fresh glosses.")
         config, prompt = _configuration(spec["model"], spec.get("provider", "openai"))
-        if provider is None and config.provider != "openai":
-            provider = provider_for(config.provider, config.model)
         blocks = {block.block_id: block for block in chapter.blocks.all()}
         earlier = explained_before(chapter)
         explained = {term(quote) for quote in earlier}
@@ -394,7 +393,9 @@ def run_chapter(run_id, *, provider=None) -> None:
                 ai.started_at = timezone.now()
                 ai.save(update_fields=["status", "started_at", "updated_at"])
                 try:
-                    response = (provider or OpenAIBatchProvider()).respond(body)
+                    response = (
+                        provider or gateway.provider(Seat(config.provider, config.model))
+                    ).respond(body)
                     record_response(ai.id, response)
                     if response.get("status") != "completed":
                         raise ValueError("Provider did not complete gloss generation.")

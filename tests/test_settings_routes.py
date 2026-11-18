@@ -41,3 +41,38 @@ def test_the_routed_names_are_real_tasks():
 
     for name in plan_task_routes("claude-code:claude-opus-5-5"):
         assert getattr(tasks, name.rsplit(".", 1)[1]).name == name
+
+
+def test_a_bare_model_on_a_plan_sends_the_generating_tasks_to_the_host_worker():
+    assert plan_task_routes("gpt-5.6-terra", plans="codex")
+    assert plan_task_routes("gpt-5.6-terra", plans="") == {}
+
+
+def test_each_step_with_a_model_alone_goes_to_the_host_worker_when_its_model_is_on_a_plan():
+    from almonium_book_processor.config.settings import step_task_routes
+
+    models = {
+        "quality": "gpt-5.6-terra",
+        "draft": "gpt-5.6-luna",
+        "primary": "openai:gpt-5.6-luna",
+        "escalation": "openai:gpt-5.6-terra",
+        "metadata": "gpt-5.6-luna",
+    }
+    assert step_task_routes(models, plans="") == {}
+    routed = {name.rsplit(".", 1)[1] for name in step_task_routes(models, plans="codex")}
+    assert routed == {
+        "translate_edition_inline",
+        "prepare_translation",
+        "translate_edition_metadata",
+        "modernisation_advice",
+        "detect_edition_metadata",
+    }
+
+
+def test_the_step_routed_names_are_real_tasks():
+    from almonium_book_processor.catalog import tasks
+    from almonium_book_processor.config.settings import STEP_TASKS
+
+    for names, _ in STEP_TASKS:
+        for name in names:
+            assert getattr(tasks, name).name == f"almonium_book_processor.catalog.tasks.{name}"

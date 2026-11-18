@@ -51,7 +51,6 @@ DEFAULT_REGISTER = Edition.LiteraryRegister.CONTEMPORARY
 CHARS_PER_TOKEN = 4
 OUTPUT_TO_INPUT_RATIO = Decimal("1.15")
 ENVELOPE_TOKENS_PER_BLOCK = 24
-BATCH_DISCOUNT = Decimal("0.5")
 COST_PLACES = Decimal("0.000001")
 
 LANGUAGE_CODES = {code for code, _ in LANGUAGE_CHOICES}
@@ -70,13 +69,21 @@ def _tokens(chars: int) -> int:
 
 
 def _price(tier: str, input_tokens: int, output_tokens: int, *, mode: str) -> Decimal:
-    pricing = TRANSLATION_MODEL_PRICING[tier]
-    cost = (
-        Decimal(input_tokens) * Decimal(pricing["input"])
-        + Decimal(output_tokens) * Decimal(pricing["output"])
-    ) / Decimal(1_000_000)
-    if mode == "batch":
-        cost *= BATCH_DISCOUNT
+    """The price of the work: on a plan its share of the plan, with no Batch discount, since
+    a plan has no Batch service; on the API the tier's table, halved through Batch."""
+
+    from almonium_book_processor.ai import gateway
+    from almonium_book_processor.catalog.ai_translation import tier_seat
+
+    seat = tier_seat(tier)
+    cost = gateway.cost(
+        seat,
+        input_tokens=input_tokens,
+        cached_input_tokens=0,
+        output_tokens=output_tokens,
+        api_table=TRANSLATION_MODEL_PRICING[tier],
+        batch=mode == "batch" and gateway.batches(seat),
+    )
     return cost.quantize(COST_PLACES)
 
 
@@ -318,9 +325,9 @@ def cancel_translation(edition: Edition) -> Edition:
         execution = (run.request_payload or {}).get("execution")
         if run.provider_request_id and execution == "batch":
             try:
-                from almonium_book_processor.ai.openai_provider import OpenAIBatchProvider
+                from almonium_book_processor.ai import gateway
 
-                OpenAIBatchProvider().cancel(run.provider_request_id)
+                gateway.batch().cancel(run.provider_request_id)
             except Exception:
                 logger.exception(
                     "Could not cancel batch %s at the provider", run.provider_request_id
