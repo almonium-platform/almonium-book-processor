@@ -20,6 +20,7 @@ import logging
 from datetime import timedelta
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 
 from almonium_book_processor.catalog.models import PipelineRun
@@ -54,8 +55,11 @@ def abandoned_runs(after: timedelta = ABANDONED_AFTER):
     """Runs a worker took and then went silent on. A queued run is not one of them: its
     message waits in the broker for a free worker, however long the queue is."""
 
+    # Offline sentence alignment is local work by one process that touches its row
+    # after every paragraph; other alignment runs may wait on a provider Batch.
     return PipelineRun.objects.filter(
-        stage__in=WORKED_BY_ONE_PROCESS,
+        Q(stage__in=WORKED_BY_ONE_PROCESS)
+        | Q(stage=PipelineRun.Stage.ALIGN, idempotency_key__startswith="offline-sentence-"),
         status=PipelineRun.Status.RUNNING,
         updated_at__lt=timezone.now() - abandoned_after(after),
     )

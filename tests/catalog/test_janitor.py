@@ -52,6 +52,22 @@ def test_a_job_a_stopped_worker_left_behind_is_closed_and_says_why():
         assert left.status == "running"
 
 
+def test_an_offline_sentence_alignment_a_restart_killed_is_closed_and_can_be_queued_again():
+    work = Work.objects.create(slug="w", title="A book", author="Author")
+    edition = Edition.objects.create(work=work, slug="w-en", language="en")
+    killed = run(edition, PipelineRun.Stage.ALIGN, "running", 3)
+    PipelineRun.objects.filter(pk=killed.pk).update(idempotency_key="offline-sentence-v9:x:abc")
+    # an inferred alignment may wait on a provider Batch: silence is not death there
+    inferred = run(edition, PipelineRun.Stage.ALIGN, "running", 20)
+
+    assert close_abandoned_runs() == 1
+
+    killed.refresh_from_db()
+    assert killed.status == "failed"
+    inferred.refresh_from_db()
+    assert inferred.status == "running"
+
+
 def test_nothing_is_closed_while_the_plans_queue_is_paused(monkeypatch):
     # 24 October 2026: both Codex meters were empty, the workers were told to stop taking plan
     # steps, and two hours later a sweep failed the thirty-nine books waiting for the reset

@@ -107,7 +107,7 @@ def queue_alignment(primary_id, secondary_id, model=None):
 
 def run_alignment(run_id):
     claimed = PipelineRun.objects.filter(pk=run_id, status=PipelineRun.Status.QUEUED).update(
-        status=PipelineRun.Status.RUNNING, started_at=timezone.now()
+        status=PipelineRun.Status.RUNNING, started_at=timezone.now(), updated_at=timezone.now()
     )
     if not claimed:
         return
@@ -194,7 +194,10 @@ def run_alignment(run_id):
                 for g in payload["groups"]
                 if not g["primary"] or not g["secondary"]
             )
-            PipelineRun.objects.filter(pk=run.id).update(progress=100 * (index + 1) // len(pairs))
+            # Touch the row: the janitor reads silence as a dead worker.
+            PipelineRun.objects.filter(pk=run.id).update(
+                progress=100 * (index + 1) // len(pairs), updated_at=timezone.now()
+            )
         if _digest(_pairs(run.edition_id, run.summary["secondary_id"])) != run.input_hash:
             raise ValueError("Pair changed before completion; queue a new alignment")
         PipelineRun.objects.filter(pk=run.id).update(
