@@ -108,6 +108,12 @@
     <span title="The ledger read for money paid twice: identical requests, twin editions, windows re-asked, paid text purged. The host runs it daily.">Spend guard{% if guard %} · {{ guard.report.created_at|timesince }} ago · {{ guard.line }}{% else %} · not run yet{% endif %}</span>
     <form method="post" action="{% url 'catalog:run-spend-guard' %}">{% csrf_token %}<button class="button button-small button-secondary" type="submit">Run now</button></form>
   </div>
+  <section class="catalogue-line" id="sentence-alignment" aria-label="Offline sentence alignment">
+    <span><strong>Sentence alignment {{ alignment.version }}</strong> · {{ alignment.done }} done · {{ alignment.running }} running · {{ alignment.queued }} waiting · {{ alignment.failed }} failed</span>
+    {% if alignment.confirmed_percent is not None %}
+    <span title="{{ alignment.confirmed|floatformat:'0g' }} confirmed and {{ alignment.uncertain|floatformat:'0g' }} unconfirmed groups in the completed runs shown here">{{ alignment.confirmed_percent|floatformat:1 }}% of groups confirmed</span>
+    {% endif %}
+  </section>
   <details class="book-queue spending" id="spending"{% if budgets.reached %} open{% endif %}>
     <summary class="book-queue-head">
       <strong>Spending · {{ budgets.month|date:"F" }}</strong>

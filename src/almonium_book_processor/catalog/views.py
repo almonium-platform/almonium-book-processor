@@ -34,6 +34,7 @@ from almonium_book_processor.catalog.ai_translation import (
     last_translation_mode,
     last_translation_tier,
 )
+from almonium_book_processor.catalog.alignment_overview import alignment_overview
 from almonium_book_processor.catalog.catalogue import (
     catalogue_groups,
     catalogue_page,
@@ -136,6 +137,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "guard": _guard_context(),
             "budgets": _budgets_context(),
             "factory": _factory_context(),
+            "alignment": alignment_overview(),
         },
     )
 
