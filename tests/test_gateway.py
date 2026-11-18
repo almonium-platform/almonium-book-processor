@@ -104,3 +104,40 @@ def test_nothing_outside_the_ai_package_builds_a_provider():
         if _BUILT.search(line)
     ]
     assert builders == []
+
+
+def test_a_small_call_goes_to_the_api_only_when_the_plan_refuses_and_the_api_is_here(
+    settings, monkeypatch
+):
+    from almonium_book_processor.ai.cli_calls import AllowanceUsedUp, BudgetReached
+
+    settings.OPENAI_API_KEY = "test-key"
+    settings.AI_PLANS = "codex"
+    answers = {"codex": None, "openai": {"output": []}}
+
+    class Caller:
+        def __init__(self, seat):
+            self.seat = seat
+
+        def respond(self, body):
+            answer = answers[self.seat.provider]
+            if isinstance(answer, Exception):
+                raise answer
+            return answer or {"from": "plan"}
+
+    monkeypatch.setattr(gateway, "provider", Caller)
+    seat = Seat("codex", "gpt-5.6-luna")
+
+    assert gateway.SmallCall(seat).respond({}) == {"from": "plan"}
+    for refusal in (AllowanceUsedUp("weekly limit"), BudgetReached("cap")):
+        answers["codex"] = refusal
+        assert gateway.SmallCall(seat).respond({})[gateway.SERVED_BY_API]
+    # a failure that is not a refusal is the plan's answer, not a reason to pay the API
+    answers["codex"] = RuntimeError("bad schema")
+    with pytest.raises(RuntimeError):
+        gateway.SmallCall(seat).respond({})
+    # and with no API key here the refusal stands
+    answers["codex"] = AllowanceUsedUp("weekly limit")
+    settings.OPENAI_API_KEY = ""
+    with pytest.raises(AllowanceUsedUp):
+        gateway.SmallCall(seat).respond({})

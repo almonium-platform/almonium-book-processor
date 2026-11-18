@@ -424,3 +424,49 @@ def test_opening_excerpt_is_capped(monkeypatch, settings) -> None:
 
     assert excerpt.startswith("Chapter I\n\nIt was a dark and stormy night.")
     assert len(excerpt) == METADATA_EXCERPT_MAX_CHARS
+
+
+def test_a_plan_with_no_allowance_left_hands_the_metadata_call_to_the_api(
+    monkeypatch, settings
+) -> None:
+    from decimal import Decimal
+
+    from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+    from almonium_book_processor.catalog.metadata import METADATA_MODEL_PRICING
+
+    edition = private_edition(title="", author="", language="de")
+    calls = fake_openai(
+        monkeypatch,
+        settings,
+        proposal={
+            "title": "A Stormy Night",
+            "author": "Ada Author",
+            "language": "de",
+            "description": "Ein kurzer Roman über das Wetter und die Menschen am Meer.",
+            "publication_year": 1912,
+            "note": "",
+        },
+    )
+    settings.OPENAI_METADATA_MODEL = "gpt-5.6-luna"
+    settings.AI_PLANS = "codex"
+    refused = []
+
+    def used_up(self, body):
+        refused.append(body["model"])
+        raise AllowanceUsedUp("weekly limit reached")
+
+    monkeypatch.setattr("almonium_book_processor.ai.codex_provider.CodexProvider.respond", used_up)
+
+    detect_metadata(str(edition.id))
+
+    ai_run = AIRun.objects.get(edition=edition)
+    assert refused == ["gpt-5.6-luna"] and calls["body"]["model"] == "gpt-5.6-luna"
+    assert ai_run.status == AIRun.Status.SUCCEEDED
+    # the API answered, so the run's dollars are on the API's ledger at the API's price
+    assert ai_run.model_configuration.provider == "openai"
+    expected = (
+        Decimal(1000) * Decimal(METADATA_MODEL_PRICING["input"])
+        + Decimal(200) * Decimal(METADATA_MODEL_PRICING["cached_input"])
+        + Decimal(90) * Decimal(METADATA_MODEL_PRICING["output"])
+    ) / Decimal(1_000_000)
+    assert ai_run.estimated_cost_usd == expected.quantize(Decimal("0.000001"))

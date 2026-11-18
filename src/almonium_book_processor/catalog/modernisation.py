@@ -287,7 +287,7 @@ def run_advice(run_id, *, provider=None) -> None:
         ai.started_at = timezone.now()
         ai.save(update_fields=["status", "started_at", "updated_at"])
         seat = Seat(ai.model_configuration.provider, ai.model_configuration.model)
-        response = (provider or gateway.provider(seat)).respond(ai.request_payload["body"])
+        response = (provider or gateway.SmallCall(seat)).respond(ai.request_payload["body"])
         record_response(ai.id, response)
         if response.get("status") != "completed":
             raise ValueError("Provider did not complete advice.")

@@ -515,6 +515,10 @@ def record_response(ai_id, response):
             .get(pk=ai_id)
         )
         configuration = ai.model_configuration
+        if response.get(gateway.SERVED_BY_API) and configuration.provider != "openai":
+            # a small call the plan refused went to the API: its dollars are the API's
+            configuration = ai.model_configuration = gateway.api_configuration(configuration)
+            ai.save(update_fields=["model_configuration", "updated_at"])
         ai.add_attempt_usage(
             input_tokens=inputs,
             cached_input_tokens=cached,

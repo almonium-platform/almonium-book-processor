@@ -437,7 +437,7 @@ def run_metadata_translation(run_id: str, *, provider=None) -> None:
         if digest(plan) != run.input_hash:
             raise ValueError("The source changed; a new run was queued for it.")
         configuration, _ = _configuration("quality")
-        provider = provider or gateway.provider(Seat(configuration.provider, configuration.model))
+        provider = provider or gateway.SmallCall(Seat(configuration.provider, configuration.model))
         title_template, summary_template = _templates()
         _, title_page = _title_page(edition, run, plan, configuration, title_template, provider)
         artifacts = []

@@ -578,7 +578,7 @@ def _propose_with_ai(edition: Edition, run: PipelineRun) -> AIRun | None:
         "store": False,
     }
     try:
-        response = gateway.provider(seat).respond(body)
+        response = gateway.SmallCall(seat).respond(body)
         proposal = BookMetadataProposal.model_validate_json(response_output_text(response))
     except Exception as error:
         ai_run.status = AIRun.Status.FAILED
@@ -587,6 +587,11 @@ def _propose_with_ai(edition: Edition, run: PipelineRun) -> AIRun | None:
         ai_run.save(update_fields=["status", "error", "finished_at", "updated_at"])
         return ai_run
 
+    if response.get(gateway.SERVED_BY_API) and seat.on_plan:
+        # the plan had no allowance left and the API answered: its dollars are the API's
+        ai_run.model_configuration = gateway.api_configuration(ai_run.model_configuration)
+        ai_run.save(update_fields=["model_configuration", "updated_at"])
+        seat = Seat("openai", seat.model)
     usage = response.get("usage") or {}
     input_tokens = usage.get("input_tokens", 0)
     cached_input_tokens = (usage.get("input_tokens_details") or {}).get("cached_tokens", 0)

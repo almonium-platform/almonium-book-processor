@@ -188,3 +188,55 @@ def direct_line(caller, request: dict) -> dict:
             "response": {"status_code": 502, "body": {"error": str(error)[:500], "usage": spent}},
         }
     return {"custom_id": request["custom_id"], "response": {"status_code": 200, "body": body}}
+
+
+SERVED_BY_API = "served_by_api"
+
+
+class SmallCall:
+    """A small step's caller: its plan, and the API when the plan has no allowance left.
+
+    For steps of one cheap call (a book's metadata, its translated title page, advice) a
+    wait for the plan's week to turn over costs more than the call. A plan that refuses
+    (``AllowanceUsedUp``, the owner's cap among them) is not charged, so the same request goes
+    to the API once, and the answer says so (``SERVED_BY_API``) for the step to move its run
+    to the API's ledger (``api_configuration``). Long work never takes this path.
+    """
+
+    def __init__(self, seat: Seat):
+        self.seat = seat
+
+    def respond(self, body: dict) -> dict:
+        from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+
+        try:
+            return provider(self.seat).respond(body)
+        except AllowanceUsedUp:
+            api = Seat("openai", self.seat.model, self.seat.effort)
+            if not self.seat.on_plan or unavailable(api):
+                raise
+            return {**provider(api).respond(body), SERVED_BY_API: True}
+
+
+def api_configuration(configuration):
+    """The API's twin of a plan step's model configuration, for a call the API answered."""
+
+    from almonium_book_processor.catalog.models import ModelConfiguration
+
+    if configuration.provider == "openai":
+        return configuration
+    twin, _ = ModelConfiguration.objects.get_or_create(
+        name=f"{configuration.name}-api",
+        defaults={
+            "provider": "openai",
+            "model": configuration.model,
+            "purpose": configuration.purpose,
+            # the plan's prices are not the API's; the step prices the call from its own table
+            "parameters": {
+                key: value
+                for key, value in configuration.parameters.items()
+                if key != "pricing_per_million"
+            },
+        },
+    )
+    return twin

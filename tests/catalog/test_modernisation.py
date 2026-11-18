@@ -129,3 +129,35 @@ def test_positive_advice_expires_when_source_analysis_changes(original, monkeypa
         lambda _: {"projection_state": "stale"},
     )
     assert not recommended_now(original)
+
+
+def test_advice_on_a_plan_with_no_allowance_left_is_paid_for_on_the_api(
+    original, settings, monkeypatch
+):
+    from almonium_book_processor.ai import gateway
+    from almonium_book_processor.ai.cli_calls import AllowanceUsedUp
+
+    settings.AI_PLANS = "codex"
+    settings.OPENAI_TRANSLATION_QUALITY_MODEL = "gpt-5.6-terra"
+    answered = Provider()
+
+    class Caller:
+        def __init__(self, seat):
+            self.seat = seat
+
+        def respond(self, body):
+            if self.seat.on_plan:
+                raise AllowanceUsedUp("weekly limit reached")
+            return answered.respond(body)
+
+    monkeypatch.setattr(gateway, "provider", Caller)
+    run = queue_advice(original.id, dispatch=False)
+    assert run.ai_runs.get().model_configuration.provider == "codex"
+
+    run_advice(run.id)
+
+    ai = run.ai_runs.get()
+    assert ai.status == "succeeded"
+    assert ai.model_configuration.provider == "openai"
+    # 100 in and 50 out at the quality table's $2 and $12 a million
+    assert float(ai.estimated_cost_usd) == pytest.approx(0.0008)
