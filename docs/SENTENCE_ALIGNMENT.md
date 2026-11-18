@@ -108,24 +108,55 @@ below 75%).
 
 ## Speed
 
-LaBSE on CPU is the cost: about 1 s per paragraph pair in one process with five threads
-after v9 (v8 spent as long again in pure-Python vector arithmetic). The local machine has
-no GPU and neither does the deployment host (ARM64, `--concurrency=1` worker), so the
-levers are CPU ones:
+Measured 2026-11-18 on the local machine (AMD Ryzen 7 7840HS: 8 cores, 16 threads,
+AVX-512, no GPU), v9, LaBSE, nothing else running. The deployment host (ARM64, no GPU,
+`--concurrency=1` worker) has not been measured.
 
-- Several processes at once, each with a share of the cores; three on the 16-core local
-  machine ran the pilot. A deployed equivalent is a separate low-priority worker for this
-  task, so a book's alignment never holds a production's queue.
-- Embed the shared side once per book, not once per pair: an original with five
-  companions embeds its own sentences five times today.
-- Embed a whole chapter in one call instead of one paragraph pair at a time, so the
-  encoder pads less.
-- An int8 ONNX export of LaBSE, which is usually two to three times faster on CPU,
-  if a comparison shows the same pairs.
+**Where the time goes** (72 sampled paragraph pairs from six language pairs, 5 threads,
+0.66 s per pair on average):
+
+| Part | Share |
+| --- | ---: |
+| LaBSE forward pass | 92% |
+| Tokenizing and pooling | 2% |
+| Sentence matching | 3% |
+| Chunk matching and merging | 3% |
+
+**Model throughput** (texts per second, a fixed mix of sentences and clause chunks):
+
+| Setting | Texts/s |
+| --- | ---: |
+| As called today: one call per paragraph pair (~16 texts), fp32, 5 threads | 27–41 |
+| One large call, batches of 32, fp32, 5 threads | 70 |
+| Batches of 64 / 128 instead of 32 | 61 / 49 |
+| fp32, 1 / 2 / 4 / 8 threads | 17 / 32 / 47 / 61 |
+| fp32, 16 threads (hyper-threads) | ~20 (slower) |
+| Three processes × 2 threads at once, combined | 61 |
+| bf16 autocast, 4 threads | 100 |
+| bf16 autocast, 8 threads, batches of 32 | 130 |
+
+The machine caps at about 60 texts/s in fp32 however the threads are split among
+processes, so parallel workers do not help here; bf16 does. bf16 vectors agree with
+fp32 at cosine ≥ 0.9968; over the 72 paragraph pairs, 71 came out identical and 1 of
+584 groups changed. PyTorch dynamic int8 quantization did not apply to this model
+(output identical, slower); int8 would need ONNX Runtime.
+
+**Repeated work:** pairing every derived edition with its original embeds about 12.3
+million texts for the library (412 pairs, 115 works); embedding each edition once and
+reusing it across its companions needs 8.1 million, 34% less.
+
+**Whole library** (686,000 paragraph pairs):
+
+| Setting | Time |
+| --- | ---: |
+| Today (0.66 s a pair) | about 126 h |
+| One call per chapter + bf16 + 8 threads + each edition embedded once | about 17 h of model time plus about 10 h of matching, which a second process overlaps |
+| A rented GPU for the embeddings | not measured here; the matching (about 10 h on one core, splittable across processes) becomes the floor |
 
 ## Open
 
 - Start the job automatically when a production's edition is ready, on its own worker.
-- The four speed items above.
+- Speed: one call per chapter, each edition embedded once, bf16 where the CPU has it
+  (with precision in the processor version); measure the deployment host.
 - Calibrated accuracy: a hand-labelled sample per language pair, so "confirmed" has a
   measured error rate rather than a reading.
