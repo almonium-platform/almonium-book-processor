@@ -54,7 +54,29 @@ recorded $0.085: the record errs high, as a budget against free credits should. 
 worker's ARM cores are slower than the desktop's, so the gain there should be larger;
 measure it there before relying on it.
 
-## Settings
+## Is LaBSE the model to keep? (18 November 2026)
+
+Measured on Modal against BAAI/bge-m3 and Qwen/Qwen3-Embedding-0.6B, without the pipeline's
+thresholds (tuned on LaBSE): in paragraph pairs whose sides have as many sentences, the
+sentence in the same position is the partner, and each model is scored on how often that
+partner beats every other sentence of the paragraph in both directions (top-1, %):
+
+| Pair | Sentences | LaBSE | bge-m3 | Qwen3-0.6B |
+| --- | --- | --- | --- | --- |
+| A Study in Scarlet en->de | 1685 | **99.58** | 99.53 | 99.23 |
+| The Sign of Four en->uk | 2206 | **99.18** | 98.96 | 96.78 |
+| Peter Schlemihl de->en | 238 | 95.80 | 95.80 | **96.22** |
+| Iracema pt->en | 935 | **99.68** | 99.14 | 99.14 |
+| Black Beauty en->en B1 | 186 | 100 | 100 | 100 |
+| Le Grand Meaulnes fr->fr B1 | 1029 | **96.40** | 96.02 | 95.34 |
+
+LaBSE also had the widest median margin over the best wrong sentence on every pair and the
+fewest partners winning by under 0.05 on five of six, same-language adaptations included.
+LaBSE stays, with its thresholds; the three passes cost $0.013. This does not measure the
+paragraphs whose sentence counts differ, where splits and merges happen; a model that wins
+there would have to be shown on those.
+
+
 
 | Variable | Meaning |
 | --- | --- |
