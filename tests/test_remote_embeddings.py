@@ -124,6 +124,8 @@ def test_cost_counts_gpu_seconds_and_each_container_start_and_idle_tail(settings
     assert remote_embeddings.cost_usd(15, containers=1) == (
         Decimal("100") * Decimal("0.000306") * Decimal("1.1")
     )
+    # Modal schedules an "A10" that reports itself as an A10G; both are priced alike
+    assert remote_embeddings.price("A10G") == remote_embeddings.price("A10")
     settings.MODAL_EMBEDDING_GPUS = ["B9000"]
     with pytest.raises(remote_embeddings.RemoteEmbeddingError, match="No price"):
         remote_embeddings.cost_usd(1)

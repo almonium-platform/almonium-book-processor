@@ -33,6 +33,7 @@ GPU_USD_PER_SECOND = {
     "T4": Decimal("0.000164"),
     "L4": Decimal("0.000222"),
     "A10": Decimal("0.000306"),
+    "A10G": Decimal("0.000306"),  # what Modal's "A10" reports itself as
     "L40S": Decimal("0.000542"),
     "A100-40GB": Decimal("0.000583"),
     "A100-80GB": Decimal("0.000694"),
