@@ -3,7 +3,9 @@
 A block pair becomes a run of rows, one per sentence group, so a sentence and its
 counterpart always sit side by side and nobody has to click to find one. A group the
 model matched carries its similarity; one the aligner did not confirm (or, in an artifact
-without that verdict, one below ``LOW``) the page marks for a look. A block
+without that verdict, one below ``LOW``) the page marks for a look. A group joined through
+the original (catalog/sentence_bridge.py) has no similarity of its own: it is confirmed when
+everything it was joined from was. A block
 the aligner could not split (or that no job has aligned yet) is one paragraph row, and a
 heading is always one row set as a heading.
 """
@@ -12,6 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from almonium_book_processor.catalog.sentence_bridge import ACCEPTANCE as BRIDGED
 from almonium_book_processor.catalog.titles import display_title
 
 LOW = 0.75
@@ -44,6 +47,7 @@ def _pieces(text: str, spans: list[dict], owner: dict[int, dict]) -> list[dict]:
             "certain": bool(group and group["certain"]),
             "confidence": group["confidence"] if group else None,
             "adjudicated": bool(group and group.get("adjudicated")),
+            "bridged": bool(group and group.get("bridged")),
         }
 
     pieces, cursor = [], 0
@@ -92,11 +96,13 @@ def block_rows(block: dict, primary, secondary) -> dict:
         similarity = group.get("similarity")
         # A group a model read has no similarity; its verdict is the model's own.
         adjudicated = group.get("acceptance") == "llm_adjudication"
+        bridged = group.get("acceptance") == BRIDGED
         tag = {
             "number": number,
             "certain": bool(group.get("certain")),
             "confidence": round(similarity * 100) if similarity is not None else None,
             "adjudicated": adjudicated,
+            "bridged": bridged,
         }
         p_owner.update(dict.fromkeys(group["primary"], tag))
         s_owner.update(dict.fromkeys(group["secondary"], tag))
@@ -112,9 +118,10 @@ def block_rows(block: dict, primary, secondary) -> dict:
                 "confidence": round(similarity * 100) if similarity is not None else None,
                 # The aligner's own verdict decides: a confirmed clause pair often
                 # scores under LOW, which was set for whole sentences.
-                "low": (similarity is not None or adjudicated)
+                "low": (similarity is not None or adjudicated or bridged)
                 and not group.get("certain", similarity is not None and similarity >= LOW),
                 "adjudicated": adjudicated,
+                "bridged": bridged,
                 "positional": group.get("acceptance") == "positional_fallback",
                 "unmatched": not group["primary"] or not group["secondary"],
                 "paragraph": False,
@@ -143,6 +150,7 @@ def chapter_rows(blocks: list[dict], primary, secondary) -> tuple[list[dict], di
         "clauses": sum(1 for g in groups if g.get("clause")),
         "low": sum(1 for g in groups if g["low"]),
         "adjudicated": sum(1 for g in groups if g.get("adjudicated")),
+        "bridged": sum(1 for g in groups if g.get("bridged")),
     }
     return rows, stats
 

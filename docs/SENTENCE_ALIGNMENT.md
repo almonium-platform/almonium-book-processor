@@ -1,6 +1,6 @@
 # Sentence and clause alignment
 
-Updated 2026-11-18. How an edition's paragraphs are matched to a companion's at sentence
+Updated 2026-11-19. How an edition's paragraphs are matched to a companion's at sentence
 and clause level, what each version changed, and what the pilot across language pairs
 measured. Everything here is local: a multilingual embedding model on the worker's CPU,
 no paid API, no plan allowance.
@@ -17,12 +17,16 @@ no paid API, no plan allowance.
    unchanged paragraph is never embedded twice and a correction re-runs only what it
    touched.
 3. Sub-clause (phrase or word) correspondence is not attempted.
+4. **Two editions made from the same original** (an adaptation and a translation, or two
+   translations) have no job of their own. Their sentences are joined through the original
+   from each one's alignment with it; see "Two editions made from one original" below.
 
 The pipeline **queues it by itself** (`catalog/sentence_alignment_queue.py`): when a
 translation's or adaptation's sentences are split, its pair with the original is
-queued; when an original's sentences change, every edition made from it is. Only
-public works; a pair already current, queued or running is left alone. Staff can still
-start one from the alignment page. The job runs on its own Celery queue
+queued; when an original's sentences change, every edition made from it is. A pair of
+two editions made from the original is never queued: it is read through the original.
+Only public works; a pair already current, queued or running is left alone. Staff can
+still start one from the alignment page. The job runs on its own Celery queue
 (`SENTENCE_ALIGNMENT_QUEUE`, "alignment") and container, `aligner`, so a book's minutes
 of alignment never hold the worker the productions' local steps run on.
 `manage.py queue_sentence_alignment [--dry-run] [--work <slug>]` catches up books that
@@ -167,6 +171,80 @@ from 20% to 2%. Of the groups still unconfirmed, 88% are ones the model read and
 not the same content; the rest are stretches whose answers did not cover them twice
 (1,369) or that are too long to ask (82). 0.4% of judged stretches pair clauses out of
 order. The model confirmed 94% of the groups it made.
+
+## Two editions made from one original, 2026-11-19
+
+A level adaptation and a translation are two axes off the same original, and the reader
+offers them together: the B1 text with French beside it. Until now that pair was matched
+by paragraph only, and 59% of the adapted text sits in paragraphs of more than 80 words
+(28% in paragraphs over 160). The same held for two translations read beside each other.
+
+**How.** `catalog/sentence_bridge.py` joins the two alignments the pair already has, each
+with the original, on the original's clause spans: whatever of the adaptation and of the
+translation is tied to the same stretch of the original is one group. A group is as coarse
+as the coarser alignment where it lies, it is confirmed only when everything it was joined
+from was, and what the original ties to one side only stays a group with no counterpart.
+Where one alignment cut the original by sentence and the other by clause, pieces that
+share text belong together. Nothing is embedded, asked of a model, queued or stored:
+`parallel_content.inherited_payload` computes the join when the pair is read, so it follows
+the two alignments as they change, and a promoted environment has it as soon as it has
+them. Groups carry `acceptance: bridged`, and the block's provenance names the original
+and both alignments it was joined from (`sentence-bridge-v1`). A pair staff aligned
+directly from the alignment page keeps that alignment wherever it has groups.
+
+**Do adaptations diverge too much?** No. An adaptation rewrites about 90% of the text
+(9.5% of words are in blocks it left untouched), but it is held to every statement of the
+block, in order; what it changes is where sentences end. A B1 edition has 1.65 times the
+translation's sentences, a B2 edition 1.2 times. Joined across 204 of the 251 ready
+adaptation-and-translation pairs (58 works, 274,146 paragraph pairs, 13.9M adapted words;
+the run was cut short and its order was random):
+
+| | All | To B2 | To B1 |
+| --- | ---: | ---: | ---: |
+| Adapted words in a group both alignments confirmed | 97.8% | 99.0% | 95.7% |
+| Group is a clause | 31% | 44% | 9% |
+| Group is one sentence | 46% | 44% | 50% |
+| Group is two sentences | 17% | 11% | 29% |
+| Group is three sentences or more | 6% | 2% | 12% |
+
+Shares are of adapted words, by what the group covers on the adapted side. The median
+word sits in a group of about 14 words (p90 28); 86% of words are in groups of 25 words or
+fewer and 3% in groups over 40. 0.8% of multi-sentence paragraphs come out as one group.
+Per pair the confirmed share runs from 84% (Ein Hungerkünstler B1 with Spanish, fifteen
+page-long paragraphs) through a median of 98.4%. So the granularity needs no setting: B2
+stays at clause or sentence, and B1 comes out as one or two short sentences against one
+clause or sentence of the translation. Read by hand, about twenty paragraphs and 190
+groups in EN, FR, DE, ES and UK pairs were right, with a boundary a few words off here and
+there. "Confirmed" is the aligner's or the model's verdict, not a measured accuracy.
+
+**Why not align the pair directly?** It is the harder task, a rewording and a translation
+at once. On 360 rewritten multi-sentence paragraphs (sixty from each of Dracula B1 with
+French, Candide B1 with English, Der Tod in Venedig B2 with English, Marianela B2 with
+Ukrainian, The Call of the Wild B1 with German and Frankenstein B2 with Ukrainian; 42,397
+adapted words), run with LaBSE on the local CPU and not stored:
+
+| | Groups | Adapted words in confirmed groups | Group size, mean by word |
+| --- | ---: | ---: | ---: |
+| Direct (offline v10, not read by a model) | 3,231 | 61.8% | 28.5 |
+| Joined, offline artifacts only | 3,261 | 74.3% | 22.7 |
+| Joined as served, with the model's readings | 3,494 | 96.5% | 17.2 |
+
+88% of the direct alignment's cut points are cut points of the joined one too, which has
+9% more. Direct alignment would also add 251 adaptation-and-translation pairs and 196
+translation-and-translation pairs to the 334 aligned today, and send each one's
+unconfirmed stretches to the model as new stretches; the join reads judgments already paid.
+
+**Reading time** (Madame Bovary, 3,045 paragraph pairs, five companions, local machine):
+alignment artifacts are now read by the pair hashes wanted, not everything stored under the
+original (20,049 artifacts for this book), so the payload of the original with its
+adaptation went from about 2.7 s to 1.1 s. The adaptation with a translation takes 2.6 s with its
+12,879 groups, where it took 0.8 s with paragraphs only. The edition page's companions
+table reads each edition's blocks once: 4.2 s to 3.2 s.
+
+**On the staff pages** the companions table shows such a pair as "Through the original",
+or "Waiting for the original" while either side is not aligned with it, and offers no job
+for it. The alignment page counts the joined groups, marks an unconfirmed one "?", and
+names its button "Align this pair directly".
 
 ## The alignment page
 

@@ -5,6 +5,11 @@ complete or absent. Sentence highlights come from an offline embedding job per
 pair, keyed by the text of both sides, so a correction on either side retires
 them and the reader silently drops back to paragraph pairing. This module
 measures that gap per pair and re-queues the job where one used to exist.
+
+Two editions that were each made from the original (an adaptation and a
+translation, or two translations) have no job of their own: the reader joins
+their sentences through the original (catalog/sentence_bridge.py), so such a
+pair is as current as its two alignments with the original are.
 """
 
 import logging
@@ -19,7 +24,12 @@ from almonium_book_processor.catalog.offline_sentence_alignment import (
     processor_version,
     queue_alignment,
 )
-from almonium_book_processor.catalog.parallel_content import inherited_pairs, pair_hash
+from almonium_book_processor.catalog.parallel_content import (
+    canonical_root,
+    common_origin,
+    inherited_pairs,
+    pair_hash,
+)
 from almonium_book_processor.processing.sentence_correspondence import VERSION
 
 logger = logging.getLogger(__name__)
@@ -32,6 +42,8 @@ BADGES = {
     "failed": "failed",
     "missing": "missing",
     "incomplete": "failed",
+    "bridged": "succeeded",
+    "bridge-waiting": "review",
 }
 
 
@@ -62,8 +74,10 @@ def latest_run(edition, other):
     )
 
 
-def pair_status(edition, other):
-    pairs = inherited_pairs(edition, other)
+def pair_status(edition, other, read=None):
+    """Where the pair's own sentence job stands. ``read`` as in ``inherited_pairs``."""
+
+    pairs = inherited_pairs(edition, other, read)
     run = latest_run(edition, other)
     status = {
         "other": other,
@@ -118,8 +132,45 @@ def pair_status(edition, other):
     return status
 
 
+def _bridged_status(edition, other, origin, legs, read):
+    """A pair with no job of its own: both were made from ``origin`` and are read through it."""
+
+    pairs = inherited_pairs(edition, other, read)
+    for made in (edition, other):
+        if made.id not in legs:
+            legs[made.id] = pair_status(origin, made, read)
+    # Whose alignment with the original the join is still waiting for.
+    waiting_for = [made for made in (edition, other) if legs[made.id]["state"] != "current"]
+    state = "incomplete" if not pairs else "bridge-waiting" if waiting_for else "bridged"
+    return {
+        "other": other,
+        "total": len(pairs),
+        "complete": bool(pairs),
+        "run": None,
+        "model": None,
+        "origin": origin,
+        "waiting_for": waiting_for,
+        "state": state,
+        "badge": BADGES[state],
+    }
+
+
 def companion_rows(edition):
-    return [pair_status(edition, other) for other in companions(edition)]
+    # Each edition's blocks are read once, and each alignment with the original measured
+    # once, however many rows need them.
+    read, legs, rows = {}, {}, []
+    root = canonical_root(edition)
+    for other in companions(edition):
+        origin = common_origin(edition, other)
+        # A pair staff aligned directly keeps its own job and its own state.
+        if origin is not None and latest_run(edition, other) is None:
+            rows.append(_bridged_status(edition, other, origin, legs, read))
+            continue
+        rows.append(pair_status(edition, other, read))
+        if other.id == root:
+            # The original's own row is this edition's alignment with it.
+            legs[edition.id] = rows[-1]
+    return rows
 
 
 def refresh_sentence_alignment(edition):

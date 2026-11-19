@@ -14,7 +14,7 @@ record is not updated when later work supersedes it; the backlog says so.
 - [CHAPTER_ANALYSIS.md](CHAPTER_ANALYSIS.md) — the paid difficulty judge: scope, windows, projections, retries, non-English editions.
 - [CHAPTER_VOCABULARY.md](CHAPTER_VOCABULARY.md) — the public per-chapter vocabulary endpoint and its provenance rules.
 - [PROMOTION.md](PROMOTION.md) — moving finished editions between environments as bundles, never by reprocessing.
-- [SENTENCE_ALIGNMENT.md](SENTENCE_ALIGNMENT.md) — offline sentence and clause alignment: how v9 matches, versions, the 2026-11-18 pilot across language pairs, speed.
+- [SENTENCE_ALIGNMENT.md](SENTENCE_ALIGNMENT.md) — offline sentence and clause alignment: how v10 matches, versions, the 2026-11-18 pilot across language pairs, the model's reading of unconfirmed stretches, how an adaptation and a translation are joined through the original, speed.
 - [CALIBRATION_FIXTURES.md](CALIBRATION_FIXTURES.md) — offline difficulty fixtures and comparison, and what P1-3 still lacks.
 
 ## Decisions and experiments

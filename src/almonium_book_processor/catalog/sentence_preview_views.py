@@ -8,7 +8,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from almonium_book_processor.catalog.models import Edition, Work
 from almonium_book_processor.catalog.offline_sentence_alignment import available_models
-from almonium_book_processor.catalog.parallel_content import inherited_payload
+from almonium_book_processor.catalog.parallel_content import common_origin, inherited_payload
 from almonium_book_processor.catalog.sentence_rows import LOW, chapter_rows, short_model
 from almonium_book_processor.processing.sentence_correspondence import VERSION
 
@@ -72,6 +72,9 @@ def sentence_preview(request, edition_id, other_id):
             "on_modal": settings.NLP_EMBEDDING_BACKEND == "modal",
             "primary": primary,
             "secondary": secondary,
+            # Both made from a third edition: where this pair has no alignment of its own
+            # the page shows the one joined through it.
+            "origin": common_origin(primary, secondary),
             "primary_level": primary.cefr_level,
             "secondary_level": secondary.cefr_level,
             "chapters": chapters,

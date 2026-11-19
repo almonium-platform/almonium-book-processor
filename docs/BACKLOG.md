@@ -117,6 +117,9 @@ Implemented 2026-09-18 in the processor; see
 - [x] Offline sentence alignment is queued by the pipeline for every public book, on an
   `aligner` worker of its own, and embeds an original once for its companions
   (2026-11-18, `a1fa836`, `8bcff84`; infra `660b318`).
+- [x] An adaptation and a translation, or two translations, are read at sentence level
+  through the original both were made from, with no job of their own (2026-11-19,
+  [SENTENCE_ALIGNMENT.md](SENTENCE_ALIGNMENT.md)).
 - [ ] Run the backfill (`queue_sentence_alignment`, 403 pairs) and measure the
   deployment host.
 - [x] Frankenstein EN–FR calibration run and its 8.6% residual diagnosed

@@ -798,6 +798,11 @@ def _render_edition_detail(
         "parallel_companions_running": sum(
             row["state"] == "running" for row in parallel_companions
         ),
+        # Joined through the original, which one side is not aligned with yet: that job
+        # is the original's row, here or on the companion's page, not this pair's.
+        "parallel_companions_waiting": sum(
+            row["state"] == "bridge-waiting" for row in parallel_companions
+        ),
         "is_private": edition.work.visibility == Work.Visibility.PRIVATE,
         "source_download": SourceDownload.objects.filter(edition=edition).first(),
         **assessment,
