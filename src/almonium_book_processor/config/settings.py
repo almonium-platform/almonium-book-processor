@@ -211,8 +211,9 @@ SENTENCE_ALIGNMENT_QUEUE = os.getenv("SENTENCE_ALIGNMENT_QUEUE", "alignment")
 SENTENCE_ALIGNMENT_MODEL = os.getenv("SENTENCE_ALIGNMENT_MODEL", "sentence-transformers/LaBSE")
 # The model that reads the stretches the offline aligner left unconfirmed
 # (catalog/sentence_adjudication.py): a model alone, so it runs on a plan where AI_PLANS has
-# one that serves it. Only the adjudicate_sentence_alignment command calls it.
-SENTENCE_ADJUDICATION_MODEL = os.getenv("SENTENCE_ADJUDICATION_MODEL", "gpt-5.6-luna")
+# one that serves it. Where a plan does, every pair is adjudicated when its offline alignment
+# succeeds; with no plan nothing is queued (the adjudicate_sentence_alignment command still runs).
+SENTENCE_ADJUDICATION_MODEL = os.getenv("SENTENCE_ADJUDICATION_MODEL", "claude-sonnet-5-5")
 
 # Where the embedding forward pass runs: "local" on this worker, or "modal" on a GPU of the
 # Modal app in modal_apps/embeddings.py (docs/MODAL.md), billed per GPU second. Modal's own
@@ -386,6 +387,8 @@ CELERY_TASK_ROUTES = {
     "almonium_book_processor.catalog.tasks.align_edition_sentences": {
         "queue": SENTENCE_ALIGNMENT_QUEUE
     },
+    # queued only where a plan serves the model (sentence_adjudication.queue_after)
+    "almonium_book_processor.catalog.tasks.adjudicate_sentence_alignment": {"queue": PLAN_QUEUE},
 }
 
 # The Claude Code CLI on the owner's subscription, for output-heavy generation

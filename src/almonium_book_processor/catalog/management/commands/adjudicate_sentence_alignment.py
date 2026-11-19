@@ -70,7 +70,9 @@ class Command(BaseCommand):
         part, parts = (int(x) for x in (options["shard"] or "0/1").split("/"))
 
         def pairs():
-            for run in runs.order_by("edition__work__slug", "created_at"):
+            for run in sorted(
+                adjudication.newest_runs(runs), key=lambda run: run.edition.work.slug
+            ):
                 slug = run.edition.work.slug
                 if int(hashlib.sha256(slug.encode()).hexdigest(), 16) % parts != part:
                     continue
@@ -122,7 +124,8 @@ class Command(BaseCommand):
             total.add(tally)
             self.stdout.write(
                 f"{other.slug}: {tally.regions} stretch(es) in {tally.paragraphs} paragraph(s);"
-                f" {tally.found} already paid, {tally.answered} answered in {tally.calls} call(s),"
+                f" {tally.found} already paid, {tally.mended} mended, {tally.answered} answered in"
+                f" {tally.calls} call(s),"
                 f" {tally.unusable} unusable, {tally.written} artifact(s) written"
             )
             self.stdout.flush()
@@ -175,7 +178,8 @@ class Command(BaseCommand):
         write(f"On {seat.provider}:{seat.model}: {tally.calls} call(s), {tally.reread} read again")
         write(
             f"Stretches: {tally.regions} ({tally.oversized} more too long to ask);"
-            f" {tally.found} already paid, {tally.answered} answered, {tally.unusable} unusable,"
+            f" {tally.found} already paid ({tally.mended} of them mended from a paid answer),"
+            f" {tally.answered} answered, {tally.unusable} unusable,"
             f" {tally.given_up} given up, {tally.in_flight} call(s) in flight elsewhere"
         )
         if tally.after_groups:

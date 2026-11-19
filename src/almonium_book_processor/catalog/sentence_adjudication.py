@@ -62,14 +62,18 @@ from almonium_book_processor.catalog.parallel_content import pair_hash
 VERSION = "sentence-adjudication-v1"
 PURPOSE = "sentence_adjudication"
 ACCEPTANCE = "llm_adjudication"
-# A stretch longer than this a side is a page the aligner gave up on, not a boundary a few
-# words out; it is left as it is and counted.
-REGION_LIMIT = 40
-# One call carries about this much clause text, in at most this many stretches.
+# A stretch longer than this a side is not asked about; it is left as it is and counted.
+REGION_LIMIT = 200
+# One call carries about this much clause text, in at most this many stretches. A stretch
+# longer than ALONE_ABOVE clauses a side, or one asked before, has a call to itself.
 CALL_CHARS = 6000
 CALL_ITEMS = 12
-# How often a stretch is asked before its offline grouping is left to stand.
-ATTEMPTS = 2
+ALONE_ABOVE = 40
+# How often a stretch is asked before its offline grouping is left to stand: once among
+# others, then alone.
+ATTEMPTS = 3
+# Calls in flight at once when a pair is adjudicated by the pipeline.
+TASK_WORKERS = 2
 # A call still "submitted" after this was cut off with its process; it is asked again.
 STALE = timedelta(minutes=45)
 
@@ -234,21 +238,50 @@ def paragraphs(run: PipelineRun) -> list[Paragraph]:
 
 
 def validated(groups: list[dict], region: Region) -> list[dict] | None:
-    """The model's groups for a stretch when they cover it exactly once, else None."""
+    """The model's groups as a cover of the stretch, each clause in exactly one group.
 
-    for side in ("primary", "secondary"):
-        indexes = sorted(i for group in groups for i in group[side])
-        if indexes != list(range(len(getattr(region, side)))):
-            return None
-    if any(not group["primary"] or not group["secondary"] for group in groups):
+    Three things the model does against the rules are mended here, since the answer says
+    what it meant: groups that share a clause are one group; a clause it left out, or put in
+    a group with nothing on the other side, joins the nearest group of its side, which is
+    then unconfirmed. A clause number the stretch does not have, or an answer with no
+    two-sided group, cannot be mended and is None.
+    """
+
+    sides = ("primary", "secondary")
+    sizes = {side: len(getattr(region, side)) for side in sides}
+    if any(not 0 <= i < sizes[side] for group in groups for side in sides for i in group[side]):
         return None
+    merged: list[dict] = []
+    for group in groups:
+        fresh = {
+            "primary": set(group["primary"]),
+            "secondary": set(group["secondary"]),
+            "certain": bool(group["certain"]),
+        }
+        for other in [m for m in merged if any(m[side] & fresh[side] for side in sides)]:
+            merged.remove(other)
+            fresh = {
+                "primary": fresh["primary"] | other["primary"],
+                "secondary": fresh["secondary"] | other["secondary"],
+                "certain": fresh["certain"] and other["certain"],
+            }
+        merged.append(fresh)
+    whole = [group for group in merged if group["primary"] and group["secondary"]]
+    if not whole:
+        return None
+    for side in sides:
+        held = set().union(*(group[side] for group in whole))
+        for index in sorted(set(range(sizes[side])) - held):
+            nearest = min(whole, key=lambda group: min(abs(index - other) for other in group[side]))
+            nearest[side].add(index)
+            nearest["certain"] = False
     return [
         {
             "primary": sorted(group["primary"]),
             "secondary": sorted(group["secondary"]),
-            "certain": bool(group["certain"]),
+            "certain": group["certain"],
         }
-        for group in groups
+        for group in whole
     ]
 
 
@@ -291,6 +324,7 @@ class Tally:
     regions: int = 0
     oversized: int = 0
     found: int = 0  # stretches whose judgment was already paid for
+    mended: int = 0  # paid answers that could not be used as given, read again and mended
     asked: int = 0
     answered: int = 0
     unusable: int = 0  # asked, and the answer did not cover the stretch
@@ -315,9 +349,14 @@ class Tally:
                 setattr(self, name, getattr(self, name) + getattr(other, name))
 
 
-def _packs(regions: dict[str, Region]) -> list[list[str]]:
+def _packs(regions: dict[str, Region], alone: set[str] = frozenset()) -> list[list[str]]:
+    """The calls: stretches together up to a call's size; ``alone`` and long ones singly."""
+
     packs, pack, chars = [], [], 0
     for identity, region in regions.items():
+        if identity in alone or max(len(region.primary), len(region.secondary)) > ALONE_ABOVE:
+            packs.append([identity])
+            continue
         if pack and (len(pack) >= CALL_ITEMS or chars + region.chars > CALL_CHARS):
             packs.append(pack)
             pack, chars = [], 0
@@ -348,7 +387,7 @@ def request_body(pack: list[str], regions: dict[str, Region], seat: Seat) -> dic
         "instructions": SYSTEM,
         "input": json.dumps({"items": items}, ensure_ascii=False),
         "reasoning": {"effort": seat.effort or "low"},
-        "max_output_tokens": 8000,
+        "max_output_tokens": 16000,
         "store": False,
         "text": {
             "format": {
@@ -654,11 +693,111 @@ def judgment_history(regions: dict[str, Region], model: str) -> dict[str, list[A
     return history
 
 
+def _mend(history: dict[str, list[AlignmentJudgment]], regions: dict[str, Region]) -> int:
+    """Read again the paid answers that were not usable as given; keep those now mended.
+
+    The answer is in the ledger with its call; nothing is asked.
+    """
+
+    unused = {
+        identity: [j for j in judgments if j.groups is None and j.ai_run_id]
+        for identity, judgments in history.items()
+        if not any(j.groups is not None for j in judgments)
+    }
+    runs = AIRun.objects.in_bulk({j.ai_run_id for judgments in unused.values() for j in judgments})
+    mended = 0
+    for identity, judgments in unused.items():
+        for judgment in judgments:
+            ai = runs.get(judgment.ai_run_id)
+            pack = (ai.request_payload.get("stretches") or []) if ai else []
+            if judgment.identity not in pack or not ai.response_payload.get("raw"):
+                continue
+            try:
+                answer = Answer.model_validate(
+                    json.loads(response_output_text(ai.response_payload["raw"])), strict=True
+                )
+            except ValueError:
+                continue
+            number = pack.index(judgment.identity)
+            given = next((i.groups for i in answer.items if i.id == number), None)
+            groups = given and validated([g.model_dump() for g in given], regions[identity])
+            if groups:
+                judgment.groups = groups
+                judgment.save(update_fields=["groups", "updated_at"])
+                mended += 1
+                break
+    return mended
+
+
 def needs_judgment(history: list[AlignmentJudgment]) -> bool:
     return (
         not any(j.groups is not None for j in history)
         and sum(j.attempts for j in history) < ATTEMPTS
     )
+
+
+def newest_runs(runs) -> list[PipelineRun]:
+    """One run per edition pair, its newest: a pair aligned again has a run for each time."""
+
+    newest: dict[tuple, PipelineRun] = {}
+    for run in sorted(runs, key=lambda run: run.created_at):
+        newest[(run.edition_id, run.summary.get("secondary_id"))] = run
+    return list(newest.values())
+
+
+def queue_after(run: PipelineRun) -> bool:
+    """Queue the adjudication of a pair whose offline alignment just succeeded.
+
+    Only where a plan serves the model: the pass was measured on the plans, and a deployed
+    environment, which has none, gets its judged artifacts with the promoted edition.
+    """
+
+    from django.conf import settings
+
+    from almonium_book_processor.catalog.tasks import adjudicate_sentence_alignment
+
+    seat = gateway.route(settings.SENTENCE_ADJUDICATION_MODEL)
+    if not seat.on_plan or gateway.unavailable(seat):
+        return False
+    adjudicate_sentence_alignment.delay(str(run.id))
+    return True
+
+
+def adjudicate_run(run_id, *, workers: int | None = None) -> Tally | None:
+    """Adjudicate one aligned pair and note the outcome on its run."""
+
+    from django.conf import settings
+
+    run = PipelineRun.objects.filter(pk=run_id, status=PipelineRun.Status.SUCCEEDED).first()
+    if run is None:
+        return None
+    try:
+        work = paragraphs(run)
+    except ValueError:
+        return None  # withdrawn, or no longer a complete pair
+    tally = adjudicate(
+        work,
+        model_setting=settings.SENTENCE_ADJUDICATION_MODEL,
+        edition_id=run.edition_id,
+        workers=workers or TASK_WORKERS,
+    )
+    run.refresh_from_db()
+    run.summary = {
+        **run.summary,
+        "adjudication": {
+            "at": timezone.now().isoformat(),
+            "stretches": tally.regions,
+            "answered": tally.answered,
+            "already_paid": tally.found,
+            "given_up": tally.given_up,
+            "too_long": tally.oversized,
+            "calls": tally.calls,
+            "written": tally.written,
+            "held": tally.held[:200],
+        },
+    }
+    run.save(update_fields=["summary"])
+    return tally
 
 
 def adjudicate(
@@ -688,6 +827,7 @@ def adjudicate(
             tally.regions += 1
             regions.setdefault(region.identity(model), region)
     history = judgment_history(regions, model)
+    tally.mended = _mend(history, regions)
     pending = {}
     for identity, region in regions.items():
         judgments = history[identity]
@@ -706,7 +846,8 @@ def adjudicate(
             for j in judgments
             if j.processor_version == version
         }
-        packs = _packs(pending)
+        # a stretch whose answer could not be used is asked again by itself
+        packs = _packs(pending, alone={identity for identity in pending if history[identity]})
         arguments = [
             (pack, regions, seat, edition_id, configuration, prompt, held, provider, asked)
             for pack in packs

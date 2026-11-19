@@ -88,6 +88,22 @@ def align_edition_sentences(run_id):
     return run_alignment(run_id)
 
 
+@shared_task(bind=True, acks_late=True, max_retries=96)
+def adjudicate_sentence_alignment(self, run_id):
+    """A model reads what the offline aligner left unconfirmed in one edition pair.
+
+    A plan that refuses holds the pass; it is tried again every half hour for two days, and
+    each try asks only what is not yet paid for.
+    """
+
+    from almonium_book_processor.catalog.sentence_adjudication import adjudicate_run
+
+    tally = adjudicate_run(run_id)
+    if tally is not None and tally.held:
+        raise self.retry(countdown=1800)
+    return None if tally is None else {"answered": tally.answered, "written": tally.written}
+
+
 @shared_task(acks_late=True)
 def generate_chapter_glosses(run_id):
     from almonium_book_processor.catalog.glosses import run_chapter

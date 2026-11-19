@@ -154,19 +154,117 @@ def test_a_judgment_is_found_by_its_clauses_under_a_later_offline_version(aligne
     assert inherited_payload(primary, secondary)["blocks"][0]["sentence_alignment"][1]["certain"]
 
 
-def test_an_answer_that_does_not_cover_the_stretch_is_asked_twice_and_then_left(aligned):
+def test_an_answer_naming_a_clause_the_stretch_lacks_is_asked_alone_and_then_left(aligned):
     fake = Fake(groups=[{"primary": [0, 1], "secondary": [0], "certain": True}])
-    first = judge(aligned, fake)
-    assert (first.unusable, first.written) == (1, 0)
-    second = judge(aligned, fake)
-    assert second.unusable == 1
-    third = judge(aligned, fake)
-    assert (third.given_up, third.calls) == (1, 0)
-    assert len(fake.bodies) == 2
-    assert AlignmentJudgment.objects.get().attempts == 2
+    for _ in range(adjudication.ATTEMPTS):
+        assert judge(aligned, fake).unusable == 1
+    last = judge(aligned, fake)
+    assert (last.given_up, last.calls, last.written) == (1, 0, 0)
+    assert len(fake.bodies) == adjudication.ATTEMPTS
+    assert AlignmentJudgment.objects.get().attempts == adjudication.ATTEMPTS
     assert not EditionArtifact.objects.filter(
         processor_version__startswith=adjudication.VERSION
     ).exists()
+
+
+def region(primary, secondary):
+    return adjudication.Region(
+        positions=[0],
+        primary=list(range(primary)),
+        secondary=list(range(secondary)),
+        texts={"primary": ["p"] * primary, "secondary": ["s"] * secondary},
+        languages=("de", "en"),
+    )
+
+
+def test_an_answer_against_the_rules_is_mended_where_it_says_what_it_meant():
+    def group(primary, secondary, certain=True):
+        return {"primary": primary, "secondary": secondary, "certain": certain}
+
+    # two groups that share a clause are one group
+    assert adjudication.validated([group([0], [0]), group([0], [1])], region(1, 2)) == [
+        group([0], [0, 1])
+    ]
+    # a clause given no counterpart joins its nearest group, which is then unconfirmed
+    assert adjudication.validated(
+        [group([0], [0]), group([1], []), group([2], [1])], region(3, 2)
+    ) == [group([0, 1], [0], False), group([2], [1])]
+    # a clause left out does the same
+    assert adjudication.validated([group([0], [0]), group([2], [2])], region(3, 3)) == [
+        group([0, 1], [0, 1], False),
+        group([2], [2]),
+    ]
+    # nothing to mend with
+    assert adjudication.validated([group([0], [])], region(1, 1)) is None
+    assert adjudication.validated([group([0], [5])], region(1, 1)) is None
+
+
+def test_a_paid_answer_that_was_unusable_as_given_is_mended_from_the_ledger(aligned):
+    # the answer pairs the one clause and adds a group with nothing on the other side
+    judge(aligned, Fake())
+    judgment = AlignmentJudgment.objects.get()
+    judgment.groups, judgment.attempts = None, adjudication.ATTEMPTS
+    judgment.save()
+    EditionArtifact.objects.filter(processor_version__startswith=adjudication.VERSION).delete()
+    fake = Fake()
+    tally = judge(aligned, fake)
+    assert (tally.mended, tally.calls, tally.written) == (1, 0, 1)
+    assert not fake.bodies
+
+
+def test_a_long_stretch_and_one_asked_before_each_get_a_call_to_themselves():
+    regions = {"a": region(2, 2), "b": region(adjudication.ALONE_ABOVE + 1, 3), "c": region(1, 1)}
+    regions["d"] = region(1, 1)
+    assert adjudication._packs(regions, alone={"c"}) == [["b"], ["c"], ["a", "d"]]
+
+
+def test_a_pair_is_queued_for_a_model_when_its_alignment_succeeds_only_where_a_plan_is(
+    aligned, settings, monkeypatch
+):
+    from almonium_book_processor.catalog import tasks
+
+    queued = []
+    monkeypatch.setattr(tasks.adjudicate_sentence_alignment, "delay", queued.append)
+    settings.SENTENCE_ADJUDICATION_MODEL = "claude-sonnet-5-5"
+    settings.AI_PLANS = ""
+    assert not adjudication.queue_after(aligned)
+    settings.AI_PLANS = "claude-code"
+    assert adjudication.queue_after(aligned)
+    assert queued == [str(aligned.id)]
+
+
+def test_the_task_notes_the_outcome_on_the_run_and_waits_out_a_refused_plan(
+    aligned, settings, monkeypatch
+):
+    from celery.exceptions import Retry
+
+    from almonium_book_processor.catalog import tasks
+
+    settings.SENTENCE_ADJUDICATION_MODEL = MODEL
+    monkeypatch.setattr(adjudication, "TASK_WORKERS", 1)
+    refused = Fake(error=AllowanceUsedUp("You've hit your usage limit"))
+    monkeypatch.setattr(adjudication.gateway, "provider", refused)
+    with pytest.raises(Retry):
+        tasks.adjudicate_sentence_alignment.apply(args=[str(aligned.id)], throw=True)
+    monkeypatch.setattr(adjudication.gateway, "provider", Fake())
+    assert tasks.adjudicate_sentence_alignment.apply(args=[str(aligned.id)]).get() == {
+        "answered": 1,
+        "written": 1,
+    }
+    aligned.refresh_from_db()
+    assert aligned.summary["adjudication"]["written"] == 1
+
+
+def test_only_the_newest_run_of_a_pair_is_read(aligned):
+    again = PipelineRun.objects.create(
+        edition=aligned.edition,
+        stage=PipelineRun.Stage.ALIGN,
+        status=PipelineRun.Status.SUCCEEDED,
+        processor_version=OFFLINE,
+        idempotency_key="again",
+        summary=aligned.summary,
+    )
+    assert adjudication.newest_runs([again, aligned]) == [again]
 
 
 def test_a_refused_allowance_holds_the_pass_and_counts_no_attempt(aligned):
@@ -223,6 +321,7 @@ def test_switching_models_respects_the_shared_retry_limit(aligned):
     fake = Fake(groups=[{"primary": [0, 1], "secondary": [0], "certain": True}])
     assert judge(aligned, fake).unusable == 1
     assert judge(aligned, fake, model=FALLBACK).unusable == 1
+    assert judge(aligned, fake).unusable == 1
     assert judge(aligned, Fake()).given_up == 1
 
 

@@ -115,10 +115,15 @@ unconfirmed (8% of groups in v9, in 28% of paragraph pairs) need a different jud
 in a paragraph pair, as numbered clauses, and takes back their grouping with a verdict
 per group. Confirmed groups are never sent and never change.
 
-- **Run it** from the host, where the plans are signed in:
+- **Automatic** where a plan serves the model: when a pair's offline alignment succeeds,
+  `adjudicate_sentence_alignment` is queued on the plans queue for it and notes its outcome
+  in the run's `summary.adjudication`. A refused plan is tried again every half hour for
+  two days. A deployed environment has no plan, queues nothing, and receives the judged
+  artifacts with the promoted edition.
+- **By hand** from the host, for catching up:
   `./plan-manage adjudicate_sentence_alignment [--dry-run] [--sample N] [--work <slug>]
-  [--model <model or seat>] [--workers N] [--apply-only]`. Nothing queues it.
-- **Model**: `SENTENCE_ADJUDICATION_MODEL` (default `gpt-5.6-luna`), a bare model, so it
+  [--model <model or seat>] [--workers N] [--shard i/n] [--apply-only]`.
+- **Model**: `SENTENCE_ADJUDICATION_MODEL` (default `claude-sonnet-5-5`, the model measured below), a bare model, so it
   runs on a plan where `AI_PLANS` has one that serves it.
 - **Bought once**: a stretch's judgment (`AlignmentJudgment`) is keyed by the adjudication
   version, the model, the two languages and the stretch's clause texts. No block, edition,
@@ -126,7 +131,7 @@ per group. Confirmed groups are never sent and never change.
   finds every stretch whose clauses did not change. Switching models reuses usable judgments
   and carries over failed attempts for the same adjudication version. About twelve stretches share a call;
   a call that was paid for and killed before its answers were kept is read from the
-  ledger. An answer that does not cover its stretch is asked once more and then left. A
+  ledger. An answer that does not cover its stretch is asked again by itself, three times in all, and then left. A
   refused allowance stops the pass and counts as no attempt.
 - **Result**: a second `sentence_alignment` artifact under the same pair hash, processor
   version `sentence-adjudication-v1:<model>` (or `sentence-adjudication-v1:mixed` for a
@@ -135,7 +140,12 @@ per group. Confirmed groups are never sent and never change.
   (`parallel_content.inherited_payload`) serves it in place of the offline artifact it was
   made from (`adjudication.base`) and of no other. After a text correction or a new offline
   version, `--apply-only` rewrites the artifacts from the judgments already paid for.
-- Stretches longer than 40 clauses a side are not asked (31 in the library).
+- **Answers against the rules** are mended where they say what was meant
+  (`validated`): groups sharing a clause become one group; a clause left out, or given no
+  counterpart, joins the nearest group of its side, which is then unconfirmed. Of the
+  answers refused before this, 85% were of these kinds. An answer that cannot be mended is
+  asked again with a call to itself, three times in all.
+- A stretch over 40 clauses a side has a call to itself; over 200 it is not asked.
 
 ### Sample, 2026-11-18 (claude-sonnet-5-5 on the Claude plan)
 

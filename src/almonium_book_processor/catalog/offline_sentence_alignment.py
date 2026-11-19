@@ -4,6 +4,7 @@ import contextlib
 import contextvars
 import hashlib
 import json
+import logging
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
@@ -305,6 +306,7 @@ def run_alignment(run_id):
                 "embedding": _embedding_record(runtime, spent_before),
             },
         )
+        _queue_adjudication(run)
     except Exception as error:
         failed = {"status": PipelineRun.Status.FAILED, "error": str(error)[:1000]}
         if remote_embeddings.usage().since(spent_before).calls:
@@ -317,6 +319,18 @@ def run_alignment(run_id):
         raise
     finally:
         remote.close()
+
+
+def _queue_adjudication(run):
+    """Hand the unconfirmed stretches to a model, where a plan serves it. The alignment has
+    succeeded either way: a queue that cannot be reached is logged, never the run's failure."""
+
+    from almonium_book_processor.catalog.sentence_adjudication import queue_after
+
+    try:
+        queue_after(run)
+    except Exception:
+        logging.getLogger(__name__).exception("Could not queue adjudication of run %s", run.id)
 
 
 def _on_modal(pairs, digests, done, model):
