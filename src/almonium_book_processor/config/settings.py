@@ -389,6 +389,7 @@ CELERY_TASK_ROUTES = {
     },
     # queued only where a plan serves the model (sentence_adjudication.queue_after)
     "almonium_book_processor.catalog.tasks.adjudicate_sentence_alignment": {"queue": PLAN_QUEUE},
+    "almonium_book_processor.catalog.tasks.adjudicate_joined_alignment": {"queue": PLAN_QUEUE},
 }
 
 # The Claude Code CLI on the owner's subscription, for output-heavy generation

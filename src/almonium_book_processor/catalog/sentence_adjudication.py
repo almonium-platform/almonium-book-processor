@@ -22,6 +22,14 @@ The result is a ``sentence_alignment`` artifact of its own beside the offline on
 the same pair hash: the offline payload with each judged stretch's groups replaced. The
 reader prefers it while it was made from the offline artifact being read
 (catalog/parallel_content.py), and it travels with promotion bundles like any artifact.
+
+Two editions read through their original (catalog/sentence_bridge.py) have no offline
+artifact: their groups are joined when the pair is read, and a joined group is unconfirmed
+where either alignment it came from was. Those stretches are read the same way, on request
+(``joined_paragraphs``, ``adjudicate_joined``): the same judgments, found by the same
+content, and the result kept as the pair's artifact, made from the join. Nothing queues
+that reading by itself; what a text revision retires is written again for free from the
+judgments already paid for (``restore_joined``).
 """
 
 from __future__ import annotations
@@ -33,6 +41,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db import connections, transaction
 from django.utils import timezone
@@ -47,6 +56,7 @@ from almonium_book_processor.ai.cli_calls import (
 )
 from almonium_book_processor.ai.openai_provider import response_output_text
 from almonium_book_processor.ai.seats import Seat
+from almonium_book_processor.catalog import sentence_bridge
 from almonium_book_processor.catalog.models import (
     AIRun,
     AlignmentJudgment,
@@ -56,8 +66,13 @@ from almonium_book_processor.catalog.models import (
     ModelConfiguration,
     PipelineRun,
     PromptTemplate,
+    Work,
 )
-from almonium_book_processor.catalog.parallel_content import pair_hash
+from almonium_book_processor.catalog.parallel_content import (
+    bridged_pairs,
+    common_origin,
+    pair_hash,
+)
 
 VERSION = "sentence-adjudication-v1"
 PURPOSE = "sentence_adjudication"
@@ -76,6 +91,10 @@ ATTEMPTS = 3
 TASK_WORKERS = 2
 # A call still "submitted" after this was cut off with its process; it is asked again.
 STALE = timedelta(minutes=45)
+# What a call is priced at before it is made (``price``). The CLI's own instructions ride on
+# every plan call, mostly cached (ai/codex_provider.py).
+CALL_OVERHEAD_TOKENS = 15_000
+CHARS_PER_TOKEN = 3
 
 SYSTEM = """You align clauses between two versions of the same literary passage: an \
 original and its translation, or an original and its simplification. The texts are \
@@ -148,10 +167,22 @@ class Region:
 
 
 @dataclass
+class Joined:
+    """What a pair read through its original has where an aligned pair has its offline
+    artifact: the join, computed when the pair is read and stored nowhere."""
+
+    edition_id: object  # where the judged artifact is kept: the pair's first edition
+    input_hash: str
+    payload: dict
+    processor_version: str = sentence_bridge.VERSION
+    pipeline_run = None
+
+
+@dataclass
 class Paragraph:
     primary: ContentBlock
     secondary: ContentBlock
-    artifact: EditionArtifact
+    artifact: EditionArtifact | Joined  # what the stretches were found in
     regions: list[Region]
     oversized: int = 0
 
@@ -234,6 +265,42 @@ def paragraphs(run: PipelineRun) -> list[Paragraph]:
         regions, oversized = weak_regions(artifact.payload, primary, secondary)
         if regions or oversized:
             result.append(Paragraph(primary, secondary, artifact, regions, oversized))
+    return result
+
+
+def joined_order(edition, other):
+    """The pair in the one order its judged artifacts are kept in, whoever asks: an edition
+    in the original's own language (an adaptation) first, then by language and slug."""
+
+    origin = common_origin(edition, other)
+    home = origin.language if origin else ""
+    return sorted(
+        (edition, other),
+        key=lambda made: (made.language != home, made.language, made.cefr_level or "", made.slug),
+    )
+
+
+def joined_paragraphs(edition, other) -> list[Paragraph]:
+    """A pair read through its original: its paragraphs whose join holds a stretch worth
+    asking about. Public works only, like every alignment; [] for any other pair."""
+
+    if edition.work.visibility != Work.Visibility.PUBLIC or common_origin(edition, other) is None:
+        return []
+    if edition.withdrawal_requested_at or other.withdrawal_requested_at:
+        return []
+    first, second = joined_order(edition, other)
+    result = []
+    for primary, secondary, digest, join in bridged_pairs(first, second):
+        if _lone_marks(primary) or _lone_marks(secondary):
+            continue
+        if any(not group["primary"] or not group["secondary"] for group in join["groups"]):
+            continue  # one side left something out: there is no stretch with two sides to ask
+        payload = {key: value for key, value in join.items() if key != "provenance"}
+        regions, oversized = weak_regions(payload, primary, secondary)
+        if regions or oversized:
+            result.append(
+                Paragraph(primary, secondary, Joined(first.id, digest, payload), regions, oversized)
+            )
     return result
 
 
@@ -647,7 +714,11 @@ def _write(paragraph: Paragraph, judgments: dict, model: str, tally: Tally) -> N
             or len(editions) != 2
             or any(edition.withdrawal_requested_at for edition in editions)
             or pair_hash(locked[primary.id], locked[secondary.id]) != offline.input_hash
-            or not EditionArtifact.objects.filter(pk=offline.pk, is_current=True).exists()
+            # a join is stored nowhere: the pair's hash is all that can have moved
+            or not (
+                isinstance(offline, Joined)
+                or EditionArtifact.objects.filter(pk=offline.pk, is_current=True).exists()
+            )
         ):
             # the text moved on while the model read: the judgment is kept, the artifact is not
             tally.changed_text += 1
@@ -745,6 +816,40 @@ def needs_judgment(history: list[AlignmentJudgment]) -> bool:
     )
 
 
+def unasked(work: list[Paragraph], model: str) -> dict[str, Region]:
+    """The distinct stretches of ``work`` that have no usable answer and may still be asked."""
+
+    regions: dict[str, Region] = {}
+    for paragraph in work:
+        for region in paragraph.regions:
+            regions.setdefault(region.identity(model), region)
+    history = judgment_history(regions, model)
+    return {
+        identity: region
+        for identity, region in regions.items()
+        if needs_judgment(history[identity])
+    }
+
+
+def price(pending: dict[str, Region], seat: Seat) -> tuple[int, Decimal]:
+    """The calls ``pending`` would be asked in, and about what they cost: on a plan, the
+    share of the plan. Arithmetic over the clauses to send, in the pass's own packs."""
+
+    calls = len(_packs(pending))
+    chars = sum(region.chars for region in pending.values())
+    clauses = sum(len(region.primary) + len(region.secondary) for region in pending.values())
+    prices = gateway.prices(seat)
+    fresh = chars / CHARS_PER_TOKEN + clauses * 8 + calls * 700
+    cached = calls * CALL_OVERHEAD_TOKENS if seat.on_plan else 0
+    output = clauses * 12 + calls * 300
+    usd = (
+        Decimal(fresh) * Decimal(prices["input"])
+        + Decimal(cached) * Decimal(prices["cached_input"])
+        + Decimal(output) * Decimal(prices["output"])
+    ) / 1_000_000
+    return calls, usd
+
+
 def newest_runs(runs) -> list[PipelineRun]:
     """One run per edition pair, its newest: a pair aligned again has a run for each time."""
 
@@ -806,7 +911,120 @@ def adjudicate_run(run_id, *, workers: int | None = None) -> Tally | None:
         },
     }
     run.save(update_fields=["summary"])
+    # The alignment was run again because a text changed, and the revision retired the
+    # edition's artifacts: the judged joins among them are written again, and nothing asked.
+    for edition in Edition.objects.filter(
+        pk__in=[run.edition_id, run.summary["secondary_id"]], source_edition__isnull=False
+    ):
+        restore_joined(edition)
     return tally
+
+
+def adjudicate_joined(
+    edition, other, *, ask: bool = True, workers: int | None = None, provider=None
+) -> Tally:
+    """Read the unconfirmed stretches of a pair read through its original, and keep the
+    result as the pair's artifact. ``ask=False`` buys nothing and writes what is paid for."""
+
+    from django.conf import settings
+
+    first, _ = joined_order(edition, other)
+    return adjudicate(
+        joined_paragraphs(edition, other),
+        model_setting=settings.SENTENCE_ADJUDICATION_MODEL,
+        edition_id=first.id,
+        workers=workers or TASK_WORKERS,
+        ask=ask,
+        provider=provider,
+    )
+
+
+def joined_companions(edition) -> list[Edition]:
+    """The editions ``edition`` is read beside through the original both were made from."""
+
+    family = Edition.objects.filter(
+        work_id=edition.work_id, source_edition__isnull=False, withdrawal_requested_at=None
+    ).exclude(pk=edition.pk)
+    return [other for other in family.order_by("slug") if common_origin(edition, other)]
+
+
+def restore_joined(edition) -> int:
+    """Write again the judged joins a text revision retired; how many artifacts.
+
+    A revision retires every artifact kept under the edition, the judged joins of its
+    unchanged paragraphs among them. Their stretches are found by their content, so they
+    come back from the judgments already paid for. Nothing is asked: a stretch the revision
+    made new waits for someone to ask for it.
+    """
+
+    retired = EditionArtifact.objects.filter(
+        edition=edition,
+        kind=EditionArtifact.Kind.SENTENCE_ALIGNMENT,
+        is_current=False,
+        payload__adjudication__base=sentence_bridge.VERSION,
+    )
+    if not retired.exists():
+        return 0
+    return sum(
+        adjudicate_joined(edition, other, ask=False).written for other in joined_companions(edition)
+    )
+
+
+def joined_unread(edition, other, payload: dict) -> dict | None:
+    """What the alignment page offers for a pair read through its original: how many
+    stretches no model has read, what reading them costs, and why it cannot be asked for
+    here if it cannot. None when nothing is left to ask.
+
+    ``payload`` is the pair as the reader is served it. It tells, without reading the whole
+    pair a second time, whether anything can be left: an unconfirmed group still in a
+    join, or a judged join that left a stretch unread.
+    """
+
+    from django.conf import settings
+
+    from almonium_book_processor.catalog import estimates
+
+    def open_to_question(block):
+        provenance = block.get("alignment_provenance") or {}
+        if provenance.get("processor_version") == sentence_bridge.VERSION:
+            return any(not group["certain"] for group in block["sentence_alignment"])
+        return provenance.get("made_from") == sentence_bridge.VERSION and bool(
+            provenance.get("stretches_left")
+        )
+
+    if not any(open_to_question(block) for block in payload["blocks"]):
+        return None
+    seat = gateway.route(settings.SENTENCE_ADJUDICATION_MODEL)
+    pending = unasked(joined_paragraphs(edition, other), seat.model)
+    if not pending:
+        return None
+    blocked = (
+        gateway.unavailable(seat)
+        if seat.on_plan
+        else "No plan serves the model here; judged groups arrive with the promoted edition."
+    )
+    return {
+        "count": len(pending),
+        "estimate": estimates.sentence_adjudication(pending, seat),
+        "blocked": blocked,
+    }
+
+
+def queue_joined(edition, other) -> str:
+    """Queue the reading of a joined pair's unconfirmed stretches; "" when queued, else why
+    not. Only where a plan serves the model, as for the pairs aligned offline."""
+
+    from django.conf import settings
+
+    from almonium_book_processor.catalog.tasks import adjudicate_joined_alignment
+
+    seat = gateway.route(settings.SENTENCE_ADJUDICATION_MODEL)
+    if not seat.on_plan:
+        return "No plan serves the model here; judged groups arrive with the promoted edition."
+    if reason := gateway.unavailable(seat):
+        return reason
+    adjudicate_joined_alignment.delay(str(edition.id), str(other.id))
+    return ""
 
 
 def adjudicate(

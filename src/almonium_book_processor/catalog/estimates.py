@@ -468,6 +468,30 @@ def alignment_review(edition: Edition) -> Estimate:
     )
 
 
+# A model's reading of unconfirmed sentence groups -------------------------------
+
+
+def sentence_adjudication(pending: dict, seat) -> Estimate:
+    """The stretches still to ask a model about, in the pass's own calls and prices.
+
+    ``pending`` is what ``sentence_adjudication.unasked`` returns: a stretch that was
+    answered before, or asked as often as it may be, is not in it and is not priced.
+    """
+    from almonium_book_processor.catalog import sentence_adjudication as adjudication
+
+    calls, usd = adjudication.price(pending, seat)
+    where = (
+        f"on the {seat.provider} plan, as its share of the plan" if seat.on_plan else "on the API"
+    )
+    return Estimate(
+        usd,
+        f"{len(pending)} unconfirmed stretch{'es' if len(pending) != 1 else ''} in about "
+        f"{calls} call{'s' if calls != 1 else ''} to {seat.model} {where}. Each stretch is "
+        "bought once: one read before is found again by its text and costs nothing.",
+        action=f"Have the model read {len(pending)} stretches",
+    )
+
+
 # Offline sentence alignment on Modal -------------------------------------------
 
 # Tokens a second one Modal GPU embeds, taken low until the first runs' recorded GPU seconds

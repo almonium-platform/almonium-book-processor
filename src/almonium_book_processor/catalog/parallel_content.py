@@ -145,19 +145,24 @@ def served_alignments(editions, digests):
     }
     # A model's reading of the unconfirmed stretches stands in for the offline artifact it
     # was made from, and for no other: a later offline version is read as it is until its
-    # own stretches are judged. Prefer the most complete overlay for the same base.
+    # own stretches are judged. Prefer the most complete overlay for the same base. The
+    # reading of a join (two editions read through their original) was made from no stored
+    # artifact: it stands where the pair has no alignment of its own.
     for a in sorted(
         adjudicated,
         key=lambda a: (a.payload["adjudication"]["stretches"], a.updated_at),
         reverse=True,
     ):
         base = artifacts.get(a.input_hash)
-        if base and base["provenance"]["processor_version"] == a.payload["adjudication"]["base"]:
+        made_from = base["provenance"]["processor_version"] if base else sentence_bridge.VERSION
+        if made_from == a.payload["adjudication"]["base"]:
             artifacts[a.input_hash] = {
                 **served(a),
                 "provenance": {
                     **served(a)["provenance"],
                     "adjudicated_by": a.payload["adjudication"]["model"],
+                    "made_from": a.payload["adjudication"]["base"],
+                    "stretches_left": a.payload["adjudication"].get("left", 0),
                 },
             }
     return artifacts
@@ -172,31 +177,39 @@ def common_origin(edition, other):
     return Edition.objects.filter(pk=root).first()
 
 
-def _bridge(origin, editions, pairs, own, rows):
-    """Fill the pairs that have no sentence groups of their own with those joined through
-    ``origin``, the edition both were made from (catalog/sentence_bridge.py)."""
+def reads_a_join(row):
+    """Whether a served alignment is a model's reading of the pair's join through its
+    original (catalog/sentence_adjudication.py), not an alignment of the pair's own."""
+
+    return (row.get("adjudication") or {}).get("base") == sentence_bridge.VERSION
+
+
+def _joins(origin, editions, pairs, own, wanted):
+    """The join through ``origin`` (catalog/sentence_bridge.py) of each paragraph pair in
+    ``wanted`` that has one, by its place in ``pairs``."""
 
     blocks = {block.align_group: block for block in origin.blocks.select_related("edition")}
     legs = {}
-    for index, (p, s) in enumerate(pairs):
+    for index in wanted:
+        p, s = pairs[index]
         block = blocks.get(p.align_group)
-        if block is None or rows[index].get("groups"):
-            continue
-        legs[index] = (
-            block,
-            (pair_hash(block, p), pair_hash(p, block)),
-            (pair_hash(block, s), pair_hash(s, block)),
-        )
+        if block is not None:
+            legs[index] = (
+                block,
+                (pair_hash(block, p), pair_hash(p, block)),
+                (pair_hash(block, s), pair_hash(s, block)),
+            )
     artifacts = served_alignments(
         [origin, *editions],
         [digest for _, first, second in legs.values() for digest in (*first, *second)],
     )
+    joins = {}
     for index, (block, first, second) in legs.items():
         first, second = _oriented(artifacts, *first), _oriented(artifacts, *second)
         joined = sentence_bridge.bridge(first, second, block, *pairs[index])
         if joined is None:
             continue
-        rows[index] = {
+        joins[index] = {
             **joined,
             "provenance": {
                 "artifact_id": None,
@@ -213,21 +226,61 @@ def _bridge(origin, editions, pairs, own, rows):
                 "legs": [first["provenance"], second["provenance"]],
             },
         }
+    return joins
 
 
-def inherited_payload(edition, other):
+def _reading(edition, other, behind=False):
+    """The pair's paragraphs as (pairs, their hashes, the alignment served for each, joins).
+
+    An adaptation and a translation, or two translations, were each aligned with the
+    original and not with one another: a paragraph with no sentence groups of the pair's
+    own is served its join through the original. A pair staff aligned directly keeps its
+    own alignment wherever that has groups. ``joins`` holds every join computed, by the
+    paragraph's place; with ``behind`` also the one behind each model's reading of a join,
+    which is served in the join's place.
+    """
+
     pairs = inherited_pairs(edition, other)
     if not pairs:
         return None
     own = [(pair_hash(p, s), pair_hash(s, p)) for p, s in pairs]
     artifacts = served_alignments([edition, other], [digest for both in own for digest in both])
     rows = [_oriented(artifacts, forward, backward) for forward, backward in own]
-    # An adaptation and a translation, or two translations, were each aligned with the
-    # original and not with one another: their sentences are joined through it. A pair
-    # staff aligned directly keeps its own alignment wherever that has groups.
+    joins = {}
     origin = common_origin(edition, other)
     if origin is not None:
-        _bridge(origin, [edition, other], pairs, own, rows)
+        wanted = [
+            index
+            for index, row in enumerate(rows)
+            if not row.get("groups") or (behind and reads_a_join(row))
+        ]
+        joins = _joins(origin, [edition, other], pairs, own, wanted)
+        for index, join in joins.items():
+            if not rows[index].get("groups"):
+                rows[index] = join
+    return pairs, own, rows, joins
+
+
+def bridged_pairs(edition, other):
+    """The paragraphs the pair is read through its original, each with its join.
+
+    (primary block, secondary block, pair hash, join) in reading order: the join as
+    computed, before any model's reading of it. Paragraphs the pair aligned itself, and
+    those with nothing to join, are left out.
+    """
+
+    reading = _reading(edition, other, behind=True)
+    if reading is None:
+        return []
+    pairs, own, _rows, joins = reading
+    return [(*pairs[index], own[index][0], joins[index]) for index in sorted(joins)]
+
+
+def inherited_payload(edition, other):
+    reading = _reading(edition, other)
+    if reading is None:
+        return None
+    pairs, own, rows, _joins_computed = reading
     return {
         "schema_version": 2,
         "primary_edition": edition.slug,

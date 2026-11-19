@@ -9,10 +9,21 @@
     <p class="eyebrow">Sentence alignment</p>
     <h1>{{ primary.title }} ↔ {{ secondary.title }}</h1>
   </div>
+  {% if origin %}
+  {% if unread and unread.blocked %}
+  <p class="align-run align-run-meta">{{ unread.count }} unconfirmed stretch{{ unread.count|pluralize:"es" }} no model has read. {{ unread.blocked }}</p>
+  {% elif unread %}
   <form class="align-run" method="post">{% csrf_token %}
-    {% with first_cost=model_costs|at:default_model %}<button class="button" type="submit"{% if model_costs %}{% cost_attrs first_cost model_costs "align-model" %}{% endif %}>{% if origin %}Align this pair directly{% else %}Align all {{ chapters|length }} chapter{{ chapters|length|pluralize }}{% endif %}{% cost first_cost %}</button>{% endwith %}
+    <button class="button" type="submit"{% cost_attrs unread.estimate %}>Read {{ unread.count }} unconfirmed stretch{{ unread.count|pluralize:"es" }}{% cost unread.estimate %}</button>
+    <span class="align-run-meta">A model reads only the groups marked “?”</span>
+  </form>
+  {% endif %}
+  {% else %}
+  <form class="align-run" method="post">{% csrf_token %}
+    {% with first_cost=model_costs|at:default_model %}<button class="button" type="submit"{% if model_costs %}{% cost_attrs first_cost model_costs "align-model" %}{% endif %}>Align all {{ chapters|length }} chapter{{ chapters|length|pluralize }}{% cost first_cost %}</button>{% endwith %}
     <span class="align-run-meta">{% if on_modal %}Modal GPU · billed per second{% else %}Local model · no API cost{% endif %} · <select id="align-model" name="model" aria-label="Embedding model" title="{{ default_model }}">{% for model in models %}<option value="{{ model.id }}" title="{{ model.id }}"{% if model.id == default_model %} selected{% endif %}>{{ model.label }}</option>{% endfor %}</select><span class="align-run-caret" aria-hidden="true">▾</span></span>
   </form>
+  {% endif %}
 </div>
 
 <div class="align-status">
@@ -21,7 +32,7 @@
   <details class="align-how">
     <summary>How alignment works</summary>
     <p>Blocks pair through the canonical groups both editions inherit, so the paragraphs are already exact. Inside each pair a multilingual embedding model matches sentences: no paid API is called, and only GPU seconds are billed when embeddings run on Modal. Each matched sentence group is then cut at clause punctuation (commas, semicolons, colons, dashes) and the clauses are matched again; a clause pair that is weak, or that resembles a crossing partner nearly as well as its own, is merged back with its neighbour, so a clause moved to the other end of the sentence stays one group. In the paragraph view each group has one tint on both sides; a solid tint is confident, a dashed underline is not. A group the model did not confirm keeps its similarity and is marked for a look; a paragraph it cannot split stays paragraph-aligned. This checks structure, not fidelity: paired passages still need editorial review.</p>
-    {% if origin %}<p>These two editions were each made from <a href="{% url 'catalog:edition-detail' origin.id %}">the original</a> and each is aligned with it, not with the other. Their groups are joined through it: whatever of either side is tied to the same clauses of the original is one group, confirmed only when both alignments confirmed it. That costs nothing and follows the two alignments as they change. Aligning this pair here matches the two texts directly instead, and a paragraph it aligns shows that result.</p>{% endif %}
+    {% if origin %}<p>These two editions were each made from <a href="{% url 'catalog:edition-detail' origin.id %}">the original</a> and each is aligned with it, not with the other. Their groups are joined through it: whatever of either side is tied to the same clauses of the original is one group, confirmed only when both alignments confirmed it. That costs nothing and follows the two alignments as they change. A group either alignment left unconfirmed is marked “?”. A model can read those stretches alone, the way it read the two alignments' own: each is bought once and found again by its text, and nothing queues that reading by itself.</p>{% endif %}
     {% if alignment_run %}<p>Latest job: {{ alignment_run.get_status_display }} · {{ alignment_run.summary.model|default:"" }} · {{ alignment_run.processor_version }}{% if alignment_run.summary.completed_blocks %} · {{ alignment_run.summary.completed_blocks }} blocks, {{ alignment_run.summary.highlighted_groups }} confident groups, {{ alignment_run.summary.paragraph_fallback_blocks }} paragraph-aligned{% endif %}.</p>{% endif %}
   </details>
 </div>

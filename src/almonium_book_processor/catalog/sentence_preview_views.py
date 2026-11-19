@@ -28,6 +28,21 @@ def sentence_preview(request, edition_id, other_id):
     payload = inherited_payload(primary, secondary)
     if payload is None:
         raise Http404("No complete inherited pair")
+    # Both made from a third edition: the page shows their join through it, and what it
+    # offers is a model's reading of the join's unconfirmed stretches, not a job of the pair.
+    origin = common_origin(primary, secondary)
+    if request.method == "POST" and origin is not None:
+        from almonium_book_processor.catalog.sentence_adjudication import queue_joined
+
+        if reason := queue_joined(primary, secondary):
+            messages.error(request, reason)
+        else:
+            messages.success(
+                request,
+                "A model is reading this pair's unconfirmed stretches; each is bought once. "
+                "Reload in a minute.",
+            )
+        return redirect(request.get_full_path())
     if request.method == "POST":
         from almonium_book_processor.catalog.offline_sentence_alignment import queue_alignment
 
@@ -51,11 +66,17 @@ def sentence_preview(request, edition_id, other_id):
     positions = {item.sequence: index for index, item in enumerate(chapters)}
     index = positions.get(chapter)
     models = available_models()
-    from almonium_book_processor.catalog import estimates
-    from almonium_book_processor.catalog.parallel_status import pair_status
+    unread, model_costs = None, {}
+    if origin is not None:
+        from almonium_book_processor.catalog.sentence_adjudication import joined_unread
 
-    embed_chars = pair_status(primary, secondary)["embed_chars"]
-    model_costs = {model: estimates.offline_alignment(embed_chars, model) for model in models}
+        unread = joined_unread(primary, secondary, payload)
+    else:
+        from almonium_book_processor.catalog import estimates
+        from almonium_book_processor.catalog.parallel_status import pair_status
+
+        embed_chars = pair_status(primary, secondary)["embed_chars"]
+        model_costs = {model: estimates.offline_alignment(embed_chars, model) for model in models}
     return render(
         request,
         "catalog/sentence_preview.html",
@@ -72,9 +93,8 @@ def sentence_preview(request, edition_id, other_id):
             "on_modal": settings.NLP_EMBEDDING_BACKEND == "modal",
             "primary": primary,
             "secondary": secondary,
-            # Both made from a third edition: where this pair has no alignment of its own
-            # the page shows the one joined through it.
-            "origin": common_origin(primary, secondary),
+            "origin": origin,
+            "unread": unread,
             "primary_level": primary.cefr_level,
             "secondary_level": secondary.cefr_level,
             "chapters": chapters,

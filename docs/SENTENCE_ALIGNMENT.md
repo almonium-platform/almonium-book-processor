@@ -243,8 +243,48 @@ table reads each edition's blocks once: 4.2 s to 3.2 s.
 
 **On the staff pages** the companions table shows such a pair as "Through the original",
 or "Waiting for the original" while either side is not aligned with it, and offers no job
-for it. The alignment page counts the joined groups, marks an unconfirmed one "?", and
-names its button "Align this pair directly".
+for it. The alignment page counts the joined groups and marks an unconfirmed one "?".
+
+### A model reads what a join left unconfirmed
+
+A joined group is unconfirmed where either alignment it came from was: 1.2% of the groups
+of adaptation-and-translation pairs (0.6% to B2, 2.4% to B1) and 0.5% of those of two
+translations, before this. Aligning the pair directly to settle them would redo the other
+99% worse. Instead the model that read the offline aligner's unconfirmed stretches reads
+these, and only these (`sentence_adjudication.joined_paragraphs`, `adjudicate_joined`).
+
+- **Asked for, never queued by itself.** The alignment page of such a pair has one button,
+  "Read N unconfirmed stretches · ~$x", where a plan serves the model; it counts and prices
+  only the stretches no model has read. For the library:
+  `./plan-manage adjudicate_sentence_alignment --joined [--dry-run] [--work <slug>]
+  [--apply-only] [--workers N] [--shard i/n]`, over pairs in different languages whose
+  editions are ready, published or in review (the reader offers no companion in the
+  edition's own language).
+- **Bought once**, by the same identity as every other stretch: the adjudication version,
+  the model, the two languages and the stretch's clause texts. The pair is always read in
+  one order (the edition in the original's language first), so the same stretch has the
+  same identity whichever side asks. What moves it: a clause of the stretch changing, or
+  the run of unconfirmed groups around it changing because one of the two alignments did.
+- **Kept as the pair's artifact**: `sentence-adjudication-v1:<model>` under the pair's own
+  hash, the join with the judged stretches replaced and `adjudication.base:
+  sentence-bridge-v1`. The reader serves it where the pair has no alignment of its own,
+  and it travels with the promoted edition it is kept under (the first of the pair).
+  Paragraphs with nothing to ask stay computed as they are read.
+- **A text revision** retires every artifact under the edition it touched, these among
+  them. When that edition's own alignment has been run and adjudicated again, the judged
+  joins of its unchanged paragraphs are written again from the judgments already paid for
+  (`restore_joined`); nothing is asked. A stretch the revision made new shows "?" until
+  someone asks for it.
+
+First run, Jekyll and Hyde, 2026-11-19 (claude-sonnet-5-5 on the Claude plan): ten pairs,
+188 stretches in 165 paragraphs, 182 asked in 20 calls for $0.013 of the plan (the dry run
+said $0.01), 6 found already paid. 189 unconfirmed groups became 253, of which the model
+confirmed 172 (67%, against 90% on the offline aligner's own stretches: more of what is
+left here is a real difference). Unconfirmed groups went from 0.84% to 0.36%, and from
+1.28% to 0.37% of words. Read by hand, sixteen judged paragraphs: the confirmed groups
+said the same thing, and those left unconfirmed were clauses with part of their content
+on the other side ("Through my moral experience," against "Ce fut sur le plan moral, et
+dans ma propre personne,"). A second run asked nothing.
 
 ## The alignment page
 

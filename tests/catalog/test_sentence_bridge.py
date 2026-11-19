@@ -359,8 +359,8 @@ def test_the_staff_pages_show_the_join(client, tree):
     assert "4 joined through the original" in html
     assert 'title="Joined through the original"' in html
     assert "Their groups are joined through it" in html
-    # Running this pair's own job is still offered, and named for what it does.
-    assert "Align this pair directly" in html
+    # The pair has no job of its own, and with every group confirmed nothing to ask a model.
+    assert "Align all" not in html and 'type="submit"' not in html
     direct = client.get(reverse("catalog:sentence-preview", args=[original.id, french.id]))
     assert direct.context["origin"] is None
     assert "joined through" not in direct.content.decode()

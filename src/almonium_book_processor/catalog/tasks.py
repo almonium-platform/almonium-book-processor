@@ -104,6 +104,25 @@ def adjudicate_sentence_alignment(self, run_id):
     return None if tally is None else {"answered": tally.answered, "written": tally.written}
 
 
+@shared_task(bind=True, acks_late=True, max_retries=96)
+def adjudicate_joined_alignment(self, edition_id, other_id):
+    """A model reads the unconfirmed stretches of two editions read through their original.
+
+    Asked for from the alignment page; held and tried again like the pass above, and each
+    try asks only what is not yet paid for.
+    """
+
+    from almonium_book_processor.catalog.sentence_adjudication import adjudicate_joined
+
+    editions = {str(e.id): e for e in Edition.objects.filter(pk__in=[edition_id, other_id])}
+    if len(editions) != 2:
+        return None
+    tally = adjudicate_joined(editions[str(edition_id)], editions[str(other_id)])
+    if tally.held:
+        raise self.retry(countdown=1800)
+    return {"answered": tally.answered, "written": tally.written}
+
+
 @shared_task(acks_late=True)
 def generate_chapter_glosses(run_id):
     from almonium_book_processor.catalog.glosses import run_chapter
