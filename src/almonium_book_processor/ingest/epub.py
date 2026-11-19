@@ -22,9 +22,11 @@ from almonium_book_processor.ingest.common import (
     epub_image_resolver,
     extract_blocks,
     fold_heading_only_chapters,
+    normalize_text,
     parse_html,
     sha256_file,
 )
+from almonium_book_processor.ingest.digital_wrappers import is_digital_wrapper
 from almonium_book_processor.ingest.gutenberg import trim_gutenberg_boilerplate
 from almonium_book_processor.ingest.page_markers import remove_page_markers
 from almonium_book_processor.ingest.wikisource import (
@@ -148,6 +150,9 @@ def ingest_epub(
         builder.warnings.extend(notices)
     for _, root in documents:
         remove_page_markers(root)
+        for tag in root.find_all(["p", "h1", "h2", "h3", "h4", "h5", "h6"]):
+            if tag.parent is not None and is_digital_wrapper(normalize_text(tag)):
+                tag.decompose()
     chapter = 0
     cover_images = _cover_image_names(book)
     # Gutenberg cuts a long book into files by size, mid-chapter; a file that

@@ -258,7 +258,14 @@ def refresh_projections(run_id: str, *, token: str | None = None) -> None:
                 # Keep the first validated result, matching reuse rather than mixing attempts.
                 results.setdefault(result.input_hash, result)
         roles = dict(_roles(edition))
-        key = "page_cleanup" if "page_cleanup" in run.summary else "image_cleanup"
+        key = next(
+            (
+                name
+                for name in ("wrapper_cleanup", "page_cleanup", "image_cleanup")
+                if name in run.summary
+            ),
+            None,
+        )
         cleanup = run.summary.get(key)
         if cleanup and cleanup.get("chapter_artifacts"):
             chapters, book = _cleanup_projections(run, plan, roles, key, cleanup)

@@ -973,3 +973,27 @@ def test_epub_omits_tagged_print_pages_but_keeps_footnotes_and_joined_words(tmp_
         "nicht einmal mehr Beifall [12].",
         "likewise, with one meeting.",
     ]
+
+
+def test_epub_drops_digital_notice_before_chapter_splitting(tmp_path):
+    first = epub.EpubHtml(title="Book", file_name="book.xhtml", lang="de")
+    first.content = (
+        "<h1>There are several editions of this ebook in the Project Gutenberg collection. "
+        "Various characteristics of each ebook are listed to aid in selecting the preferred file."
+        "</h1><h2>Actual book title</h2><p>This eBook was produced by Carlo Traverso.</p>"
+        "<p>This e-text was produced from Project Runeberg’s digital facsimile edition "
+        "of an earlier book.</p>"
+        "<p>Project Runeberg publishes free digital editions of Nordic literature. "
+        "Learn more at http://runeberg.org/</p>"
+        "<p>Transcriber's Note: The original spelling is retained.</p><p>Actual prose.</p>"
+    )
+    artifact = ingest_epub(
+        _cover_epub(tmp_path, cover_page=SVG_COVER, extra=(first,)),
+        edition_slug="digital-note-de-orig",
+        work_slug="digital-note",
+    )
+    assert [block.text for block in artifact.blocks[:3]] == [
+        "Actual book title",
+        "Transcriber's Note: The original spelling is retained.",
+        "Actual prose.",
+    ]
