@@ -23,7 +23,7 @@ from almonium_book_processor.processing.sentence_correspondence import VERSION
 REASON = "image_text_moved_to_metadata"
 
 
-def _carry(run, key, digest, summary, **provenance):
+def _carry(run, key, digest, summary, *, cleanup="image_cleanup", reason=REASON, **provenance):
     carried, _ = PipelineRun.objects.get_or_create(
         idempotency_key=key,
         defaults={
@@ -36,7 +36,7 @@ def _carry(run, key, digest, summary, **provenance):
             "finished_at": timezone.now(),
             "summary": {
                 **summary,
-                "image_cleanup": {"reason": REASON, "from_run": str(run.pk), **provenance},
+                cleanup: {"reason": reason, "from_run": str(run.pk), **provenance},
             },
         },
     )
@@ -144,7 +144,7 @@ def _analysis_plan(edition, run):
         return None
 
 
-def _carry_analysis(edition, run, before):
+def _carry_analysis(edition, run, before, *, cleanup="image_cleanup", reason=REASON):
     after = _analysis_plan(edition, run)
     if before is None or after is None or before["hash"] != run.input_hash:
         return "analysis already stale or unavailable"
@@ -171,9 +171,11 @@ def _carry_analysis(edition, run, before):
         f"{edition.pk}:chapter-analysis:{digest}",
         digest,
         run.summary,
+        cleanup=cleanup,
+        reason=reason,
         chapter_artifacts=[str(row.pk) for row in artifacts],
     )
-    if carried.summary.get("image_cleanup", {}).get("from_run") != str(run.pk):
+    if carried.summary.get(cleanup, {}).get("from_run") != str(run.pk):
         return "cleaned analysis already available"
     chapter_projections.refresh_projections(str(carried.pk))
     return "analyses carried"

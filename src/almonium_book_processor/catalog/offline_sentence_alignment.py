@@ -65,7 +65,7 @@ def _digest(pairs):
 
 
 @transaction.atomic
-def queue_alignment(primary_id, secondary_id, model=None):
+def queue_alignment(primary_id, secondary_id, model=None, *, local_only=False):
     from almonium_book_processor.catalog.tasks import align_edition_sentences
 
     model = model or settings.NLP_EMBEDDING_MODEL
@@ -85,6 +85,7 @@ def queue_alignment(primary_id, secondary_id, model=None):
                 "model": model,
                 "method": VERSION,
                 "total_blocks": len(pairs),
+                **({"local_only": True} if local_only else {}),
             },
         },
     )
@@ -107,6 +108,9 @@ def queue_alignment(primary_id, secondary_id, model=None):
         + ([PipelineRun.Status.SUCCEEDED] if retired else []),
     ).update(status=PipelineRun.Status.QUEUED, error="", finished_at=None, progress=0)
     if created or retry:
+        if local_only and not run.summary.get("local_only"):
+            run.summary = {**run.summary, "local_only": True}
+            run.save(update_fields=["summary", "updated_at"])
 
         def dispatch():
             try:
@@ -181,7 +185,7 @@ def run_alignment(run_id):
                 input_hash__in=digests,
             ).values_list("input_hash", flat=True)
         )
-        if _on_modal(pairs, digests, done, model):
+        if not run.summary.get("local_only") and _on_modal(pairs, digests, done, model):
             # Public works only (_pairs), inside this month's free Modal credits.
             remote.enter_context(remote_embeddings.public_text())
         runtime = embedding_runtime().as_record()

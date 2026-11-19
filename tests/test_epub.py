@@ -953,3 +953,23 @@ def test_a_page_number_set_as_a_paragraph_is_not_a_paragraph(tmp_path) -> None:
     artifact = ingest_epub(source, edition_slug="pg-de", work_slug="pg")
 
     assert [block.text for block in artifact.blocks] == ["I", "Words.", "More words."]
+
+
+def test_epub_omits_tagged_print_pages_but_keeps_footnotes_and_joined_words(tmp_path):
+    chapter = epub.EpubHtml(title="Book", file_name="book.xhtml", lang="de")
+    chapter.content = (
+        '<p><span class="pagenum">76</span></p>'
+        '<p>nicht einmal <span class="pageNum"><a>[79]</a></span>mehr Beifall [12].</p>'
+        '<p>like<span class="tei tei-pb">[pg 400]</span>wise, with '
+        '<span role="doc-pagebreak">42</span>one meeting.</p>'
+    )
+    artifact = ingest_epub(
+        _cover_epub(tmp_path, cover_page=SVG_COVER, extra=(chapter,)),
+        edition_slug="print-pages-de-orig",
+        work_slug="print-pages",
+    )
+    assert "76" not in [block.text for block in artifact.blocks]
+    assert [block.text for block in artifact.blocks[:2]] == [
+        "nicht einmal mehr Beifall [12].",
+        "likewise, with one meeting.",
+    ]

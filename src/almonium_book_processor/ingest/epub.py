@@ -26,6 +26,7 @@ from almonium_book_processor.ingest.common import (
     sha256_file,
 )
 from almonium_book_processor.ingest.gutenberg import trim_gutenberg_boilerplate
+from almonium_book_processor.ingest.page_markers import remove_page_markers
 from almonium_book_processor.ingest.wikisource import (
     is_wikisource_export,
     trim_wikisource_matter,
@@ -145,6 +146,8 @@ def ingest_epub(
     if is_wolne_lektury(book):
         documents, notices = trim_wolne_lektury_matter(documents)
         builder.warnings.extend(notices)
+    for _, root in documents:
+        remove_page_markers(root)
     chapter = 0
     cover_images = _cover_image_names(book)
     # Gutenberg cuts a long book into files by size, mid-chapter; a file that

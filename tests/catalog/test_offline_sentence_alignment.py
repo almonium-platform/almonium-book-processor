@@ -51,6 +51,26 @@ def test_offline_job_caches_inverts_and_keeps_review_status(pair, monkeypatch): 
     assert inherited_payload(p, s)["blocks"][0]["sentence_alignment"] == []
 
 
+def test_local_only_alignment_never_checks_modal(pair):  # noqa: F811
+    p, s = pair
+    run = queue_alignment(p.id, s.id, local_only=True)
+    with (
+        patch(
+            "almonium_book_processor.catalog.offline_sentence_alignment._on_modal",
+            side_effect=AssertionError("Local alignment must not consider Modal"),
+        ),
+        patch(
+            "almonium_book_processor.processing.sentence_correspondence.embed_texts",
+            side_effect=hello,
+        ),
+    ):
+        run_alignment(run.id)
+    run.refresh_from_db()
+    assert run.status == PipelineRun.Status.SUCCEEDED
+    assert run.summary["local_only"] is True
+    assert "modal_calls" not in run.summary["embedding"]
+
+
 def test_changed_source_fails_without_provider_call(pair):  # noqa: F811
     p, s = pair
     run = queue_alignment(p.id, s.id)
