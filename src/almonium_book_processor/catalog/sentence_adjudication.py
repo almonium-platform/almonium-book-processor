@@ -696,34 +696,43 @@ def judgment_history(regions: dict[str, Region], model: str) -> dict[str, list[A
 def _mend(history: dict[str, list[AlignmentJudgment]], regions: dict[str, Region]) -> int:
     """Read again the paid answers that were not usable as given; keep those now mended.
 
-    The answer is in the ledger with its call; nothing is asked.
+    Every answer a stretch was given is in the ledger with its call, the first as well as
+    the last; the earliest that can be mended is kept. Nothing is asked.
     """
 
-    unused = {
-        identity: [j for j in judgments if j.groups is None and j.ai_run_id]
-        for identity, judgments in history.items()
-        if not any(j.groups is not None for j in judgments)
-    }
-    runs = AIRun.objects.in_bulk({j.ai_run_id for judgments in unused.values() for j in judgments})
     mended = 0
-    for identity, judgments in unused.items():
+    for identity, judgments in history.items():
+        if any(j.groups is not None for j in judgments):
+            continue
         for judgment in judgments:
-            ai = runs.get(judgment.ai_run_id)
-            pack = (ai.request_payload.get("stretches") or []) if ai else []
-            if judgment.identity not in pack or not ai.response_payload.get("raw"):
+            if not judgment.ai_run_id:
                 continue
-            try:
-                answer = Answer.model_validate(
-                    json.loads(response_output_text(ai.response_payload["raw"])), strict=True
-                )
-            except ValueError:
-                continue
-            number = pack.index(judgment.identity)
-            given = next((i.groups for i in answer.items if i.id == number), None)
-            groups = given and validated([g.model_dump() for g in given], regions[identity])
+            calls = AIRun.objects.filter(
+                model_configuration__purpose=PURPOSE,
+                status=AIRun.Status.SUCCEEDED,
+                # the stretch's identity as text: a JSON containment test is not portable
+                request_payload__icontains=judgment.identity,
+            ).order_by("created_at")
+            groups = None
+            for ai in calls:
+                pack = ai.request_payload.get("stretches") or []
+                if judgment.identity not in pack or not ai.response_payload.get("raw"):
+                    continue
+                try:
+                    answer = Answer.model_validate(
+                        json.loads(response_output_text(ai.response_payload["raw"])), strict=True
+                    )
+                except ValueError:
+                    continue
+                number = pack.index(judgment.identity)
+                given = next((i.groups for i in answer.items if i.id == number), None)
+                groups = given and validated([g.model_dump() for g in given], regions[identity])
+                if groups:
+                    break
             if groups:
                 judgment.groups = groups
-                judgment.save(update_fields=["groups", "updated_at"])
+                judgment.ai_run = ai
+                judgment.save(update_fields=["groups", "ai_run", "updated_at"])
                 mended += 1
                 break
     return mended

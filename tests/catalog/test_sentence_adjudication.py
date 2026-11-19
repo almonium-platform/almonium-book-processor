@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -384,3 +385,20 @@ def test_a_paragraph_with_a_punctuation_only_sentence_waits_for_its_resplit(alig
         input_hash=pair_hash(block, aligned.edition.derived_editions.get().blocks.get())
     )
     assert adjudication.paragraphs(aligned) == []
+
+
+def test_an_earlier_answer_is_mended_when_the_last_one_cannot_be(aligned):
+    # asked first with an answer that can be mended, then twice alone with an empty one
+    lone = [{"primary": [0], "secondary": [0], "certain": True}]
+    empty = [{"primary": [], "secondary": [], "certain": False}]
+    judge(aligned, Fake(groups=lone))
+    judgment = AlignmentJudgment.objects.get()
+    judgment.groups = None
+    judgment.save()
+    EditionArtifact.objects.filter(processor_version__startswith=adjudication.VERSION).delete()
+    AIRun.objects.update(idempotency_key="first")
+    with patch.object(adjudication, "_mend", lambda history, regions: 0):
+        assert judge(aligned, Fake(groups=empty)).unusable == 1
+    tally = judge(aligned, Fake())
+    assert (tally.mended, tally.calls, tally.written) == (1, 0, 1)
+    assert AlignmentJudgment.objects.get().ai_run.idempotency_key == "first"
