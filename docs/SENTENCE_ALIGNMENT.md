@@ -147,6 +147,17 @@ left unconfirmed were real differences (an adaptation that adds a sentence, a cl
 half its content on the other side). Much of the offline doubt was punctuation: a French
 guillemet or a Spanish dash split off as its own "sentence".
 
+### Whole library, 2026-11-19 (claude-sonnet-5-5 on the Claude plan)
+
+Every aligned pair, after the punctuation repair and its re-alignment: 169,691 distinct
+stretches judged in 15,438 calls, $11.75 of the plan, in ten processes
+(`--shard i/10`); 140,504 paragraph pairs carry an adjudicated artifact. On the pairs the
+reader serves, unconfirmed groups went from 5.9% to 0.5%, and paragraph pairs holding one
+from 20% to 2%. Of the groups still unconfirmed, 88% are ones the model read and judged
+not the same content; the rest are stretches whose answers did not cover them twice
+(1,369) or that are too long to ask (82). 0.4% of judged stretches pair clauses out of
+order. The model confirmed 94% of the groups it made.
+
 ## The alignment page
 
 `/editions/<id>/sentence-preview/<other>/` has two views. **Rows** puts each group on its
