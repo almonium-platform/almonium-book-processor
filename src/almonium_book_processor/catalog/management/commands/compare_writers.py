@@ -110,6 +110,9 @@ JUDGEMENT_SCHEMA = {
 
 
 def short(seat):
+    # Google's CLI names a model with its effort, and two efforts of one model are compared
+    if seat.provider == "antigravity" and seat.effort:
+        return f"{seat.model}-{seat.effort}"
     return versioned(seat.model)
 
 
