@@ -110,6 +110,40 @@ class Command(BaseCommand):
                         if value
                     },
                 )
+        if "antigravity" in {plan.strip() for plan in settings.AI_PLANS.split(",")}:
+            from almonium_book_processor.ai.antigravity_provider import (
+                ACCOUNT,
+                antigravity_meter,
+            )
+
+            gemini = antigravity_meter()
+            if gemini is None:
+                self.stdout.write(self.style.WARNING("The Gemini plan's meter could not be read."))
+            else:
+                week = gemini["week_percent"]
+                spent = PLAN_WEEK_USD["antigravity"] * week / 100
+                self.stdout.write(
+                    f"antigravity ({ACCOUNT}): {week}% of the Gemini models' week used, about "
+                    f"${spent:.2f} of ${PLAN_WEEK_USD['antigravity']:.2f}; "
+                    f"session {gemini.get('session_percent', 0)}%"
+                )
+                if record:
+                    if pause_on_limit("antigravity", ACCOUNT, week):
+                        self.stdout.write(f"antigravity ({ACCOUNT}): paused at its limit")
+                    PlanMeterReading.objects.create(
+                        provider="antigravity",
+                        account=ACCOUNT,
+                        week_percent=week,
+                        session_percent=gemini.get("session_percent"),
+                        resets_at=gemini.get("week_resets_at"),
+                        session_resets_at=gemini.get("session_resets_at"),
+                        plan_type="AI Ultra",
+                    )
+                    PlanAccount.objects.get_or_create(
+                        provider="antigravity",
+                        account=ACCOUNT,
+                        defaults={"plan_label": "AI Ultra"},
+                    )
         if record and answering:
             # a Codex account answers: the books its used-up allowance held can go on
             from almonium_book_processor.ai import claude_code_provider, codex_provider

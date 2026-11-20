@@ -34,6 +34,7 @@ PROVIDERS = {
     "modal": ("Modal GPU", True),
     "claude-code": ("Claude plan", False),
     "codex": ("Codex plan", False),
+    "antigravity": ("Gemini plan", False),
 }
 # What a provider's dollars are: only the OpenAI API's leave the owner's pocket. Modal runs on
 # the workspace's free monthly credits behind a $0 spend limit, so its dollars are credits
@@ -43,6 +44,7 @@ NOTES = {
     "modal": "free credits, not charged",
     "claude-code": "plan, valued at API prices",
     "codex": "plan, valued at API prices",
+    "antigravity": "plan, valued at API prices",
 }
 
 

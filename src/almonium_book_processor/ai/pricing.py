@@ -28,6 +28,11 @@ LIST_PRICES = {
     "claude-fable-5-1": ("10", "1", "50"),
     "claude-opus-5-5": ("4", "0.4", "20"),
     "claude-sonnet-5-5": ("2", "0.2", "10"),
+    # Google's, as listed on 20 November 2026; cached input is a twentieth of input there
+    "gemini-4-carbon": ("2", "0.1", "10"),
+    "gemini-4-argon": ("2", "0.1", "10"),
+    "gemini-4-neon": ("3", "0.15", "15"),
+    "gemini-4-hydrogen": ("1.5", "0.075", "7.5"),
 }
 
 # A plan's price for one week, in USD: twelve monthly payments over fifty-two weeks. Both
@@ -36,6 +41,8 @@ LIST_PRICES = {
 PLAN_WEEK_USD = {
     "codex": Decimal(100) * 12 / 52,
     "claude-code": Decimal(100) * 12 / 52,
+    # Google AI Ultra, the 20x tier, from 20 November 2026
+    "antigravity": Decimal(200) * 12 / 52,
 }
 
 # Plan dollars consumed per list-price dollar of tokens, measured on 2026-10-04.
@@ -54,9 +61,17 @@ PLAN_WEEK_USD = {
 #   account, so the figure is coarse; it is multiplied by the CLI's own price of each call
 #   (``plan_priced``), not by the table above. One point of the week is about 160 entries,
 #   and a five-hour session holds about 4,000.
+# antigravity, Google AI Ultra 20x ($200), first reading on 2026-11-20: 24 dictionary entries by
+#   gemini-4-carbon at medium effort, USD 4.61 at list price (0.52M input tokens, almost none
+#   of them cached, 0.36M output and thinking), moved the Gemini models' week from 100% to 97%
+#   left and the five-hour session from 99% to 95%. So a week holds some USD 150 of list price
+#   and one session some USD 115 of it: three quarters of the week can be spent in one
+#   sitting. USD 46.15 of plan for USD 150 of tokens is 0.3, far from the other two plans'.
+#   Whole points over three of them: coarse, to be read again over a long run.
 PLAN_SHARE_OF_LIST = {
     "codex": Decimal("0.08"),
     "claude-code": Decimal("0.05"),
+    "antigravity": Decimal("0.3"),
 }
 
 

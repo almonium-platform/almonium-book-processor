@@ -25,15 +25,16 @@ from almonium_book_processor.catalog.spend import format_usd, purpose_label
 from almonium_book_processor.processing import remote_embeddings
 
 # Fixed order, fixed colour slot: a provider keeps its colour on every chart and period.
-SERIES = ("openai", "modal", "claude-code", "codex")
+SERIES = ("openai", "modal", "claude-code", "codex", "antigravity")
 BILLED = ("openai", "modal")
-PLANS = ("claude-code", "codex")
+PLANS = ("claude-code", "codex", "antigravity")
 # How each series is named where its dollars are shown: Modal's are credits, not money.
 LEGEND = {
     "openai": "OpenAI API (paid)",
     "modal": "Modal GPU (free credits)",
     "claude-code": "Claude plan",
     "codex": "Codex plan",
+    "antigravity": "Gemini plan",
 }
 PERIODS = {
     "day": ("Days", 30, TruncDay),
@@ -149,7 +150,7 @@ def totals(now: datetime | None = None) -> list[dict]:
     for name, since in spans:
         values = {provider: budgets.spent(provider, since) for provider in PLANS + ("openai",)}
         values["modal"] = budgets.spent("modal", since)
-        plans = values["claude-code"] + values["codex"]
+        plans = sum(values[plan] for plan in PLANS)
         out.append(
             {
                 "name": name,

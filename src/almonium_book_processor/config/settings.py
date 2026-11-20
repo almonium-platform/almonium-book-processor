@@ -236,7 +236,8 @@ MODAL_MONTHLY_BUDGET_USD = float(os.getenv("MODAL_MONTHLY_BUDGET_USD", "25"))
 MODAL_MONTHLY_CREDITS_USD = float(os.getenv("MODAL_MONTHLY_CREDITS_USD", "30"))
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-# The owner's plans this environment can call, by comma: codex, claude-code. Their CLIs are
+# The owner's plans this environment can call, by comma: codex, claude-code, antigravity.
+# Their CLIs are
 # signed in only on the owner's machine, so a deployed environment names none. Every step
 # that names a model alone (the OPENAI_*_MODEL settings below, and a seat setting left empty)
 # runs it on the plan that serves it where that plan is named here, else on the API
@@ -405,6 +406,10 @@ CODEX_BINARY = os.getenv("CODEX_BINARY", "codex")
 CODEX_TRANSLATION_MODEL = os.getenv("CODEX_TRANSLATION_MODEL", "gpt-6-astra")
 CODEX_TIMEOUT_SECONDS = float(os.getenv("CODEX_TIMEOUT_SECONDS", "1800"))
 CODEX_WORKERS = int(os.getenv("CODEX_WORKERS", "4"))
+# The Antigravity CLI on the owner's Google AI plan (AI_PLANS names it "antigravity"), which
+# serves the Gemini models. One login a machine user, kept in the system keyring.
+ANTIGRAVITY_BINARY = os.getenv("ANTIGRAVITY_BINARY", os.path.expanduser("~/.local/bin/agy"))
+ANTIGRAVITY_TIMEOUT_SECONDS = float(os.getenv("ANTIGRAVITY_TIMEOUT_SECONDS", "1800"))
 # The plan accounts whose meters are read, as the directories that hold their logins: the
 # CODEX_HOME (~/.codex by default) and CLAUDE_CONFIG_DIR (~/.claude) of the workers that work
 # on them, separated by commas. Empty is the one account the process itself would use. A

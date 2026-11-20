@@ -919,6 +919,7 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .ops-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .ops-plan-claude-code { color: var(--accent); }
 .ops-plan-codex { color: var(--green); }
+.ops-plan-antigravity { color: var(--series-5, #8b5fd1); }
 .ops-took, .ops-used { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ops-step { background: var(--paper); font-weight: 600; }
 .ops-step .ops-book { grid-column: 3 / -1; font-weight: 400; }
@@ -966,7 +967,7 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .chunk.is-lit { background: var(--tint); box-shadow: 0 0 0 2px var(--edge); text-decoration: none; }
 
 /* Spending page: provider colours are fixed slots of the validated categorical palette */
-:root { --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100; }
+:root { --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100; --series-5: #8b5fd1; }
 .spend-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; margin: 1rem 0; }
 .spend-tile { display: flex; flex-direction: column; gap: .15rem; padding: .8rem 1rem; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
 .spend-tile-name { font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
@@ -996,6 +997,7 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .spend-series-2 { fill: var(--series-2); background: var(--series-2); }
 .spend-series-3 { fill: var(--series-3); background: var(--series-3); }
 .spend-series-4 { fill: var(--series-4); background: var(--series-4); }
+.spend-series-5 { fill: var(--series-5); background: var(--series-5); }
 .spend-table-wrap { overflow-x: auto; }
 .spend-table td, .spend-table th { font-variant-numeric: tabular-nums; white-space: nowrap; }
 @media (max-width: 700px) {

@@ -87,7 +87,8 @@ def test_each_provider_costs_what_its_calls_cost_this_month(ledger):
     assert lines["claude-code"].spent == Decimal("0")
     assert lines["modal"].spent == Decimal("0.03")
     # money first, then the plans
-    assert [line.metered for line in budgets.overview()] == [True, True, False, False]
+    assert [line.metered for line in budgets.overview()] == [True, True, False, False, False]
+    assert lines["antigravity"].name == "Gemini plan" and lines["antigravity"].spent == Decimal("0")
 
 
 def test_no_cap_allows_anything_and_modal_defaults_to_the_free_credits(ledger, settings):

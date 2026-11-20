@@ -29,7 +29,7 @@ from almonium_book_processor.catalog.models import (
 
 logger = logging.getLogger(__name__)
 
-PROVIDERS = ("codex", "claude-code")
+PROVIDERS = ("codex", "claude-code", "antigravity")
 
 
 def worker_accounts() -> dict:
@@ -91,6 +91,15 @@ def open_claude_accounts() -> list[Path]:
     return call_order(
         "claude-code", [path for path in configured_accounts() if path.name not in paused]
     )
+
+
+def open_antigravity_accounts() -> list[Path]:
+    """The Gemini plan's one account, unless the owner has paused it."""
+
+    from almonium_book_processor.ai.antigravity_provider import configured_accounts
+
+    paused = {account for provider, account in paused_accounts() if provider == "antigravity"}
+    return [path for path in configured_accounts() if path.name not in paused]
 
 
 def routing_mode(provider: str) -> str:
@@ -269,6 +278,10 @@ def known_accounts() -> list[tuple[str, str]]:
     for worker in PlanWorker.objects.all():
         accounts.add(("codex", worker.codex_account))
         accounts.add(("claude-code", worker.claude_account))
+    if "antigravity" in {plan.strip() for plan in settings.AI_PLANS.split(",")}:
+        from almonium_book_processor.ai.antigravity_provider import ACCOUNT
+
+        accounts.add(("antigravity", ACCOUNT))
     return sorted(accounts, key=lambda pair: (pair[0] != "codex", pair[1]))
 
 

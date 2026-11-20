@@ -2262,7 +2262,7 @@ def spending_view(request: HttpRequest) -> HttpResponse:
         ),
         (
             "Plans, valued at API prices",
-            "Claude and Codex calls on the owner's subscriptions, at what the API would charge.",
+            "Calls on the owner's Claude, Codex and Gemini plans, at what the API would charge.",
             context["plans_chart"],
         ),
     ]

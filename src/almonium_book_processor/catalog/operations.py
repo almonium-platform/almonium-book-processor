@@ -43,9 +43,10 @@ FILTERS = {
     "steps": "Book steps",
     "claude-code": "Claude",
     "codex": "Codex",
+    "antigravity": "Gemini",
     "entries": "Entries",
 }
-PLAN_NAMES = {"claude-code": "Claude", "codex": "Codex"}
+PLAN_NAMES = {"claude-code": "Claude", "codex": "Codex", "antigravity": "Gemini"}
 MODEL_NAMES = {
     "claude-opus-5-5": "Opus",
     "claude-sonnet-5-5": "Sonnet",

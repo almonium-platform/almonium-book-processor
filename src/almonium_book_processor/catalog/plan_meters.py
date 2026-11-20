@@ -17,7 +17,7 @@ from almonium_book_processor.catalog.models import (
     PlanWorker,
 )
 
-PROVIDER_LABELS = {"codex": "Codex", "claude-code": "Claude"}
+PROVIDER_LABELS = {"codex": "Codex", "claude-code": "Claude", "antigravity": "Gemini"}
 
 
 @dataclass(frozen=True)

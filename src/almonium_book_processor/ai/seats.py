@@ -1,7 +1,8 @@
 """A seat names who does a step: the provider, the model and, when it matters, the effort.
 
 Written as ``provider:model`` or ``provider:model:effort``. The provider is ``openai`` for the
-metered API, or ``codex`` or ``claude-code`` for a CLI signed in to one of the owner's plans.
+metered API, or ``codex``, ``claude-code`` or ``antigravity`` (Google's plan, its Gemini models)
+for a CLI signed in to one of the owner's plans.
 A plan seat works only on the machine where that CLI is signed in, so deployed settings name
 API seats and the owner's machine names plan seats for the same steps. A setting may also name
 the model alone and leave the provider to ``ai/gateway.route``, which builds every caller.
@@ -14,8 +15,8 @@ from dataclasses import dataclass
 
 from almonium_book_processor.ai.pricing import has_price
 
-PROVIDERS = ("openai", "codex", "claude-code")
-PLAN_PROVIDERS = ("codex", "claude-code")
+PROVIDERS = ("openai", "codex", "claude-code", "antigravity")
+PLAN_PROVIDERS = ("codex", "claude-code", "antigravity")
 EFFORTS = ("low", "medium", "high")
 
 # Settings and records name a Claude model in full, with its version, so that a judge cannot

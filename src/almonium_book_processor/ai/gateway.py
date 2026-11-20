@@ -23,8 +23,10 @@ from __future__ import annotations
 from almonium_book_processor.ai.pricing import has_price
 from almonium_book_processor.ai.seats import EFFORTS, PROVIDERS, Seat, parse_seat
 
-# Which plan serves a vendor's models: the Codex CLI runs OpenAI's, Claude Code Anthropic's.
-_PLAN_BY_PREFIX = (("gpt-", "codex"), ("claude-", "claude-code"))
+# Which plan serves a vendor's models: the Codex CLI runs OpenAI's, Claude Code Anthropic's,
+# the Antigravity CLI Google's. A bare Gemini model with no such plan here has no API to fall
+# back on: ``unavailable`` says so before anything is asked.
+_PLAN_BY_PREFIX = (("gpt-", "codex"), ("claude-", "claude-code"), ("gemini-", "antigravity"))
 
 
 def plan_for(model: str) -> str | None:
@@ -62,6 +64,9 @@ def route(setting: str, *, plans: str | None = None) -> Seat:
     # a plan model must have a price, or its calls would be recorded free; an unpriced model
     # stays on the API, which reports what it cost
     if plan in plans_here(plans) and has_price(model):
+        return Seat(plan, model, effort)
+    if plan == "antigravity":
+        # Google's models are served here by the plan alone; never sent to OpenAI's API
         return Seat(plan, model, effort)
     return Seat("openai", model, effort)
 
@@ -104,6 +109,11 @@ def provider(seat: Seat):
         from almonium_book_processor.catalog.plan_pause import open_codex_accounts
 
         return CodexProvider(accounts=open_codex_accounts)
+    if seat.provider == "antigravity":
+        from almonium_book_processor.ai.antigravity_provider import AntigravityProvider
+        from almonium_book_processor.catalog.plan_pause import open_antigravity_accounts
+
+        return AntigravityProvider(accounts=open_antigravity_accounts)
     return batch()
 
 
@@ -213,7 +223,8 @@ class SmallCall:
             return provider(self.seat).respond(body)
         except AllowanceUsedUp:
             api = Seat("openai", self.seat.model, self.seat.effort)
-            if not self.seat.on_plan or unavailable(api):
+            # the API here is OpenAI's: it has no twin of a Gemini model
+            if not self.seat.on_plan or self.seat.provider == "antigravity" or unavailable(api):
                 raise
             return {**provider(api).respond(body), SERVED_BY_API: True}
 
