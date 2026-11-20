@@ -1,6 +1,6 @@
 # Sentence and clause alignment
 
-Updated 2026-11-19. How an edition's paragraphs are matched to a companion's at sentence
+Updated 2026-11-20. How an edition's paragraphs are matched to a companion's at sentence
 and clause level, what each version changed, and what the pilot across language pairs
 measured. Everything here is local: a multilingual embedding model on the worker's CPU,
 no paid API, no plan allowance.
@@ -285,6 +285,36 @@ left here is a real difference). Unconfirmed groups went from 0.84% to 0.36%, an
 said the same thing, and those left unconfirmed were clauses with part of their content
 on the other side ("Through my moral experience," against "Ce fut sur le plan moral, et
 dans ma propre personne,"). A second run asked nothing.
+
+Whole library, 2026-11-19 and 20 (claude-sonnet-5-5 on the Claude plan): every pair of two
+editions in different languages made from one original and ready, published or in review.
+625 pairs, 977,728 paragraph pairs with a join, 38,311 distinct stretches in 35,230 of
+them. About 1,220 were found already paid (the same clauses, read before for an alignment
+with the original); 37,089 were judged in 3,695 calls for $2.59 of the plan, where the dry
+run had said $2.63. 298 were asked more than once, and every one ended with a usable
+answer: none was given up and none was too long to ask. The model confirmed about 64% of
+the groups it made. 35,230 artifacts are kept under 288 editions.
+
+| Pairs | | Unconfirmed groups before | After |
+| --- | ---: | ---: | ---: |
+| Adaptation to B2 and a translation | 197 | 0.66% | 0.35% |
+| Adaptation to B1 and a translation | 108 | 2.46% | 1.15% |
+| Adaptation whose level is not set yet and a translation | 42 | 1.75% | 0.92% |
+| Two translations | 278 | 0.57% | 0.24% |
+| All | 625 | 0.97% | 0.46% |
+
+Paragraph pairs holding an unconfirmed group went from 3.6% to 1.8%. Every group still
+unconfirmed is one the model read and judged not the same content; none is unread, and a
+dry run afterwards finds nothing to ask. Staging and production get the judged groups with
+the promoted editions, like the alignments they were joined from.
+
+The pass was cut twice and went on from the ledger both times: once when the terminal
+session that ran it ended and took its processes along (six calls in flight; two of their
+rows stay "submitted" at no cost, their stretches answered by later calls), and once when
+both Claude accounts reached their session limit (held, no attempt counted). No call was
+paid twice (`spend_guard`). It finished as transient user services
+(`systemd-run --user ... ./plan-manage adjudicate_sentence_alignment --joined --shard i/6`),
+which do not die with a terminal; a pass this long is better started that way.
 
 ## The alignment page
 
