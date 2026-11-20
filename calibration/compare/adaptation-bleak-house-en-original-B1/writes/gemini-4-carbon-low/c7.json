@@ -1,0 +1,52 @@
+{
+ "writer": "gemini-4-carbon-low",
+ "passage": "c7",
+ "blocks": [
+  {
+   "block_id": "c7.p36",
+   "text": "“Hi hi!” said the old man coming to the door. “Have you anything to sell?”"
+  },
+  {
+   "block_id": "c7.p37",
+   "text": "We naturally stepped back and looked quickly at the lady who had guided us there. She had been trying to open the house door with a key from her pocket. Richard now told her that we had enjoyed seeing where she lived. He added that we were short of time and would leave her now. However, it was not so easy to leave her. In a strange and urgent way, she begged us seriously to walk upstairs and see her rooms for a moment. In her harmless way, she was determined to lead me inside. She wanted this as part of the sign of good luck that she hoped for. Whatever the others might do, I felt I had no choice except to agree. I suppose we were all at least a little curious. At any rate, the old man also urged us to do as she asked. He said, “Yes, yes! Please her! It won't take a minute! Come in, come in! Come in through the shop, if the other door is broken!” Richard laughed and encouraged us to go, and we trusted him to protect us. So we all went in."
+  },
+  {
+   "block_id": "c7.p38",
+   "text": "“My landlord, Krook,” said the little old lady, introducing him to us. She spoke down to him kindly, as if she belonged to a much higher social class. “Among the neighbours, he is called the Lord Chancellor. His shop is called the Court of Chancery. He behaves in a very strange and unusual way. He is very odd. Oh, I promise you he is very odd!”"
+  },
+  {
+   "block_id": "c7.p39",
+   "text": "She shook her head many times and tapped her forehead with her finger. By doing this, she meant to show us that we should kindly excuse him. “Because he is a little—you know!—M—!” said the old lady, in a very grand and dignified way. The old man heard this by chance, and laughed."
+  },
+  {
+   "block_id": "c7.p40",
+   "text": "He walked ahead of us with the lantern. “It's quite true,” he said, “that they call me the Lord Chancellor, and call my shop Chancery. And why do you think they call me the Lord Chancellor, and my shop Chancery?”"
+  },
+  {
+   "block_id": "c7.p41",
+   "text": "“I don't know, I am sure!” said Richard, without much interest."
+  },
+  {
+   "block_id": "c7.p42",
+   "text": "“You see,” said the old man, stopping and turning round, “they—Hi! Here's lovely hair! I have three large bags of ladies' hair downstairs, but none as beautiful and fine as this. What color, and what a soft, fine feel it has!”"
+  },
+  {
+   "block_id": "c7.p43",
+   "text": "The old man had pulled one long lock of Ada's hair through his yellow hand, and Richard strongly disapproved of this. “That's enough, my good friend!” said Richard. “You can admire her as the rest of us do, without acting so freely without permission.”"
+  },
+  {
+   "block_id": "c7.p44",
+   "text": "The old man suddenly shot a sharp look at him. Even I looked away from Ada to see it. Startled and blushing, Ada was remarkably beautiful. She was so beautiful that even the little old lady, whose attention usually wandered, seemed to stare steadily at her. Then Ada stepped in and spoke with a laugh. She said she could only feel proud when someone admired her so honestly. At once, Mr. Krook went back to his quiet, shrunken manner just as suddenly as he had jumped out of it."
+  },
+  {
+   "block_id": "c7.p45",
+   "text": "He held up the lantern and spoke again. “You see, I have so many things here, of so many kinds. The neighbours think they are all wasting away and falling completely into ruin—though they know nothing! That is why they have given a special name to me and my place. And I have so many old animal-skin documents and papers in my shop. And I like rust, dampness and mold, and spiderwebs. And whatever comes my way is useful to me; I take everything. Also, once I get hold of anything, I cannot bear to let it go—or so my neighbours think, though what do they know? I cannot bear to change anything, either. And I cannot bear to have any sweeping, scrubbing, cleaning, or repairing going on around me. That's how I got the bad name of Chancery. I don't mind. Almost every day, I go to see my noble and well-educated brother judge when he holds court in the Inn. He doesn't notice me, but I notice him. There's no great difference between us. We both work away slowly in a confused mess. Hi, Lady Jane!”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 5459,
+  "cached_input_tokens": 6673,
+  "output_tokens": 1916,
+  "list_usd": 0.0198273
+ }
+}

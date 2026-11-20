@@ -1,0 +1,84 @@
+{
+ "writer": "gemini-4-carbon-low",
+ "passage": "c47",
+ "blocks": [
+  {
+   "block_id": "c47.p36",
+   "text": "“Good Heaven, my dear little woman!” he said. “How did you come here? Who could have expected to see you! Is anything wrong? Is Ada well?”"
+  },
+  {
+   "block_id": "c47.p37",
+   "text": "“Quite well. Lovelier than ever, Richard!”"
+  },
+  {
+   "block_id": "c47.p38",
+   "text": "“Ah!” he said, leaning back in his chair. “My poor cousin! I was writing to you, Esther.”"
+  },
+  {
+   "block_id": "c47.p39",
+   "text": "He was still at the height of his handsome youth, yet he looked so worn out and exhausted! He leaned back in his chair and crushed the closely written sheet of paper in his hand."
+  },
+  {
+   "block_id": "c47.p40",
+   "text": "“Did you take the trouble to write all that, and am I not going to read it after all?” I asked."
+  },
+  {
+   "block_id": "c47.p41",
+   "text": "“Oh, my dear,” he replied, making a hopeless movement with his hand. “You can see what it says all around this room. Everything is finished for me here.”"
+  },
+  {
+   "block_id": "c47.p42",
+   "text": "I gently begged him not to lose hope. I told him that I had heard by chance that he was in trouble. So I had come to talk with him about what would be best to do."
+  },
+  {
+   "block_id": "c47.p43",
+   "text": "“That is just like you, Esther,” he said with a sad smile. “It is useless, though—and so it is not like you! I am away from duty on leave today. In fact, I should have left an hour ago. This leave is a quiet way to prepare for selling my army position and leaving the service. Well! What is past is past. This career goes the same way as all the others. The church is the only profession left that I have not tried. If I had been in the church, I would have tried every single one.”"
+  },
+  {
+   "block_id": "c47.p44",
+   "text": "“Richard,” I said earnestly, “surely it is not as hopeless as that?”"
+  },
+  {
+   "block_id": "c47.p45",
+   "text": "“Esther,” he replied, “it really is. I am very close to disgrace. The officers in charge of me—‘those put in authority over me,’ as the church teaching says—would much rather be rid of me than keep me. And they are right. Even apart from my debts, the people demanding payment, and all such problems, I am not fit even for this work. I have no care, no mind, no heart, and no soul for anything except one thing.” As he spoke, he tore the letter he had written into small pieces. In a dark mood, he threw them away little by little. “Why, if this false hope of a career had not ended like a broken bubble right now, how could I have gone abroad? I would certainly have been ordered abroad, and how could I have gone? After all my experience with that thing, how could I trust even Vholes unless I stood right behind him watching him!”"
+  },
+  {
+   "block_id": "c47.p46",
+   "text": "I suppose he saw from my face what I was about to say. I had laid my hand on his arm, but he caught it and touched my own lips with it to stop me from speaking."
+  },
+  {
+   "block_id": "c47.p47",
+   "text": "“No, Dame Durden! I forbid two subjects—I must forbid them. The first is John Jarndyce. You know what the second is. If you call it madness, I tell you that I cannot help it now, and I cannot be sane. But it is not madness at all; it is the one goal I must follow. It is a pity that anyone ever persuaded me to turn away from my path for any other goal. People think it would be wise to give it up now, after all the time, worry, and hard effort I have put into it! Oh yes, real wisdom! Giving it up would please some people very much, too; but I never will.”"
+  },
+  {
+   "block_id": "c47.p48",
+   "text": "Because of his mood, I thought it best not to argue with him. Doing so would only make him more determined—if anything could make him more determined. I took out Ada's letter and put it in his hand."
+  },
+  {
+   "block_id": "c47.p49",
+   "text": "“Should I read it now?” he asked."
+  },
+  {
+   "block_id": "c47.p50",
+   "text": "When I said yes, he laid the letter on the table. Resting his head on one hand, he began to read. He had not read far before he rested his head on both hands to hide his face from me. After a short time, he stood up as if the light were bad and walked to the window. He finished reading the letter there, with his back to me. After he finished and folded it up, he stood there for several minutes holding it in his hand. When he came back to his chair, I saw tears in his eyes."
+  },
+  {
+   "block_id": "c47.p51",
+   "text": "“Of course, Esther, you know what she says here?” He spoke in a gentler voice, and kissed the letter as he asked me."
+  },
+  {
+   "block_id": "c47.p52",
+   "text": "“Yes, Richard.”"
+  },
+  {
+   "block_id": "c47.p53",
+   "text": "“She offers me,” he went on, tapping his foot on the floor, “the small amount of family money she is sure to receive very soon. It is the exact same amount—just as small and just as large—as the money I have wasted. And she begs and prays me to take it, pay off my debts to put my affairs in order, and stay in the army.”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 12445,
+  "cached_input_tokens": 0,
+  "output_tokens": 2605,
+  "list_usd": 0.05094
+ }
+}

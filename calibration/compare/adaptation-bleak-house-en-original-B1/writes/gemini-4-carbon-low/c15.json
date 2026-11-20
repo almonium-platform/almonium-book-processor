@@ -1,0 +1,92 @@
+{
+ "writer": "gemini-4-carbon-low",
+ "passage": "c15",
+ "blocks": [
+  {
+   "block_id": "c15.p46",
+   "text": "I said “Not at all!”"
+  },
+  {
+   "block_id": "c15.p47",
+   "text": "“And they were very extraordinary men!” Mr. Badger said quietly, as if sharing a secret. “Mrs. Badger's first husband was Captain Swosser of the Royal Navy. He was a truly respected and successful officer. Professor Dingo was her husband right before me, and his name is famous all across Europe.”"
+  },
+  {
+   "block_id": "c15.p48",
+   "text": "Mrs. Badger overheard him, and smiled."
+  },
+  {
+   "block_id": "c15.p49",
+   "text": "“Yes, my dear!” Mr. Badger said in answer to her smile. “I was just saying to Mr. Jarndyce and Miss Summerson that you had two earlier husbands. Both of them were very famous and respected men. And like most people, they found it hard to believe.”"
+  },
+  {
+   "block_id": "c15.p50",
+   "text": "“I was hardly twenty when I married Captain Swosser of the Royal Navy,” said Mrs. Badger. “I was in the Mediterranean with him. I am quite a sailor myself. Twelve years later, on the exact date of that first wedding, I married Professor Dingo.”"
+  },
+  {
+   "block_id": "c15.p51",
+   "text": "(“Famous all across Europe,” Mr. Badger added in a low voice.)"
+  },
+  {
+   "block_id": "c15.p52",
+   "text": "“And when Mr. Badger and I got married,” Mrs. Badger continued, “we married on that same day of the year. I had grown fond of that day.”"
+  },
+  {
+   "block_id": "c15.p53",
+   "text": "“So Mrs. Badger has been married to three husbands,” said Mr. Badger, putting the facts together. “Two of them were very famous and respected men. And each time, she was married on the twenty-first of March at eleven in the morning!”"
+  },
+  {
+   "block_id": "c15.p54",
+   "text": "We all showed how impressed we were."
+  },
+  {
+   "block_id": "c15.p55",
+   "text": "“Mr. Badger is too modest,” said Mr. Jarndyce. “Otherwise, I would ask permission to correct him and say three famous and respected men.”"
+  },
+  {
+   "block_id": "c15.p56",
+   "text": "“Thank you, Mr. Jarndyce! That is what I always tell him!” said Mrs. Badger."
+  },
+  {
+   "block_id": "c15.p57",
+   "text": "“And, my dear, what do I always tell you?” said Mr. Badger. “I do not pretend to look down on whatever success I have had in my profession. Our friend Mr. Carstone will have many chances to judge that for himself. Still, I am not so foolish—no, really,” Mr. Badger said to all of us, “not so unreasonable—as to consider my own name equal to great men like Captain Swosser and Professor Dingo.” Mr. Bayham Badger then led us into the next sitting-room. “Perhaps you may be interested in this painted portrait of Captain Swosser, Mr. Jarndyce,” he continued. “It was painted when he came home from his naval duty in Africa. While he was there, he had suffered from the local fever. Mrs. Badger thinks the painting looks too yellow. But he has a very fine head. A very fine head!”"
+  },
+  {
+   "block_id": "c15.p58",
+   "text": "We all repeated, “A very fine head!”"
+  },
+  {
+   "block_id": "c15.p59",
+   "text": "“When I look at it,” said Mr. Badger, “I think, ‘That is a man I would have liked to meet!’ It clearly shows what a truly great man Captain Swosser was, above all others. On the other side is Professor Dingo. I knew him well, and I cared for him as his doctor during his final illness. That picture looks so real it could almost speak! Over the piano is a portrait of Mrs. Bayham Badger when she was Mrs. Swosser. Over the sofa is Mrs. Bayham Badger when she was Mrs. Dingo. As for Mrs. Bayham Badger as she actually is today, I own the real person, and I have no painted copy.”"
+  },
+  {
+   "block_id": "c15.p60",
+   "text": "A servant then announced that dinner was ready, and we went downstairs. It was a very polite and elegant meal, and everything was served beautifully. However, Mr. Badger was still thinking about the Captain and the Professor. Ada and I had the honour of being looked after specially by him at the table. Because of this, we heard all about them."
+  },
+  {
+   "block_id": "c15.p61",
+   "text": "“Would you like water, Miss Summerson? Let me get it for you! Please, not in that ordinary glass. James, bring me the Professor's special drinking glass!”"
+  },
+  {
+   "block_id": "c15.p62",
+   "text": "Ada very much admired some artificial flowers under a glass cover."
+  },
+  {
+   "block_id": "c15.p63",
+   "text": "“It is amazing how well they last!” said Mr. Badger. “They were given to Mrs. Bayham Badger when she was in the Mediterranean.”"
+  },
+  {
+   "block_id": "c15.p64",
+   "text": "He invited Mr. Jarndyce to have a glass of red wine."
+  },
+  {
+   "block_id": "c15.p65",
+   "text": "“Not that red wine!” he said. “Excuse me! Today is a special occasion. For a special occasion, I bring out some very fine red wine that I happen to have. (James, bring Captain Swosser's wine!) Mr. Jarndyce, the Captain brought this wine into the country himself—let us not say how many years ago. You will find it very unusual and interesting. My dear, I would be happy to drink some of this wine with you. (James, pour some of Captain Swosser's wine for Mrs. Badger!) To your health, my love!”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 12519,
+  "cached_input_tokens": 0,
+  "output_tokens": 2561,
+  "list_usd": 0.050648
+ }
+}

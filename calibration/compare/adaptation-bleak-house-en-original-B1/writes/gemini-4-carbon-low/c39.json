@@ -1,0 +1,92 @@
+{
+ "writer": "gemini-4-carbon-low",
+ "passage": "c39",
+ "blocks": [
+  {
+   "block_id": "c39.p51",
+   "text": "Richard was a little late in the morning, but I did not have to wait for him long. Then we walked into the park. The air was bright and wet with morning dew, and there was not a cloud in the sky. The birds sang delightfully. The drops of water shining in the ferns, grass, and trees were wonderful to see. The woods seemed twenty times richer than yesterday. During the quiet night, they had looked like a dark, heavy mass fast asleep. Yet it seemed as if Nature had stayed more awake than usual, working on every tiny part of every wonderful leaf to make that day glorious."
+  },
+  {
+   "block_id": "c39.p52",
+   "text": "“This is a lovely place,” said Richard, looking round. “There is none of the unpleasant noise and fighting of lawsuits here!”"
+  },
+  {
+   "block_id": "c39.p53",
+   "text": "But there was other trouble."
+  },
+  {
+   "block_id": "c39.p54",
+   "text": "“Listen, my dear girl,” said Richard. “When I get my general business settled, I think I will come down here and rest.”"
+  },
+  {
+   "block_id": "c39.p55",
+   "text": "“Wouldn't it be better to rest now?” I asked."
+  },
+  {
+   "block_id": "c39.p56",
+   "text": "“Oh, resting now is not easy,” said Richard. “Doing anything very clear and certain now is not easy either. In short, it can't be done. At least, I can't do it.”"
+  },
+  {
+   "block_id": "c39.p57",
+   "text": "“Why not?” I said."
+  },
+  {
+   "block_id": "c39.p58",
+   "text": "“You know why not, Esther. Imagine living in an unfinished house. At any time, the roof might be put on or taken off, or the whole house might be pulled down or built up from top to bottom. That could happen tomorrow, the next day, next week, next month, or next year. In a house like that, you would find it hard to rest or settle down. So do I. Now? There is no 'now' for us people in a lawsuit.”"
+  },
+  {
+   "block_id": "c39.p59",
+   "text": "Last night I had seen a dark, troubled look on his face, and now I saw it again. My poor little wandering friend had talked at length about how the lawsuit pulls people in, and at that moment I could almost believe in that power. It was terrible to think about, too, because his look had a trace of that unlucky man who had died."
+  },
+  {
+   "block_id": "c39.p60",
+   "text": "“My dear Richard,” I said, “this is a bad start to our conversation.”"
+  },
+  {
+   "block_id": "c39.p61",
+   "text": "“I knew you would tell me that, Dame Durden.”"
+  },
+  {
+   "block_id": "c39.p62",
+   "text": "“And I am not the only one, dear Richard. I was not the person who once warned you never to build any hope or expectation on the family curse.”"
+  },
+  {
+   "block_id": "c39.p63",
+   "text": "“Now you are coming back to John Jarndyce!” said Richard impatiently. “Well! We have to talk about him sooner or later, because he is the main part of what I have to say. So we might as well do it right now. My dear Esther, how can you be so blind? Don't you see that he has his own stake in the case? It may suit him very well to want me to know nothing about the lawsuit and care nothing about it. But don't you see that this may not be quite so good for me?”"
+  },
+  {
+   "block_id": "c39.p64",
+   "text": "“Oh, Richard,” I protested. “You have seen him and heard him. You have lived in his house and known him. How is it possible that you can still speak such unfair, shameful suspicions? How can you even whisper them to me in this lonely place, where no one can hear us?”"
+  },
+  {
+   "block_id": "c39.p65",
+   "text": "His face turned deep red, as if his naturally generous heart felt a sharp stab of guilt. He was silent for a little while. Then he answered in a quiet, low voice:"
+  },
+  {
+   "block_id": "c39.p66",
+   "text": "“Esther, I am sure you know that I am not a small-minded person. And I do understand somewhat that suspicion and mistrust are bad qualities in someone my age.”"
+  },
+  {
+   "block_id": "c39.p67",
+   "text": "“I know it very well,” I said. “I am not more sure of anything.”"
+  },
+  {
+   "block_id": "c39.p68",
+   "text": "“You are a dear girl!” Richard answered quickly. “And that is just like you, because it comforts me. I really need to get some small bit of comfort out of this whole business. Even at its best, it is a bad business, as I don't need to tell you.”"
+  },
+  {
+   "block_id": "c39.p69",
+   "text": "“I know completely,” I said. “Richard, I know as well—what can I say?—as well as you do, that judging someone wrongly like this goes against your true nature. And I know, just as well as you do, what is changing your nature like this.”"
+  },
+  {
+   "block_id": "c39.p70",
+   "text": "“Come on, sister, come on,” said Richard, a little more cheerfully. “At least be fair with me. If I am unlucky enough to be under that power, so is he. If it has twisted my thinking a little, it may have twisted his a little, too. Outside of all this confusion and uncertainty, I don't say that he is not an honest man of honour. I am sure he is. But this business spoils everybody. You know it spoils everybody. You have heard him say so fifty times. Then why should he escape it?”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 12528,
+  "cached_input_tokens": 0,
+  "output_tokens": 2497,
+  "list_usd": 0.050026
+ }
+}

@@ -10,6 +10,8 @@ Every judge saw the source and the candidates under shuffled letters, without mo
 | fable-5.1 | 8 | 34902 | $2.23 |
 | gpt-6.1-sol | 8 | 14692 | $0.43 |
 | gpt-6-astra | 8 | 14497 | $1.89 |
+| gemini-4-carbon-low | 8 | 18542 | $0.34 |
+| gemini-4-carbon-medium | 8 | 498815 | $5.07 |
 
 ## Level readings: passages the pipeline's judges read at B1 or under
 
@@ -20,600 +22,725 @@ Every judge saw the source and the candidates under shuffled letters, without mo
 | gpt-6.1-sol | 7 of 8 | 7 of 8 | 6 of 8 |
 | gpt-6-astra | 6 of 8 | 8 of 8 | 6 of 8 |
 
-## Judge: opus-5.5 (8 passages, $0.64 list)
+## Judge: opus-5.5 (8 passages, $0.82 list)
 
 | Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
 |---|---|---|---|---|
-| opus-5.5 (itself) | 2.12 | 3 (38%) | 7.1 | 8 of 8 |
-| fable-5.1 | 2.12 | 2 (25%) | 7.2 | 8 of 8 |
-| gpt-6-astra | 2.75 | 1 (12%) | 6.6 | 8 of 8 |
-| gpt-6.1-sol | 3.00 | 2 (25%) | 6.4 | 8 of 8 |
+| fable-5.1 | 2.12 | 3 (38%) | 7.4 | 8 of 8 |
+| opus-5.5 (itself) | 2.62 | 2 (25%) | 7.2 | 8 of 8 |
+| gemini-4-carbon-medium | 3.62 | 2 (25%) | 6.4 | 8 of 8 |
+| gemini-4-carbon-low | 3.88 | 1 (12%) | 6.0 | 8 of 8 |
+| gpt-6.1-sol | 4.38 | 0 (0%) | 6.1 | 8 of 8 |
+| gpt-6-astra | 4.38 | 0 (0%) | 6.0 | 8 of 8 |
 
-## Judge: fable-5.1 (8 passages, $2.37 list)
-
-| Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
-|---|---|---|---|---|
-| fable-5.1 (itself) | 1.38 | 5 (62%) | 7.8 | 8 of 8 |
-| opus-5.5 | 1.75 | 3 (38%) | 7.4 | 8 of 8 |
-| gpt-6-astra | 3.38 | 0 (0%) | 6.0 | 8 of 8 |
-| gpt-6.1-sol | 3.50 | 0 (0%) | 5.9 | 8 of 8 |
-
-## Judge: gpt-6.1-sol (8 passages, $0.40 list)
+## Judge: gpt-6-astra (8 passages, $1.77 list)
 
 | Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
 |---|---|---|---|---|
-| gpt-6.1-sol (itself) | 2.12 | 3 (38%) | 7.2 | 8 of 8 |
-| gpt-6-astra | 2.50 | 2 (25%) | 6.9 | 8 of 8 |
-| opus-5.5 | 2.62 | 2 (25%) | 6.9 | 8 of 8 |
-| fable-5.1 | 2.75 | 1 (12%) | 6.8 | 8 of 8 |
+| gpt-6-astra (itself) | 2.50 | 4 (50%) | 7.6 | 8 of 8 |
+| gemini-4-carbon-medium | 2.62 | 4 (50%) | 7.6 | 8 of 8 |
+| gpt-6.1-sol | 2.75 | 0 (0%) | 7.8 | 8 of 8 |
+| fable-5.1 | 3.25 | 0 (0%) | 7.1 | 8 of 8 |
+| opus-5.5 | 4.25 | 0 (0%) | 6.8 | 8 of 8 |
+| gemini-4-carbon-low | 5.62 | 0 (0%) | 5.6 | 8 of 8 |
 
-## Judge: gpt-6-astra (8 passages, $1.79 list)
+## Judge: gemini-4-carbon-medium (8 passages, $3.65 list)
 
 | Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
 |---|---|---|---|---|
-| gpt-6-astra (itself) | 1.38 | 6 (75%) | 8.0 | 7 of 8 |
-| gpt-6.1-sol | 2.38 | 2 (25%) | 7.4 | 8 of 8 |
-| fable-5.1 | 3.00 | 0 (0%) | 6.8 | 8 of 8 |
-| opus-5.5 | 3.25 | 0 (0%) | 6.4 | 8 of 8 |
+| gemini-4-carbon-medium (itself) | 2.38 | 5 (62%) | 7.1 | 8 of 8 |
+| gpt-6-astra | 3.00 | 1 (12%) | 6.0 | 8 of 8 |
+| fable-5.1 | 3.25 | 1 (12%) | 5.8 | 8 of 8 |
+| gpt-6.1-sol | 3.75 | 0 (0%) | 5.2 | 8 of 8 |
+| opus-5.5 | 4.12 | 1 (12%) | 4.9 | 8 of 8 |
+| gemini-4-carbon-low | 4.50 | 0 (0%) | 4.4 | 8 of 8 |
 
 ## All judges together
 
 | Writer | Mean rank | Wins | Mean score | Rank by itself | Rank by the other judges |
 |---|---|---|---|---|---|
-| fable-5.1 | 2.31 | 8 (25%) | 7.1 | 1.38 | 2.62 |
-| opus-5.5 | 2.44 | 8 (25%) | 6.9 | 2.12 | 2.54 |
-| gpt-6-astra | 2.50 | 9 (28%) | 6.9 | 1.38 | 2.88 |
-| gpt-6.1-sol | 2.75 | 7 (22%) | 6.7 | 2.12 | 2.96 |
+| fable-5.1 | 2.88 | 4 (17%) | 6.8 | - | - |
+| gemini-4-carbon-medium | 2.88 | 11 (46%) | 7.0 | 2.38 | 3.12 |
+| gpt-6-astra | 3.29 | 5 (21%) | 6.5 | 2.50 | 3.69 |
+| gpt-6.1-sol | 3.62 | 0 (0%) | 6.4 | - | - |
+| opus-5.5 | 3.67 | 3 (12%) | 6.3 | 2.62 | 4.19 |
+| gemini-4-carbon-low | 4.67 | 1 (4%) | 5.3 | - | - |
 
 ## Agreement on the best candidate
 
-- opus-5.5 and fable-5.1: same best candidate on 2 of 8 passages
-- opus-5.5 and gpt-6.1-sol: same best candidate on 4 of 8 passages
 - opus-5.5 and gpt-6-astra: same best candidate on 1 of 8 passages
-- fable-5.1 and gpt-6.1-sol: same best candidate on 2 of 8 passages
-- fable-5.1 and gpt-6-astra: same best candidate on 0 of 8 passages
-- gpt-6.1-sol and gpt-6-astra: same best candidate on 3 of 8 passages
+- opus-5.5 and gemini-4-carbon-medium: same best candidate on 1 of 8 passages
+- gpt-6-astra and gemini-4-carbon-medium: same best candidate on 5 of 8 passages
 
 ## Slips flagged, for a person to check
 
-- c7 / fable-5.1, by opus-5.5: 'without taking such a freedom' is an awkward, unidiomatic phrase
-- c7 / fable-5.1, by opus-5.5: 'sits as judge in the Inn' adds a small explanation
-- c7 / opus-5.5, by opus-5.5: 'as if at a christening' adds an explanation and keeps a hard word
-- c7 / opus-5.5, by opus-5.5: 'parchmentses' keeps a nonstandard form that will confuse a B1 reader
-- c7 / opus-5.5, by opus-5.5: 'He don't notice me' and 'pretty well every day' keep dialect that is not explained
-- c7 / opus-5.5, by opus-5.5: 'good sign, or omen' adds a gloss
-- c7 / gpt-6-astra, by opus-5.5: Invented 'Usually, the lady's attention wandered from one thing to another' as an added explanation
-- c7 / gpt-6-astra, by opus-5.5: 'documents written on animal skin' explains 'parchment' instead of translating it
-- c7 / gpt-6-astra, by opus-5.5: 'any fish that comes into my net is welcome' leaves the idiom in, taken literally
-- c7 / gpt-6-astra, by opus-5.5: 'Lord Chancellor' title kept without the 'noble' sense; 'great and learned man' is a loose rendering
-- c7 / gpt-6.1-sol, by opus-5.5: Invented 'Usually, the old lady's attention wandered from one thing to another' as an added explanation
-- c7 / gpt-6.1-sol, by opus-5.5: 'old documents on animal skin' explains 'parchment' instead of translating it
-- c7 / gpt-6.1-sol, by opus-5.5: 'everything that comes into my net is useful to me' leaves the idiom in, taken literally, and changes its meaning
-- c7 / gpt-6.1-sol, by opus-5.5: 'that great lord with all his learning' loosens 'noble and learned brother'
-- c15 / opus-5.5, by opus-5.5: 'they are most remarkable men' uses the present tense, but both men are dead
-- c15 / opus-5.5, by opus-5.5: 'a kind of red wine' is an added gloss
-- c15 / fable-5.1, by opus-5.5: 'elegant and polite meal' – 'polite' is the wrong word for 'genteel' when describing a dinner
-- c15 / fable-5.1, by opus-5.5: 'the first-class man that Captain Swosser so very much was' is awkward and unidiomatic
-- c15 / fable-5.1, by opus-5.5: 'a kind of red wine' is an added gloss
-- c15 / gpt-6.1-sol, by opus-5.5: 'confidently' misreads 'in a tone of confidence', which means confidentially
-- c15 / gpt-6.1-sol, by opus-5.5: 'So we heard all about them' loses the irony of 'we had the full benefit of them'
-- c15 / gpt-6.1-sol, by opus-5.5: 'the Professor's cup with a stem' is a clumsy substitute for 'goblet'
-- c15 / gpt-6.1-sol, by opus-5.5: 'They were men of the very highest quality' is an added sentence
-- c15 / gpt-6.1-sol, by opus-5.5: 'a red wine' is an added gloss
-- c15 / gpt-6-astra, by opus-5.5: 'confidently' misreads 'in a tone of confidence', which means confidentially
-- c15 / gpt-6-astra, by opus-5.5: 'He gave Ada and me the honour' changes 'we had the honour of being under his care'
-- c15 / gpt-6-astra, by opus-5.5: 'we enjoyed the full benefit of hearing about them' adds an explanation
-- c15 / gpt-6-astra, by opus-5.5: 'You will find it a very special and unusual wine' adds 'special' to 'curious'
-- c15 / gpt-6-astra, by opus-5.5: 'drinking cup—the one with the stem' is an awkward paraphrase of 'goblet'
-- c15 / gpt-6-astra, by opus-5.5: 'a kind of red wine' is an added gloss
-- c23 / fable-5.1, by opus-5.5: 'scatters... so fast' invents speed not in the source
+- c7 / opus-5.5, by opus-5.5: 'good sign, or omen' adds a small gloss that the source does not have
+- c7 / opus-5.5, by opus-5.5: 'parchmentses' and 'He don't' are kept for voice but may puzzle a B1 reader
+- c7 / fable-5.1, by opus-5.5: The christening image is dropped: 'given me and my place a name'
+- c7 / fable-5.1, by opus-5.5: 'without taking such a freedom' is awkward and not everyday English
+- c7 / gpt-6.1-sol, by opus-5.5: The christening image is dropped: 'given me and my place these names'
+- c7 / gpt-6.1-sol, by opus-5.5: 'Usually, the old lady's attention wandered from one thing to another' turns an image into an explanation
+- c7 / gpt-6.1-sol, by opus-5.5: 'that great lord with all his learning' changes 'noble and learned brother'
+- c7 / gpt-6.1-sol, by opus-5.5: 'pressingly' is weakened to just 'strangely eager'
+- c7 / gemini-4-carbon-low, by opus-5.5: 'as if she belonged to a much higher social class' adds an explanation
+- c7 / gemini-4-carbon-low, by opus-5.5: 'brother judge' adds 'judge' to Krook's words
+- c7 / gemini-4-carbon-low, by opus-5.5: 'his quiet, shrunken manner' invents 'quiet'
+- c7 / gemini-4-carbon-low, by opus-5.5: The christening image is dropped: 'given a special name'
+- c7 / gemini-4-carbon-low, by opus-5.5: 'old animal-skin documents' is an explanatory gloss
+- c7 / gemini-4-carbon-low, by opus-5.5: 'without acting so freely without permission' is clumsy
+- c7 / gpt-6-astra, by opus-5.5: 'Aye, aye' is changed to 'Yes, yes', which flattens his voice
+- c7 / gpt-6-astra, by opus-5.5: 'any fish that comes into my net is welcome' leaves an untaught idiom
+- c7 / gpt-6-astra, by opus-5.5: The christening image is dropped
+- c7 / gpt-6-astra, by opus-5.5: 'And how it feels!' loses the sense of 'texture'
+- c7 / gpt-6-astra, by opus-5.5: 'Usually, the lady's attention wandered...' is an added explanation
+- c7 / gpt-6-astra, by opus-5.5: 'seemed to shrink' adds a hedge that is not in the source
+- c7 / gemini-4-carbon-medium, by opus-5.5: 'Hi hi!' and 'Hi, Lady Jane!' are changed to 'Hey!', which alters Krook's voice
+- c7 / gemini-4-carbon-medium, by opus-5.5: 'parchments—sheets of animal skin used for writing' is an added explanation
+- c7 / gemini-4-carbon-medium, by opus-5.5: 'like anything caught in a fisherman's net' explains the idiom instead of rendering it
+- c7 / gemini-4-carbon-medium, by opus-5.5: 'treated him with the polite kindness shown to someone lower in rank' is an explanation
+- c7 / gemini-4-carbon-medium, by opus-5.5: 'a red color had risen in her cheeks' is wordy and flattens 'blushing'
+- c7 / gemini-4-carbon-medium, by opus-5.5: The christening image is dropped: 'given those names'
+- c15 / fable-5.1, by opus-5.5: 'the first-class man that Captain Swosser so very much was' is an awkward sentence.
+- c15 / fable-5.1, by opus-5.5: 'I would dare to correct him' is a slightly wrong rendering of 'take leave' (allow oneself).
+- c15 / opus-5.5, by opus-5.5: 'they are most remarkable men' uses the present tense, but both men are dead.
+- c15 / opus-5.5, by opus-5.5: 'I should like to have seen' keeps an archaic form that is hard for a B1 reader.
+- c15 / opus-5.5, by opus-5.5: 'claret, a kind of red wine' adds a gloss that is not in the source.
+- c15 / gemini-4-carbon-medium, by opus-5.5: 'a very polite and elegant meal for guests, served in a very fine and generous way' is a wordy over-paraphrase.
+- c15 / gemini-4-carbon-medium, by opus-5.5: 'rare and unusual' adds 'rare', which is not in 'curious'.
+- c15 / gemini-4-carbon-medium, by opus-5.5: The 'first-class men' sentence is reordered and the narrator's rhythm is lost.
+- c15 / gemini-4-carbon-low, by opus-5.5: 'But he has a very fine head' moves the praise from the portrait to the man.
+- c15 / gemini-4-carbon-low, by opus-5.5: 'I own the real person' is a crude rendering of 'possess the original'.
+- c15 / gemini-4-carbon-low, by opus-5.5: 'we heard all about them' loses the ironic 'full benefit'.
+- c15 / gemini-4-carbon-low, by opus-5.5: 'A servant then announced' adds a detail the source does not give.
+- c15 / gpt-6-astra, by opus-5.5: 'confidently' mistranslates 'in a tone of confidence' (the source means confidentially).
+- c15 / gpt-6-astra, by opus-5.5: 'the Professor's drinking cup, James—the one with the stem' is clumsy and adds words to Badger's line.
+- c15 / gpt-6-astra, by opus-5.5: 'flowers made to look like real ones' is clumsy.
+- c15 / gpt-6-astra, by opus-5.5: 'Someone now announced' is a needless expansion.
+- c15 / gpt-6.1-sol, by opus-5.5: 'confidently' mistranslates 'in a tone of confidence' (the source means confidentially).
+- c15 / gpt-6.1-sol, by opus-5.5: 'So we heard all about them' loses the ironic 'full benefit'.
+- c15 / gpt-6.1-sol, by opus-5.5: 'the Professor's cup with a stem' is clumsy.
+- c15 / gpt-6.1-sol, by opus-5.5: 'flowers made to look real' is clumsy.
+- c23 / fable-5.1, by opus-5.5: 'so fast' adds a speed the source does not give for the scattering
+- c23 / fable-5.1, by opus-5.5: added explanation: 'a soldier on horseback' after 'trooper'
+- c23 / fable-5.1, by opus-5.5: added explanation: 'the circulation, the flow of my blood'
 - c23 / fable-5.1, by opus-5.5: 'short curly dark hair' adds 'short'
-- c23 / fable-5.1, by opus-5.5: 'a trooper, a soldier on horseback' adds an explanation
-- c23 / fable-5.1, by opus-5.5: 'circulation, the flow of my blood' puts an explanation into the dialogue
-- c23 / opus-5.5, by opus-5.5: keeps "'Druidical ruins'" unexplained, too hard for B1, and doesn't show the ruins are the bread
-- c23 / opus-5.5, by opus-5.5: 'mean' for 'pinched ways' suggests stinginess
-- c23 / opus-5.5, by opus-5.5: 'a trooper, a soldier on horseback' adds an explanation
-- c23 / gpt-6-astra, by opus-5.5: 'like those left by the Druids, ancient priests' adds an explanation and doesn't link the ruins to the bread
-- c23 / gpt-6-astra, by opus-5.5: adds an explanation of spurs ('metal points riders wear on their boots to urge horses on')
-- c23 / gpt-6-astra, by opus-5.5: changes the dialect to standard English ('How do you do', 'haven't'), losing the voice
-- c23 / gpt-6-astra, by opus-5.5: 'trooper' is dropped and becomes 'a soldier who rode a horse'
-- c23 / gpt-6-astra, by opus-5.5: 'take the whole family into his own body' is awkward and too literal
-- c23 / gpt-6.1-sol, by opus-5.5: 'like those of the Druids, ancient priests' adds an explanation and doesn't link the ruins to the bread
-- c23 / gpt-6.1-sol, by opus-5.5: adds an explanation of spurs
-- c23 / gpt-6.1-sol, by opus-5.5: 'The tea is like a tide flowing out' is vague and loses the low-tide picture
-- c23 / gpt-6.1-sol, by opus-5.5: changes the dialect to standard English ('How do you do', 'haven't')
-- c23 / gpt-6.1-sol, by opus-5.5: keeps the old-fashioned 'Perhaps you do right', hard at B1
-- c31 / gpt-6-astra, by opus-5.5: 'damn it' / 'Damn these notes' is a stronger oath than 'dash it' and changes Guppy's tone
-- c31 / gpt-6-astra, by opus-5.5: 'Perhaps your ladyship' changes Guppy's 'I think your ladyship'
-- c31 / gpt-6-astra, by opus-5.5: Changes the opening formula to 'Thank you, your ladyship'
-- c31 / gpt-6.1-sol, by opus-5.5: 'Mr. Guppy thanks her' is a mistranslation: in the source, 'does so' means he takes the seat he was offered
-- c31 / gpt-6.1-sol, by opus-5.5: 'damn it' / 'Damn these notes' makes the mild oath 'dash it' stronger
-- c31 / gpt-6.1-sol, by opus-5.5: 'no one would have paid anything for your poor life, even for a minute' is a clumsy literal rendering of 'a minute's purchase'
-- c31 / gpt-6.1-sol, by opus-5.5: Loses the 'knocked me over' image and replaces it with 'gave me such a shock'
-- c31 / opus-5.5, by opus-5.5: Keeps the nonstandard 'you was not aware' with no help for a B1 reader
-- c31 / opus-5.5, by opus-5.5: Leaves idioms a B1 reader won't know: 'to be sure', 'I see my way now, right on', 'O'
-- c31 / opus-5.5, by opus-5.5: Copies the missing opening quotation mark before 'I think your ladyship'
-- c31 / opus-5.5, by opus-5.5: 'Some time ago' is a small addition not in the source
-- c31 / fable-5.1, by opus-5.5: Leaves the untaught idiom 'not worth a minute's purchase' in place
-- c31 / fable-5.1, by opus-5.5: ''art' keeps the dropped-h pun, which will confuse a B1 reader
-- c31 / fable-5.1, by opus-5.5: 'I see my way now, right on' is left as untaught idiom
-- c31 / fable-5.1, by opus-5.5: 'never wavers' is above B1 vocabulary
-- c39 / opus-5.5, by opus-5.5: 'for us people with a case in the court' adds a gloss after 'suitors'
-- c39 / opus-5.5, by opus-5.5: 'He has something to gain or lose in the case himself' adds an explanation of 'interested party'
-- c39 / opus-5.5, by opus-5.5: 'strange attraction' adds 'strange', which is not in the source
-- c39 / opus-5.5, by opus-5.5: 'I needed to get some comfort' uses the past tense where the source has the present ('I had need' means 'I need')
-- c39 / fable-5.1, by opus-5.5: 'who are waiting on the court' is a gloss, and 'waiting on' is an idiom a B1 reader may not know
-- c39 / fable-5.1, by opus-5.5: 'his naturally generous nature' repeats 'nature' clumsily
-- c39 / fable-5.1, by opus-5.5: 'I needed to get' uses the past tense where the source has the present
-- c39 / fable-5.1, by opus-5.5: 'suitors' is a hard word for B1 and is only partly explained
-- c39 / gpt-6-astra, by opus-5.5: 'shocks and quarrels' is a poor rendering of 'jar and discord'
-- c39 / gpt-6-astra, by opus-5.5: 'from top to bottom' is left out of the house image
-- c39 / gpt-6-astra, by opus-5.5: 'a sharp pain of shame' turns the source's 'reproach' into shame
-- c39 / gpt-6-astra, by opus-5.5: 'not an unkind man' weakens 'not a mean fellow'
-- c39 / gpt-6.1-sol, by opus-5.5: 'it harms something good in everybody' is an interpretation added for 'taints everybody'
-- c39 / gpt-6.1-sol, by opus-5.5: 'my criticism had hurt that generous part of him' is an added explanation, and it turns the source's 'as if' into a statement
-- c39 / gpt-6.1-sol, by opus-5.5: 'a faint sign of that unfortunate man' is an odd, unclear phrase
-- c39 / gpt-6.1-sol, by opus-5.5: 'not an unkind, selfish fellow' adds 'selfish' to 'mean'
-- c47 / gpt-6.1-sol, by opus-5.5: "It is all around you here" loses the sense of "it is all over", meaning "it is finished".
-- c47 / gpt-6.1-sol, by opus-5.5: It adds a sentence of the narrator's own explaining where the catechism phrase comes from, which breaks Richard's voice.
-- c47 / gpt-6.1-sol, by opus-5.5: "thin and ill" adds illness that "haggard" does not state.
-- c47 / gpt-6.1-sol, by opus-5.5: "in the fulness of his handsome youth" is reduced to "still young and handsome".
-- c47 / opus-5.5, by opus-5.5: "catechism" is left in without explanation, which is hard for a B1 reader.
-- c47 / opus-5.5, by opus-5.5: "It is all over here" is kept word for word, so its double meaning stays unclear for a B1 reader.
-- c47 / opus-5.5, by opus-5.5: "I am going away on leave today" slightly changes the source's "I am away on leave this day".
-- c47 / gpt-6-astra, by opus-5.5: "my officers" narrows the source's general "those put in authority over me".
-- c47 / gpt-6-astra, by opus-5.5: "I cannot be free of that madness" changes the meaning of "can't be sane".
-- c47 / gpt-6-astra, by opus-5.5: "watching him" is added to "unless I stayed behind him".
-- c47 / fable-5.1, by opus-5.5: Old-fashioned word order is kept in "said he".
-- c47 / fable-5.1, by opus-5.5: "Is nothing wrong?" is an awkward way to render "Nothing the matter?".
-- c47 / fable-5.1, by opus-5.5: The idioms "smooth things over", "selling out" and "no such thing" stay in the text, which is hard for B1.
-- c47 / fable-5.1, by opus-5.5: "catechism" is left without explanation.
-- c63 / gpt-6.1-sol, by opus-5.5: Adds an explanatory sentence, 'These were duties about right and wrong.'
-- c63 / gpt-6.1-sol, by opus-5.5: Breaking up the 'house that Jack built' chain weakens the joke of its build-up, although the repetition is still there.
-- c63 / gpt-6-astra, by opus-5.5: Rewrites 'I can't be bribed' as 'No one can pay me to do something wrong', so Esther's reply 'Not by Mr. Bucket?' no longer fits.
-- c63 / gpt-6-astra, by opus-5.5: Adds a gloss on 'tamed lynx': 'a wild cat, that has been trained to live with people'.
-- c63 / gpt-6-astra, by opus-5.5: 'Saves us the trouble of punishing our murderers' loses the wording of 'avenges us comfortably'.
-- c63 / fable-5.1, by opus-5.5: Keeps 'because I want it myself' word for word, so a B1 reader will take 'want' as 'desire' rather than 'lack'.
-- c63 / fable-5.1, by opus-5.5: Adds glosses: 'leave him unable to act' and 'the one who understands these things'.
-- c63 / fable-5.1, by opus-5.5: Leaves 'tamed lynx' unexplained, and keeps the very long chain sentences that are hard for a B1 reader to parse.
-- c63 / opus-5.5, by opus-5.5: Keeps 'because I want it myself', which a B1 reader will misread as desire rather than lack.
-- c63 / opus-5.5, by opus-5.5: Adds a definition: 'a bribe, that is, money given to make someone do wrong'.
-- c63 / opus-5.5, by opus-5.5: Adds glosses: 'a kind of wild cat' and 'Prejudices, or unfair fixed opinions'.
-- c63 / opus-5.5, by opus-5.5: Moves the narrator's exclamation ('Surely nobody else...') to the end of the paragraph and makes it weaker.
-- c55 / gpt-6.1-sol, by opus-5.5: The hedge in 'I cannot say but that he may have been followed' is dropped and it becomes a plain 'He may have been followed'.
-- c55 / gpt-6.1-sol, by opus-5.5: 'This crime was most horrible and showed a shocking lack of fear' cuts the crime off from the ceremony sentence, so the link between the two is weakened.
-- c55 / gpt-6-astra, by opus-5.5: The hedge in 'I cannot say but that' is dropped.
-- c55 / gpt-6-astra, by opus-5.5: 'glances at him' becomes 'watches him closely', which changes the action.
-- c55 / gpt-6-astra, by opus-5.5: 'charming towards women' is a looser rendering of 'natural gallantry'.
-- c55 / fable-5.1, by opus-5.5: The gloss 'accomplices—people who helped him—' is an added explanation.
-- c55 / fable-5.1, by opus-5.5: 'weak, tired cousin': 'tired' is an addition.
-- c55 / fable-5.1, by opus-5.5: The cousin's clipped, fragmentary speech is turned into full normal sentences, so his voice is lost.
-- c55 / fable-5.1, by opus-5.5: Hard or idiomatic wording is kept for B1: 'kept myself on this case', 'everything that has been traced', 'at the present moment', 'bring ... to light'.
-- c55 / opus-5.5, by opus-5.5: 'made people think he was richer than he was' invents the claim that he was not rich.
-- c55 / opus-5.5, by opus-5.5: 'I will fail to stay loyal' changes the meaning of 'fail in the assertion of my fidelity', which means failing to show loyalty.
-- c55 / opus-5.5, by opus-5.5: 'protest' is the wrong word for 'protestation'.
-- c55 / opus-5.5, by opus-5.5: The gloss 'a cocked hat, a three-cornered hat' is an added explanation.
-- c55 / opus-5.5, by opus-5.5: 'weak, feeble cousin' is a redundant doubling.
-- c55 / opus-5.5, by opus-5.5: 'bring into the light' is an idiom left in for B1.
-- c15 / opus-5.5, by fable-5.1: 'they are most remarkable men' — present tense for two dead husbands
-- c15 / opus-5.5, by fable-5.1: 'above all others' is a loose rendering of 'pre-eminently'
-- c15 / opus-5.5, by fable-5.1: 'elegant and fashionable dinner' adds 'fashionable'
-- c15 / opus-5.5, by fable-5.1: 'claret, a kind of red wine' — explanatory gloss added
-- c15 / fable-5.1, by fable-5.1: 'a very elegant and polite meal' — 'polite' is a wrong word for 'genteel'
-- c15 / fable-5.1, by fable-5.1: 'that Captain Swosser so very much was' — awkward, hard-to-parse rendering of 'pre-eminently'
-- c15 / fable-5.1, by fable-5.1: 'would have liked to meet' shifts 'to have seen'
-- c15 / fable-5.1, by fable-5.1: 'ordinary glass' adds 'ordinary'
-- c15 / fable-5.1, by fable-5.1: 'claret, a kind of red wine' — explanatory gloss added
-- c15 / gpt-6-astra, by fable-5.1: 'said Mr. Badger confidently' — mistranslates 'in a tone of confidence' (confidential tone)
-- c15 / gpt-6-astra, by fable-5.1: 'the Professor's drinking cup, James—the one with the stem!' — invented description in Badger's speech
-- c15 / gpt-6-astra, by fable-5.1: 'as to compare myself with such excellent men. I could not claim to be...' — padded into two sentences, partly invented
-- c15 / gpt-6-astra, by fable-5.1: 'I think' for 'I feel'; 'myself' added to 'I am quite a Sailor'
-- c15 / gpt-6-astra, by fable-5.1: 'very special and unusual wine' pads 'very curious'
-- c15 / gpt-6-astra, by fable-5.1: 'claret, a kind of red wine' — explanatory gloss added
-- c15 / gpt-6.1-sol, by fable-5.1: 'said Mr. Badger confidently' — mistranslates 'in a tone of confidence'
-- c15 / gpt-6.1-sol, by fable-5.1: 'So we heard all about them' loses the ironic 'full benefit of them'
-- c15 / gpt-6.1-sol, by fable-5.1: 'the Professor's cup with a stem' — clumsy gloss put into Badger's mouth
-- c15 / gpt-6.1-sol, by fable-5.1: 'They were men of the very highest quality' — added sentence
-- c15 / gpt-6.1-sol, by fable-5.1: 'claret, a red wine' — explanatory gloss added
-- c7 / fable-5.1, by fable-5.1: 'how soft and fine it feels' adds 'soft', not in source
-- c7 / fable-5.1, by fable-5.1: 'sits as judge in the Inn' adds an explanation
-- c7 / fable-5.1, by fable-5.1: 'All's fish that comes to my net' image dropped for 'I take anything that comes my way'
-- c7 / fable-5.1, by fable-5.1: 'christening' image dropped for plain 'a name'
-- c7 / gpt-6-astra, by fable-5.1: 'Usually, the lady's attention wandered from one thing to another' is an added explanatory sentence
-- c7 / gpt-6-astra, by fable-5.1: 'documents written on animal skin' glosses parchment in-text
-- c7 / gpt-6-astra, by fable-5.1: 'Aye, aye!' flattened to 'Yes, yes!'
-- c7 / gpt-6-astra, by fable-5.1: 'noble' lost in 'that great and learned man'
-- c7 / opus-5.5, by fable-5.1: 'her room' (singular) for 'her apartment'
-- c7 / opus-5.5, by fable-5.1: 'All's fish that comes to my net' image dropped for 'I take anything that comes my way'
-- c7 / opus-5.5, by fable-5.1: 'parchmentses', 'He don't', 'pretty well every day' left as untaught dialect/idiom for a B1 reader
-- c7 / gpt-6.1-sol, by fable-5.1: 'Usually, the old lady's attention wandered from one thing to another' is an added explanatory sentence
-- c7 / gpt-6.1-sol, by fable-5.1: 'documents on animal skin' glosses parchment in-text
-- c7 / gpt-6.1-sol, by fable-5.1: 'everything that comes into my net is useful to me' shifts the proverb's sense
-- c7 / gpt-6.1-sol, by fable-5.1: 'that great lord with all his learning' is an awkward, slightly off rendering of 'noble and learned brother'
-- c23 / gpt-6.1-sol, by fable-5.1: 'ruins like those of the Druids, ancient priests' adds an explanation and leaves unclear that the ruins are the bread and butter
-- c23 / gpt-6.1-sol, by fable-5.1: 'spurs, the metal points riders wear on their boots' is an added gloss
-- c23 / gpt-6.1-sol, by fable-5.1: 'The tea is like a tide flowing out' loses the specific ebbtide image of the tea going down in the basin
-- c23 / fable-5.1, by fable-5.1: 'so fast that' is a small interpretive addition to 'so disperses … that'
-- c23 / fable-5.1, by fable-5.1: 'the circulation, the flow of my blood' inserts a gloss into Grandfather Smallweed's dialogue
-- c23 / fable-5.1, by fable-5.1: 'a trooper, a soldier on horseback' adds an explanatory apposition
-- c23 / opus-5.5, by fable-5.1: 'harder to agree with Miss Smallweed's opinions' mistranslates 'meeting her views' (satisfying/complying with them)
-- c23 / opus-5.5, by fable-5.1: 'His step … is slow' invents 'slow' for 'measured'
-- c23 / opus-5.5, by fable-5.1: 'Druidical ruins' left in quotation marks with no help for a B1 reader
-- c23 / opus-5.5, by fable-5.1: 'short and stiff' is a doubtful rendering of 'crisp' hair
-- c23 / gpt-6-astra, by fable-5.1: 'These are the metal points riders wear on their boots to urge horses on' is an invented explanatory sentence
-- c23 / gpt-6-astra, by fable-5.1: 'ruins like those left by the Druids, ancient priests' adds an explanation and leaves the ruins unidentified
-- c23 / gpt-6-astra, by fable-5.1: 'a knock at the door saves her from this' adds an interpretation not in the source
-- c23 / gpt-6-astra, by fable-5.1: 'take the whole family into his own body' is a clumsy literalisation of 'absorb into himself'
-- c23 / gpt-6-astra, by fable-5.1: 'the honour of meeting' for 'seeing'
-- c31 / opus-5.5, by fable-5.1: Keeps Guppy's ungrammatical 'you was not aware of me' unexplained – a B1 reader may take it as correct English
-- c31 / opus-5.5, by fable-5.1: 'I don't know' left hanging before a separate question – slightly awkward restructuring
-- c31 / fable-5.1, by fable-5.1: 'would not have been worth a minute's purchase' left untranslated – untaught idiom for a B1 reader
-- c31 / fable-5.1, by fable-5.1: 'printed on my 'art' – dialect spelling likely to puzzle a B1 reader
-- c31 / fable-5.1, by fable-5.1: 'never wavers' and 'within call' are above B1 level
-- c31 / gpt-6.1-sol, by fable-5.1: 'damn it' for Guppy's euphemistic 'dash it' – wrong register
-- c31 / gpt-6.1-sol, by fable-5.1: Drops 'I am sure' from the apology to the love-birds
-- c31 / gpt-6.1-sol, by fable-5.1: 'no one would have paid anything for your poor life, even for a minute' – unclear rendering of the idiom
-- c31 / gpt-6.1-sol, by fable-5.1: 'It gave me such a shock' loses the 'knocked me over' image
-- c31 / gpt-6-astra, by fable-5.1: 'damn it' for 'dash it' – wrong register
-- c31 / gpt-6-astra, by fable-5.1: Drops 'I am sure' from the apology to the love-birds
-- c31 / gpt-6-astra, by fable-5.1: 'Perhaps your ladyship' for 'I think your ladyship' – changes Guppy's phrasing
-- c31 / gpt-6-astra, by fable-5.1: Repeatedly replaces 'your ladyship' with 'you', flattening Guppy's obsequious voice
-- c31 / gpt-6-astra, by fable-5.1: 'You really do look even more surprisingly like her than I thought' – clumsy, unclear sentence
-- c39 / gpt-6-astra, by fable-5.1: 'shocks and quarrels' is an odd rendering of 'jar and discord'
-- c39 / gpt-6-astra, by fable-5.1: Nature made neuter ('It') and the sentence split loses the single image of the wakeful night
-- c39 / gpt-6-astra, by fable-5.1: 'a sharp pain of shame' narrows 'a pang of reproach'
-- c39 / gpt-6-astra, by fable-5.1: 'I certainly need' shifts 'I had need' to the present
-- c39 / fable-5.1, by fable-5.1: 'who are waiting on the court' is an added gloss on 'suitors'
-- c39 / fable-5.1, by fable-5.1: 'his naturally generous nature' is clumsy doubling
-- c39 / fable-5.1, by fable-5.1: 'I needed to get' slightly mistimes 'I had need to get'
-- c39 / gpt-6.1-sol, by fable-5.1: 'my criticism had hurt that generous part of him' fixes an interpretation on 'felt a pang of reproach'
-- c39 / gpt-6.1-sol, by fable-5.1: 'changed me a little for the worse' drops the 'twisted' image
-- c39 / gpt-6.1-sol, by fable-5.1: 'harms something good in everybody' flattens 'taints everybody'
-- c39 / gpt-6.1-sol, by fable-5.1: 'faint sign' weakens 'a shade of that unfortunate man'
-- c39 / gpt-6.1-sol, by fable-5.1: 'and still say such things' is a small addition to the remonstrance
-- c39 / opus-5.5, by fable-5.1: 'strange attraction' adds 'strange'
-- c39 / opus-5.5, by fable-5.1: 'for us people with a case in the court' is an added gloss on 'suitors'
-- c39 / opus-5.5, by fable-5.1: 'He has something to gain or lose in the case himself' is an added gloss on 'interested party'
-- c39 / opus-5.5, by fable-5.1: 'It was not I' tacked on at the end reads awkwardly
-- c47 / fable-5.1, by fable-5.1: 'smooth things over' and 'selling out' are idioms left in for a B1 reader, only partly glossed
-- c47 / fable-5.1, by fable-5.1: 'Is nothing wrong?' is an unnatural rendering of 'Nothing the matter?'
-- c47 / fable-5.1, by fable-5.1: 'catechism' left unexplained for a B1 reader
-- c47 / gpt-6-astra, by fable-5.1: 'I cannot be free of that madness' shifts 'can't be sane'
-- c47 / gpt-6-astra, by fable-5.1: 'watching him' added to 'at his back'
-- c47 / gpt-6-astra, by fable-5.1: 'I thought arguing would... So I thought it best not to argue' is a clumsy, repetitive rendering of the mood sentence
-- c47 / opus-5.5, by fable-5.1: 'Call it madness, if you like' adds words not in the source
-- c47 / opus-5.5, by fable-5.1: 'I know that thing too well' loosens 'with my experience of that thing'
-- c47 / opus-5.5, by fable-5.1: 'thin, worried face' pads out 'haggard'
-- c47 / opus-5.5, by fable-5.1: 'catechism' left unexplained for a B1 reader
-- c47 / gpt-6.1-sol, by fable-5.1: Adds an explanatory sentence about the catechism phrase, breaking Richard's speech
-- c47 / gpt-6.1-sol, by fable-5.1: 'How tired, thin and ill he looked' adds 'ill'
-- c47 / gpt-6.1-sol, by fable-5.1: 'making my sale of my position as an officer seem less unpleasant' is awkward and hard to parse
-- c47 / gpt-6.1-sol, by fable-5.1: 'I care about only one thing. All my thoughts...' flattens the 'no care, no mind, no heart, no soul' rhythm
-- c47 / gpt-6.1-sol, by fable-5.1: 'You can read it in everything in this room. It is all around you here' loosens the source line
-- c55 / fable-5.1, by fable-5.1: 'cocked hat' left unglossed for a B1 reader
-- c55 / fable-5.1, by fable-5.1: 'accomplices—people who helped him' adds a small explanatory gloss
-- c55 / fable-5.1, by fable-5.1: 'weak, tired cousin' — 'tired' is not quite 'debilitated'
-- c55 / opus-5.5, by fable-5.1: 'He makes this protest' — 'protestation' means solemn declaration, not protest
-- c55 / opus-5.5, by fable-5.1: 'some fellow will be hanged' — source says 'executed'
-- c55 / opus-5.5, by fable-5.1: 'weak, feeble cousin' is redundant
-- c55 / opus-5.5, by fable-5.1: 'a cocked hat, a three-cornered hat' adds a gloss
-- c55 / gpt-6-astra, by fable-5.1: 'I cannot say but that' hedge dropped before 'He may have been followed'
-- c55 / gpt-6-astra, by fable-5.1: 'everything we have discovered' adds 'we'
-- c55 / gpt-6-astra, by fable-5.1: 'I shall feel this until this crime is solved' restructures and slightly flattens the declaration
-- c55 / gpt-6.1-sol, by fable-5.1: 'showed a shocking lack of fear' is an awkward, off rendering of 'audacious'
-- c55 / gpt-6.1-sol, by fable-5.1: 'chosen as a victim' drops 'first marked'
-- c55 / gpt-6.1-sol, by fable-5.1: Splits 'the shock I have received from this crime' so the shock is no longer tied to the crime
-- c63 / gpt-6-astra, by fable-5.1: 'I can't be bribed' becomes 'No one can pay me to do something wrong', so Esther's reply 'Not by Mr. Bucket?' no longer fits grammatically
-- c63 / gpt-6-astra, by fable-5.1: Lynx glossed with an added explanation ('a wild cat, that has been trained to live with people')
-- c63 / gpt-6-astra, by fable-5.1: 'avenges us comfortably when we are murdered' reinterpreted as 'saves us the trouble of punishing our murderers'
-- c63 / gpt-6-astra, by fable-5.1: House-that-Jack-built chain chopped into 'That is the boy...' fragments, losing the cumulative form
-- c63 / gpt-6-astra, by fable-5.1: 'disregard of several moral obligations' muddled into 'ignored several duties to do what was right'
-- c63 / gpt-6.1-sol, by fable-5.1: Invented explanatory sentence 'These were duties about right and wrong.'
-- c63 / gpt-6.1-sol, by fable-5.1: Narrator's charge loses the word 'bribe' ('broken that trust for money'), though Skimpole then answers 'I can't be bribed'
-- c63 / gpt-6.1-sol, by fable-5.1: Cumulative Jack-built chain broken into separate repeated sentences, weakening the joke
-- c63 / gpt-6.1-sol, by fable-5.1: 'expressly' softened to 'clearly'
-- c63 / opus-5.5, by fable-5.1: Added gloss 'that is, money given to make someone do wrong'
-- c63 / opus-5.5, by fable-5.1: Added gloss 'calmly and wisely' after 'act with philosophy'
-- c63 / opus-5.5, by fable-5.1: Added gloss 'or unfair fixed opinions' for prejudices
-- c63 / opus-5.5, by fable-5.1: Added gloss 'a kind of wild cat' for lynx
-- c63 / opus-5.5, by fable-5.1: 'because I want it myself' kept verbatim; B1 reader will read 'want' as desire, not lack
-- c63 / fable-5.1, by fable-5.1: Added gloss 'leave him unable to act' after 'paralyse'
-- c63 / fable-5.1, by fable-5.1: Added gloss 'the one who understands these things' after 'the knowing man'
-- c63 / fable-5.1, by fable-5.1: 'like a philosopher' is a small addition to 'act with philosophy'
-- c63 / fable-5.1, by fable-5.1: 'because I want it myself' kept verbatim; 'want' = lack is untaught for B1
-- c63 / fable-5.1, by fable-5.1: 'expressly', 'essential' sit above everyday B1 vocabulary
-- c7 / fable-5.1, by gpt-6.1-sol: Adds softness to Krook's praise of Ada's hair.
-- c7 / fable-5.1, by gpt-6.1-sol: Drops the christening image when explaining the nicknames.
-- c7 / fable-5.1, by gpt-6.1-sol: Drops the fish-and-net image.
-- c7 / fable-5.1, by gpt-6.1-sol: Adds 'as judge' to explain 'sits in the Inn'.
-- c7 / fable-5.1, by gpt-6.1-sol: Leaves 'taking such a freedom' insufficiently clear for B1.
-- c7 / gpt-6.1-sol, by gpt-6.1-sol: Weakens the lady's insistently pressing entreaties to strange eagerness.
-- c7 / gpt-6.1-sol, by gpt-6.1-sol: Changes 'I assure you' into 'I promise you'.
-- c7 / gpt-6.1-sol, by gpt-6.1-sol: Strengthens the old lady's momentarily fixed attention into inability to look away.
-- c7 / gpt-6.1-sol, by gpt-6.1-sol: Adds a separate explanation of the old lady's usually wandering attention.
-- c7 / gpt-6.1-sol, by gpt-6.1-sol: Drops the christening image.
-- c7 / gpt-6.1-sol, by gpt-6.1-sol: Adds an explanation of parchment as documents on animal skin.
-- c7 / gpt-6.1-sol, by gpt-6.1-sol: Drops the fish from the fish-and-net image.
-- c7 / gpt-6.1-sol, by gpt-6.1-sol: Adds 'holds court' to explain 'sits in the Inn'.
-- c7 / gpt-6.1-sol, by gpt-6.1-sol: Leaves 'digging away in a muddle' difficult for B1.
-- c7 / opus-5.5, by gpt-6.1-sol: Adds an explanatory gloss in 'good sign, or omen'.
-- c7 / opus-5.5, by gpt-6.1-sol: Adds seriousness to the old lady's stately manner.
-- c7 / opus-5.5, by gpt-6.1-sol: Weakens Richard's rebuke to 'You don't need to touch it so freely'.
-- c7 / opus-5.5, by gpt-6.1-sol: Adds an explanatory comparison in 'as if at a christening'.
-- c7 / opus-5.5, by gpt-6.1-sol: Drops the fish-and-net image.
-- c7 / opus-5.5, by gpt-6.1-sol: Retains the difficult dialect word 'parchmentses'.
-- c7 / opus-5.5, by gpt-6.1-sol: Leaves 'pretty well every day' and 'digging away in a muddle' insufficiently accessible for B1.
-- c7 / gpt-6-astra, by gpt-6.1-sol: Changes 'I assure you' into 'I promise you'.
-- c7 / gpt-6-astra, by gpt-6.1-sol: Strengthens the old lady's momentarily fixed attention into inability to look away.
-- c7 / gpt-6-astra, by gpt-6.1-sol: Adds a separate explanation of the old lady's usually wandering attention.
-- c7 / gpt-6-astra, by gpt-6.1-sol: Makes Krook's return to his former self uncertain by adding 'seemed'.
-- c7 / gpt-6-astra, by gpt-6.1-sol: Drops the christening image.
-- c7 / gpt-6-astra, by gpt-6.1-sol: Adds an explanation of parchment as documents written on animal skin.
-- c7 / gpt-6-astra, by gpt-6.1-sol: Changes the inclusive collecting metaphor into a statement welcoming actual fish.
-- c7 / gpt-6-astra, by gpt-6.1-sol: Adds 'holds court' to explain 'sits in the Inn'.
-- c7 / gpt-6-astra, by gpt-6.1-sol: Weakens the mock-formal 'noble and learned brother' to 'brother, that great and learned man'.
-- c15 / fable-5.1, by gpt-6.1-sol: Changes wanting to have seen Captain Swosser into wanting to have met him.
-- c15 / fable-5.1, by gpt-6.1-sol: Reduces the vivid 'speaking likeness' to exact resemblance.
-- c15 / fable-5.1, by gpt-6.1-sol: Adds 'ordinary' to the rejected glass.
-- c15 / fable-5.1, by gpt-6.1-sol: Adds an explanation of claret.
-- c15 / fable-5.1, by gpt-6.1-sol: Leaves 'goblet' and 'the full benefit of them' difficult for an independent B1 reader.
-- c15 / fable-5.1, by gpt-6.1-sol: Leaves the elliptical toast 'your health' unsimplified.
-- c15 / gpt-6-astra, by gpt-6.1-sol: Adds 'enjoyed', making the narrator's ironic 'full benefit' sound more positively pleasurable.
-- c15 / gpt-6-astra, by gpt-6.1-sol: Adds an explanation of claret.
-- c15 / gpt-6-astra, by gpt-6.1-sol: Adds 'special' to the description of how the wine will taste.
-- c15 / gpt-6.1-sol, by gpt-6.1-sol: Adds an explicit joint decision in 'we chose the same day'.
-- c15 / gpt-6.1-sol, by gpt-6.1-sol: Replaces the ironic 'full benefit of them' with the neutral 'heard all about them'.
-- c15 / gpt-6.1-sol, by gpt-6.1-sol: Leaves 'African Station' unexplained and potentially misleading for a B1 reader.
-- c15 / gpt-6.1-sol, by gpt-6.1-sol: Retains the difficult construction 'a man I should like to have seen'.
-- c15 / gpt-6.1-sol, by gpt-6.1-sol: Adds an explanation of claret.
-- c15 / opus-5.5, by gpt-6.1-sol: Repeatedly substitutes importance for distinction.
-- c15 / opus-5.5, by gpt-6.1-sol: Adds 'above all others', turning exceptional quality into an absolute ranking.
-- c15 / opus-5.5, by gpt-6.1-sol: Reduces the vivid 'speaking likeness' to exact resemblance.
-- c15 / opus-5.5, by gpt-6.1-sol: Adds 'fashionable' to the description of dinner.
-- c15 / opus-5.5, by gpt-6.1-sol: Adds an explanation of claret.
-- c15 / opus-5.5, by gpt-6.1-sol: Leaves 'African Station' unexplained and potentially misleading for a B1 reader.
-- c15 / opus-5.5, by gpt-6.1-sol: Retains the difficult construction 'a man I should like to have seen'.
-- c15 / opus-5.5, by gpt-6.1-sol: Leaves 'in his head', 'the full benefit of them', and 'goblet' insufficiently accessible.
-- c15 / opus-5.5, by gpt-6.1-sol: Leaves the elliptical toast 'your health' unsimplified.
-- c23 / opus-5.5, by gpt-6.1-sol: Changes satisfying Miss Smallweed's expectations into agreeing with her opinions.
-- c23 / opus-5.5, by gpt-6.1-sol: Adds shortness to Mr. George's hair and replaces its crisp texture with stiffness.
-- c23 / opus-5.5, by gpt-6.1-sol: Adds slowness to Mr. George's measured, heavy step.
-- c23 / opus-5.5, by gpt-6.1-sol: Specifies a uniform and military equipment where the source leaves the discarded clothing and equipment unspecified.
-- c23 / opus-5.5, by gpt-6.1-sol: Adds an explanatory definition after 'trooper'.
-- c23 / opus-5.5, by gpt-6.1-sol: Leaves 'How de do', 'ha'n't', and ''em' unexplained for the B1 reader.
-- c23 / gpt-6.1-sol, by gpt-6.1-sol: Adds the explanation that Druids were ancient priests.
-- c23 / gpt-6.1-sol, by gpt-6.1-sol: Adds an explanatory description of spurs.
-- c23 / gpt-6.1-sol, by gpt-6.1-sol: Changes the neutral 'Middling' to the somewhat more positive 'Fairly well'.
-- c23 / gpt-6-astra, by gpt-6.1-sol: Adds the explanation that Druids were ancient priests.
-- c23 / gpt-6-astra, by gpt-6.1-sol: Adds an explanation of spurs and their purpose.
-- c23 / gpt-6-astra, by gpt-6.1-sol: Changes the neutral 'Middling' to the somewhat more positive 'Fairly well'.
-- c23 / gpt-6-astra, by gpt-6.1-sol: Drops the explicitly muscular quality of Mr. George's hands.
-- c23 / gpt-6-astra, by gpt-6.1-sol: Drops the explicit smallness of the Smallweeds' bodies.
-- c23 / gpt-6-astra, by gpt-6.1-sol: Weakens the conditional image of absorbing the household from 'would' to 'might'.
-- c23 / fable-5.1, by gpt-6.1-sol: Identifies the Druidical ruins as bread and butter without support in this passage.
-- c23 / fable-5.1, by gpt-6.1-sol: Invents speed as the reason for Miss Smallweed's rebuke.
-- c23 / fable-5.1, by gpt-6.1-sol: Adds shortness to Mr. George's hair.
-- c23 / fable-5.1, by gpt-6.1-sol: Specifies a uniform where the source leaves the discarded clothing unspecified.
-- c23 / fable-5.1, by gpt-6.1-sol: Says he stresses the 'last word', although the source specifies the last adjective, 'devilish'.
-- c23 / fable-5.1, by gpt-6.1-sol: Adds explanatory definitions of 'trooper' and 'circulation'.
-- c23 / fable-5.1, by gpt-6.1-sol: Leaves 'Druid-like', 'oyster-knife', 'pinched ways', and several dialect forms unexplained for the B1 reader.
-- c31 / gpt-6.1-sol, by gpt-6.1-sol: “Damn it” and “Damn these notes” strengthen Guppy's mild “dash” into stronger swearing.
-- c31 / gpt-6.1-sol, by gpt-6.1-sol: “No one would have paid anything” muddles the narrator's threat that Guppy would scarcely survive another minute.
-- c31 / gpt-6.1-sol, by gpt-6.1-sol: “Put myself entirely in your ladyship's hands” remains an unexplained idiom.
-- c31 / gpt-6-astra, by gpt-6.1-sol: “A few points” changes the stated “one or two.”
-- c31 / gpt-6-astra, by gpt-6.1-sol: “Perhaps your ladyship” weakens Guppy's assertion, “I think your ladyship.”
-- c31 / gpt-6-astra, by gpt-6.1-sol: “Damn it” and “Damn these notes” strengthen the original mild swearing.
-- c31 / gpt-6-astra, by gpt-6.1-sol: The warning about Guppy's safety drops the original image of his life's purchase value.
-- c31 / gpt-6-astra, by gpt-6.1-sol: “Knocked me over,” “in your ladyship's hands,” and “I dare say” remain unexplained idioms.
-- c31 / fable-5.1, by gpt-6.1-sol: “My 'art” leaves the meaning of “heart” inaccessible to an independent B1 reader.
-- c31 / fable-5.1, by gpt-6.1-sol: “Would not have been worth a minute's purchase” retains the original difficult idiom without making its meaning accessible.
-- c31 / fable-5.1, by gpt-6.1-sol: “Dash it,” “taken the liberty,” “within call,” and “I see my way” retain difficult expressions.
-- c31 / fable-5.1, by gpt-6.1-sol: “Did your ladyship notice that” slightly presupposes the resemblance that Guppy originally asks her to consider.
-- c31 / opus-5.5, by gpt-6.1-sol: “Castles” loses the defensive force of “strongholds.”
-- c31 / opus-5.5, by gpt-6.1-sol: The extra sentence about living another minute explains the narrator's image instead of simply recasting it.
-- c31 / opus-5.5, by gpt-6.1-sol: “You was” retains nonstandard grammar without helping the learner interpret it.
-- c31 / opus-5.5, by gpt-6.1-sol: “Dash it,” “knocked me over,” “I dare say,” and “I see my way” remain unexplained expressions.
-- c47 / gpt-6-astra, by gpt-6.1-sol: Adds an explanation of the catechism while also retaining its quoted wording.
-- c47 / gpt-6-astra, by gpt-6.1-sol: Adds 'watching him' to explain the image of being at Vholes's back.
-- c47 / opus-5.5, by gpt-6.1-sol: 'Full strength of his youth' introduces physical strength where the source describes youth in its fullness.
-- c47 / opus-5.5, by gpt-6.1-sol: Leaves 'catechism' and 'right there behind him' insufficiently accessible for an independent B1 reader.
-- c47 / fable-5.1, by gpt-6.1-sol: 'Worn and tired' loses the visibly gaunt appearance conveyed by 'haggard.'
-- c47 / fable-5.1, by gpt-6.1-sol: 'Full strength' introduces physical strength absent from the source.
-- c47 / fable-5.1, by gpt-6.1-sol: Replaces selling his officer's position with merely giving up his place in the army.
-- c47 / fable-5.1, by gpt-6.1-sol: Adds an explanatory gloss after 'selling out' while leaving 'smooth things over' unexplained.
-- c47 / fable-5.1, by gpt-6.1-sol: Leaves 'catechism' and 'right there behind him' insufficiently accessible for an independent B1 reader.
-- c47 / gpt-6.1-sol, by gpt-6.1-sol: Adds that Richard looks ill, which the source does not state.
-- c47 / gpt-6.1-sol, by gpt-6.1-sol: Loses the emphasis on Richard being in the fullness of his youth.
-- c47 / gpt-6.1-sol, by gpt-6.1-sol: Adds a separate explanatory sentence identifying the religious source of the authority phrase.
-- c39 / fable-5.1, by gpt-6.1-sol: Adds an explanatory gloss to 'suitors': 'who are waiting on the court.'
-- c39 / fable-5.1, by gpt-6.1-sol: 'I needed' shifts Richard's current need for comfort into the past.
-- c39 / gpt-6.1-sol, by gpt-6.1-sol: 'Making any firm decision' narrows 'doing anything very definite' from action to decision.
-- c39 / gpt-6.1-sol, by gpt-6.1-sol: 'Changed me a little for the worse' drops the image of being twisted.
-- c39 / gpt-6.1-sol, by gpt-6.1-sol: 'Harms something good in everybody' replaces the image of contamination with an explanation.
-- c39 / opus-5.5, by gpt-6.1-sol: 'All night' adds a duration the source does not specify.
-- c39 / opus-5.5, by gpt-6.1-sol: Adds 'strange' to the attraction.
-- c39 / opus-5.5, by gpt-6.1-sol: Adds explanatory glosses for 'suitors' and 'interested party.'
-- c39 / opus-5.5, by gpt-6.1-sol: 'Whisper' specifies a manner of speaking absent from the source.
-- c39 / opus-5.5, by gpt-6.1-sol: 'I needed' shifts Richard's current need for comfort into the past.
-- c39 / gpt-6-astra, by gpt-6.1-sol: 'Shocks' misrepresents the discord conveyed by 'jar.'
-- c39 / gpt-6-astra, by gpt-6.1-sol: 'Making any firm plans' narrows 'doing anything very definite.'
-- c39 / gpt-6-astra, by gpt-6.1-sol: Drops 'from top to bottom' from the house image.
-- c39 / gpt-6-astra, by gpt-6.1-sol: 'Most of what I have to say' changes the central subject into a proportion of the conversation.
-- c39 / gpt-6-astra, by gpt-6.1-sol: 'Whisper' specifies a manner of speaking absent from the source.
-- c39 / gpt-6-astra, by gpt-6.1-sol: 'Unkind' loses the selfish or ungenerous sense of 'mean.'
-- c39 / gpt-6-astra, by gpt-6.1-sol: 'Should not be so ready to suspect' adds readiness rather than describing suspicion and distrust as poor qualities.
-- c55 / opus-5.5, by gpt-6.1-sol: “Often” weakens “constantly” sitting at his table.
-- c55 / opus-5.5, by gpt-6.1-sol: “Richer than he was” invents a comparison with his actual wealth.
-- c55 / opus-5.5, by gpt-6.1-sol: “A three-cornered hat” adds an explanatory gloss.
-- c55 / opus-5.5, by gpt-6.1-sol: The cousin’s first reference to execution becomes specifically hanging.
-- c55 / opus-5.5, by gpt-6.1-sol: “Ain’t” and “bring into the light” leave difficult language unsimplified.
-- c55 / gpt-6.1-sol, by gpt-6.1-sol: “Often” weakens “constantly” sitting at his table.
-- c55 / gpt-6.1-sol, by gpt-6.1-sol: “Most trusted” shifts “trustiest” from trustworthiness to others’ trust.
-- c55 / gpt-6-astra, by gpt-6.1-sol: “Often” weakens “constantly” sitting at his table.
-- c55 / gpt-6-astra, by gpt-6.1-sol: Bucket watching him closely replaces a glance with sustained observation.
-- c55 / fable-5.1, by gpt-6.1-sol: “Shameless” loses the daring conveyed by “audacious”.
-- c55 / fable-5.1, by gpt-6.1-sol: “People who helped him” adds an explanatory gloss.
-- c55 / fable-5.1, by gpt-6.1-sol: “Tired” adds a condition not specified by “debilitated”.
-- c55 / fable-5.1, by gpt-6.1-sol: The cousin’s complete sentences reduce the original’s fragmented voice.
-- c55 / fable-5.1, by gpt-6.1-sol: “Cocked hat”, “ain’t” and “bring ... to light” remain difficult for an independent B1 reader.
-- c63 / opus-5.5, by gpt-6.1-sol: Adds an explicit definition of a bribe.
-- c63 / opus-5.5, by gpt-6.1-sol: Adds explanatory glosses for philosophy, prejudices and lynx.
-- c63 / opus-5.5, by gpt-6.1-sol: Leaves 'because I want it myself' ambiguous: here 'want' means lack the faith, not desire it.
-- c63 / opus-5.5, by gpt-6.1-sol: Adds 'in the world' to the claim about holding things together.
-- c63 / gpt-6.1-sol, by gpt-6.1-sol: Narrows 'moral obligations' to 'duties to others'.
-- c63 / gpt-6.1-sol, by gpt-6.1-sol: Breaking the cumulative nursery-rhyme sentences into separate statements weakens the repeated image and comic rhythm.
-- c63 / fable-5.1, by gpt-6.1-sol: Changes specially directed energy into 'a very special kind of energy'.
-- c63 / fable-5.1, by gpt-6.1-sol: Leaves 'because I want it myself' ambiguous: here 'want' means lack the faith, not desire it.
-- c63 / fable-5.1, by gpt-6.1-sol: Adds explanatory glosses for 'paralyse' and 'the knowing man'.
-- c63 / fable-5.1, by gpt-6.1-sol: Adds 'calmly and wisely' as an interpretation of acting with philosophy.
-- c63 / gpt-6-astra, by gpt-6.1-sol: Replacing 'I can't be bribed' makes the following 'Not by Mr. Bucket?' grammatically disconnected.
-- c63 / gpt-6-astra, by gpt-6.1-sol: Changes being above suspicion into being beyond any reason for doubt.
-- c63 / gpt-6-astra, by gpt-6.1-sol: Adds a definition of lynx and an explanation of its being tamed.
-- c63 / gpt-6-astra, by gpt-6.1-sol: Changes comfortable revenge into saving the victims the trouble of punishing their murderers.
-- c63 / gpt-6-astra, by gpt-6.1-sol: Narrows the next 'detective operation' to investigating a crime.
-- c63 / gpt-6-astra, by gpt-6.1-sol: Breaking the cumulative nursery-rhyme sentences weakens their comic rhythm.
-- c15 / fable-5.1, by gpt-6-astra: Changes Mr. Badger's confident tone into the sharing of private information.
-- c15 / fable-5.1, by gpt-6-astra: Changes wanting to have seen Captain Swosser into wanting to have met him.
-- c15 / fable-5.1, by gpt-6-astra: Calls the meal 'polite', an awkward and inaccurate rendering of 'genteel'.
-- c15 / fable-5.1, by gpt-6-astra: Adds an explanation identifying claret as red wine.
-- c15 / fable-5.1, by gpt-6-astra: Leaves 'goblet', 'first-rate' and 'your health' insufficiently accessible for an independent B1 reader.
-- c15 / gpt-6-astra, by gpt-6-astra: Adds an explanation identifying claret as red wine.
-- c15 / gpt-6-astra, by gpt-6-astra: Turns the description implicit in 'goblet' into an added instruction to James: 'the one with the stem'.
-- c15 / opus-5.5, by gpt-6-astra: Changes Mr. Badger's confident tone into the telling of a secret.
-- c15 / opus-5.5, by gpt-6-astra: Adds 'above all others', making Swosser superior to everyone rather than an outstanding example.
-- c15 / opus-5.5, by gpt-6-astra: Adds 'fashionable' to the description of the dinner.
-- c15 / opus-5.5, by gpt-6-astra: Adds an explanation identifying claret as red wine.
-- c15 / opus-5.5, by gpt-6-astra: Leaves 'African Station', 'goblet', 'your health' and 'I should like to have seen' insufficiently accessible for B1.
-- c15 / gpt-6.1-sol, by gpt-6-astra: Replaces the narrator's ironic 'full benefit' with the flatter 'heard all about them'.
-- c15 / gpt-6.1-sol, by gpt-6-astra: Adds an explanation identifying claret as red wine.
-- c15 / gpt-6.1-sol, by gpt-6-astra: Leaves 'African Station' and 'I should like to have seen' insufficiently accessible for B1.
-- c7 / gpt-6.1-sol, by gpt-6-astra: “Unable to look away” strengthens the claim that Ada briefly holds the old lady's wandering attention.
-- c7 / gpt-6.1-sol, by gpt-6-astra: The separate sentence beginning “Usually” adds an explanatory generalization.
-- c7 / gpt-6.1-sol, by gpt-6-astra: “Given ... these names” drops the christening image.
-- c7 / gpt-6.1-sol, by gpt-6-astra: “Everything that comes into my net is useful” preserves the net but drops the fish image.
-- c7 / gpt-6.1-sol, by gpt-6-astra: “Keep digging away in a muddle” leaves the closing figurative expression difficult for B1 readers.
-- c7 / gpt-6.1-sol, by gpt-6-astra: The unfinished “M—!” remains opaque for an independent B1 reader.
-- c7 / fable-5.1, by gpt-6-astra: “Surprised” weakens Ada's being startled.
-- c7 / fable-5.1, by gpt-6-astra: “Without taking such a freedom” leaves Richard's objection in an obscure expression.
-- c7 / fable-5.1, by gpt-6-astra: “Given ... a name” drops the christening image.
-- c7 / fable-5.1, by gpt-6-astra: “I take anything that comes my way” drops the fish-and-net image.
-- c7 / fable-5.1, by gpt-6-astra: “Par्चments,” “noble and learned,” and “dig on in a mess” leave substantial vocabulary or figurative-language obstacles.
-- c7 / fable-5.1, by gpt-6-astra: The unfinished “M—!” remains opaque for an independent B1 reader.
-- c7 / opus-5.5, by gpt-6-astra: “Her room” narrows “her apartment” to a single room.
-- c7 / opus-5.5, by gpt-6-astra: “Very grandly and seriously” adds seriousness to the old lady's stateliness.
-- c7 / opus-5.5, by gpt-6-astra: “You don't need to touch it so freely” weakens Richard's firm objection into a statement about necessity.
-- c7 / opus-5.5, by gpt-6-astra: “I take anything that comes my way” drops the fish-and-net image.
-- c7 / opus-5.5, by gpt-6-astra: “Par्चmentses” retains a difficult word in a nonstandard form.
-- c7 / opus-5.5, by gpt-6-astra: “Pretty well every day,” “sits in the Inn,” and “digging away in a muddle” remain insufficiently accessible.
-- c7 / opus-5.5, by gpt-6-astra: “He don't” retains nonstandard grammar that complicates independent B1 reading.
-- c7 / opus-5.5, by gpt-6-astra: The unfinished “M—!” remains opaque for an independent B1 reader.
-- c7 / gpt-6-astra, by gpt-6-astra: “Surprised” weakens Ada's being startled.
-- c7 / gpt-6-astra, by gpt-6-astra: “Unable to look away” strengthens the claim that Ada briefly holds the old lady's attention.
-- c7 / gpt-6-astra, by gpt-6-astra: The separate sentence beginning “Usually” adds an explanatory generalization.
-- c7 / gpt-6-astra, by gpt-6-astra: “Seemed to shrink back” introduces uncertainty absent from Krook's actual return to his former self.
-- c7 / gpt-6-astra, by gpt-6-astra: “Given these names” drops the christening image.
-- c7 / gpt-6-astra, by gpt-6-astra: “Any fish ... is welcome” retains the image but loses the explicit sense that everything acquired counts as useful.
-- c7 / gpt-6-astra, by gpt-6-astra: “Great and learned man” loses the noble rank in Krook's mock-grand description of his “brother.”
-- c7 / gpt-6-astra, by gpt-6-astra: “Keep digging away in a mess” leaves the closing figurative expression difficult for B1 readers.
-- c7 / gpt-6-astra, by gpt-6-astra: The unfinished “M—!” remains opaque for an independent B1 reader.
-- c23 / gpt-6-astra, by gpt-6-astra: Adds explanations identifying Druids as ancient priests and explaining the purpose of spurs.
-- c23 / gpt-6-astra, by gpt-6-astra: “Fairly well” makes George's “Middling” response slightly more positive.
-- c23 / gpt-6-astra, by gpt-6-astra: “Fully grown” loses the emphasis on George's physical development in “developed figure.”
-- c23 / gpt-6-astra, by gpt-6-astra: “Devilishly” and “back-kitchen” remain difficult vocabulary for an independent B1 reader.
-- c23 / opus-5.5, by gpt-6-astra: “Agree with” changes Charley's difficulty satisfying Miss Smallweed into difficulty sharing her opinions.
-- c23 / opus-5.5, by gpt-6-astra: “Nobody announces him” loses the qualification “Without other announcement.”
-- c23 / opus-5.5, by gpt-6-astra: Adds short hair and slow walking; neither is specified.
-- c23 / opus-5.5, by gpt-6-astra: “Uniform or military equipment” narrows the source's unspecified clothes or equipment.
-- c23 / opus-5.5, by gpt-6-astra: “A house so unlike him” replaces the contrast with its household.
-- c23 / opus-5.5, by gpt-6-astra: “Swallow up” changes the image of absorbing the family into himself.
-- c23 / opus-5.5, by gpt-6-astra: Leaves “Druidical ruins,” “spurs,” “broadsword,” “oyster-knife,” and several dialect forms insufficiently accessible for B1.
-- c23 / fable-5.1, by gpt-6-astra: Identifies the unspecified ruins as bread and butter and adds speed as the reason for the reprimand.
-- c23 / fable-5.1, by gpt-6-astra: “Answer Miss Smallweed's views” changes the difficulty of satisfying her expectations.
-- c23 / fable-5.1, by gpt-6-astra: “Nobody announces him” loses the qualification “Without other announcement.”
-- c23 / fable-5.1, by gpt-6-astra: “That last word” incorrectly locates George's emphasis on “sister” rather than “devilish.”
-- c23 / fable-5.1, by gpt-6-astra: Adds short hair and narrows the unspecified clothing to a uniform.
-- c23 / fable-5.1, by gpt-6-astra: “Swallow up” changes the image of absorbing the family into himself.
-- c23 / fable-5.1, by gpt-6-astra: Adds an explanatory definition of circulation to Grandfather Smallweed's dialogue.
-- c23 / fable-5.1, by gpt-6-astra: “Clean-shaved” is an awkward replacement for “close-shaved”; “clean-shaven” is the usual form.
-- c23 / fable-5.1, by gpt-6-astra: Retains substantial B1 obstacles, including dialect spellings, “Druid-like,” “spurs,” “oyster-knife,” and “pinched ways.”
-- c23 / gpt-6.1-sol, by gpt-6-astra: Adds explanations identifying Druids as ancient priests and defining spurs.
-- c23 / gpt-6.1-sol, by gpt-6-astra: “Fairly well” makes George's “Middling” response slightly more positive.
-- c23 / gpt-6.1-sol, by gpt-6-astra: “Grand” introduces an implication of impressiveness or dignity into George's expansive manner.
-- c23 / gpt-6.1-sol, by gpt-6-astra: The final question loses the repeated “rub” that gives the original its pointed humour.
-- c23 / gpt-6.1-sol, by gpt-6-astra: “Devilishly” remains difficult vocabulary for an independent B1 reader.
-- c31 / gpt-6.1-sol, by gpt-6-astra: “No one would have paid anything” misreads the threatened-life idiom as a statement about payment.
-- c31 / gpt-6.1-sol, by gpt-6-astra: “Damn” strengthens Guppy's mild “dash” in both places.
-- c31 / gpt-6.1-sol, by gpt-6-astra: “Taken the freedom of looking” is an unnatural replacement for “taken the liberty of looking.”
-- c31 / gpt-6.1-sol, by gpt-6-astra: “I dare say” remains an unexplained idiom.
-- c31 / gpt-6-astra, by gpt-6-astra: “Damn” strengthens Guppy's mild “dash” in both places.
-- c31 / gpt-6-astra, by gpt-6-astra: “Perhaps” softens Guppy's stated belief that she hardly remembers Esther's face.
-- c31 / gpt-6-astra, by gpt-6-astra: “Knocked me over” remains unexplained and may suggest a physical fall.
-- c31 / fable-5.1, by gpt-6-astra: “Did your ladyship notice” presupposes a resemblance more strongly than the original question.
-- c31 / fable-5.1, by gpt-6-astra: “My 'art” leaves the dialect pronunciation of “heart” unclear for an independent B1 reader.
-- c31 / fable-5.1, by gpt-6-astra: “Worth a minute's purchase” preserves an opaque historical idiom.
-- c31 / fable-5.1, by gpt-6-astra: “Dash it,” “knocked me over,” “taken the liberty,” and “I dare say” remain unexplained idioms.
-- c31 / fable-5.1, by gpt-6-astra: “Her steady gaze never wavers” retains unnecessarily difficult vocabulary.
-- c31 / opus-5.5, by gpt-6-astra: The life-threat passage adds a separate explanatory sentence after paraphrasing the original image.
-- c31 / opus-5.5, by gpt-6-astra: “Dash it,” “knocked me over,” and “I dare say” remain unexplained idioms.
-- c31 / opus-5.5, by gpt-6-astra: “You was” preserves nonstandard grammar that may confuse a B1 reader.
-- c31 / opus-5.5, by gpt-6-astra: The opening quotation mark before “I think your ladyship” is missing.
-- c39 / gpt-6-astra, by gpt-6-astra: “Making any firm plans” narrows “doing anything very definite” to planning.
-- c39 / gpt-6-astra, by gpt-6-astra: “Shocks” misrepresents the jarring discord of lawsuits.
-- c39 / gpt-6-astra, by gpt-6-astra: “Whisper” adds a manner of speaking absent from “breathe” here.
-- c39 / opus-5.5, by gpt-6-astra: Adds explanatory glosses after both “suitors” and “interested party.”
-- c39 / opus-5.5, by gpt-6-astra: “Strange attraction” adds a judgment absent from the source.
-- c39 / opus-5.5, by gpt-6-astra: “More awake than usual all night” adds an explicit duration.
-- c39 / opus-5.5, by gpt-6-astra: “Whisper” adds a manner of speaking absent from “breathe” here.
-- c39 / opus-5.5, by gpt-6-astra: “Spoils everybody” loses the image of contamination in “taints everybody.”
-- c39 / fable-5.1, by gpt-6-astra: “Suitors, who are waiting on the court” adds an explanation without clearly conveying that they are parties to lawsuits.
-- c39 / fable-5.1, by gpt-6-astra: “Spoils everybody” loses the image of contamination in “taints everybody.”
-- c39 / gpt-6.1-sol, by gpt-6-astra: “Making any firm decision about what to do” narrows definite action to decision-making.
-- c39 / gpt-6.1-sol, by gpt-6-astra: “The court case” narrows Richard’s general statement about suitors to this particular case.
-- c39 / gpt-6.1-sol, by gpt-6-astra: The sleeping woods lose their explicit silence.
-- c39 / gpt-6.1-sol, by gpt-6-astra: “My criticism had hurt that generous part of him” explains the narrator’s inference and weakens the sense of inward self-reproach.
-- c39 / gpt-6.1-sol, by gpt-6-astra: “Changed me a little for the worse” removes the image of a twisted character.
-- c39 / gpt-6.1-sol, by gpt-6-astra: “Harms something good in everybody” replaces the image of contamination with an explanation.
-- c47 / opus-5.5, by gpt-6-astra: “In the full strength of his youth” adds physical strength; the source stresses youth despite his exhausted appearance.
-- c47 / opus-5.5, by gpt-6-astra: “Going away on leave today” changes being already on leave into a planned departure on leave.
-- c47 / opus-5.5, by gpt-6-astra: “I know that thing too well” adds an emphasis absent from “with my experience.”
-- c47 / opus-5.5, by gpt-6-astra: “Catechism” remains unexplained vocabulary beyond the intended reading level.
-- c47 / fable-5.1, by gpt-6-astra: “Full strength” adds physical strength not stated in the source.
-- c47 / fable-5.1, by gpt-6-astra: “Worn and tired” loses the visibly drawn appearance conveyed by “haggard.”
-- c47 / fable-5.1, by gpt-6-astra: The added gloss “giving up my place in the army” fails to convey that selling out means selling his officer’s position.
-- c47 / fable-5.1, by gpt-6-astra: “Smooth things over,” “selling out,” and “catechism” remain obstacles for an independent B1 reader.
-- c47 / gpt-6.1-sol, by gpt-6-astra: “Still young and handsome” drops the emphasis on being in the fullness of youth.
-- c47 / gpt-6.1-sol, by gpt-6-astra: “That phrase about authority comes from the book of religious questions and answers” turns Richard’s passing allusion into an explicit explanatory aside.
-- c55 / fable-5.1, by gpt-6-astra: “Shameless” loses the boldness conveyed by “audacious”.
-- c55 / fable-5.1, by gpt-6-astra: “People who helped him” adds an explanatory gloss after “accomplices”.
-- c55 / fable-5.1, by gpt-6-astra: “Tired” adds a condition not specified by “debilitated”.
-- c55 / fable-5.1, by gpt-6-astra: Leaves difficult expressions such as “bring ... to light”, “wear off”, and “ain't” unadapted.
-- c55 / opus-5.5, by gpt-6-astra: “Often” weakens “constantly”.
-- c55 / opus-5.5, by gpt-6-astra: “Richer than he was” replaces the comparison with his modest appearance with a claim about his actual wealth.
-- c55 / opus-5.5, by gpt-6-astra: “Protest” misleadingly suggests an objection rather than a solemn declaration.
-- c55 / opus-5.5, by gpt-6-astra: “A three-cornered hat” adds an explanatory gloss after “cocked hat”.
-- c55 / opus-5.5, by gpt-6-astra: “Hanged” narrows the cousin's initial wish for execution to a specific method.
-- c55 / opus-5.5, by gpt-6-astra: Leaves difficult expressions such as “wear off”, “accomplices”, and “ain't” unadapted.
-- c55 / gpt-6.1-sol, by gpt-6-astra: “Often” weakens “constantly”.
-- c55 / gpt-6.1-sol, by gpt-6-astra: Omits “first” from the possibility that the house connection initially marked him as a target.
-- c55 / gpt-6.1-sol, by gpt-6-astra: “Most trusted” describes others' confidence in him rather than his trustworthiness.
-- c55 / gpt-6.1-sol, by gpt-6-astra: “A shocking lack of fear” awkwardly shifts “audacious” from outrageous boldness towards fearlessness.
-- c55 / gpt-6-astra, by gpt-6-astra: “Often” weakens “constantly”.
-- c55 / gpt-6-astra, by gpt-6-astra: “Watches him closely” changes Bucket's brief, observant glance into sustained attention.
-- c63 / opus-5.5, by gpt-6-astra: Adds explanatory glosses for 'bribe', 'philosophy', 'prejudices' and 'lynx'.
-- c63 / opus-5.5, by gpt-6-astra: Leaves 'because I want it myself' unchanged: here 'want' means lack, which a B1 reader would likely misunderstand.
-- c63 / opus-5.5, by gpt-6-astra: Retains difficult expressions such as 'above suspicion', 'qualified' concepts of faith, and 'act with philosophy' rather than consistently simplifying the language.
-- c63 / opus-5.5, by gpt-6-astra: Leaves the Cæsar's wife and house-that-Jack-built allusions opaque.
-- c63 / gpt-6-astra, by gpt-6-astra: Adds the explanatory identification of a lynx as 'a wild cat'.
-- c63 / gpt-6-astra, by gpt-6-astra: 'Not by Mr. Bucket?' no longer fits grammatically after 'No one can pay me to do something wrong.'
-- c63 / gpt-6-astra, by gpt-6-astra: 'Beyond any reason for doubt' makes suspicion of wrongdoing less specific.
-- c63 / gpt-6-astra, by gpt-6-astra: Leaves the Cæsar's wife and house-that-Jack-built allusions opaque.
-- c63 / fable-5.1, by gpt-6-astra: Leaves 'because I want it myself' unchanged, obscuring the intended meaning 'because I lack that faith'.
-- c63 / fable-5.1, by gpt-6-astra: 'A very special kind of energy' loses the idea that Bucket's energy is directed towards a particular purpose.
-- c63 / fable-5.1, by gpt-6-astra: Adds explanatory restatements after 'paralyse' and 'the knowing man'.
-- c63 / fable-5.1, by gpt-6-astra: 'He comfortably takes revenge' shifts the comfort towards Bucket rather than those he avenges.
-- c63 / fable-5.1, by gpt-6-astra: Retains difficult language including 'even-handed', 'tamed lynx' and 'expressly', alongside opaque literary allusions.
-- c63 / gpt-6.1-sol, by gpt-6-astra: 'Duties to others' narrows the source's broader 'moral obligations'.
-- c63 / gpt-6.1-sol, by gpt-6-astra: Turns the narrator's gently stated moral principle about betraying trust into a more direct accusation of completed wrongdoing.
-- c63 / gpt-6.1-sol, by gpt-6-astra: Breaks the cumulative house-that-Jack-built sentences into separate statements, weakening the nursery-rhyme imitation.
-- c63 / gpt-6.1-sol, by gpt-6-astra: 'This matters' weakens Skimpole's claim that thinking well of Bucket is essential.
-- c63 / gpt-6.1-sol, by gpt-6-astra: Leaves 'lynx', 'beyond suspicion' and both literary allusions difficult for an independent B1 reader.
+- c23 / gpt-6-astra, by opus-5.5: added explanation: 'the Druids, ancient priests'
+- c23 / gpt-6-astra, by opus-5.5: the ruins are never identified as the bread and butter
+- c23 / gpt-6-astra, by opus-5.5: added explanation of spurs: 'metal points riders wear on their boots to urge horses on'
+- c23 / gpt-6-astra, by opus-5.5: 'The object of Miss Smallweed's attention' leaves a phrase B1 readers will not know
+- c23 / gpt-6-astra, by opus-5.5: 'take the whole family into his own body' is clumsy and flattens 'absorb'
+- c23 / gemini-4-carbon-low, by opus-5.5: invented image: 'like boats into a falling tide'
+- c23 / gemini-4-carbon-low, by opus-5.5: 'terribly like' weakens 'devilish'
+- c23 / gemini-4-carbon-low, by opus-5.5: 'that last describing word' is awkward
+- c23 / gemini-4-carbon-low, by opus-5.5: 'military equipment' adds 'military'
+- c23 / gemini-4-carbon-medium, by opus-5.5: 'Druidical ruins' is left unexplained and unclear for B1
+- c23 / gemini-4-carbon-medium, by opus-5.5: 'The object of her attention' leaves a phrase B1 readers will not know
+- c23 / gemini-4-carbon-medium, by opus-5.5: 'Without it, Charley might have...' is an awkward reordering
+- c23 / gpt-6.1-sol, by opus-5.5: added explanation: 'the Druids, ancient priests'
+- c23 / gpt-6.1-sol, by opus-5.5: added explanation of spurs: 'the metal points riders wear on their boots'
+- c23 / gpt-6.1-sol, by opus-5.5: 'The object of Miss Smallweed's attention' leaves a phrase B1 readers will not know
+- c23 / gpt-6.1-sol, by opus-5.5: 'The tea is like a tide flowing out' makes the image unclear
+- c23 / gpt-6.1-sol, by opus-5.5: 'grand' changes the meaning of 'large manner'
+- c23 / gpt-6.1-sol, by opus-5.5: 'Perhaps you do right' keeps an old-fashioned phrase
+- c23 / opus-5.5, by opus-5.5: 'Druidical ruins' is left unexplained, in quotation marks
+- c23 / opus-5.5, by opus-5.5: 'Then Miss Smallweed tells her' loses the cause-and-effect link
+- c23 / opus-5.5, by opus-5.5: 'short and stiff' hair mistranslates 'crisp' (tightly curled)
+- c23 / opus-5.5, by opus-5.5: added explanation: 'a soldier on horseback' after 'trooper'
+- c23 / opus-5.5, by opus-5.5: keeps the old-fashioned 'asks of'
+- c31 / gemini-4-carbon-low, by opus-5.5: Adds 'in their cage' to the love-birds, which the source does not say.
+- c31 / gemini-4-carbon-low, by opus-5.5: Adds 'A short time ago' to the Lincolnshire trip; the source gives no time.
+- c31 / gemini-4-carbon-low, by opus-5.5: Changes Guppy's repeated 'your ladyship' to 'my Lady', which weakens his fawning way of speaking.
+- c31 / gemini-4-carbon-medium, by opus-5.5: Adds 'clumsily' to the love-bird stumble.
+- c31 / gemini-4-carbon-medium, by opus-5.5: Adds 'trusting you to keep it secret', which spells out more than 'in confidence' says.
+- c31 / gemini-4-carbon-medium, by opus-5.5: 'his liking for noticing how people look alike' is clumsy for 'taste for likenesses'.
+- c31 / gemini-4-carbon-medium, by opus-5.5: 'Ready whenever they called, they had servants' is a misplaced modifier and hard to parse.
+- c31 / gemini-4-carbon-medium, by opus-5.5: Keeps the bare 'Mr. Guppy does so', which is unclear without context.
+- c31 / gpt-6-astra, by opus-5.5: 'damn it' / 'Damn these notes' is stronger and coarser than the mild 'dash it'.
+- c31 / gpt-6-astra, by opus-5.5: Keeps the bare 'Mr. Guppy does so', which is unclear without context.
+- c31 / gpt-6-astra, by opus-5.5: 'You really do look even more surprisingly like her' is a clumsy rendering of 'more surprising than I thought'.
+- c31 / fable-5.1, by opus-5.5: Keeps the idiom 'not worth a minute's purchase', which a B1 reader won't know.
+- c31 / fable-5.1, by opus-5.5: Keeps the dialect spelling 'art (for heart) without making it clear to a B1 reader.
+- c31 / fable-5.1, by opus-5.5: Keeps the archaic 'Thank your ladyship' and the idiom 'I see my way now, right on'.
+- c31 / fable-5.1, by opus-5.5: 'Now that I see you' repeats the line just before it.
+- c31 / gpt-6.1-sol, by opus-5.5: 'Mr. Guppy thanks her' misreads 'does so': Guppy sits down, he doesn't thank her again.
+- c31 / gpt-6.1-sol, by opus-5.5: 'damn it' / 'Damn these notes' is too coarse for 'dash it'.
+- c31 / gpt-6.1-sol, by opus-5.5: 'no one would have paid anything for your poor life, even for a minute' is an awkward and unclear version of the idiom.
+- c31 / gpt-6.1-sol, by opus-5.5: 'taken the freedom' is an unnatural phrase.
+- c31 / opus-5.5, by opus-5.5: Keeps the source's missing opening quotation mark at 'I think your ladyship'.
+- c31 / opus-5.5, by opus-5.5: Keeps the ungrammatical 'you was not aware of me' without help for a B1 reader.
+- c31 / opus-5.5, by opus-5.5: Keeps archaic wording: 'Thank your ladyship', 'O yes!', 'A—stop a minute', 'I see my way now, right on'.
+- c31 / opus-5.5, by opus-5.5: Adds an explanation the source doesn't give: 'You could not have been sure of living even one more minute.'
+- c31 / opus-5.5, by opus-5.5: Keeps the bare 'Mr. Guppy does so', which is unclear without context.
+- c39 / opus-5.5, by opus-5.5: Adds 'strange' to the attraction Esther's friend talked about.
+- c39 / opus-5.5, by opus-5.5: Adds an explanation after 'interested party' ('He has something to gain or lose in the case himself').
+- c39 / opus-5.5, by opus-5.5: 'It was not I' is tacked on after 'Someone else once warned you', which repeats the point.
+- c39 / fable-5.1, by opus-5.5: 'his naturally generous nature' is a clumsy repetition.
+- c39 / fable-5.1, by opus-5.5: Keeps the hard word 'suitors' and adds the gloss 'who are waiting on the court'.
+- c39 / gpt-6-astra, by opus-5.5: 'Shocks and quarrels' is a poor choice for 'jar and discord'.
+- c39 / gpt-6-astra, by opus-5.5: Drops 'from top to bottom' from the unfinished-house image.
+- c39 / gpt-6-astra, by opus-5.5: Uses 'not an unkind man' for 'not a mean fellow', which shifts the sense a little.
+- c39 / gpt-6.1-sol, by opus-5.5: 'A faint sign of that unfortunate man' does not say it was in his look.
+- c39 / gpt-6.1-sol, by opus-5.5: Adds 'selfish' to 'not an unkind fellow'.
+- c39 / gpt-6.1-sol, by opus-5.5: 'Angry arguments and disagreements' says the same thing twice.
+- c39 / gemini-4-carbon-low, by opus-5.5: Adds an explanation of the friend's idea ('how the lawsuit pulls people in').
+- c39 / gemini-4-carbon-low, by opus-5.5: 'At least be fair with me' turns Richard's statement into an order.
+- c39 / gemini-4-carbon-low, by opus-5.5: 'Come on, sister, come on' sounds too modern.
+- c39 / gemini-4-carbon-low, by opus-5.5: 'It may suit him very well to want me to know nothing' is awkward.
+- c39 / gemini-4-carbon-low, by opus-5.5: 'Honest man of honour' says the same thing twice.
+- c39 / gemini-4-carbon-low, by opus-5.5: 'I know completely' is unnatural.
+- c39 / gemini-4-carbon-medium, by opus-5.5: The Nature sentence is garbled ('That seemed true through all the tiny details... for the grand beauty of that day').
+- c39 / gemini-4-carbon-medium, by opus-5.5: Adds an explanation of 'interested party' ('one of the people in the court case, with his own interests in it').
+- c39 / gemini-4-carbon-medium, by opus-5.5: The question 'How can you ever have done all that, and still say even a word' is heavy and confusing.
+- c47 / gemini-4-carbon-medium, by opus-5.5: 'the church book of teachings' is a slightly clumsy stand-in for 'catechism'
+- c47 / opus-5.5, by opus-5.5: 'It is all over here' is kept word for word, so a B1 reader can easily take it to mean 'everywhere here' instead of 'everything is finished'
+- c47 / fable-5.1, by opus-5.5: Keeps 'catechism' with no explanation, which is above B1
+- c47 / fable-5.1, by opus-5.5: Keeps the idiom 'smooth things over' and the phrase 'selling out'
+- c47 / fable-5.1, by opus-5.5: 'It is all over here' is kept literally and is ambiguous for a B1 reader
+- c47 / fable-5.1, by opus-5.5: Keeps the stiff archaic phrasing 'It would be wisdom' and 'begs and prays'
+- c47 / gpt-6-astra, by opus-5.5: 'You may read it in the whole room. It is all over here' is kept literally and is ambiguous
+- c47 / gpt-6-astra, by opus-5.5: 'I cannot be free of that madness' changes 'can't be sane'
+- c47 / gpt-6-astra, by opus-5.5: Adds a gloss: 'as the religious question-and-answer book says'
+- c47 / gpt-6.1-sol, by opus-5.5: 'It is all around you here' misreads 'It is all over here', which means 'everything is finished'
+- c47 / gpt-6.1-sol, by opus-5.5: Adds an explanatory sentence: 'That phrase about authority comes from the book of religious questions and answers'
+- c47 / gemini-4-carbon-low, by opus-5.5: 'I should have left an hour ago' gets the time wrong; he would have left in another hour
+- c47 / gemini-4-carbon-low, by opus-5.5: 'this false hope of a career had not ended like a broken bubble' adds an explanation of the bubble image
+- c47 / gemini-4-carbon-low, by opus-5.5: 'People think it would be wise' adds an idea that is not in the original and weakens Richard's own irony
+- c47 / gemini-4-carbon-low, by opus-5.5: 'family money' and 'pay off my debts' are added details
+- c55 / fable-5.1, by opus-5.5: 'shameless crime' gets 'audacious' slightly wrong; the source means 'daring'.
+- c55 / fable-5.1, by opus-5.5: 'accomplices—people who helped him' adds a gloss that interrupts Volumnia's confused speech.
+- c55 / opus-5.5, by opus-5.5: 'made people think he was richer than he was' adds a claim that is not in the source.
+- c55 / opus-5.5, by opus-5.5: 'I will fail' changes the source's present-tense conditional into a future.
+- c55 / opus-5.5, by opus-5.5: 'often sat at my table' weakens 'constantly'.
+- c55 / opus-5.5, by opus-5.5: 'a cocked hat, a three-cornered hat' adds an explanation.
+- c55 / opus-5.5, by opus-5.5: 'weak, feeble cousin' says the same thing twice.
+- c55 / gpt-6-astra, by opus-5.5: 'gave ... to serving me' adds 'serving'.
+- c55 / gpt-6-astra, by opus-5.5: 'often ate at my table' weakens 'constantly sat'.
+- c55 / gpt-6-astra, by opus-5.5: 'satisfactory' drops 'to his', so Bucket's ominous 'to his satisfaction' is lost.
+- c55 / gpt-6-astra, by opus-5.5: The opening declaration is split and reordered, which weakens the build-up of the sentence.
+- c55 / gemini-4-carbon-low, by opus-5.5: 'Today's funeral ceremony' adds 'funeral' as an explanation.
+- c55 / gemini-4-carbon-low, by opus-5.5: 'if such a bold thought were even possible towards so grand a man' adds an explanation of the narrator's irony.
+- c55 / gemini-4-carbon-low, by opus-5.5: 'folds a letter into a three-cornered shape like a soldier's hat' adds a gloss.
+- c55 / gemini-4-carbon-low, by opus-5.5: 'her sensitive mind is completely certain it will never recover' loses the comic point that she has decided never to get over it.
+- c55 / gemini-4-carbon-low, by opus-5.5: 'she is upset forever' drops the image of her nerves being 'unstrung'.
+- c55 / gpt-6.1-sol, by opus-5.5: The hedge 'I cannot say but that' is dropped and replaced with plain 'He may have been'.
+- c55 / gpt-6.1-sol, by opus-5.5: 'This crime ... showed a shocking lack of fear' is an awkward rendering of 'audacious', and it splits off from 'aggravated the shock'.
+- c55 / gpt-6.1-sol, by opus-5.5: 'gave ... to serving me' adds 'serving'.
+- c55 / gpt-6.1-sol, by opus-5.5: 'often ate at my table' weakens 'constantly'.
+- c55 / gpt-6.1-sol, by opus-5.5: 'satisfactory' drops 'to his satisfaction'.
+- c55 / gemini-4-carbon-medium, by opus-5.5: The cousin's broken-off speech is turned into an explanatory comparison ('He compares getting a man hanged...').
+- c55 / gemini-4-carbon-medium, by opus-5.5: 'convict him, or whatever it is' and 'accomplices, or whatever...' keep the hard terms and add glosses on top of them.
+- c55 / gemini-4-carbon-medium, by opus-5.5: 'everything that has been followed and found out' is an awkward rendering of 'traced'.
+- c55 / gemini-4-carbon-medium, by opus-5.5: 'I fail to show firmly my respect' is clumsy wording.
+- c55 / gemini-4-carbon-medium, by opus-5.5: 'the three-cornered shape called a cocked hat ... whom people both respect and fear' adds explanations.
+- c63 / gemini-4-carbon-medium, by opus-5.5: 'comfortably gets revenge for us' keeps the literal wording, so a B1 reader may miss that it means 'with no trouble to us'
+- c63 / gpt-6.1-sol, by opus-5.5: The 'house that Jack built' passage is cut into separate repeated sentences, so the build-up of one growing sentence is lost
+- c63 / gpt-6.1-sol, by opus-5.5: 'Miss Summerson explains this case so clearly' drops 'as I understand the way she puts it', so Skimpole no longer sounds unsure
+- c63 / fable-5.1, by opus-5.5: 'because I want it myself' keeps the old meaning of 'want' (lack), so a B1 reader will read it as the opposite
+- c63 / fable-5.1, by opus-5.5: Adds explanations: 'leave him unable to act' and 'the one who understands these things'
+- c63 / fable-5.1, by opus-5.5: 'The boy being in bed' keeps a construction that is hard for a B1 reader
+- c63 / opus-5.5, by opus-5.5: 'because I want it myself' keeps the old meaning of 'want' (lack), so a B1 reader will read it as the opposite
+- c63 / opus-5.5, by opus-5.5: Adds a definition: 'a bribe, that is, money given to make someone do wrong'
+- c63 / opus-5.5, by opus-5.5: Adds explanations: 'Prejudices, or unfair fixed opinions' and 'a kind of wild cat'
+- c63 / gemini-4-carbon-low, by opus-5.5: 'punishes the killer for us in a way that comforts us' gets 'avenges us comfortably' wrong
+- c63 / gemini-4-carbon-low, by opus-5.5: Invents 'with sharp eyes' in the lynx image and turns the image into a comparison ('like a wild cat')
+- c63 / gemini-4-carbon-low, by opus-5.5: Adds the explanation 'the children's rhyme about the house that Jack built'
+- c63 / gemini-4-carbon-low, by opus-5.5: 'the man who understands the world' does not match 'the knowing man' in this situation
+- c63 / gpt-6-astra, by opus-5.5: 'No one can pay me to do something wrong' makes the next line, 'Not by Mr. Bucket?', not fit
+- c63 / gpt-6-astra, by opus-5.5: The 'house that Jack built' passage is confused by the added 'That is the boy...' sentences
+- c63 / gpt-6-astra, by opus-5.5: Adds an explanation of the lynx: 'a wild cat, that has been trained to live with people'
+- c63 / gpt-6-astra, by opus-5.5: 'saves us the trouble of punishing our murderers' drops the idea of revenge
+- c7 / gemini-4-carbon-medium, by gpt-6-astra: Adds an explanation of social condescension that makes the lady's attitude sound positively kind.
+- c7 / gemini-4-carbon-medium, by gpt-6-astra: “One long piece” is an inaccurate substitute for a lock of hair.
+- c7 / gemini-4-carbon-medium, by gpt-6-astra: Drops the christening image.
+- c7 / gemini-4-carbon-medium, by gpt-6-astra: Adds a glossary-style explanation of parchments.
+- c7 / gemini-4-carbon-medium, by gpt-6-astra: Explains the fishing metaphor through an added comparison.
+- c7 / gemini-4-carbon-medium, by gpt-6-astra: Adds “as judge” to the reference to sitting in the Inn.
+- c7 / fable-5.1, by gpt-6-astra: Adds softness as a specific quality of Ada's hair.
+- c7 / fable-5.1, by gpt-6-astra: Drops the christening image.
+- c7 / fable-5.1, by gpt-6-astra: Drops the fish-and-net image.
+- c7 / fable-5.1, by gpt-6-astra: Adds “as judge” to the reference to sitting in the Inn.
+- c7 / fable-5.1, by gpt-6-astra: “Without taking such a freedom” leaves the rebuke in difficult, unnatural idiomatic English.
+- c7 / gpt-6.1-sol, by gpt-6-astra: “Unable to look away” strengthens the claim that Ada holds the lady's attention.
+- c7 / gpt-6.1-sol, by gpt-6-astra: Adds a separate explanatory statement about the lady's usual attention.
+- c7 / gpt-6.1-sol, by gpt-6-astra: Drops the christening image.
+- c7 / gpt-6.1-sol, by gpt-6-astra: Keeps the net but drops the fish from the fishing image.
+- c7 / gpt-6.1-sol, by gpt-6-astra: “Useful to me” narrows the metaphor to practical usefulness.
+- c7 / gpt-6.1-sol, by gpt-6-astra: Makes “sits in the Inn” explicit as holding court.
+- c7 / opus-5.5, by gpt-6-astra: Adds an explanatory synonym in “good sign, or omen”.
+- c7 / opus-5.5, by gpt-6-astra: “You don't need to touch it” weakens Richard's objection to an improper liberty.
+- c7 / opus-5.5, by gpt-6-astra: Drops the fish-and-net image.
+- c7 / opus-5.5, by gpt-6-astra: Retains “parchmentses”, “pretty well every day”, “He don't”, and other language insufficiently adapted for an independent B1 reader.
+- c7 / gpt-6-astra, by gpt-6-astra: “Unable to look away” strengthens the claim that Ada holds the lady's attention.
+- c7 / gpt-6-astra, by gpt-6-astra: Adds a separate explanatory statement about the lady's usual attention.
+- c7 / gpt-6-astra, by gpt-6-astra: “Seemed to shrink” introduces uncertainty absent from the original.
+- c7 / gpt-6-astra, by gpt-6-astra: Drops the christening image.
+- c7 / gpt-6-astra, by gpt-6-astra: “Great and learned man” loses the noble rank suggested by “noble and learned brother”.
+- c7 / gpt-6-astra, by gpt-6-astra: Makes “sits in the Inn” explicit as holding court.
+- c7 / gemini-4-carbon-low, by gpt-6-astra: Adds kindness to the lady's condescending manner.
+- c7 / gemini-4-carbon-low, by gpt-6-astra: Adds softness as a specific quality of Ada's hair.
+- c7 / gemini-4-carbon-low, by gpt-6-astra: “Even I looked away” shifts the emphasis from the look interrupting the narrator's attention.
+- c7 / gemini-4-carbon-low, by gpt-6-astra: Invents a previously “quiet, shrunken manner”, turning a change of self into a physical description.
+- c7 / gemini-4-carbon-low, by gpt-6-astra: Drops the christening image.
+- c7 / gemini-4-carbon-low, by gpt-6-astra: Drops the fish-and-net image and adds an assertion of usefulness.
+- c7 / gemini-4-carbon-low, by gpt-6-astra: “Brother judge” implies that Krook himself is a judge.
+- c7 / gemini-4-carbon-low, by gpt-6-astra: Adds holding court to the reference to sitting in the Inn.
+- c7 / gemini-4-carbon-low, by gpt-6-astra: “Work away slowly” drops the digging image and adds slowness.
+- c23 / gpt-6.1-sol, by gpt-6-astra: Adds the explanation that Druids were ancient priests.
+- c23 / gpt-6.1-sol, by gpt-6-astra: Adds an explanatory definition of spurs.
+- c23 / gpt-6.1-sol, by gpt-6-astra: Leaves expressions such as “My respects” and “devilishly” insufficiently accessible for an independent B1 reader.
+- c23 / gemini-4-carbon-low, by gpt-6-astra: Adds speed to Charley's clearing of the ruins: “so fast.”
+- c23 / gemini-4-carbon-low, by gpt-6-astra: Adds boats to the image of cups launched into an ebbing tide.
+- c23 / gemini-4-carbon-low, by gpt-6-astra: Replaces “devilish” with “terribly,” losing the pointed suggestion of devilish resemblance.
+- c23 / gemini-4-carbon-low, by gpt-6-astra: Adds that George's hair is thick.
+- c23 / gemini-4-carbon-low, by gpt-6-astra: Specifies a uniform and military equipment where the source leaves the discarded clothing and equipment unspecified.
+- c23 / gemini-4-carbon-low, by gpt-6-astra: Adds that George's voice is deep.
+- c23 / gemini-4-carbon-low, by gpt-6-astra: Leaves “Druid-like,” “riding spurs,” and “broadsword” unexplained for the intended reader.
+- c23 / gpt-6-astra, by gpt-6-astra: Adds the explanation that Druids were ancient priests.
+- c23 / gpt-6-astra, by gpt-6-astra: Changes having seen the granddaughter before into having met her.
+- c23 / gpt-6-astra, by gpt-6-astra: Adds a definition of spurs and an explanation of their purpose.
+- c23 / gpt-6-astra, by gpt-6-astra: Weakens the muscular contrast by reducing George's “developed figure” to a “fully grown” body.
+- c23 / gpt-6-astra, by gpt-6-astra: Leaves expressions such as “My respects” and “devilishly” insufficiently accessible for an independent B1 reader.
+- c23 / fable-5.1, by gpt-6-astra: Adds speed to Charley's scattering of the ruins: “so fast.”
+- c23 / fable-5.1, by gpt-6-astra: Drops the narrator's ironic description of Charley as the object of Miss Smallweed's attentions.
+- c23 / fable-5.1, by gpt-6-astra: Says nobody announces George, whereas the source says there is no further announcement.
+- c23 / fable-5.1, by gpt-6-astra: Says George stresses “that last word,” which is “sister,” rather than identifying “devilish.”
+- c23 / fable-5.1, by gpt-6-astra: Adds that George's hair is short.
+- c23 / fable-5.1, by gpt-6-astra: Specifies a uniform where the source says only dress or equipment.
+- c23 / fable-5.1, by gpt-6-astra: Retains difficult dialect and vocabulary, including “ha'n't,” “Druid-like,” “spurs,” and “pinched ways.”
+- c23 / fable-5.1, by gpt-6-astra: Adds a gloss explaining “circulation.”
+- c23 / gemini-4-carbon-medium, by gpt-6-astra: Changes the ebbing tide image to low tide, losing its movement.
+- c23 / gemini-4-carbon-medium, by gpt-6-astra: Leaves “Druidical,” “spurs,” and “cavalry soldier” inaccessible or uncertain for an independent B1 reader.
+- c23 / gemini-4-carbon-medium, by gpt-6-astra: Retains the nonstandard expression “devilish like” without making its meaning clear.
+- c23 / opus-5.5, by gpt-6-astra: Changes satisfying Miss Smallweed's expectations into agreeing with her opinions.
+- c23 / opus-5.5, by gpt-6-astra: Weakens the ironic “object of her attentions” into a girl she has been watching.
+- c23 / opus-5.5, by gpt-6-astra: Changes the ebbing tide image to low tide.
+- c23 / opus-5.5, by gpt-6-astra: Says nobody announces George, whereas the source says there is no further announcement.
+- c23 / opus-5.5, by gpt-6-astra: Changes George's crisp hair to “short and stiff,” adding length and losing its curled quality.
+- c23 / opus-5.5, by gpt-6-astra: Specifies a uniform and military equipment where the source leaves these unspecified.
+- c23 / opus-5.5, by gpt-6-astra: Adds that George's step is slow.
+- c23 / opus-5.5, by gpt-6-astra: Uses “has had” for the moustache, blurring the source's clearly former moustache.
+- c23 / opus-5.5, by gpt-6-astra: Changes the contrasting household into a house in the sentence about lodging a trooper.
+- c23 / opus-5.5, by gpt-6-astra: Retains difficult dialect and unexplained terms, including “ha'n't,” “Druidical ruins,” “spurs,” and “oyster-knife.”
+- c15 / opus-5.5, by gpt-6-astra: “Above all others” turns Swosser's outstanding qualities into a claim of superiority over everyone.
+- c15 / opus-5.5, by gpt-6-astra: “It looks exactly like him” loses the living, speaking image of “a speaking likeness.”
+- c15 / opus-5.5, by gpt-6-astra: “Fashionable” adds a claim about the dinner that “genteel” does not establish.
+- c15 / opus-5.5, by gpt-6-astra: “A kind of red wine” adds an explanatory gloss.
+- c15 / gemini-4-carbon-low, by gpt-6-astra: “Liked to meet” changes Badger's wish to have seen Swosser.
+- c15 / gemini-4-carbon-low, by gpt-6-astra: “Above all others” overstates Swosser's distinction.
+- c15 / gemini-4-carbon-low, by gpt-6-astra: “I own the real person” makes the playful original-and-copy metaphor bluntly literal.
+- c15 / gemini-4-carbon-low, by gpt-6-astra: “We heard all about them” loses the narrator's ironic “full benefit.”
+- c15 / gemini-4-carbon-low, by gpt-6-astra: “Special drinking glass” loses the goblet's particular shape.
+- c15 / gemini-4-carbon-low, by gpt-6-astra: Replacing claret throughout with red wine loses specificity.
+- c15 / gemini-4-carbon-low, by gpt-6-astra: “Brought this wine into the country himself” invents personal transportation by the Captain.
+- c15 / fable-5.1, by gpt-6-astra: “Liked to meet” changes Badger's wish to have seen Swosser.
+- c15 / fable-5.1, by gpt-6-astra: “The picture is exactly like him” loses the speaking image.
+- c15 / fable-5.1, by gpt-6-astra: “Polite meal” misapplies a description of manners to the meal itself.
+- c15 / fable-5.1, by gpt-6-astra: “A kind of red wine” adds an explanatory gloss.
+- c15 / gpt-6-astra, by gpt-6-astra: “As to compare myself” broadens the original refusal to put his reputation on an equal footing.
+- c15 / gpt-6-astra, by gpt-6-astra: “The one with the stem” adds an explanatory instruction to James.
+- c15 / gpt-6-astra, by gpt-6-astra: “A kind of red wine” adds an explanatory gloss.
+- c15 / gpt-6.1-sol, by gpt-6-astra: “So we heard all about them” drops the pointed irony of receiving “the full benefit.”
+- c15 / gpt-6.1-sol, by gpt-6-astra: “A red wine” adds an explanatory gloss.
+- c15 / gemini-4-carbon-medium, by gpt-6-astra: “Above all others” overstates Swosser's distinction.
+- c15 / gemini-4-carbon-medium, by gpt-6-astra: “Cared for him” leaves Badger's medical attendance less definite.
+- c15 / gemini-4-carbon-medium, by gpt-6-astra: “Polite ... meal” misapplies a description of manners.
+- c15 / gemini-4-carbon-medium, by gpt-6-astra: “Generous” adds an unsupported claim about the dinner's service.
+- c15 / gemini-4-carbon-medium, by gpt-6-astra: “Rare” adds a claim about the wine beyond its being curious or unusual.
+- c31 / opus-5.5, by gpt-6-astra: Changing Guppy's ‘art’ to ‘heart’ loses a small piece of his comic speech characterization.
+- c31 / opus-5.5, by gpt-6-astra: ‘Knocked me over’ remains unexplained and can suggest a physical fall to a B1 reader.
+- c31 / opus-5.5, by gpt-6-astra: ‘Dash it’, ‘in confidence’ and ‘I see my way now, right on’ retain difficult idiomatic language.
+- c31 / fable-5.1, by gpt-6-astra: ‘Would not have been worth a minute's purchase’ leaves the passage's central threat in opaque archaic language.
+- c31 / fable-5.1, by gpt-6-astra: ‘Printed on my 'art’ preserves the pronunciation joke without making ‘heart’ accessible to an independent B1 reader.
+- c31 / fable-5.1, by gpt-6-astra: ‘Knocked me over’, ‘taken the liberty’ and ‘I see my way now, right on’ retain difficult idiomatic language.
+- c31 / gpt-6.1-sol, by gpt-6-astra: ‘Damn it’ and ‘Damn these notes’ strengthen Guppy's deliberately mild ‘dash’.
+- c31 / gpt-6.1-sol, by gpt-6-astra: Changing ‘art’ to ‘heart’ loses the comic pronunciation.
+- c31 / gpt-6.1-sol, by gpt-6-astra: ‘I tell you this in private’ loses the request for confidentiality conveyed by ‘in confidence’.
+- c31 / gpt-6.1-sol, by gpt-6-astra: ‘Taken the freedom of looking’ is an unnatural replacement for ‘taken the liberty’.
+- c31 / gpt-6.1-sol, by gpt-6-astra: ‘No one would have paid anything for your poor life, even for a minute’ turns the threatened survival into a confusing literal transaction.
+- c31 / gemini-4-carbon-medium, by gpt-6-astra: Changing ‘art’ to ‘heart’ loses the comic pronunciation.
+- c31 / gemini-4-carbon-medium, by gpt-6-astra: The threat to Guppy's life is clear, but the original image of his life having virtually no purchase value disappears.
+- c31 / gemini-4-carbon-medium, by gpt-6-astra: ‘Proud movement’ adds pride to the explicitly disdainful gesture.
+- c31 / gemini-4-carbon-low, by gpt-6-astra: ‘Mr. Guppy sits down’ supplies a specific action not explicitly established by ‘does so’ in the supplied passage.
+- c31 / gemini-4-carbon-low, by gpt-6-astra: Replacing ‘your ladyship’ throughout with ‘my Lady’ changes Guppy's insistent, ceremonious manner of address.
+- c31 / gemini-4-carbon-low, by gpt-6-astra: ‘Your word of honor’ implies a pledge that she has not given.
+- c31 / gemini-4-carbon-low, by gpt-6-astra: The birds' cage is supplied rather than stated in the source.
+- c31 / gemini-4-carbon-low, by gpt-6-astra: ‘A short time ago’ invents a timeframe for the Chesney Wold visit.
+- c31 / gemini-4-carbon-low, by gpt-6-astra: Changing ‘art’ to ‘heart’ loses the comic pronunciation.
+- c31 / gemini-4-carbon-low, by gpt-6-astra: ‘Look at how her beautiful eyes are staring’ adds a direct command from the narrator.
+- c31 / gemini-4-carbon-low, by gpt-6-astra: ‘Would not have lasted a single minute’ makes death certain rather than expressing the extreme precariousness of his life.
+- c31 / gpt-6-astra, by gpt-6-astra: ‘Damn it’ and ‘Damn these notes’ strengthen the mild original exclamations.
+- c31 / gpt-6-astra, by gpt-6-astra: ‘A few points’ changes ‘a head or two’, and ‘shortened words’ narrows the meaning of abbreviated notes.
+- c31 / gpt-6-astra, by gpt-6-astra: ‘Perhaps your ladyship’ softens Guppy's stated inference, ‘I think your ladyship’.
+- c31 / gpt-6-astra, by gpt-6-astra: Changing ‘art’ to ‘heart’ loses the comic pronunciation.
+- c31 / gpt-6-astra, by gpt-6-astra: ‘I tell you that in private’ loses the request for confidentiality.
+- c31 / gpt-6-astra, by gpt-6-astra: ‘Knocked me over’ remains potentially misleading for a B1 reader.
+- c31 / gpt-6-astra, by gpt-6-astra: The threatened-life passage drops the original image of purchase value.
+- c39 / fable-5.1, by gpt-6-astra: Adds an explanatory gloss after ‘suitors’; ‘waiting on the court’ is also less precise than being parties to litigation.
+- c39 / fable-5.1, by gpt-6-astra: ‘Spoils everybody’ loses the image of contamination in ‘taints everybody’.
+- c39 / opus-5.5, by gpt-6-astra: Adds explanatory glosses after both ‘suitors’ and ‘interested party’.
+- c39 / opus-5.5, by gpt-6-astra: Adds ‘strange’ to the attraction the narrator recalls.
+- c39 / opus-5.5, by gpt-6-astra: ‘All night’ makes Nature’s wakefulness more categorical than the source does.
+- c39 / opus-5.5, by gpt-6-astra: ‘Spoils everybody’ loses the image of contamination in ‘taints everybody’.
+- c39 / gpt-6-astra, by gpt-6-astra: ‘Making any firm plans’ narrows ‘doing anything very definite’ from action generally to planning.
+- c39 / gpt-6-astra, by gpt-6-astra: ‘Shocks’ is a misleading replacement for the jarring conflict of lawsuits.
+- c39 / gpt-6-astra, by gpt-6-astra: ‘Unkind’ only partly conveys Richard’s denial of being morally mean or small-minded.
+- c39 / gpt-6.1-sol, by gpt-6-astra: ‘Making any firm decision’ narrows ‘doing anything very definite’ from action generally to deciding.
+- c39 / gpt-6.1-sol, by gpt-6-astra: ‘Changed me a little for the worse’ drops the image of a character being twisted.
+- c39 / gpt-6.1-sol, by gpt-6-astra: ‘Harms something good in everybody’ replaces the contamination image with an explanatory abstraction.
+- c39 / gemini-4-carbon-low, by gpt-6-astra: Adds ‘dark’ to the description of the sleeping woods.
+- c39 / gemini-4-carbon-low, by gpt-6-astra: Explains the recalled attraction as ‘how the lawsuit pulls people in’, making an implicit connection explicit.
+- c39 / gemini-4-carbon-low, by gpt-6-astra: ‘A sharp stab of guilt’ changes the sting of reproach into a specific feeling of guilt.
+- c39 / gemini-4-carbon-low, by gpt-6-astra: ‘At least be fair with me’ changes Richard’s confidence in Esther’s fairness into a demand.
+- c39 / gemini-4-carbon-low, by gpt-6-astra: ‘Twisted my thinking’ narrows the corruption of Richard’s nature to his thinking.
+- c39 / gemini-4-carbon-low, by gpt-6-astra: ‘Spoils everybody’ loses the image of contamination in ‘taints everybody’.
+- c39 / gemini-4-carbon-medium, by gpt-6-astra: ‘Doing anything very clear and settled’ is an unclear rendering of taking definite action.
+- c39 / gemini-4-carbon-medium, by gpt-6-astra: ‘Spoils something in everybody’ weakens ‘taints everybody’ and loses its contamination image.
+- c55 / opus-5.5, by gpt-6-astra: 'Richer than he was' replaces wealth greater than his manner suggested with wealth greater than he actually possessed.
+- c55 / opus-5.5, by gpt-6-astra: 'Often' weakens 'constantly'.
+- c55 / opus-5.5, by gpt-6-astra: 'A three-cornered hat' adds an explanatory gloss after retaining 'cocked hat'.
+- c55 / opus-5.5, by gpt-6-astra: Leaves difficult expressions such as 'bring into the light', 'convict', 'accomplices' and 'ain't' insufficiently adapted for independent B1 reading.
+- c55 / gemini-4-carbon-medium, by gpt-6-astra: Adds explicit vocabulary explanations alongside 'cocked hat', 'convict' and 'accomplices'.
+- c55 / gemini-4-carbon-medium, by gpt-6-astra: 'Because his importance gives him that right' makes it unclear whose importance licenses Bucket's conversational move.
+- c55 / gemini-4-carbon-medium, by gpt-6-astra: Turns the cousin's clipped, barely articulated remarks into orderly explanatory prose, losing his distinctive voice.
+- c55 / gemini-4-carbon-medium, by gpt-6-astra: Retains opaque expressions such as 'out into the light' and 'to his satisfaction'.
+- c55 / fable-5.1, by gpt-6-astra: 'Shameless' substitutes lack of shame for the daring conveyed by 'audacious'.
+- c55 / fable-5.1, by gpt-6-astra: 'People who helped him' adds a vocabulary gloss to 'accomplices'.
+- c55 / fable-5.1, by gpt-6-astra: Leaves 'cocked hat', 'convict', 'bring ... to light', 'ain't' and 'wear off' insufficiently adapted for B1.
+- c55 / gpt-6-astra, by gpt-6-astra: 'Often' weakens 'constantly'.
+- c55 / gpt-6-astra, by gpt-6-astra: 'Watches him closely' changes Bucket's brief glance into sustained observation.
+- c55 / gpt-6-astra, by gpt-6-astra: 'Charming towards women' shifts gallantry from courteous attentiveness towards personal charm.
+- c55 / gpt-6.1-sol, by gpt-6-astra: 'Often' weakens 'constantly'.
+- c55 / gpt-6.1-sol, by gpt-6-astra: Omits the possibility that the house connection first caused the victim to be selected.
+- c55 / gpt-6.1-sol, by gpt-6-astra: 'Most trusted' describes others' confidence rather than the man's trustworthiness.
+- c55 / gpt-6.1-sol, by gpt-6-astra: 'Polite to women' reduces the flirtatious courtesy suggested by Bucket's gallantry.
+- c55 / gemini-4-carbon-low, by gpt-6-astra: 'Always' makes the man's habitual visits sound uninterrupted.
+- c55 / gemini-4-carbon-low, by gpt-6-astra: Adds an explanation that pity would be bold because Sir Leicester is 'so grand a man'.
+- c55 / gemini-4-carbon-low, by gpt-6-astra: 'Highest people' replaces the evaluative image of the country's finest people with social rank alone.
+- c55 / gemini-4-carbon-low, by gpt-6-astra: Changes Volumnia's determination never to recover into a prediction that she will not recover.
+- c55 / gemini-4-carbon-low, by gpt-6-astra: 'Upset forever' drops the image of permanently unstrung nerves.
+- c55 / gemini-4-carbon-low, by gpt-6-astra: 'Like a soldier's hat' introduces a military association absent from the original image.
+- c55 / gemini-4-carbon-low, by gpt-6-astra: 'Innocent-sounding' introduces doubt about the innocence of Volumnia's questions.
+- c55 / gemini-4-carbon-low, by gpt-6-astra: 'Without stopping' adds a stronger claim than working morning, noon and night.
+- c55 / gemini-4-carbon-low, by gpt-6-astra: Smooths away much of the cousin's broken manner of speaking.
+- c47 / gpt-6.1-sol, by gpt-6-astra: “Still young and handsome” loses the emphasis on his being in the fullness of youth.
+- c47 / gpt-6.1-sol, by gpt-6-astra: “Stayed close behind him” makes the supervision implied by “at his back” sound merely physical.
+- c47 / gpt-6.1-sol, by gpt-6-astra: “This bubble had not burst” remains an unexplained figurative idiom for a B1 reader.
+- c47 / fable-5.1, by gpt-6-astra: “Worn and tired” loses the visibly gaunt, distressed appearance conveyed by “haggard.”
+- c47 / fable-5.1, by gpt-6-astra: The gloss “giving up my place in the army” leaves out the sale involved in selling his commission.
+- c47 / fable-5.1, by gpt-6-astra: “On leave,” “smooth things over,” “catechism,” and “been in the church” remain obstacles for an independent B1 reader.
+- c47 / fable-5.1, by gpt-6-astra: The bubble metaphor and “right there behind him” leave key figurative meanings difficult to follow.
+- c47 / gpt-6-astra, by gpt-6-astra: “Make things easier” weakens the suggestion of discreetly covering embarrassment in “smooth it over.”
+- c47 / gpt-6-astra, by gpt-6-astra: “Not fit for this work” drops the pointed “even” in “not fit even for this employment.”
+- c47 / gpt-6-astra, by gpt-6-astra: “This bubble had not burst” remains an unexplained figurative idiom for a B1 reader.
+- c47 / opus-5.5, by gpt-6-astra: “Going away on leave today” changes his already being away on leave into a planned departure on leave.
+- c47 / opus-5.5, by gpt-6-astra: “I know that thing too well” adds an explicit judgment to the reference to his experience.
+- c47 / opus-5.5, by gpt-6-astra: “Catechism” and “been in the Church” remain insufficiently accessible for an independent B1 reader.
+- c47 / opus-5.5, by gpt-6-astra: The bubble metaphor and “right there behind him” leave key figurative meanings difficult to follow.
+- c47 / gemini-4-carbon-low, by gpt-6-astra: “Worn out and exhausted” loses the gaunt appearance conveyed by “haggard.”
+- c47 / gemini-4-carbon-low, by gpt-6-astra: “Everything is finished for me here” misreads “It is all over here,” which refers to evidence throughout the room.
+- c47 / gemini-4-carbon-low, by gpt-6-astra: “Should have left an hour ago” reverses “should have been gone in another hour.”
+- c47 / gemini-4-carbon-low, by gpt-6-astra: “This false hope of a career” adds an explanation and judgment to the bubble image.
+- c47 / gemini-4-carbon-low, by gpt-6-astra: “People think it would be wise” invents other people's stated opinion in place of Richard's direct sarcasm.
+- c47 / gemini-4-carbon-low, by gpt-6-astra: “Family money” loses the explicit identification of Ada's money as an inheritance.
+- c47 / gemini-4-carbon-low, by gpt-6-astra: “Pay off my debts” adds a specific instruction absent from “set myself right with it.”
+- c47 / gemini-4-carbon-medium, by gpt-6-astra: “Everything is finished here” misreads “It is all over here,” which refers to evidence throughout the room.
+- c47 / gemini-4-carbon-medium, by gpt-6-astra: “Going away on leave today” changes his already being away on leave into a planned departure on leave.
+- c47 / gemini-4-carbon-medium, by gpt-6-astra: The letter is torn before the bubble remark rather than during it.
+- c47 / gemini-4-carbon-medium, by gpt-6-astra: “Working in the Church” leaves the intended profession of minister unclear.
+- c47 / gemini-4-carbon-medium, by gpt-6-astra: The bubble metaphor and “right behind him” leave key figurative meanings difficult to follow.
+- c63 / gpt-6-astra, by gpt-6-astra: Adds an explanatory definition of the tamed lynx.
+- c63 / gpt-6-astra, by gpt-6-astra: ‘Not by Mr. Bucket?’ no longer fits the grammar of the preceding rewritten statement.
+- c63 / gpt-6-astra, by gpt-6-astra: ‘Beyond any reason for doubt’ blurs the specific meaning of being above suspicion of wrongdoing.
+- c63 / gemini-4-carbon-low, by gpt-6-astra: Adds ‘so pure’ to the comparison with Caesar's wife, making moral purity explicit.
+- c63 / gemini-4-carbon-low, by gpt-6-astra: Adds an explanation identifying the house that Jack built as a children's rhyme.
+- c63 / gemini-4-carbon-low, by gpt-6-astra: Replaces the specific lynx image with a generic wild cat and adds ‘sharp eyes’.
+- c63 / gemini-4-carbon-low, by gpt-6-astra: ‘In a way that comforts us’ changes the convenient revenge implied by ‘avenges us comfortably’ into emotional consolation.
+- c63 / gemini-4-carbon-low, by gpt-6-astra: ‘In his own small place in the world’ wrongly attaches ‘in its little place’ to Skimpole rather than to his good opinion of Bucket.
+- c63 / opus-5.5, by gpt-6-astra: Adds explicit explanatory glosses for ‘bribe’, ‘philosophy’, ‘prejudices’, and ‘lynx’.
+- c63 / opus-5.5, by gpt-6-astra: Adds the image of a ‘fair judge’ to the narrator's description.
+- c63 / opus-5.5, by gpt-6-astra: Leaves ‘because I want it myself’ in its archaic sense of ‘because I lack it’, inviting the opposite interpretation from a B1 reader.
+- c63 / fable-5.1, by gpt-6-astra: Changes energy directed towards a particular purpose into ‘a very special kind of energy’.
+- c63 / fable-5.1, by gpt-6-astra: Adds explanatory restatements after ‘paralyse’ and ‘the knowing man’.
+- c63 / fable-5.1, by gpt-6-astra: Leaves ‘because I want it myself’ in its archaic sense of ‘because I lack it’, inviting the opposite interpretation from a B1 reader.
+- c63 / fable-5.1, by gpt-6-astra: Retains difficult expressions such as ‘even-handed’, ‘tamed lynx’, and ‘expressly’ without making them accessible.
+- c63 / gemini-4-carbon-medium, by gpt-6-astra: Leaves ‘tamed lynx’ and ‘above suspicion’ relatively demanding for an independent B1 reader.
+- c63 / gpt-6.1-sol, by gpt-6-astra: Narrows ‘moral obligations’ to duties ‘to others’ and adds a separate explanation about right and wrong.
+- c63 / gpt-6.1-sol, by gpt-6-astra: Adds ‘great’ to the description of Bucket's energy.
+- c63 / gpt-6.1-sol, by gpt-6-astra: Breaking the cumulative house-that-Jack-built sentences into repeated separate statements weakens the original's nursery-rhyme pattern.
+- c63 / gpt-6.1-sol, by gpt-6-astra: Leaves ‘tame lynx’ and ‘beyond suspicion’ relatively demanding for an independent B1 reader.
+- c15 / gemini-4-carbon-medium, by gemini-4-carbon-medium: "cared for him" loses the professional medical sense of "attended him"
+- c15 / gemini-4-carbon-medium, by gemini-4-carbon-medium: "private, trusting tone" is slightly awkward for "in a tone of confidence"
+- c15 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds "important" before "occasion"
+- c15 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves above-B1 items "African Station" and "goblet" unadapted
+- c15 / fable-5.1, by gemini-4-carbon-medium: Adds explanatory gloss ", a kind of red wine" in narration
+- c15 / fable-5.1, by gemini-4-carbon-medium: Adds unstated external fact "as his doctor" for "attended him"
+- c15 / fable-5.1, by gemini-4-carbon-medium: Drops the metaphor in "a speaking likeness" ("The picture is exactly like him")
+- c15 / fable-5.1, by gemini-4-carbon-medium: "adding up the facts" and "dare to correct" slightly distort the idioms
+- c15 / fable-5.1, by gemini-4-carbon-medium: Leaves above-B1 or confusing items "goblet", "first-rate", and "your mistress"
+- c15 / gemini-4-carbon-low, by gemini-4-carbon-medium: Drops the specific wine "claret" completely for generic "red wine"
+- c15 / gemini-4-carbon-low, by gemini-4-carbon-medium: Shifts "It's a very fine head" (about the portrait) to "he has a very fine head"
+- c15 / gemini-4-carbon-low, by gemini-4-carbon-medium: Flattens the narrator's ironic "we had the full benefit of them" into "we heard all about them"
+- c15 / gemini-4-carbon-low, by gemini-4-carbon-medium: Invents details not in the source: "painted" (twice), "A servant", "at the table", "himself", and "as his doctor"
+- c15 / opus-5.5, by gemini-4-carbon-medium: Uses wrong present tense "they are most remarkable men" for two deceased husbands
+- c15 / opus-5.5, by gemini-4-carbon-medium: Drops the metaphor in "a speaking likeness" ("It looks exactly like him")
+- c15 / opus-5.5, by gemini-4-carbon-medium: Adds explanatory gloss ", a kind of red wine" and explicit "I was his doctor"
+- c15 / opus-5.5, by gemini-4-carbon-medium: Leaves many archaic or above-B1 expressions ("African Station", "drawing-room", "should like to have seen", "goblet", "your mistress")
+- c15 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates "in a tone of confidence" (confidentially) as "confidently"
+- c15 / gpt-6-astra, by gemini-4-carbon-medium: Inserts a clumsy definition into dialogue: "drinking cup, James—the one with the stem!"
+- c15 / gpt-6-astra, by gemini-4-carbon-medium: Adds explanatory gloss ", a kind of red wine" and "as his doctor", plus "both" and "Someone"
+- c15 / gpt-6-astra, by gemini-4-carbon-medium: Drops "pre-eminently" and weakens the narrator's irony with "enjoyed the full benefit of hearing about them"
+- c15 / gpt-6-astra, by gemini-4-carbon-medium: Leaves confusing archaic "your mistress"
+- c15 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates "in a tone of confidence" (confidentially) as "confidently"
+- c15 / gpt-6.1-sol, by gemini-4-carbon-medium: Drops "The name of", putting the dead Professor Dingo in the present tense ("is famous across Europe")
+- c15 / gpt-6.1-sol, by gemini-4-carbon-medium: Invents "we chose" in "we chose the same day of the year"
+- c15 / gpt-6.1-sol, by gemini-4-carbon-medium: Inserts clumsy gloss "cup with a stem" in dialogue, plus ", a red wine", "Someone", and "as his doctor"
+- c15 / gpt-6.1-sol, by gemini-4-carbon-medium: Drops "pre-eminently" and flattens the ironic "we had the full benefit of them" to "So we heard all about them"
+- c15 / gpt-6.1-sol, by gemini-4-carbon-medium: Leaves archaic or above-B1 items ("African Station", "drawing-room", "should like to have seen", "your mistress")
+- c23 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Inserts 'also' before 'breaks up the Druidical ruins', separating the gulp of tea from its direct effect ('and so disperses').
+- c23 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Narrows 'withdrawing' to 'goes out', implying Charley leaves the room rather than simply stepping away to the door.
+- c23 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves several above-B1 words or archaic grammar unadapted ('Druidical', adverbial 'devilish like', 'spurs', 'cavalry', 'parlor', 'absorb').
+- c23 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds an explanation not in the source: 'ancient priests' for Druids.
+- c23 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds an explanation not in the source: 'the metal points riders wear on their boots' for spurs.
+- c23 / gpt-6.1-sol, by gemini-4-carbon-medium: Replaces 'launching' with 'throws', losing the nautical metaphor of launching teacups into the outgoing tide.
+- c23 / gpt-6.1-sol, by gemini-4-carbon-medium: Changes the colloquial adjective 'devilish' to the adverb 'devilishly', losing the grammar noted by the narrator.
+- c23 / gpt-6.1-sol, by gemini-4-carbon-medium: Leaves literary 'returns' (as a speech verb) and 'for' ('because') unadapted for a B1 reader in paragraph 2.
+- c23 / gemini-4-carbon-low, by gemini-4-carbon-medium: Invents 'of bread and butter' in paragraph 3 (imported from outside the passage) and mistranslates 'so disperses... that' as 'so fast that'.
+- c23 / gemini-4-carbon-low, by gemini-4-carbon-medium: Spoils the dry periphrasis 'The object of her attentions withdrawing' by naming Charley, narrowing 'attentions' to 'sharp remarks', and inventing 'leaves the room'.
+- c23 / gemini-4-carbon-low, by gemini-4-carbon-medium: Adds the explicit simile 'like boats' to explain 'launching'.
+- c23 / gemini-4-carbon-low, by gemini-4-carbon-medium: Mistranslates 'devilish' as 'terribly', losing the hellfire echo from Mr. George's fire remark and weakening why the stress is uncomplimentary.
+- c23 / gemini-4-carbon-low, by gemini-4-carbon-medium: Spoils the narrator's concluding guess early by specifying 'uniform or military equipment' before the 'horse soldier' reveal.
+- c23 / gemini-4-carbon-low, by gemini-4-carbon-medium: Renders physical 'pinched ways' as moral 'mean ways', drops causal 'for' in paragraph 2, and uses unidiomatic 'You are hot in here'.
+- c23 / gpt-6-astra, by gemini-4-carbon-medium: Adds an explanation not in the source: 'ancient priests' for Druids.
+- c23 / gpt-6-astra, by gemini-4-carbon-medium: Adds a full explanatory sentence not in the source defining spurs ('These are the metal points riders wear on their boots to urge horses on.').
+- c23 / gpt-6-astra, by gemini-4-carbon-medium: Drops the causal 'so... that' link between scattering the ruins and Miss Smallweed's order in paragraph 3.
+- c23 / gpt-6-astra, by gemini-4-carbon-medium: Replaces 'launching' with 'throws' and weakens habitual 'the snappish Judy' to single-action 'Judy asks sharply'.
+- c23 / gpt-6-astra, by gemini-4-carbon-medium: Changes 'seeing your granddaughter' to 'meeting your granddaughter' and 'devilish' to 'devilishly'.
+- c23 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates habitual 'Do you rub your legs' as progressive 'Are you rubbing your legs', clashing with the reply 'it's partly a habit'.
+- c23 / gpt-6-astra, by gemini-4-carbon-medium: Leaves literary 'returns' and 'for' in paragraph 2 and breaks the narrative into choppy, flattened sentences.
+- c23 / fable-5.1, by gemini-4-carbon-medium: Invents 'of bread and butter' in paragraph 3 and mistranslates 'so disperses... that' as 'so fast that'.
+- c23 / fable-5.1, by gemini-4-carbon-medium: Drops the ironic periphrasis 'The object of her attentions', replacing it with plain 'Charley', and replaces 'launching' with 'throws'.
+- c23 / fable-5.1, by gemini-4-carbon-medium: Spoils the concluding guess early by translating 'dress' as 'uniform'.
+- c23 / fable-5.1, by gemini-4-carbon-medium: Adds inline definitions 'a trooper, a soldier on horseback' and—unnaturally inside spoken dialogue—'the circulation, the flow of my blood'.
+- c23 / fable-5.1, by gemini-4-carbon-medium: Leaves non-standard dialect and untaught idioms unadapted for B1 ('How de do?', 'ha'n't', 'in the law', 'into \'em', 'devilish like').
+- c23 / fable-5.1, by gemini-4-carbon-medium: Leaves above-B1 vocabulary unadapted ('spurs', 'oyster-knife', 'stunted', 'pinched', 'parlour').
+- c23 / opus-5.5, by gemini-4-carbon-medium: Mistranslates 'meeting her views' (satisfying her expectations) as 'agree with Miss Smallweed's opinions'.
+- c23 / opus-5.5, by gemini-4-carbon-medium: Drops the causal 'so... that' link in paragraph 3 and leaves 'Druidical ruins' unexplained in scare quotes.
+- c23 / opus-5.5, by gemini-4-carbon-medium: Flattens 'The object of her attentions' to 'The girl she has been watching' and replaces 'launching' with 'throws'.
+- c23 / opus-5.5, by gemini-4-carbon-medium: Spoils the narrator's concluding guess early by specifying 'uniform or military equipment' before the 'trooper' reveal.
+- c23 / opus-5.5, by gemini-4-carbon-medium: Mistranslates 'crisp dark hair' (tightly curled) as 'short and stiff', adds 'slow' to 'measured', and renders 'pinched' as 'mean'.
+- c23 / opus-5.5, by gemini-4-carbon-medium: Adds the inline explanation 'a trooper, a soldier on horseback'.
+- c23 / opus-5.5, by gemini-4-carbon-medium: Leaves non-standard dialect and above-B1 vocabulary unadapted ('How de do?', 'ha'n't', 'in the law', 'into \'em', 'broadsword', 'oyster-knife', 'stunted', 'spurs').
+- c31 / gemini-4-carbon-medium, by gemini-4-carbon-medium: "Thank you, your ladyship." Mr. Guppy does so. leaves "does so" awkwardly paired with "Thank you".
+- c31 / gemini-4-carbon-medium, by gemini-4-carbon-medium: "makes a proud movement... She tells him for certain" adds "proud" and implies spoken words rather than assurance by gesture alone.
+- c31 / gemini-4-carbon-medium, by gemini-4-carbon-medium: "trusting you to keep it secret" adds a slight explanatory gloss on top of "privately" for "in confidence".
+- c31 / fable-5.1, by gemini-4-carbon-medium: Leaves archaic idiom "worth a minute's purchase" unadapted and opaque for a B1 reader.
+- c31 / fable-5.1, by gemini-4-carbon-medium: Uses eye-dialect "'art" for "heart", which is confusing at B1, especially near "portrait".
+- c31 / fable-5.1, by gemini-4-carbon-medium: Leaves many untaught idioms and C1 words in place ("dash it", "knocked me over", "taken the liberty", "in confidence", "I dare say", "scornful", "wavers").
+- c31 / fable-5.1, by gemini-4-carbon-medium: Adds "long ago" in "There were times, long ago".
+- c31 / gpt-6-astra, by gemini-4-carbon-medium: "damn it!" and "Damn these notes" mistranslate mild "dash" into profanity Guppy would not use to Lady Dedlock.
+- c31 / gpt-6-astra, by gemini-4-carbon-medium: "Thank you, your ladyship." Mr. Guppy does so. leaves "does so" without a sensible referent after "Thank you".
+- c31 / gpt-6-astra, by gemini-4-carbon-medium: "You really do look even more surprisingly like her than I thought" alters "it's really more surprising" and reverses the comparison direction.
+- c31 / gpt-6-astra, by gemini-4-carbon-medium: "asks him why" changes "what... has to do with her" to "why".
+- c31 / gpt-6-astra, by gemini-4-carbon-medium: Minor shifts and omissions: "a few points" for "a head or two", "Perhaps" for "I think", omits "half" in "half a moment" and "I am sure", and leaves "knocked me over".
+- c31 / gemini-4-carbon-low, by gemini-4-carbon-medium: Replaces Guppy's obsequious "your ladyship" with "my Lady" throughout (14 times), losing his register and contrast with the narrator.
+- c31 / gemini-4-carbon-low, by gemini-4-carbon-medium: "Mr. Guppy sits down" supplies an explanation from outside the passage for "Mr. Guppy does so".
+- c31 / gemini-4-carbon-low, by gemini-4-carbon-medium: Invents "in their cage" for the love-birds.
+- c31 / gemini-4-carbon-low, by gemini-4-carbon-medium: Invents "A short time ago" for the Lincolnshire trip (source only says "on a short out", a brief outing).
+- c31 / gemini-4-carbon-low, by gemini-4-carbon-medium: Exaggerates "in your ladyship's hands" to "to your mercy" and flattens "worth no complaint" to "not important enough".
+- c31 / gemini-4-carbon-low, by gemini-4-carbon-medium: Invents the imperative "Look at how her beautiful eyes are staring at you right now" and adds "proud", "painted", and "noble".
+- c31 / gpt-6.1-sol, by gemini-4-carbon-medium: "Mr. Guppy thanks her" mistranslates "Mr. Guppy does so" (he sits down, contradicting "sits down again" at the end).
+- c31 / gpt-6.1-sol, by gemini-4-carbon-medium: "damn it!" and "Damn these notes" mistranslate mild "dash" into out-of-character profanity.
+- c31 / gpt-6.1-sol, by gemini-4-carbon-medium: "taken the freedom of looking" is a wrong word/unidiomatic collocation for "taken the liberty of looking".
+- c31 / gpt-6.1-sol, by gemini-4-carbon-medium: "no one would have paid anything for your poor life, even for a minute" mistranslates the idiom "worth a minute's purchase" literally.
+- c31 / gpt-6.1-sol, by gemini-4-carbon-medium: Compresses the two-step escalation "completely knocked me over; so much so, that I didn't at the moment even know..." and omits "half" in "half a moment" and "I am sure".
+- c31 / opus-5.5, by gemini-4-carbon-medium: Copies the source's missing opening quotation mark in 'I think your ladyship," says Mr. Guppy'.
+- c31 / opus-5.5, by gemini-4-carbon-medium: Leaves non-standard "you was not aware of me" unadapted in a B1 learner text.
+- c31 / opus-5.5, by gemini-4-carbon-medium: Leaves most untaught idioms and hard words unadapted ("dash it", "Yes, to be sure!", "in confidence", "knocked me over", "I dare say", "see my way now, right on", "scornful", "murmurs").
+- c31 / opus-5.5, by gemini-4-carbon-medium: Adds "Some time ago", "In the past", and "not even for a moment", and drops the fortified sense of "strongholds" ("castles").
+- c31 / opus-5.5, by gemini-4-carbon-medium: Pads "worth a minute's purchase" into two sentences, adding "your poor life would have been worth almost nothing".
+- c7 / fable-5.1, by gemini-4-carbon-medium: Anticipates 'the old lady' for 'our conductress' in paragraph 1 before paragraph 2 introduces it.
+- c7 / fable-5.1, by gemini-4-carbon-medium: Omits 'stimulated' from 'stimulated by Richard's laughing encouragement'.
+- c7 / fable-5.1, by gemini-4-carbon-medium: Invents 'soft and fine' and narrows 'texture' to touch in 'how soft and fine it feels!'.
+- c7 / fable-5.1, by gemini-4-carbon-medium: Weakens 'strongly disapproving' to 'strongly disliked' and adds 'her' after 'admire'.
+- c7 / fable-5.1, by gemini-4-carbon-medium: Uses unidiomatic wrong word 'taking such a freedom' for 'taking that liberty'.
+- c7 / fable-5.1, by gemini-4-carbon-medium: Omits the 'christening' metaphor ('given me and my place a name').
+- c7 / fable-5.1, by gemini-4-carbon-medium: Omits the fish-and-net image in 'all's fish that comes to my net' ('I take anything that comes my way').
+- c7 / fable-5.1, by gemini-4-carbon-medium: Adds explanation 'as judge' in 'when he sits as judge in the Inn'.
+- c7 / fable-5.1, by gemini-4-carbon-medium: Uses unnatural phrasal verb 'dig on' for 'grub on' and leaves C2/C1 lexis ('parchments', 'learned').
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'she had taken' from 'a key she had taken from her pocket'.
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates Richard's polite formula 'had had the pleasure of seeing' as literal 'had enjoyed seeing'.
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'earnest' and 'stimulated' in paragraph 1.
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'condescending to him', keeping only 'far above him in importance'.
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Uses wrong verb 'I promise you' for 'I assure you' and flattens 'odd' to 'strange'.
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Drops the sense of admirable quality in 'what texture!' ('And how it feels!').
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Invents habitual statement 'Usually, the lady's attention wandered from one thing to another.'
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Weakens 'Mr. Krook shrunk' by adding 'seemed to' ('seemed to shrink back').
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'wasting away' and adds 'slowly' in 'slowly falling apart and being ruined'.
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Omits the 'christening' metaphor ('given these names').
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Inserts explanation 'documents written on animal skin' into Krook's speech (and 'holds court' for 'sits').
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Shifts 'had been trying' to 'was trying' and omits 'pressingly', 'earnest', and 'stimulated' in paragraph 1.
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates Richard's polite formula 'had had the pleasure of seeing' as literal 'had enjoyed seeing'.
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'condescending to him', keeping only 'far above him in importance'.
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Uses wrong verb 'I promise you' for 'I assure you' and flattens 'odd' to 'strange'.
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Invents 'lovely' and narrows 'texture' to touch in 'How lovely it feels!'.
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Invents habitual statement 'Usually, the old lady's attention wandered from one thing to another.'
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits the 'christening' metaphor ('given me and my place these names').
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Inserts explanation 'documents on animal skin' into Krook's speech (and 'holds court' for 'sits').
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'fish' from the image 'all's fish that comes to my net'.
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Invents 'that great lord' for 'noble'.
+- c7 / opus-5.5, by gemini-4-carbon-medium: Prematurely adds 'the little old lady' in paragraph 1.
+- c7 / opus-5.5, by gemini-4-carbon-medium: Omits 'earnest' and 'stimulated' in paragraph 1.
+- c7 / opus-5.5, by gemini-4-carbon-medium: Adds inline gloss 'good sign, or' while leaving untaught C1 'omen'.
+- c7 / opus-5.5, by gemini-4-carbon-medium: Invents 'fine' and narrows 'texture' to touch in 'how fine it feels!'.
+- c7 / opus-5.5, by gemini-4-carbon-medium: Weakens 'strongly disapproving' to 'strongly disliked'.
+- c7 / opus-5.5, by gemini-4-carbon-medium: Adds explanatory simile 'a name, as if at a christening'.
+- c7 / opus-5.5, by gemini-4-carbon-medium: Omits the fish-and-net image in 'all's fish that comes to my net' ('I take anything that comes my way').
+- c7 / opus-5.5, by gemini-4-carbon-medium: Leaves nonstandard dialect and untaught vocabulary ('parchmentses', 'He don't', 'sits in the Inn', 'muddle').
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Omits 'she had taken' and 'stimulated' in paragraph 1, and alters 'out of order' to 'broken'.
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Mistranslates polite formula 'had had the pleasure of seeing' as literal 'had enjoyed seeing'.
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Uses wrong verb 'I promise you' for 'I assure you' and narrows 'lofty station' to 'social class'.
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Mistranslates 'overheard' as 'heard this by chance'.
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Flattens 'rather carelessly' to 'without much interest'.
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Invents 'soft, fine' in 'what a soft, fine feel it has!'.
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Adds explanation 'without permission' in 'without acting so freely without permission'.
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Mistranslates metaphor 'shrunk into his former self' as 'went back to his quiet, shrunken manner'.
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Omits the 'christening' metaphor (adding 'special') and changes 'in my stock' to 'in my shop'.
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Inserts explanation 'animal-skin documents' for 'parchmentses'.
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Omits the fish-and-net image and repeats itself ('whatever comes my way is useful to me; I take everything').
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Adds explanations 'brother judge' and 'holds court' for 'brother... when he sits'.
+- c7 / gemini-4-carbon-low, by gemini-4-carbon-medium: Omits the digging image of 'grub on' and invents 'slowly' ('work away slowly in a confused mess').
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Uses jarring modern Americanism 'Hey! Hey!' and 'Hey, Lady Jane!' for 'Hi hi!' and 'Hi, Lady Jane!'.
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Inserts dictionary-like explanation 'treated him with the polite kindness shown to someone lower in rank'.
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Alters 'rather carelessly' from manner of speaking to inner feeling ('not caring very much').
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Invents 'wonderful' in 'what a wonderful feel it has!'.
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Mistranslates 'interposed' literally as 'spoke up between them'.
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Omits the 'christening' metaphor ('given those names').
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds inline dictionary definition 'sheets of animal skin used for writing' for 'parchments'.
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds explicit explanatory simile 'like anything caught in a fisherman's net'.
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds explanation 'as judge' in 'when he sits as judge in the Inn'.
+- c63 / gemini-4-carbon-medium, by gemini-4-carbon-medium: "comfortably gets revenge" keeps "comfortably" literally instead of rendering its sense of "without trouble to us".
+- c63 / gemini-4-carbon-medium, by gemini-4-carbon-medium: "the experienced man who knows how things work" slightly over-expands "the knowing man".
+- c63 / gpt-6.1-sol, by gemini-4-carbon-medium: Replaces "for a bribe" with "for money", losing the verbal cue for "I can't be bribed."
+- c63 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits "remarkable" from "always remarkable for her practical good sense".
+- c63 / gpt-6.1-sol, by gemini-4-carbon-medium: Replaces "produced" (brought out) with "offered" for the bank-note.
+- c63 / gpt-6.1-sol, by gemini-4-carbon-medium: Breaks the cumulative "house that Jack built" syntax into separate sentences, flattening the parody.
+- c63 / fable-5.1, by gemini-4-carbon-medium: Leaves "because I want it myself?" unadapted, so archaic "want" (lack) misleads a B1 reader as "desire".
+- c63 / fable-5.1, by gemini-4-carbon-medium: Adds an inline explanation ("—leave him unable to act—") after "paralyse Bucket".
+- c63 / fable-5.1, by gemini-4-carbon-medium: Adds an inline explanation ("the one who understands these things") after "the knowing man".
+- c63 / fable-5.1, by gemini-4-carbon-medium: Leaves non-B1 syntax ("The boy being in bed, a man arrives") and vocabulary ("paralyse", "expressly").
+- c63 / gpt-6-astra, by gemini-4-carbon-medium: Replaces "I can't be bribed" with active "No one can pay me to do something wrong", making "Not by Mr. Bucket?" ungrammatical.
+- c63 / gpt-6-astra, by gemini-4-carbon-medium: Omits "bribe" in the narrator's turn as well, weakening the link to "How can I be bribed?"
+- c63 / gpt-6-astra, by gemini-4-carbon-medium: Adds an explanation not in the source: "a wild cat, that has been trained to live with people".
+- c63 / gpt-6-astra, by gemini-4-carbon-medium: Leaves archaic "directly" ("goes away from me directly" = at once), which misleads B1 readers.
+- c63 / gpt-6-astra, by gemini-4-carbon-medium: Replaces "produced" with "offered" and breaks up the "house that Jack built" cumulative chain.
+- c63 / opus-5.5, by gemini-4-carbon-medium: Leaves "because I want it myself?" unadapted, so archaic "want" (lack) reads as "desire".
+- c63 / opus-5.5, by gemini-4-carbon-medium: Adds a dictionary gloss for "bribe" ("that is, money given to make someone do wrong").
+- c63 / opus-5.5, by gemini-4-carbon-medium: Adds inline explanations for "philosophy", "Prejudices", and "lynx" ("a kind of wild cat").
+- c63 / gemini-4-carbon-low, by gemini-4-carbon-medium: Mistranslates "avenges us comfortably when we are murdered" as "punishes the killer for us in a way that comforts us".
+- c63 / gemini-4-carbon-low, by gemini-4-carbon-medium: Mistranslates "in its little place" as "In his own small place in the world", shifting reference to Skimpole.
+- c63 / gemini-4-carbon-low, by gemini-4-carbon-medium: Drops "lynx" and invents "like a wild cat with sharp eyes, made tame".
+- c63 / gemini-4-carbon-low, by gemini-4-carbon-medium: Adds explanations and inventions ("the children's rhyme about", "so pure", "tight cloth wraps", "the serious matter").
+- c63 / gemini-4-carbon-low, by gemini-4-carbon-medium: Weakens "strongly object to" to "strongly dislike" and "remarkable for" to "known for".
+- c55 / gpt-6-astra, by gemini-4-carbon-medium: Adds 'serving' in 'gave ... to serving me' and weakens 'constantly sat at my table' to 'often ate at my table'.
+- c55 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'I cannot say but that' before 'he may have been followed' and drops the 'bring ... to light' image ('uncover').
+- c55 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates 'glances at him' as 'watches him closely'.
+- c55 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'gives Mr. Bucket to understand' and shifts 'her sensitive mind is fully made up' into Volumnia stating 'she has a sensitive mind', while dropping the 'unstrung' image.
+- c55 / gpt-6-astra, by gemini-4-carbon-medium: Replaces Volumnia's legal terms ('convict', 'accomplices') with plain phrases while keeping 'or whatever they call it', losing the irony that she used the right words.
+- c55 / gpt-6-astra, by gemini-4-carbon-medium: Renders 'gallantry' loosely as 'charming towards women' and shifts 'had almost said' to 'has almost called her'.
+- c55 / gpt-6-astra, by gemini-4-carbon-medium: Invents 'we' in 'everything we have discovered' for 'all that has been traced' and weakens 'to his satisfaction' to 'satisfactory'.
+- c55 / gpt-6-astra, by gemini-4-carbon-medium: Renders 'debilitated' as 'weak and sickly' (adding illness) and leaves the idiom 'struck down' unadapted.
+- c55 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds 'serving' in 'gave ... to serving me' and changes 'constantly sat at my table' to 'often ate at my table'.
+- c55 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'I cannot say but that', omits 'first' from 'even first marked', and drops the 'bring ... to light' image ('discover').
+- c55 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'audacious crime' as a crime that 'showed a shocking lack of fear'.
+- c55 / gpt-6.1-sol, by gemini-4-carbon-medium: Changes 'trustiest' ('most trustworthy') to 'most trusted'.
+- c55 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'gives Mr. Bucket to understand', shifts 'her sensitive mind is fully made up' to 'she has a sensitive mind', and drops the 'unstrung' image.
+- c55 / gpt-6.1-sol, by gemini-4-carbon-medium: Replaces 'convict' and 'accomplices' with plain phrases while keeping 'or whatever they call it', blunting Volumnia's feigned ignorance.
+- c55 / gpt-6.1-sol, by gemini-4-carbon-medium: Shifts 'had almost said' to present tense 'almost calls her'.
+- c55 / gpt-6.1-sol, by gemini-4-carbon-medium: Invents 'we' in 'everything we have found out', weakens 'to his satisfaction' to 'satisfactory', and leaves 'struck down' and 'spare him' unadapted.
+- c55 / fable-5.1, by gemini-4-carbon-medium: Drops Sir Leicester's shift to the dramatic present ('goes ... is struck down' becomes 'went ... was struck down') and his triple 'a gentleman who' repetition.
+- c55 / fable-5.1, by gemini-4-carbon-medium: Drops the tension metaphors 'nerves are unstrung' ('ruined') and 'mind ... upon the stretch' ('working so hard').
+- c55 / fable-5.1, by gemini-4-carbon-medium: Adds an inline definition ('accomplices—people who helped him—').
+- c55 / fable-5.1, by gemini-4-carbon-medium: Leaves opaque archaic and above-B1 items unadapted, notably 'cocked hat', 'solemnly', 'fearsome', 'it'll wear off', 'It ain't easy', 'convict', 'bring ... to light', and 'struck down'.
+- c55 / fable-5.1, by gemini-4-carbon-medium: Mistranslates 'debilitated' as 'weak, tired' and omits the cousin's clipped, drawling speech style.
+- c55 / opus-5.5, by gemini-4-carbon-medium: Weakens 'constantly sat' to 'often sat'.
+- c55 / opus-5.5, by gemini-4-carbon-medium: Invents 'made people think he was richer than he was' from 'possessing greater wealth ... than his own retiring demeanour would have indicated'.
+- c55 / opus-5.5, by gemini-4-carbon-medium: Shifts present 'I fail' to 'I will fail' and mistranslates 'fail in the assertion of ... my fidelity' as 'fail to stay loyal'.
+- c55 / opus-5.5, by gemini-4-carbon-medium: Uses the wrong word 'protest' for 'protestation' ('solemn declaration').
+- c55 / opus-5.5, by gemini-4-carbon-medium: Adds an inline explanation ('a cocked hat, a three-cornered hat') and drops the 'unstrung' image ('broken').
+- c55 / opus-5.5, by gemini-4-carbon-medium: Leaves above-B1 words and untaught idioms unadapted ('solemnly', 'struck down', 'spare him', 'delicate female', 'it'll wear off', 'convict', 'accomplices', 'It ain't easy', 'feeble', 'post').
+- c55 / opus-5.5, by gemini-4-carbon-medium: Replaces 'executed' with 'hanged' in the cousin's opening line, losing the contrast with the next sentence.
+- c55 / gemini-4-carbon-low, by gemini-4-carbon-medium: Replaces 'stain upon my name' with 'shameful mark', changes 'constantly' to 'always', and drops the 'bring ... to light' image ('uncover').
+- c55 / gemini-4-carbon-low, by gemini-4-carbon-medium: Drops the dramatic present in 'goes ... and is struck down' and over-explains 'struck down' as 'attacked and killed'.
+- c55 / gemini-4-carbon-low, by gemini-4-carbon-medium: Invents the explanatory phrase 'towards so grand a man' at the end of paragraph 2.
+- c55 / gemini-4-carbon-low, by gemini-4-carbon-medium: Invents 'funeral' in 'Today's funeral ceremony'.
+- c55 / gemini-4-carbon-low, by gemini-4-carbon-medium: Omits 'her nerves are unstrung for ever', flattening it to 'she says that she is upset forever'.
+- c55 / gemini-4-carbon-low, by gemini-4-carbon-medium: Adds the explanation 'like a soldier's hat' for the cocked-hat note.
+- c55 / gemini-4-carbon-low, by gemini-4-carbon-medium: Changes Bucket's patronizing 'delicate female' to 'sensitive lady'.
+- c55 / gemini-4-carbon-low, by gemini-4-carbon-medium: Replaces 'convict' and 'accomplices' with plain paraphrases while keeping 'or whatever the word is', losing Volumnia's irony.
+- c55 / gemini-4-carbon-low, by gemini-4-carbon-medium: Invents 'without stopping', 'for so long', 'with important people', and 'pounds', and omits the cousin's clipped speech style.
+- c55 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Mistranslates 'I cannot say but that he may have been followed' into the illogical 'I cannot deny that he may have been followed'.
+- c55 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds an explicit metalinguistic explanation ('into the three-cornered shape called a cocked hat').
+- c55 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds inline textbook glosses for both legal terms ('find that terrible soldier guilty in court—convict him' and 'helpers in the crime—accomplices').
+- c55 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Mistranslates 'in right of his importance' as 'because his importance gives him that right'.
+- c55 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves 'struck down' and 'spare him' unadapted while padding single expressions into doublets ('stretched and working', 'followed and found out').
+- c55 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Invents 'with powerful people' for 'interest' and flattens the cousin's clipped speech into dry commentary ('He compares getting a man hanged...').
+- c47 / opus-5.5, by gemini-4-carbon-medium: Leaves untaught C2 word 'catechism' unexplained for a B1 reader.
+- c47 / opus-5.5, by gemini-4-carbon-medium: Narrows 'gesture' to 'movement of his hand'.
+- c47 / opus-5.5, by gemini-4-carbon-medium: Shifts 'I am away on leave this day' to 'I am going away on leave today'.
+- c47 / opus-5.5, by gemini-4-carbon-medium: Leaves 'It is all over here' ambiguous at B1 (easily misread as 'everywhere here').
+- c47 / opus-5.5, by gemini-4-carbon-medium: Loosens 'with my experience of that thing' into 'I know that thing too well'.
+- c47 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Mistranslates 'haggard' as 'exhausted, and unwell', losing his gaunt, drawn look.
+- c47 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Shifts 'I am away on leave this day' to 'I am going away on leave today'.
+- c47 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Expands the wry parenthetical '(as the catechism goes)' into a stiff standalone assertion.
+- c47 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves B2+ vocabulary ('urged', 'oppose', 'inheritance') unadapted for B1.
+- c47 / gpt-6-astra, by gemini-4-carbon-medium: Adds 'my officers' before quoting 'those who are put in authority over me'.
+- c47 / gpt-6-astra, by gemini-4-carbon-medium: Adds explanatory 'watching him' to 'at his back'.
+- c47 / gpt-6-astra, by gemini-4-carbon-medium: Narrows 'Two subjects I forbid' to 'I forbid you to discuss two subjects'.
+- c47 / gpt-6-astra, by gemini-4-carbon-medium: Replaces 'can't be sane' with 'cannot be free of that madness'.
+- c47 / gpt-6-astra, by gemini-4-carbon-medium: Leaves 'urged' and the ambiguous 'It is all over here', and chops prose into flat sentences ('This was to hide his face from me').
+- c47 / fable-5.1, by gemini-4-carbon-medium: Keeps archaic first-person 'I should have been gone in another hour', which means obligation rather than 'would' to a B1 reader.
+- c47 / fable-5.1, by gemini-4-carbon-medium: Leaves untaught idiom 'selling out' and adds a gloss ('giving up my place in the army') that omits the sale of the commission.
+- c47 / fable-5.1, by gemini-4-carbon-medium: Drops 'haggard', reducing 'worn and haggard' to 'worn and tired'.
+- c47 / fable-5.1, by gemini-4-carbon-medium: Narrows 'gesture' to 'movement of his hand'.
+- c47 / fable-5.1, by gemini-4-carbon-medium: Leaves 'catechism', 'inheritance', 'urged', 'oppose', and archaic inversion 'said he'.
+- c47 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'It is all over here' ('finished') as 'It is all around you here'.
+- c47 / gpt-6.1-sol, by gemini-4-carbon-medium: Keeps misleading archaic first-person 'should' in 'I should have left here in another hour'.
+- c47 / gpt-6.1-sol, by gemini-4-carbon-medium: Inserts an intrusive editorial explanation: 'That phrase about authority comes from the book of religious questions and answers.'
+- c47 / gpt-6.1-sol, by gemini-4-carbon-medium: Leaves B2 'urged' and compresses the fourfold rhythm of 'no care, no mind, no heart, no soul'.
+- c47 / gemini-4-carbon-low, by gemini-4-carbon-medium: Mistranslates 'should have been gone in another hour' as 'should have left an hour ago'.
+- c47 / gemini-4-carbon-low, by gemini-4-carbon-medium: Destroys Richard's bitter irony by inserting 'People think it would be wise to give it up now'.
+- c47 / gemini-4-carbon-low, by gemini-4-carbon-medium: Invents 'false hope of a career had not ended like a broken bubble' as an inline explanation of the metaphor.
+- c47 / gemini-4-carbon-low, by gemini-4-carbon-medium: Adds invented explanations: 'The officers in charge of me', 'watching him', 'pay off my debts', and 'the exact same amount'.
+- c39 / gemini-4-carbon-medium, by gemini-4-carbon-medium: "That seemed true through all the tiny details..." is a stiff calque that is hard for a B1 reader to parse.
+- c39 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Weakens "breathe" (utter even in a whisper) to "say even a word of" / "speak of".
+- c39 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Slightly flattens "taints everybody" into "spoils something in everybody".
+- c39 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Switches inconsistently between archaic "said I" in the first half and "I said" in the second half.
+- c39 / gpt-6-astra, by gemini-4-carbon-medium: Omits "from top to bottom" from the unfinished-house image.
+- c39 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates nineteenth-century "mean" (petty, ungenerous) as "unkind".
+- c39 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates "jar" (harsh friction or clashing) as "shocks".
+- c39 / gpt-6-astra, by gemini-4-carbon-medium: Invents "worked on" for Nature's wakefulness in the leaves.
+- c39 / gpt-6-astra, by gemini-4-carbon-medium: Softens the pointed understatement "It was not I who cautioned you" into "Someone else once warned you".
+- c39 / gpt-6-astra, by gemini-4-carbon-medium: Simplifies "affairs in general" to "everything" and turns "as if his natural generosity felt" into a flat assertion.
+- c39 / gpt-6-astra, by gemini-4-carbon-medium: Retains archaic "said I" throughout.
+- c39 / opus-5.5, by gemini-4-carbon-medium: Mistranslates idiomatic "I had need to get" (present need) as past tense "I needed to get".
+- c39 / opus-5.5, by gemini-4-carbon-medium: Leaves "suitors" and "interested party" in the dialogue and adds inline explanatory glosses.
+- c39 / opus-5.5, by gemini-4-carbon-medium: Leaves "mean fellow" unadapted, misleading B1 readers who take "mean" as cruel rather than petty.
+- c39 / opus-5.5, by gemini-4-carbon-medium: Invents "She had worked on" for Nature's wakefulness.
+- c39 / opus-5.5, by gemini-4-carbon-medium: Leaves above-B1 vocabulary and archaic syntax ("definite", "unworthy suspicions", "It was not I", "said I").
+- c39 / gemini-4-carbon-low, by gemini-4-carbon-medium: Adds an outside plot explanation not in the source ("about how the lawsuit pulls people in") for "the attraction".
+- c39 / gemini-4-carbon-low, by gemini-4-carbon-medium: Invents "dark" in "a dark, heavy mass" and "working on" for Nature.
+- c39 / gemini-4-carbon-low, by gemini-4-carbon-medium: Shifts "turned into" to "walked into", "affairs in general" to "my general business", and "unfortunate" to "unlucky".
+- c39 / gemini-4-carbon-low, by gemini-4-carbon-medium: Narrows "twisted me" to "twisted my thinking" and writes the redundant "honest man of honour".
+- c39 / gemini-4-carbon-low, by gemini-4-carbon-medium: Leaves above-B1 vocabulary and idiom ("delightfully", "has his own stake in the case").
+- c39 / gpt-6.1-sol, by gemini-4-carbon-medium: Detaches "a faint sign of that unfortunate man" from Richard's look ("There was also a faint sign...").
+- c39 / gpt-6.1-sol, by gemini-4-carbon-medium: Invents "my criticism had hurt" where the source has inner self-reproach ("felt a pang of reproach").
+- c39 / gpt-6.1-sol, by gemini-4-carbon-medium: Drops "turned" ("went into"), "hushed" ("deep in sleep"), "It was not I", and the whisper in "breathe" ("speak of").
+- c39 / gpt-6.1-sol, by gemini-4-carbon-medium: Invents "She had worked through" for Nature's wakefulness.
+- c39 / gpt-6.1-sol, by gemini-4-carbon-medium: Narrows "doing anything very definite" to "making any firm decision" and plural "suitors" to "the court case".
+- c39 / gpt-6.1-sol, by gemini-4-carbon-medium: Flattens key metaphors: "twisted" becomes "changed me a little for the worse" and "taints everybody" becomes "harms something good in everybody".
+- c39 / fable-5.1, by gemini-4-carbon-medium: Contains a grammar error: "If I have the bad luck to be under that influence, so is he."
+- c39 / fable-5.1, by gemini-4-carbon-medium: Mistranslates idiomatic "I had need to get" (present need) as past tense "I needed to get".
+- c39 / fable-5.1, by gemini-4-carbon-medium: Leaves "suitors" in the dialogue and adds an explanation with the confusing idiom "waiting on the court".
+- c39 / fable-5.1, by gemini-4-carbon-medium: Leaves "mean fellow", "definite", "unworthy suspicions", and archaic "said I" unadapted for B1.
+- c39 / fable-5.1, by gemini-4-carbon-medium: Invents "She had worked on" and shifts "turned into" to "walked into" and "affairs in general" to "all my business".
+- c39 / fable-5.1, by gemini-4-carbon-medium: Weakens "breathe" (whisper) to "speak" and writes the clumsy repetition "naturally generous nature".

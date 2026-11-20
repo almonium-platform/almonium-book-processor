@@ -1,0 +1,64 @@
+{
+ "writer": "gemini-4-carbon-medium",
+ "passage": "c63",
+ "blocks": [
+  {
+   "block_id": "c63.p29",
+   "text": "“You know what a child I am. Why surprised?”"
+  },
+  {
+   "block_id": "c63.p30",
+   "text": "I was unwilling to discuss that question in detail. However, he begged me to do so, because he was really curious to know. Using the gentlest words I could, I let him know that his behaviour seemed to ignore several moral duties. He was very amused and interested when he heard this. “No, really?” he said in a simple, innocent way."
+  },
+  {
+   "block_id": "c63.p31",
+   "text": "“You know I don't pretend to be responsible. I never could do it. Responsibility is a thing that has always been above me—or below me,” said Mr. Skimpole. “I don't even know which. Still, my dear Miss Summerson is always remarkable for her practical good sense and clearness. As I understand the way she explains this matter, I would think it was mainly a question of money, do you know?”"
+  },
+  {
+   "block_id": "c63.p32",
+   "text": "Without being careful, I agreed with this to some extent."
+  },
+  {
+   "block_id": "c63.p33",
+   "text": "“Ah! Then you see,” said Mr. Skimpole, shaking his head, “I have no hope of understanding it.”"
+  },
+  {
+   "block_id": "c63.p34",
+   "text": "As I stood up to leave, I suggested that it was not right to betray my guardian's trust for a bribe."
+  },
+  {
+   "block_id": "c63.p35",
+   "text": "“My dear Miss Summerson,” he replied, with an open, cheerful amusement that belonged only to him. “I can't be bribed.”"
+  },
+  {
+   "block_id": "c63.p36",
+   "text": "“Not by Mr. Bucket?” said I."
+  },
+  {
+   "block_id": "c63.p37",
+   "text": "“No,” he said. “Not by anybody. I don't put any value on money. I don't care about it, I don't know about it, I don't want it, and I don't keep it. It goes away from me at once. How can I be bribed?”"
+  },
+  {
+   "block_id": "c63.p38",
+   "text": "I showed that I had a different opinion, although I did not have the ability to argue about the matter."
+  },
+  {
+   "block_id": "c63.p39",
+   "text": "“On the contrary,” said Mr. Skimpole, “I am exactly the man to be put in a higher position, in a case like that. I am above all other human beings, in a case like that. I can act with a philosopher's calm reason, in a case like that. I am not twisted out of shape by narrow, fixed opinions, the way an Italian baby is by bandages. I am as free as the air. I feel that I am as far above suspicion as Cæsar's wife.”"
+  },
+  {
+   "block_id": "c63.p40",
+   "text": "His manner was light as he tossed the matter around like a ball of feathers. Playfully, without favouring either side, he seemed to convince himself. Surely nothing to match all this was ever seen in anybody else!"
+  },
+  {
+   "block_id": "c63.p41",
+   "text": "“Look at the case, my dear Miss Summerson. Here is a boy who is taken into the house and put to bed, in a condition that I strongly object to. While the boy is in bed, a man arrives—like the house that Jack built. Here is the man who demands the boy who is taken into the house and put to bed in a condition that I strongly object to. Here is a bank-note brought out by the man who demands the boy who is taken into the house and put to bed in a condition that I strongly object to. Here is the Skimpole who accepts the bank-note brought out by the man who demands the boy who is taken into the house and put to bed in a condition that I strongly object to. Those are the facts. Very well. Should the Skimpole have refused the note? Why should the Skimpole have refused the note? Skimpole protests to Bucket: ‘What's this for? I don't understand it. It is of no use to me. Take it away.’ Bucket still begs Skimpole to accept it. Since Skimpole is not twisted out of shape by narrow, fixed opinions, are there reasons why he should accept it? Yes. Skimpole sees them. What are they? Skimpole thinks it through logically like this. This man is a tamed lynx. He is an active police officer and an intelligent man. He directs his energy in a very special way. He shows fine, clever skill both when he thinks up his plans and when he carries them out. He finds our friends and enemies for us when they run away. He gets our property back for us when we are robbed. And he comfortably gets revenge for us when we are murdered. Through doing his skilled work, this active police officer and intelligent man has gained a strong faith in money. He finds it very useful to him, and he makes it very useful to society. Should I weaken that faith in Bucket, because I do not have it myself? Should I make one of Bucket's weapons less sharp on purpose? Should I do something that might leave Bucket powerless to act in his next piece of detective work? And there is another point. If Skimpole deserves blame for taking the note, then Bucket deserves blame for offering the note. In fact, Bucket deserves much more blame, because he is the experienced man who knows how things work. Now, Skimpole wants to think well of Bucket. Skimpole believes that thinking well of Bucket is essential, in its own small way, for everything as a whole to hold together. The State clearly and directly asks him to put his trust in Bucket. And he does. And that's all he does!”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 4195,
+  "cached_input_tokens": 8192,
+  "output_tokens": 76974,
+  "list_usd": 0.7705592
+ }
+}

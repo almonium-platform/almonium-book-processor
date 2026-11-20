@@ -1069,3 +1069,41 @@ rule below names its constant or function.
   first copies removed as superseded, the second renamed). A want whose source page is
   already on the shelf is now left in the queue; serving several wants from one book needs
   a reservation table, since a SourceDownload holds one reservation.
+
+## Gemini 4 Carbon as a translator and adapter: a first comparison (20 November 2026)
+
+Google's plan (AI Ultra, $200 a month) is a third plan provider, `antigravity`, called through
+the Antigravity CLI (`ai/antigravity_provider.py`); its meter is on the dashboard. `compare_writers`
+put Carbon at low and at medium effort beside the four earlier writers on the eight Bleak House
+passages, and Opus, Astra and Carbon at medium judged all six blind
+(`calibration/compare/*bleak-house*`; the four-writer judgements are kept under
+`judgements/four-writers/`).
+
+Mean rank by the two judges that are not the writer's own model, 1 best of 6:
+
+| Writer | Ukrainian translation (Opus, Astra) | B1 adaptation (Opus, Astra) | Output tokens, 8 passages | List price |
+|---|---|---|---|---|
+| gpt-6-astra | 2.88, own | 4.38, own | 15,000 | $1.9 |
+| gpt-6.1-sol | 3.38, 2.25 | 4.38, 2.75 | 15,000 | $0.4 |
+| gemini-4-carbon, medium | 3.12, 3.62 | 3.62, 2.62 | 205,000 and 499,000 | $2.2 and $5.1 |
+| claude-fable-5-1 | 3.88, 3.38 | 2.12, 3.25 | 38,000 | $2.3 |
+| claude-opus-5-5 | own, 3.75 | own, 4.25 | 40,000 | $0.9 |
+| gemini-4-carbon, low | 3.00, 5.75 | 3.88, 5.62 | 18,000 | $0.3 |
+
+- Every judge ranked its own model first or second, Carbon too; a model's reading of itself is
+  left out above.
+- **Carbon at medium is in the leading group for both tasks** and no judge puts it last. It gets
+  there by thinking: thirteen to thirty times Astra's output tokens for the same passages.
+- **Carbon at low is not a prose writer.** Opus placed it second and fourth; Astra placed it last
+  in both tasks. (For dictionary entries low is level with Opus by a key: the backend's
+  docs/LEXICON.md.)
+- The two outside judges agree on little: Opus prefers the Claude adaptations and Astra's
+  translation, Astra prefers the GPT ones. Eight passages and two judges are a first look.
+- The plan: a week holds some $560 of list price and one five-hour session two fifths of it
+  (`ai/pricing.py`). The CLI adds some 9,000 input tokens to every call, takes the request as
+  one argument of at most 120,000 bytes, and loses its login for a while when four calls at once
+  make the system keyring answer late; the provider holds the work then. A unit started by
+  systemd needs node on its PATH for Codex and found none.
+
+Nothing in production names Carbon yet. Before it does: the same comparison on a second book and
+a second language, and a chapter-sized request to see that it fits the argument.
