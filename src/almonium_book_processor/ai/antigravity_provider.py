@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -14,6 +15,7 @@ from typing import Any
 from django.conf import settings
 
 from almonium_book_processor.ai.cli_calls import (
+    AllowanceUsedUp,
     CallFailed,
     every_account_paused,
     fits_schema,
@@ -26,6 +28,7 @@ ACCOUNT = "antigravity-cli"
 EVERY_ACCOUNT_PAUSED = every_account_paused("Gemini")
 # One request is one command-line argument, and Linux gives an argument 128 KiB.
 ARGUMENT_BYTES = 120_000
+_SIGNED_OUT = re.compile(r"authentication (?:required|failed)|not logged in", re.IGNORECASE)
 
 
 def configured_accounts() -> list[Path]:
@@ -182,6 +185,14 @@ class AntigravityProvider:
                     or (completed.stderr or "").strip()[-500:]
                     or str(result.get("status") or "no answer")
                 )
+                if _SIGNED_OUT.search(detail) or _SIGNED_OUT.search(completed.stderr or ""):
+                    # Not an answer and not the work's fault: the CLI lost its login. On 20
+                    # November 2026 four calls at once made the system keyring answer late, the
+                    # CLI turned to a token file for an hour and every call after was refused.
+                    # The work is held like one whose allowance is used up, and asked again.
+                    raise AllowanceUsedUp(
+                        "The Gemini plan is not signed in: run agy once on the owner's machine"
+                    )
                 raise RuntimeError(f"Antigravity returned no answer: {detail[:500]}")
             answer_text = text.strip()
             if answer_text.startswith("```"):
@@ -191,6 +202,8 @@ class AntigravityProvider:
             except json.JSONDecodeError as failure:
                 raise RuntimeError("Antigravity returned an answer that is not JSON") from failure
             fits_schema(answer, schema)
+        except AllowanceUsedUp:
+            raise
         except RuntimeError as failure:
             # the turn was paid for whether or not its answer can be used
             raise CallFailed(str(failure), spent if used else None) from failure

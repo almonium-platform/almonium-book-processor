@@ -145,3 +145,15 @@ def test_a_gemini_model_is_routed_to_googles_plan_and_never_to_openais_api(setti
     settings.AI_PLANS = "codex,antigravity"
     assert gateway.unavailable(Seat("antigravity", "gemini-4-carbon")) == ""
     assert not gateway.batches(Seat("antigravity", "gemini-4-carbon"))
+
+
+def test_a_lost_login_holds_the_work_and_is_not_counted_as_its_failure():
+    asked = []
+
+    def runner(command, **kwargs):
+        asked.append(command)
+        return SimpleNamespace(stdout="", stderr="error: authentication failed or timed out")
+
+    with pytest.raises(AllowanceUsedUp, match="not signed in"):
+        provider(runner).respond(BODY)
+    assert len(asked) == 2  # once more after the pause, as any plan call; then held
