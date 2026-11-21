@@ -1246,3 +1246,35 @@ How it was run, and what stands in the way of another:
 - The Gemini login was lost once more between 13:02 and 13:10 with the start lock in place,
   while some thirty judge calls were running; why is not known. The production held and went
   on when the owner had signed in again.
+
+## Neon's book read blind, and its B1 probe on White Fang (21 November 2026)
+
+Two checks on the adapter after the book above.
+
+A reader that wrote neither text (Fable 5.2) read chapters I and II of Neon's A Study in
+Scarlet beside chapters I and II of Astra's The Sign of Four, both B2, without being told who
+wrote which. Out of ten: natural prose 8 for Neon and 7 for Astra, Conan Doyle's voice 9 and
+7, right for B2 6 and 8, free of errors 8 and 8. Neon's is the better read because it changes
+less: stretches are the original with a few words swapped ("a re-agent which is precipitated
+by hæmoglobin", "grazed the subclavian artery"), where Astra's is levelled evenly at the price
+of some flat glosses. The reader would give a B2 learner Astra's, by a small margin, and a
+B2+ or C1 reader Neon's. Two chapters of two different books by one reader; the level judges
+had passed all 17 of Neon's chapters as B2.
+
+White Fang, which nothing had been written from, was probed by Neon at B2 and then at B1 (a
+rung opens when the one above has passed its probe, so B1 could not be asked for first):
+
+- B2 passed: three chapters at B2, nothing material.
+- B1 failed: two of three chapters reached B1 after the revision; PART I was still judged B2.
+  No book was written. Astra's B1 probes on English books stand at 36 passed and 18 failed, so
+  one failed probe does not set the two writers apart.
+- Ten calls, 112,801 tokens in and 321,522 out, $0.40 as the plan's share, a point of the week.
+- The login was lost again at about 15:47 UTC, with this one process at work, and was back by
+  16:27 without anyone signing in.
+
+White Fang's ladder now carries Neon's probes: B2 reads "probe passed", and B1 reads untried
+for the worker's own writer, whose configuration differs.
+
+What this leaves: Neon keeps more of the original than Astra does, which reads well and sits
+high for the level, and nothing here shows it reaching B1 where Astra does not. Astra stays
+the writer.
