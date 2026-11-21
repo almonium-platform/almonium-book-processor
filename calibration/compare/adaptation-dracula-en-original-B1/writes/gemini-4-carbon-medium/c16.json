@@ -1,0 +1,52 @@
+{
+ "writer": "gemini-4-carbon-medium",
+ "passage": "c16",
+ "blocks": [
+  {
+   "block_id": "c16.p37",
+   "text": "“He was almost recovered, but he has been greatly upset by Mr. Hawkins’s death.” He interrupted:—"
+  },
+  {
+   "block_id": "c16.p38",
+   "text": "“Oh, yes, I know, I know. I have read your last two letters.” I went on:—"
+  },
+  {
+   "block_id": "c16.p39",
+   "text": "“I suppose this upset him, because when we were in town last Thursday, he had a sort of shock.”"
+  },
+  {
+   "block_id": "c16.p40",
+   "text": "“A shock, and after brain fever so soon! That was not good. What kind of a shock was it?”"
+  },
+  {
+   "block_id": "c16.p41",
+   "text": "“He thought he saw someone who reminded him of something terrible. It was something that led to his brain fever.” At that moment, the whole thing seemed to rush over me and become too much for me. There was pity for Jonathan, and the horror he had experienced. There was the whole frightening mystery of his diary, and the fear that has hung heavily over me ever since. All of it came together in wild confusion. I suppose I was out of control with emotion, because I threw myself on my knees and held up my hands to him. I begged him to make my husband well again. He took my hands, raised me up, and made me sit on the sofa. He sat beside me, held my hand in his, and spoke to me with, oh, such endless sweetness:"
+  },
+  {
+   "block_id": "c16.p42",
+   "text": "“My life is an empty and lonely one. It is so full of work that I have not had much time for friendships. But since my friend John Seward called me here, I have come to know so many good people. I have also seen such great goodness of character. All of this makes me feel the loneliness of my life more than ever. That loneliness has already grown as I have grown older. So believe me: I come here full of respect for you. And you have given me hope—not hope in what I am looking for, but hope that there are still good women left to make life happy. They are good women whose lives and truths may be a good lesson for the children of the future. If your husband is suffering, his suffering is the kind of thing I have studied and have experience with. So I am glad, glad, that I may be of some help to you here. I promise you that I will gladly do everything I can for him. I will do everything to make his life strong and manly, and your life a happy one. Now you must eat. You are worn out by emotion, and perhaps too worried. Your husband Jonathan would not like to see you so pale. When there is something he does not like in someone he loves, it is not good for him. So, for his good, you must eat and smile. You have told me all about Lucy, so now we will not talk about it, in case it is upsetting. I will stay in Exeter tonight, because I want to think a lot about what you have told me. When I have thought about it, I will ask you questions, if I may. And then you will also tell me about your husband Jonathan’s trouble, as far as you can—but not yet. You must eat now. Afterwards, you will tell me everything.”"
+  },
+  {
+   "block_id": "c16.p43",
+   "text": "After lunch, when we went back to the sitting room, he said to me:"
+  },
+  {
+   "block_id": "c16.p44",
+   "text": "“And now tell me all about him.” When the moment came to speak to this great, highly educated man, I began to feel afraid. That journal is all so strange. I feared he would think that I was a weak fool, and that Jonathan was a madman. I hesitated to go on. But he was so sweet and kind, and he had promised to help. I trusted him, so I said:"
+  },
+  {
+   "block_id": "c16.p45",
+   "text": "“Dr. Van Helsing, what I have to tell you is so strange that you must not laugh at me or at my husband. Since yesterday, I have been in a sort of fever of doubt. You must be kind to me. You must not think I am foolish because I have even half believed some very strange things.” He calmed my fears both by the way he behaved and by his words when he said:"
+  },
+  {
+   "block_id": "c16.p46",
+   "text": "“Oh, my dear, if you only knew what a strange matter I am here about, it is you who would laugh. I have learned not to look down on anyone’s belief, no matter how strange it may be. I have tried to keep an open mind. It is not the ordinary things of life that could close it. Instead, it is the strange things, the extraordinary things—the things that make a person doubt whether they are mad or in their right mind.”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 3526,
+  "cached_input_tokens": 8618,
+  "output_tokens": 62145,
+  "list_usd": 0.6223118
+ }
+}

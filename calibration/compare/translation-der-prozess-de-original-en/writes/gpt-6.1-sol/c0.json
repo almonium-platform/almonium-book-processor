@@ -1,0 +1,44 @@
+{
+ "writer": "gpt-6.1-sol",
+ "passage": "c0",
+ "blocks": [
+  {
+   "block_id": "c0.p6",
+   "text": "FRANZ KAFKA"
+  },
+  {
+   "block_id": "c0.p7",
+   "text": "The Trial"
+  },
+  {
+   "block_id": "c0.p8",
+   "text": "NOVEL"
+  },
+  {
+   "block_id": "c0.p9",
+   "text": "VERLAG DIE SCHMIEDE"
+  },
+  {
+   "block_id": "c0.p10",
+   "text": "BERLIN"
+  },
+  {
+   "block_id": "c0.p11",
+   "text": "1925"
+  },
+  {
+   "block_id": "c0.p12",
+   "text": "COVER DESIGN GEORG SALTER · BERLIN"
+  },
+  {
+   "block_id": "c0.p13",
+   "text": "COPYRIGHT 1925 BY VERLAG DIE SCHMIEDE · BERLIN"
+  }
+ ],
+ "usage": {
+  "input_tokens": 16615,
+  "cached_input_tokens": 0,
+  "output_tokens": 384,
+  "list_usd": 0.03707
+ }
+}

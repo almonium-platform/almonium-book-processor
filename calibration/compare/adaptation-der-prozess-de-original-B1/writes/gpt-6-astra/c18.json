@@ -1,0 +1,32 @@
+{
+ "writer": "gpt-6-astra",
+ "passage": "c18",
+ "blocks": [
+  {
+   "block_id": "c18.p9",
+   "text": "Diese Anweisungen sind sehr klar und bestimmt. Trotzdem weigere ich mich, die zerstörerische Tat auszuführen, die mein Freund von mir verlangt. Es wäre eine Tat wie die des Herostratos. Für meine Weigerung habe ich die stärksten Gründe."
+  },
+  {
+   "block_id": "c18.p10",
+   "text": "Über einige dieser Gründe kann ich nicht öffentlich sprechen. Doch andere kann ich nennen. Meiner Ansicht nach reichen sie völlig aus, um meine Entscheidung zu verstehen."
+  },
+  {
+   "block_id": "c18.p11",
+   "text": "Der wichtigste Grund ist dieser: 1921 wechselte ich meinen Beruf. Damals sagte ich meinem Freund, dass ich mein Testament geschrieben hatte. Darin bat ich ihn, bestimmte Dinge zu vernichten, andere durchzusehen und so weiter. Darauf zeigte Kafka mir einen Zettel von außen. Er war mit Tinte beschrieben, und später fand man ihn in seinem Schreibtisch. Kafka sagte: „Mein Testament wird ganz einfach sein — die Bitte an dich, alles zu verbrennen.“ Ich erinnere mich noch ganz genau an meine damalige Antwort: „Falls du das wirklich im Ernst von mir verlangen solltest, sage ich dir schon jetzt: Ich werde deine Bitte nicht erfüllen.“ Wir führten das ganze Gespräch in unserem üblichen scherzhaften Ton. Doch hinter unseren Scherzen steckte ein verborgener Ernst. Jeder von uns ging immer davon aus, dass es beim anderen so war. Franz war überzeugt, dass ich meine Ablehnung ernst meinte. Deshalb hätte er jemand anderen bestimmen müssen, der seinen letzten Willen ausführte. Das hätte er tun müssen, wenn seine eigene Anweisung wirklich unbedingt sein letzter, fester Wille gewesen wäre."
+  },
+  {
+   "block_id": "c18.p12",
+   "text": "Ich bin ihm nicht dankbar dafür, dass er mich in diesen schweren Streit mit meinem Gewissen gestürzt hat. Er musste voraussehen, dass ich nicht wissen würde, welche Entscheidung richtig war. Denn er wusste, wie grenzenlos und leidenschaftlich ich jedes seiner Worte verehrte. Unsere Freundschaft dauerte 22 Jahre, und nichts störte sie jemals. Meine Verehrung war unter anderem der Grund, warum ich in dieser Zeit nichts von ihm wegwarf. Nicht einmal den kleinsten Zettel oder eine einzige Ansichtskarte. — Doch die Worte „ich bin nicht dankbar“ soll man bitte nicht falsch verstehen! Was bedeutet selbst der schwerste Streit mit meinem Gewissen gegenüber all dem unendlich Guten, das ich meinem Freund verdanke! Er war das eigentliche Rückgrat meines gesamten Lebens im Denken und im Geist!"
+  },
+  {
+   "block_id": "c18.p13",
+   "text": "Es gibt weitere Gründe. Franz selbst hat sich nicht an die Anweisung auf dem mit Bleistift beschriebenen Blatt gehalten. Später erlaubte er ausdrücklich, Teile der ‚Betrachtung‘ noch einmal in einer Zeitung zu drucken. Auch drei weitere Erzählungen durften veröffentlicht werden. Er selbst hatte sie mit dem „Hungerkünstler“ zusammengestellt und dem Verlag Die Schmiede übergeben. Außerdem stammen beide Anweisungen aus einer bestimmten Zeit: Damals beurteilte mein Freund sich selbst so streng wie nie sonst. In seinem letzten Lebensjahr aber änderte sich sein ganzes Leben unerwartet. Es nahm eine neue, glückliche Wendung zum Guten. Dadurch verloren sein Hass auf sich selbst und sein Glaube, dass nichts einen Wert oder Sinn habe, ihre Geltung. — Auch eine Erinnerung macht mir meine Entscheidung leichter, die hinterlassenen Schriften zu veröffentlichen. Ich denke an all die harten Kämpfe zurück, die ich um jede einzelne Veröffentlichung von Kafka geführt habe. Jede musste ich erzwingen, und oft genug musste ich darum betteln. Trotzdem fand er sich später mit diesen Veröffentlichungen ab und war damit einigermaßen zufrieden. — Schließlich fallen nach dem Tod mehrere Gründe gegen eine Veröffentlichung weg. Zum Beispiel kann sie den Autor dann nicht mehr bei seiner weiteren Arbeit stören. Sie kann auch die Schatten von Zeiten nicht mehr zurückrufen, die ihm persönlich peinlich waren. Für Kafka hing die Entscheidung, nichts zu veröffentlichen, sehr eng mit einer Frage zusammen: Wie sollte er sein Leben führen? Zu unserem unermesslichen Schmerz stört ihn diese Frage jetzt nicht mehr. Wie eng beides zusammenhing, zeigen viele Gespräche und der folgende Brief an mich: „… Die Romane lege ich nicht bei. Warum die alten Mühen wieder aufrühren? Nur weil ich die Texte bisher nicht verbrannt habe? … Wenn ich das nächste Mal komme, geschieht es hoffentlich. Welchen Sinn hat es, solche Arbeiten aufzubewahren, die ‚sogar‘ als Kunst misslungen sind? Man hofft, dass aus diesen kleinen Stücken ein Ganzes entstehen wird. Es soll eine Art höheres Gericht sein, an das ich mich wenden kann. An seine Brust könnte ich klopfen, wenn ich in Not bin. Ich weiß, dass das nicht möglich ist und dass von dort keine Hilfe kommt. Was soll ich also mit diesen Sachen? Sie können mir nicht helfen. Sollen sie mir nun auch noch schaden? Wenn ich weiß, dass sie mir nicht helfen können, müssen sie mir ja schaden.“"
+  }
+ ],
+ "usage": {
+  "input_tokens": 18917,
+  "cached_input_tokens": 12160,
+  "output_tokens": 1582,
+  "list_usd": 0.15883
+ }
+}

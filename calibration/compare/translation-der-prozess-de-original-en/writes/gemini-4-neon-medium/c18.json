@@ -1,0 +1,32 @@
+{
+ "writer": "gemini-4-neon-medium",
+ "passage": "c18",
+ "blocks": [
+  {
+   "block_id": "c18.p9",
+   "text": "If, in the face of these so categorically expressed instructions, I nevertheless refuse to carry out the Herostratic deed that my friend demands of me, I have the most compelling reasons for doing so."
+  },
+  {
+   "block_id": "c18.p10",
+   "text": "Some of them do not admit of public discussion. Yet even those which I am able to impart are, in my view, wholly sufficient for an understanding of my decision."
+  },
+  {
+   "block_id": "c18.p11",
+   "text": "The principal reason: when I changed my profession in 1921, I told my friend that I had made my will, in which I asked him to destroy this and that, to look through other things, and so forth. Thereupon Kafka said, showing me from the outside the slip of paper written in ink that was later found in his desk: “My testament will be quite simple—the request to you to burn everything.” I also still recall quite precisely the answer I gave at the time: “Should you seriously expect such a thing of me, I tell you here and now that I shall not fulfill your request.” The entire conversation was conducted in that jesting tone which was customary between us, yet with the secret seriousness that we always presupposed in one another on such occasions. Convinced of the seriousness of my refusal, Franz would have had to appoint another executor of his will, had his own instruction been meant in absolute and ultimate earnest."
+  },
+  {
+   "block_id": "c18.p12",
+   "text": "I am not grateful to him for having plunged me into this grave conflict of conscience, which he was bound to foresee, for he knew the fanatical veneration with which I regarded every one of his words, and which in the 22 years of our never-clouded friendship prompted me (among other things) never to throw away even the smallest scrap of paper, not a single picture postcard, that came from him. — May this “I am not grateful,” by the way, not be misunderstood! What weight does a conflict of conscience, however grave, carry against the infinite blessing that I owe to the friend who was the true backbone of my entire spiritual existence!"
+  },
+  {
+   "block_id": "c18.p13",
+   "text": "Further reasons: the order on the penciled sheet was not obeyed by Franz himself, for he later expressly gave permission for parts of “Meditation” to be reprinted in a newspaper, and for three further stories to be published, which he himself combined with “A Hunger Artist” and handed over to the publishing house Die Schmiede. Both instructions, moreover, date from a time when my friend’s self-critical tendencies had reached their peak. In the last year of his life, however, his entire existence took an unforeseen, new, happy, positive turn that abrogates this self-hatred and nihilism. — My decision to publish the literary remains is, moreover, made easier by the memory of all the bitter struggles by which I wrung and often enough begged every single publication from Kafka. And yet afterward he was reconciled to these publications and relatively satisfied. — Finally, in the case of a posthumous publication, a number of motives fall away, for example, that publication might unsettle further work, that it summoned up the shadows of personally painful periods of life. How closely non-publication was bound up for Kafka with the problem of the conduct of his life (a problem which, to our immeasurable sorrow, now no longer interferes) emerges, as from many conversations, from the following letter to me: “... I am not enclosing the novels. Why stir up the old efforts? Merely because I have not burned them so far? ... The next time I come, it will happen, I hope. Wherein lies the sense of preserving such ‘even’ artistically failed works? In hoping that out of these fragments a whole will assemble itself, some court of appeal upon whose breast I shall be able to beat when I am in need. I know that this is not possible, that no help comes from there. What, then, am I to do with these things? Should those which cannot help me also do me harm, as, presupposing this knowledge, must be the case?”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 2894,
+  "cached_input_tokens": 7668,
+  "output_tokens": 13753,
+  "list_usd": 0.2074452
+ }
+}

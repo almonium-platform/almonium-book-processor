@@ -1,0 +1,52 @@
+{
+ "writer": "gpt-6.1-sol",
+ "passage": "c16",
+ "blocks": [
+  {
+   "block_id": "c16.p37",
+   "text": "“He had almost recovered, but Mr. Hawkins’s death has upset him greatly.” He interrupted:—"
+  },
+  {
+   "block_id": "c16.p38",
+   "text": "“Oh, yes, I know, I know. I have read your last two letters.” I went on:—"
+  },
+  {
+   "block_id": "c16.p39",
+   "text": "“I suppose this upset him, for when we were in town on Thursday last he had a sort of shock.”"
+  },
+  {
+   "block_id": "c16.p40",
+   "text": "“A shock, so soon after brain fever! That was not good. What kind of a shock was it?”"
+  },
+  {
+   "block_id": "c16.p41",
+   "text": "“He thought he saw someone who reminded him of something terrible. It was something that had led to his brain fever.” Then, suddenly, it all seemed too much for me. I felt such pity for Jonathan. I thought of the horror he had felt and the whole frightening mystery in his diary. The fear that had hung over me ever since came back too. All these feelings rushed over me together. I suppose I lost control of my feelings. I threw myself on my knees and held up my hands to him. I begged him to make my husband well again. He took my hands and helped me stand up. Then he made me sit on the sofa and sat beside me. He held my hand in his and spoke to me with, oh, such endless kindness:—"
+  },
+  {
+   "block_id": "c16.p42",
+   "text": "“My life is empty and lonely. I have so much work that I have had little time for friendships. But my friend John Seward called me here. Since then, I have met so many good people. I have seen them act with such great goodness. This makes me feel the loneliness of my life more than ever. That feeling has grown as I have grown older. So believe me when I say that I come here with great respect for you. And you have given me hope. I do not mean hope about what I am looking for. I mean hope that there are still good women who can make life happy. Their lives and their honesty can teach good lessons to children yet to be born. I am glad, glad, that I may be of some use to you here. If your husband is suffering, his suffering is something I have studied and have experience of. I promise I will gladly do everything I can for him. I will do all I can to make him strong and manly, and to make your life happy. Now you must eat. Your feelings have worn you out, and perhaps you are too worried. Your husband Jonathan would not like to see you so pale. When someone he loves looks unwell, it upsets him, and that is bad for him. So, for his sake, you must eat and smile. You have told me everything about Lucy. We shall not speak of it now, in case it upsets you. I shall stay in Exeter tonight. I want to think carefully about what you have told me. After I have thought, I will ask you questions, if I may. You will also tell me as much as you can about your husband Jonathan’s trouble. But not yet. You must eat now. Afterwards, you shall tell me everything.”"
+  },
+  {
+   "block_id": "c16.p43",
+   "text": "After lunch, we went back to the sitting room. He said to me:—"
+  },
+  {
+   "block_id": "c16.p44",
+   "text": "“And now tell me all about him.” As I began speaking to this great man of learning, I became afraid. He might think I was a weak fool and Jonathan was mad. Everything in that journal is so strange. I hesitated to go on. But he was so gentle and kind, and he had promised to help. I trusted him, so I said:—"
+  },
+  {
+   "block_id": "c16.p45",
+   "text": "“Dr. Van Helsing, what I have to tell you is very strange. You must not laugh at me or my husband. Since yesterday, I have been full of doubts and unable to feel calm. You must be kind to me. Do not think me foolish because I have even half believed some very strange things.” Both his manner and his words helped me feel less afraid when he said:—"
+  },
+  {
+   "block_id": "c16.p46",
+   "text": "“Oh, my dear, if you only knew how strange my reason for coming here is! Then you would be the one to laugh. I have learned not to look down on anyone’s beliefs, however strange they are. I have tried to keep my mind open to different ideas. Ordinary things in life could not close my mind. But strange things could—the most unusual things. Such things make people doubt whether they are mad or sane.”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 18980,
+  "cached_input_tokens": 0,
+  "output_tokens": 1520,
+  "list_usd": 0.05316
+ }
+}

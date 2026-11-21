@@ -1,0 +1,56 @@
+{
+ "writer": "gemini-4-argon-medium",
+ "passage": "c22",
+ "blocks": [
+  {
+   "block_id": "c22.p35",
+   "text": "I wanted to win a friend, not to make an enemy. So I thanked him, gave him Dr. Seward’s address, and left. It was now dark, and I was tired and hungry. I had a cup of tea at the Aërated Bread Company. Then I took the next train down to Purfleet."
+  },
+  {
+   "block_id": "c22.p36",
+   "text": "I found all the others at home. Mina looked tired and pale, though she made a brave effort to seem bright and cheerful. It broke my heart to think that I had had to keep secrets from her, and had made her anxious because of it. Thank God, this will be the last night that she has to watch our meetings. After tonight, she will not feel the sharp pain of knowing that we do not trust her with our secrets. It took all my courage to stick to our wise decision to keep her out of our terrible task. In some way, she seems to accept this better now. Or perhaps the subject itself now fills her with disgust, because she actually shivers whenever anyone mentions it by accident. I am glad that we made our decision in time. With her feeling like this, our growing knowledge would be torture to her."
+  },
+  {
+   "block_id": "c22.p37",
+   "text": "I could not tell the others about what I had discovered that day until we were alone. So we had dinner first, and then played a little music to keep things looking normal even among ourselves. After that, I took Mina to her room and left her to go to bed. The dear girl was more loving with me than ever. She held on to me tightly, as if she wanted to keep me from leaving. However, there was much to talk about with the others, so I came away. Thank God, stopping telling her everything has not changed anything between us."
+  },
+  {
+   "block_id": "c22.p38",
+   "text": "When I came downstairs again, I found all the others gathered around the fire in the study. On the train, I had written my diary up to that point. I simply read it aloud to them, as that was the best way to bring them up to date with what I knew. When I had finished, Van Helsing said:"
+  },
+  {
+   "block_id": "c22.p39",
+   "text": "“This has been a great day’s work, friend Jonathan. Without doubt, we are on the track of the missing boxes. If we find them all in that house, then our work is nearly finished. But if some are missing, we must search until we find them. Then we shall make our final strike, and hunt the wretch to his real death.” We all sat silent for a while, and then suddenly Mr. Morris spoke:"
+  },
+  {
+   "block_id": "c22.p40",
+   "text": "“Say! how are we going to get into that house?”"
+  },
+  {
+   "block_id": "c22.p41",
+   "text": "“We got into the other,” answered Lord Godalming quickly."
+  },
+  {
+   "block_id": "c22.p42",
+   "text": "“But, Art, this is different. We broke into the house at Carfax, but we had the night and a park with a wall around it to hide us. It will be a very different thing to break into a house in Piccadilly, either by day or by night. I admit I don’t see how we are going to get in, unless that house agent fellow can find us some kind of key. Perhaps we will know when you get his letter in the morning.” Lord Godalming frowned. He stood up and walked around the room. After a little while he stopped, looked from one of us to another, and said:"
+  },
+  {
+   "block_id": "c22.p43",
+   "text": "“Quincey is thinking clearly. This business of breaking into houses is getting serious. We escaped trouble once, right enough. Now, though, we have a very hard job ahead of us—unless we can find the Count’s basket of keys.”"
+  },
+  {
+   "block_id": "c22.p44",
+   "text": "Nothing could really be done before morning. Also, it seemed wise at least to wait until Lord Godalming heard from Mitchell’s. So we decided not to take any action before breakfast time. For a long while we sat and smoked, talking over the matter from every side and considering what it all meant. I used the time to bring this diary right up to the present moment. I am very sleepy and am going to bed...."
+  },
+  {
+   "block_id": "c22.p45",
+   "text": "Just one more line. Mina is sleeping deeply and her breathing is steady. Her forehead is drawn into little wrinkles, as if she is thinking even in her sleep. She is still too pale, but she does not look as worn out and ill as she did this morning. Tomorrow, I hope, will make all this better. She will be her old self again at home in Exeter. Oh, I am so sleepy!"
+  }
+ ],
+ "usage": {
+  "input_tokens": 12144,
+  "cached_input_tokens": 0,
+  "output_tokens": 1568,
+  "list_usd": 0.039968
+ }
+}

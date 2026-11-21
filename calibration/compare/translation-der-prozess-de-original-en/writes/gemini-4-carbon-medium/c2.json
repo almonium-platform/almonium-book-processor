@@ -1,0 +1,28 @@
+{
+ "writer": "gemini-4-carbon-medium",
+ "passage": "c2",
+ "blocks": [
+  {
+   "block_id": "c2.p12",
+   "text": "Between two men who were conversing right by the door—the one making with both far-outstretched hands the motion of counting out money, the other looking him sharply in the eyes—a hand reached out for K. It was a small, red-cheeked boy. “Come along, come along,” he said. K. let himself be led by him, and it turned out that in the milling crush a narrow path was nonetheless clear, possibly dividing two factions; in favor of this too was the fact that in the front rows to the right and left K. saw scarcely a face turned toward him, but only the backs of people who directed their speeches and gestures solely to members of their own faction. Most of them were dressed in black, in old Sunday coats that hung down long and loose. Only this attire disconcerted K., otherwise he would have taken the whole gathering for a district political meeting."
+  },
+  {
+   "block_id": "c2.p13",
+   "text": "At the other end of the hall, to which K. was led, there stood upon a very low, likewise overcrowded platform a small table set crosswise, and behind it, near the edge of the platform, sat a short, fat, wheezing man who was just then conversing amid great laughter with someone standing behind him—the latter resting his elbow on the back of the chair and his legs crossed. At times he flung his arm into the air, as though caricaturing someone. The boy who was leading K. had trouble delivering his message. Twice already, standing on tiptoe, he had tried to convey his errand without having been noticed by the man above. Only when one of the people up on the platform drew attention to the boy did the man turn to him and, leaning down, listen to his quiet report. Then he pulled out his watch and glanced quickly toward K. “You ought to have appeared 1 hour and 5 minutes ago,” he said. K. meant to make some reply, but he had no time, for scarcely had the man finished speaking when a general murmur arose in the right half of the hall. “You ought to have appeared 1 hour and 5 minutes ago,” the man now repeated in a raised voice, glancing quickly down into the hall as well. At once the murmur grew louder too and, since the man said nothing more, died away only gradually. It was now much quieter in the hall than upon K.’s entrance. Only the people in the gallery did not cease making their remarks. They seemed, so far as one could make anything out up there in the half-darkness, haze, and dust, to be worse dressed than those below. Some had brought cushions with them, which they had placed between their heads and the ceiling so as not to press themselves sore."
+  },
+  {
+   "block_id": "c2.p14",
+   "text": "K. had resolved to observe rather than to speak; consequently he dispensed with defending himself over his alleged lateness and merely said: “Even if I have arrived late, I am here now.” Applause, again from the right half of the hall, followed. “People easily won over,” thought K., disturbed only by the silence in the left half of the hall, which lay directly behind him and from which only quite isolated clapping had arisen. He reflected on what he might say in order to win them all over at once or, if that should not prove possible, at least to win the others over for a time as well."
+  },
+  {
+   "block_id": "c2.p15",
+   "text": "“Yes,” said the man, “but I am no longer obliged to examine you now”—again the murmur, though this time under a misapprehension, for the man, waving the people down with his hand, went on—“yet by way of exception I will still do so today. Such lateness, however, must not be repeated again. And now step forward!” Someone jumped down from the platform, so that a place became free for K., onto which he climbed. He stood pressed tightly against the table; the crush behind him was so great that he had to brace himself against it, did he not wish to push the examining magistrate’s table and perhaps the man himself as well down off the platform."
+  }
+ ],
+ "usage": {
+  "input_tokens": 10546,
+  "cached_input_tokens": 0,
+  "output_tokens": 7451,
+  "list_usd": 0.095602
+ }
+}

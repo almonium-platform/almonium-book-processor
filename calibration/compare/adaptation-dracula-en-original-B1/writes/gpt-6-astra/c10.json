@@ -1,0 +1,60 @@
+{
+ "writer": "gpt-6-astra",
+ "passage": "c10",
+ "blocks": [
+  {
+   "block_id": "c10.p20",
+   "text": "“Please put all fifty boxes in the partly ruined building that forms part of the house. It is marked ‘A’ on the rough plan included with this letter. Your agent will easily recognise the place. It is the mansion’s ancient chapel. The goods leave on the train at 9:30 tonight. They are expected at King’s Cross at 4:30 tomorrow afternoon. Our client wants them delivered as soon as possible. Please have horses and carts ready at King’s Cross at that time. Then take the goods straight to their destination. We do not want your usual payment rules to cause any delays. We therefore include a cheque for ten pounds (£10). Please confirm that you have received it. If the charge is less, you can return the money left over. If it is more, we will send a cheque for the difference as soon as you tell us. When you leave, put the keys in the main hall of the house. The owner can collect them there when he enters with his own copy of the key."
+  },
+  {
+   "block_id": "c10.p21",
+   "text": "“Please do not think we are being impolite in our business dealings. We are urging you in every way to act as quickly as possible."
+  },
+  {
+   "block_id": "c10.p22",
+   "text": "“Dear Sirs, “Yours faithfully, “Samuel F. Billington & Son.”"
+  },
+  {
+   "block_id": "c10.p23",
+   "text": "Letter, Messrs. Carter, Paterson & Co., London, to Messrs. Billington & Son, Whitby."
+  },
+  {
+   "block_id": "c10.p24",
+   "text": "“21 August."
+  },
+  {
+   "block_id": "c10.p25",
+   "text": "“Dear Sirs,—"
+  },
+  {
+   "block_id": "c10.p26",
+   "text": "“We confirm that we have received £10. We are returning a cheque for £1 17s. 9d, the amount left over. The bill included with this letter shows this amount and confirms payment. We have delivered the goods exactly as instructed. We have also left the keys in a parcel in the main hall, as directed."
+  },
+  {
+   "block_id": "c10.p27",
+   "text": "“Dear Sirs, “Yours respectfully. “On behalf of Carter, Paterson & Co.”"
+  },
+  {
+   "block_id": "c10.p28",
+   "text": "Mina Murray’s Journal."
+  },
+  {
+   "block_id": "c10.p29",
+   "text": "18 August.—I am happy today. I am writing while sitting on the seat in the churchyard. Lucy is so much better. Last night she slept well all night and did not disturb me once. The roses already seem to be returning to her cheeks. Still, she looks sadly pale and weak. If her blood were weak in any way, I could understand it. But it is not. She is cheerful and full of life and happiness. She had seemed so unwilling to talk, in a rather unhealthy way. All that seems to have passed. She has just reminded me of that night, as if I needed reminding! She reminded me that I found her asleep here, on this very seat. As she spoke, she playfully tapped her boot heel on the flat stone and said:—"
+  },
+  {
+   "block_id": "c10.p30",
+   "text": "“My poor little feet didn’t make much noise then! I suppose poor old Mr. Swales would have said why. He would have told me I didn’t want to wake up Geordie.” She was so willing to talk that I asked whether she had dreamed that night. Before she answered, little lines appeared on her forehead, giving her that sweet look. Arthur says he loves that look. I call him Arthur because she always does. And really, I am not surprised that he loves it. Then she continued as if she were half dreaming, trying to remember:—"
+  },
+  {
+   "block_id": "c10.p31",
+   "text": "“It wasn’t quite a dream, but it all seemed real. All I wanted was to be here, in this spot. I don’t know why, because I was afraid of something. I don’t know what. I remember going through the streets and over the bridge, though I suppose I was asleep. A fish jumped as I passed, and I leaned over to look at it. As I went up the steps, I heard a lot of dogs howling. It seemed that the whole town must be full of dogs, all howling at once. Then I had an unclear memory of something long and dark with red eyes. It was just like what we saw in the sunset. Something very sweet and very bitter was all around me at the same time. Then I seemed to be sinking into deep green water. There was a singing sound in my ears. I have heard that drowning men hear this. Then everything seemed to be passing away from me. My soul seemed to leave my body and float about in the air. I seem to remember that at one point the West Lighthouse was right below me. Then there was a terribly painful feeling, as if I were in an earthquake. I came back and found you shaking my body. I saw you do it before I felt you.”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 19055,
+  "cached_input_tokens": 0,
+  "output_tokens": 1587,
+  "list_usd": 0.2699
+ }
+}

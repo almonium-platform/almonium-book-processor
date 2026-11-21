@@ -1,0 +1,32 @@
+{
+ "writer": "opus-5.5",
+ "passage": "c18",
+ "blocks": [
+  {
+   "block_id": "c18.p9",
+   "text": "If, in the face of these so categorically expressed instructions, I nevertheless refuse to carry out the Herostratic deed which my friend demands of me, I have for this the very weightiest of reasons."
+  },
+  {
+   "block_id": "c18.p10",
+   "text": "Some of them are not suited to public discussion. But even those which I can communicate are, in my opinion, entirely sufficient for an understanding of my decision."
+  },
+  {
+   "block_id": "c18.p11",
+   "text": "The chief reason: when in 1921 I changed my profession, I told my friend that I had made my will, in which I asked him to destroy this and that, to look through other things, and so forth. Thereupon Kafka, showing me from the outside the note written in ink that was afterwards found in his desk, said: \"My will is going to be quite simple — a request to you to burn everything.\" I still remember quite exactly, too, the answer I gave him then: \"Should you seriously expect anything of the kind from me, I tell you here and now that I shall not fulfil your request.\" The whole conversation was carried on in that jesting tone which was customary between us, yet with the hidden seriousness which each of us always presupposed in the other on such occasions. Convinced as he was of the seriousness of my refusal, Franz would have had to appoint another executor had his own instruction been for him a matter of absolute and final seriousness."
+  },
+  {
+   "block_id": "c18.p12",
+   "text": "I am not grateful to him for having plunged me into this grave conflict of conscience, which he must have foreseen, for he knew the fanatical veneration with which I received his every word, and which in the twenty-two years of our never-clouded friendship led me (among other things) never to throw away even the smallest scrap of paper, not a single postcard, that came from him. — The words \"I am not grateful\", by the way, are not to be misunderstood! What does a conflict of conscience, however grave, weigh against the infinite blessing that I owe to the friend who was the true backbone of my whole intellectual existence!"
+  },
+  {
+   "block_id": "c18.p13",
+   "text": "Further reasons: the order of the pencilled sheet was not obeyed by Franz himself, for he later expressly gave permission for parts of 'Meditation' to be reprinted in a newspaper, and for three further stories to be published, which he himself combined with \"A Hunger Artist\" and handed over to the publishing house Die Schmiede. Both instructions, moreover, date from a time when my friend's self-critical tendencies had reached their culmination. In the last year of his life, however, his whole existence took an unforeseen, new, happy, positive turn, which derogates from this self-hatred and nihilism. — My decision to publish the posthumous papers is, by the way, made easier by the memory of all the bitter struggles with which I wrung, and often enough begged, every single publication from Kafka. And yet afterwards he was reconciled to these publications and relatively content with them. — Finally, in the case of a posthumous publication, a whole series of motives falls away, for example, that publication might disturb further work, or that it might call up the shades of personally painful periods of his life. How closely, for Kafka, non-publication was bound up with the problem of the conduct of his life (a problem which, to our immeasurable grief, no longer stands in the way) emerges, as from many conversations, from the following letter to me: \"… I am not enclosing the novels. Why stir up the old efforts? Only because I have not burnt them so far? … When I come next time, I hope it will happen. What is the sense of keeping such works, which have failed 'even' artistically? That one hopes that out of these fragments some whole will put itself together, some court of appeal on whose breast I shall be able to beat when I am in need. I know that this is not possible, that no help will come from there. So what am I to do with these things? Are those that cannot help me to harm me as well, as, granted this knowledge, must be the case?\""
+  }
+ ],
+ "usage": {
+  "input_tokens": 10906,
+  "cached_input_tokens": 0,
+  "output_tokens": 4231,
+  "list_usd": 0.128244
+ }
+}

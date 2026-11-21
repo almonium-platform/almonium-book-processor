@@ -1,0 +1,56 @@
+{
+ "writer": "gemini-4-neon-medium",
+ "passage": "c19",
+ "blocks": [
+  {
+   "block_id": "c19.p26",
+   "text": "“You see, I do not know how to pick out any particular part of the diary.” Even while he was speaking, an idea suddenly came to him. His voice changed, and he spoke simply and innocently, like a child, without realizing it: “That’s quite true, on my honour. Really and truly!” I could not help smiling, and he made a face. “I gave myself away that time!” he said. “But do you know? I have kept this diary for months. Yet I never once thought about how I would find a particular part if I wanted to look it up.” By this time, I had made up my mind. The diary of a doctor who had treated Lucy might add something to all we know about that terrible Being. So I said boldly:"
+  },
+  {
+   "block_id": "c19.p27",
+   "text": "“Then, Dr. Seward, you had better let me copy it out for you on my typewriter.” His face turned truly as pale as death as he said:"
+  },
+  {
+   "block_id": "c19.p28",
+   "text": "“No! No! No! I wouldn’t let you know that terrible story for anything in the world!”"
+  },
+  {
+   "block_id": "c19.p29",
+   "text": "So it was terrible! My feeling was right! I thought for a moment. My eyes moved around the room, looking without thinking for something or some chance to help me. Then they landed on a large pile of typed pages on the table. He caught the look in my eyes and, without thinking, looked in the same direction. When he saw the parcel, he understood what I meant."
+  },
+  {
+   "block_id": "c19.p30",
+   "text": "“You do not know me,” I said. “Those papers are my own diary and my husband’s, which I have typed out. When you have read them, you will know me better. I have not held back from sharing every thought of my heart for this cause. Of course, you do not know me yet, so I must not expect you to trust me that much.”"
+  },
+  {
+   "block_id": "c19.p31",
+   "text": "He is certainly a man with a good and honourable character. Poor dear Lucy was right about him. He stood up and opened a large drawer. Inside, a number of hollow metal cylinders covered with dark wax were arranged in order. He said:"
+  },
+  {
+   "block_id": "c19.p32",
+   "text": "“You are quite right. I did not trust you because I did not know you. But I know you now, and let me say that I should have known you long ago. I know that Lucy told you about me, and she told me about you too. May I make up for this in the only way I can? Take the cylinders and listen to them. The first six are personal to me, and they will not shock or frighten you. Then you will know me better. Dinner will be ready by then. In the meantime, I will read through some of these papers. That way, I will be able to understand certain things better.” He carried the phonograph up to my sitting-room himself and set it up for me. Now I am sure I will learn something pleasant. It will tell me the other side of a true love story, and I already know one side of it..."
+  },
+  {
+   "block_id": "c19.p33",
+   "text": "Dr. Seward’s Diary."
+  },
+  {
+   "block_id": "c19.p34",
+   "text": "29 September.—I was so deeply interested in Jonathan Harker’s wonderful diary, and in his wife’s diary too, that I let the time pass without thinking. Mrs. Harker had not come downstairs when the maid came to say dinner was ready. So I said, “Perhaps she is tired. Let dinner wait an hour.” Then I went on with my work. I had just finished Mrs. Harker’s diary when she came in. She looked sweet and pretty, but very sad. Her eyes were red from crying. Somehow, this touched me deeply. Lately, God knows, I have had reason to cry! Yet I could not have the relief of crying. Now, seeing those sweet eyes, still bright with recent tears, went straight to my heart. So I said as gently as I could:"
+  },
+  {
+   "block_id": "c19.p35",
+   "text": "“I am very afraid that I have upset you.”"
+  },
+  {
+   "block_id": "c19.p36",
+   "text": "“Oh, no, you have not upset me,” she replied. “Your deep sorrow has touched me more than I can say. That is a wonderful machine, but it is cruelly true. Through its very sounds, it told me the deep pain in your heart. It was like a soul crying out to Almighty God. No one must ever hear those words spoken again! See, I have tried to be useful. I have copied out the words on my typewriter. Now no one else needs to hear your heart beat, as I did.”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 12215,
+  "cached_input_tokens": 0,
+  "output_tokens": 18829,
+  "list_usd": 0.31908
+ }
+}

@@ -1,0 +1,28 @@
+{
+ "writer": "gemini-4-argon-medium",
+ "passage": "c2",
+ "blocks": [
+  {
+   "block_id": "c2.p12",
+   "text": "Between two men who were conversing right by the door—one of them, with both hands stretched far forward, was making the motion of counting out money, while the other looked him sharply in the eyes—a hand reached out for K. It was a small, red-cheeked boy. \"Come along, come along,\" he said. K. allowed himself to be led by him, and it turned out that in the milling throng a narrow path was nevertheless clear, which possibly divided two factions; in favor of this too was the fact that in the front rows to the right and left K. saw scarcely a single face turned toward him, but only the backs of people who were directing their speeches and gestures solely to members of their own faction. Most of them were dressed in black, in old, long, and loosely hanging Sunday coats. Only this attire bewildered K., otherwise he would have taken the whole gathering for a local political meeting."
+  },
+  {
+   "block_id": "c2.p13",
+   "text": "At the other end of the hall, to which K. was led, there stood upon a very low, likewise overcrowded platform a small table set crosswise, and behind it, near the edge of the platform, sat a small, fat, wheezing man who was just then conversing amid great laughter with someone standing behind him—the latter had propped his elbow on the back of the chair and crossed his legs. From time to time he flung his arm into the air as if caricaturing someone. The boy who was leading K. had difficulty in delivering his report. Twice already he had tried, standing on tiptoe, to convey his message, without having been noticed by the man above. Only when one of the people up on the platform drew attention to the boy did the man turn to him and, leaning down, listen to his low-voiced report. Then he pulled out his watch and glanced quickly toward K. \"You ought to have appeared one hour and five minutes ago,\" he said. K. wanted to make some reply, but he had no time, for scarcely had the man finished speaking when a general murmur arose in the right half of the hall. \"You ought to have appeared one hour and five minutes ago,\" the man now repeated in a raised voice, and now glanced quickly down into the hall as well. Immediately the murmur grew louder too, and since the man said nothing further, died away only gradually. It was now much quieter in the hall than at K.'s entry. Only the people in the gallery did not cease making their remarks. They seemed, so far as one could distinguish anything up there in the semi-darkness, haze, and dust, to be more poorly dressed than those below. Some had brought cushions with them, which they had placed between their heads and the ceiling of the room so as not to rub themselves raw."
+  },
+  {
+   "block_id": "c2.p14",
+   "text": "K. had resolved to observe rather than to speak; consequently he refrained from defending himself over his alleged late arrival and merely said: \"Even if I have arrived too late, I am here now.\" A round of applause, again from the right half of the hall, followed. \"People easily won over,\" thought K., and was troubled only by the silence in the left half of the hall, which lay directly behind him and from which only quite isolated clapping of hands had arisen. He reflected on what he might say to win over all of them at once or, if that should not be possible, at least the others for the time being."
+  },
+  {
+   "block_id": "c2.p15",
+   "text": "\"Yes,\" said the man, \"but I am no longer obliged to examine you now\"—again the murmur, though this time resting on a misunderstanding, for the man continued, waving his hand to silence the people—\"however, by way of exception I shall still do so today. Such a delay, though, must never be repeated again. And now step forward!\" Someone or other jumped down from the platform so that a place was freed for K., onto which he climbed up. He stood pressed tightly against the table; the crush behind him was so great that he had to brace himself against it if he did not wish to push the examining magistrate's table, and perhaps the magistrate himself, down off the platform."
+  }
+ ],
+ "usage": {
+  "input_tokens": 10551,
+  "cached_input_tokens": 0,
+  "output_tokens": 1088,
+  "list_usd": 0.031982
+ }
+}

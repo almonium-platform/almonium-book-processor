@@ -1107,3 +1107,46 @@ Mean rank by the two judges that are not the writer's own model, 1 best of 6:
 
 Nothing in production names Carbon yet. Before it does: the same comparison on a second book and
 a second language, and a chapter-sized request to see that it fits the argument.
+
+## Three Gemini models beside the three writers, on two more books (21 November 2026)
+
+The second book and the second language the first comparison asked for. Dracula (English to
+Ukrainian, and to B1) and Der Prozess (German to English, and to B1), eight passages each,
+six writers: Opus 5.5 at high effort, Sol and Astra at medium, and Gemini 4 Carbon, Argon and
+Neon at medium on Google's plan. Three judges read every passage blind: Opus, Astra and Carbon.
+(`calibration/compare/{translation,adaptation}-dracula-en-original-*` and
+`…-der-prozess-de-original-*`; the plan lost its login near the end, so Carbon judged 6, 6 and
+2 passages of the last three. Its readings are not in the table: it wrote two of the six.)
+
+Mean rank by the two outside judges, 1 best of 6; a judge's reading of its own model is left out:
+
+| Writer | Dracula uk (Opus, Astra) | Dracula B1 | Prozess en | Prozess B1 | Mean, Opus | Mean, Astra | List price, 32 passages |
+|---|---|---|---|---|---|---|---|
+| gemini-4-carbon, medium | 2.62, 1.75 | 3.75, 1.62 | 3.50, 2.88 | 3.00, 2.50 | 3.22 | 2.19 | $13.74 |
+| gemini-4-neon, medium | 3.12, 3.38 | 1.88, 3.00 | 4.12, 1.75 | 2.38, 3.25 | 2.88 | 2.85 | $9.14 |
+| gpt-6.1-sol, medium | 4.00, 3.50 | 4.25, 4.38 | 2.88, 3.50 | 3.25, 3.38 | 3.60 | 3.69 | $1.56 |
+| gpt-6-astra, medium | 2.75, own | 4.38, own | 4.00, own | 4.00, own | 3.78 | own | $6.42 |
+| claude-opus-5-5, high | own, 4.75 | own, 3.12 | own, 4.50 | own, 3.88 | own | 4.06 | $4.61 |
+| gemini-4-argon, medium | 4.50, 5.25 | 4.50, 4.88 | 4.25, 4.88 | 4.88, 5.62 | 4.53 | 5.16 | $1.32 |
+
+- **Carbon and Neon at medium lead on both books, both tasks and for both outside judges.**
+  Neither outside judge puts a GPT or Claude writer ahead of both of them on average. With
+  Bleak House that is three books and three language pairs pointing the same way for Carbon.
+- **Neon is the cheaper of the two.** It thinks a third to two thirds as much as Carbon
+  (550,000 output tokens against 1,320,000 over the 32 passages) and Opus ranks it higher;
+  Astra ranks Carbon higher.
+- **Argon is last for both judges** and is not a candidate.
+- Carbon and Neon pay for their place in thinking: forty to ninety times Sol's output tokens.
+  On the plan that is quota that would otherwise lapse; on the API it would be nine times
+  Sol's price.
+- Still eight passages a book and two outside judges; the judges agree on the Gemini pair and
+  on Argon, and on little else.
+
+What this decides: Google's plan is worth using for translation and adaptation, and the next
+step is one whole book written by Carbon or Neon at medium through the pipeline, read by the
+usual judges, before any setting names them. A chapter-sized request still has to fit the
+CLI's one argument of 120,000 bytes.
+
+The plan also serves Claude Opus 5.5, on a meter of its own. Twenty-four dictionary entries at
+high effort used 10% of that meter's week and 18% of its five-hour session: some 240 entries a
+week. It is not a second supply of the dictionary's writer.

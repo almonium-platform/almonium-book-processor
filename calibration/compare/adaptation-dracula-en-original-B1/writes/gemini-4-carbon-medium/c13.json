@@ -1,0 +1,56 @@
+{
+ "writer": "gemini-4-carbon-medium",
+ "passage": "c13",
+ "blocks": [
+  {
+   "block_id": "c13.p27",
+   "text": "“What do you mean, ask them questions?” I asked. I wanted to get him in a mood to talk."
+  },
+  {
+   "block_id": "c13.p28",
+   "text": "“Hitting them over the head with a pole is one way. Scratching their ears is another, when gentlemen with plenty of money want to show off a bit to their girls. I don’t mind the first way very much—hitting them with a pole before I throw in their dinner. But before I try scratching their ears, I wait until they’ve had their sherry and coffee, as you might say. Remember,” he added thoughtfully, “there is a lot of the same nature in us as in those animals. Look—you came here and asked me questions about my work. I was in such a bad mood that, without that half-pound of money from you, I would have seen you damned first before I answered. I wouldn’t have answered even when you sarcastically asked if I wanted you to ask the Superintendent whether you could ask me questions. Without offence, did I tell you to go to hell?”"
+  },
+  {
+   "block_id": "c13.p29",
+   "text": "“You did.”"
+  },
+  {
+   "block_id": "c13.p30",
+   "text": "“And when you said you’d report me for using bad, offensive language, that was hitting me over the head. But the half-pound made that all right. I wasn’t going to fight, so I waited for the food and only howled, just as the wolves, lions, and tigers do. But, Lord love your heart, the old woman has put a big piece of her tea-cake in me now. She has rinsed me out with her old teapot, and I’ve lit my tobacco. So now you can scratch my ears as much as you can, and you won’t get even a growl out of me. Go ahead with your questions. I know what you’re aiming at—that escaped wolf.”"
+  },
+  {
+   "block_id": "c13.p31",
+   "text": "“Exactly. I want you to give me your view of it. Just tell me how it happened. When I know the facts, I’ll get you to tell me what you think caused it. I’ll also get you to say how you think the whole matter will end.”"
+  },
+  {
+   "block_id": "c13.p32",
+   "text": "“All right, sir. This is more or less the whole story. We called that wolf Bersicker. He was one of three grey wolves that came from Norway to Jamrach’s, and we bought them from him four years ago. He was a nice, well-behaved wolf, and he never gave any trouble worth talking about. I’m more surprised at him for wanting to get out than I would be at any other animal in the place. But there you are—you can’t trust wolves any more than you can trust women.”"
+  },
+  {
+   "block_id": "c13.p33",
+   "text": "“Don’t mind him, sir!” Mrs. Tom interrupted with a cheerful laugh. “He’s been looking after the animals for so long that he really is like an old wolf himself! But there’s no harm in him.”"
+  },
+  {
+   "block_id": "c13.p34",
+   "text": "“Well, sir, it was about two hours after feeding time yesterday when I first heard the trouble. I was in the monkey-house, making a bed for a young puma that is ill. But when I heard the sharp cries and howling, I came away at once. Bersicker was there, clawing and pulling at the bars like a mad thing, as if he wanted to get out. There weren’t many people around that day, and only one man was nearby. He was tall and thin, with a nose curved like a hook and a pointed beard that had a few white hairs running through it. He had a hard, cold look and red eyes. I felt a kind of dislike for him, because it seemed as if he was the one they were annoyed at. He had fine, soft white leather gloves on his hands. He pointed out the animals to me and said, ‘Keeper, these wolves seem upset at something.’"
+  },
+  {
+   "block_id": "c13.p35",
+   "text": "“‘Maybe it’s you,’ I said, because I didn’t like the proud, superior way he acted. He didn’t get angry, as I hoped he would. Instead, he smiled a kind of rude, disrespectful smile, with a mouth full of white, sharp teeth. ‘Oh no, they wouldn’t like me,’ he said."
+  },
+  {
+   "block_id": "c13.p36",
+   "text": "“‘Oh yes, they would,’ I said, copying the way he spoke. ‘They always like a bone or two to clean their teeth on around tea-time. And you have a bagful of bones.’"
+  },
+  {
+   "block_id": "c13.p37",
+   "text": "“Well, it was a strange thing, but when the animals saw us talking, they lay down. And when I went over to Bersicker, he let me stroke his ears just like always. That man came over. Believe it or not, he put his hand in and stroked the old wolf’s ears too!"
+  }
+ ],
+ "usage": {
+  "input_tokens": 12359,
+  "cached_input_tokens": 0,
+  "output_tokens": 65385,
+  "list_usd": 0.678568
+ }
+}

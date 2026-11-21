@@ -1,0 +1,32 @@
+{
+ "writer": "gemini-4-neon-medium",
+ "passage": "c18",
+ "blocks": [
+  {
+   "block_id": "c18.p9",
+   "text": "Diese Anweisungen wurden sehr streng und klar ausgesprochen. Mein Freund verlangt von mir eine schreckliche Tat der Zerstörung. Trotzdem lehne ich es ab, sie auszuführen. Dafür habe ich die allerstärksten Gründe."
+  },
+  {
+   "block_id": "c18.p10",
+   "text": "Über einige dieser Gründe kann man nicht öffentlich sprechen. Andere Gründe kann ich aber mitteilen. Meiner Meinung nach reichen auch diese völlig aus, um meine Entscheidung zu verstehen."
+  },
+  {
+   "block_id": "c18.p11",
+   "text": "Der Hauptgrund ist folgender: Im Jahr 1921 wechselte ich meinen Beruf. Damals sagte ich meinem Freund, dass ich mein Testament geschrieben hatte. Darin bat ich ihn, dies und das zu vernichten, anderes durchzusehen und so weiter. Daraufhin zeigte mir Kafka einen Zettel von außen. Er war mit Tinte geschrieben, und man hat ihn später in seinem Schreibtisch gefunden. Kafka sagte dazu: „Mein Testament wird ganz einfach sein — die Bitte an dich, alles zu verbrennen.“ Ich erinnere mich auch noch ganz genau an meine Antwort von damals: „Falls du so etwas im Ernst von mir verlangen solltest, sage ich dir schon jetzt: Ich werde deine Bitte nicht erfüllen.“ Wir sprachen dabei in dem humorvollen Ton, der zwischen uns üblich war. Doch dahinter lag ein heimlicher Ernst. Jeder von uns ging dabei immer davon aus, dass der andere es heimlich ernst meinte. Franz war überzeugt, dass meine Ablehnung ernst war. Hätte er seine eigene Anweisung absolut und endgültig ernst gemeint, hätte er jemand anderen bestimmen müssen. Eine andere Person hätte dann sein Testament ausführen müssen."
+  },
+  {
+   "block_id": "c18.p12",
+   "text": "Ich bin ihm nicht dankbar dafür, dass er mich in diesen schweren Konflikt mit meinem Gewissen gebracht hat. Er musste diesen Konflikt voraussehen. Denn er kannte meine fanatische Bewunderung für jedes seiner Worte. Wir waren 22 Jahre lang Freunde, und unsere Freundschaft war niemals gestört. Wegen dieser Bewunderung warf ich unter anderem nicht einmal den kleinsten Zettel von ihm weg. Auch keine Postkarte von ihm habe ich weggeworfen. — Übrigens soll man mein „Ich bin nicht dankbar“ bitte nicht falsch verstehen! Wie wenig zählt selbst der schwerste Konflikt mit dem Gewissen im Vergleich zu dem unendlichen Segen! Diesen Segen verdanke ich meinem Freund. Er war das eigentliche Rückgrat meines ganzen geistigen Lebens."
+  },
+  {
+   "block_id": "c18.p13",
+   "text": "Es gibt noch weitere Gründe: Franz hat sich selbst nicht an die Anweisung auf dem Bleistiftzettel gehalten. Später erlaubte er ausdrücklich, dass Teile aus ‚Betrachtung‘ wieder in einer Zeitung gedruckt wurden. Außerdem erlaubte er, dass drei weitere Erzählungen veröffentlicht wurden. Er fasste sie selbst mit dem „Hungerkünstler“ zusammen und gab sie dem Verlag Die Schmiede. Außerdem stammen beide Anweisungen aus einer bestimmten Zeit. Damals hatte die Selbstkritik meines Freundes ihren Höhepunkt erreicht. In seinem letzten Lebensjahr nahm sein ganzes Leben aber eine unerwartete, neue, glückliche und positive Wendung. Diese Wendung hebt diesen Selbsthass und diesen Glauben an die Sinnlosigkeit von allem auf. — Übrigens fällt mir meine Entscheidung, die hinterlassenen Texte zu veröffentlichen, auch aus einem anderen Grund leichter. Ich erinnere mich an all die heftigen Kämpfe mit Kafka. Ich musste jede einzelne Veröffentlichung von ihm erzwingen und oft genug darum betteln. Und trotzdem machte er hinterher seinen Frieden mit diesen Veröffentlichungen und war relativ zufrieden. — Schließlich fällt bei einer Veröffentlichung nach dem Tod eine Reihe von Gründen weg. Zum Beispiel kann eine Veröffentlichung seine weitere Arbeit nicht mehr stören. Und sie ruft auch nicht mehr die Schatten von persönlich peinlichen Lebensabschnitten wach. Für Kafka hing das Nichtveröffentlichen eng mit dem Problem zusammen, wie er sein Leben führen sollte. Zu unserem unendlichen Schmerz stört dieses Problem jetzt nicht mehr. Wie eng beides zusammenhing, zeigten viele Gespräche. Das zeigt auch der folgende Brief an mich: „… Die Romane lege ich nicht bei. Warum soll ich die alten Mühen wieder hervorholen? Nur deshalb, weil ich sie bisher nicht verbrannt habe? … Wenn ich das nächste Mal komme, passiert es hoffentlich. Welchen Sinn hat es, solche Arbeiten aufzuheben? Sie sind ‚sogar‘ künstlerisch misslungen. Der Sinn liegt darin, dass man hofft: Aus diesen kleinen Stücken wird ein Ganzes entstehen. Es soll irgendeine höhere Stelle sein, an die ich mich wenden kann. An ihre Brust werde ich schlagen können, wenn ich in Not bin. Ich weiß, dass das nicht möglich ist und dass von dort keine Hilfe kommt. Was soll ich also mit den Sachen? Diese Sachen können mir nicht helfen. Sollen sie mir dann auch noch schaden? Denn wenn ich das weiß, muss es so kommen.“"
+  }
+ ],
+ "usage": {
+  "input_tokens": 3936,
+  "cached_input_tokens": 8192,
+  "output_tokens": 28118,
+  "list_usd": 0.4229988
+ }
+}

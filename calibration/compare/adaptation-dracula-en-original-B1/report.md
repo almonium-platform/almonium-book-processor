@@ -1,0 +1,647 @@
+# The writers judge each other: B1 adaptation of dracula-en-original
+
+Every judge saw the source and the candidates under shuffled letters, without model names. Rank 1 is best; a win is rank 1. Each judge also rated its own work, blind.
+
+## Writing
+
+| Writer | Passages | Output tokens | List price |
+|---|---|---|---|
+| opus-5.5 | 8 | 39028 | $1.01 |
+| gpt-6.1-sol | 8 | 12804 | $0.43 |
+| gpt-6-astra | 8 | 12062 | $1.97 |
+| gemini-4-carbon-medium | 8 | 430730 | $4.46 |
+| gemini-4-argon-medium | 8 | 12933 | $0.32 |
+| gemini-4-neon-medium | 8 | 163801 | $2.75 |
+
+## Judge: opus-5.5 (8 passages, $0.74 list)
+
+| Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
+|---|---|---|---|---|
+| gemini-4-neon-medium | 1.88 | 4 (50%) | 7.9 | 8 of 8 |
+| opus-5.5 (itself) | 2.25 | 2 (25%) | 7.5 | 8 of 8 |
+| gemini-4-carbon-medium | 3.75 | 1 (12%) | 6.6 | 8 of 8 |
+| gpt-6.1-sol | 4.25 | 0 (0%) | 6.2 | 8 of 8 |
+| gpt-6-astra | 4.38 | 0 (0%) | 6.2 | 8 of 8 |
+| gemini-4-argon-medium | 4.50 | 1 (12%) | 5.6 | 8 of 8 |
+
+## Judge: gpt-6-astra (8 passages, $1.54 list)
+
+| Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
+|---|---|---|---|---|
+| gemini-4-carbon-medium | 1.62 | 4 (50%) | 8.2 | 6 of 8 |
+| gemini-4-neon-medium | 3.00 | 2 (25%) | 7.8 | 8 of 8 |
+| opus-5.5 | 3.12 | 0 (0%) | 7.4 | 7 of 8 |
+| gpt-6-astra (itself) | 4.00 | 1 (12%) | 7.2 | 8 of 8 |
+| gpt-6.1-sol | 4.38 | 0 (0%) | 7.1 | 8 of 8 |
+| gemini-4-argon-medium | 4.88 | 1 (12%) | 6.6 | 8 of 8 |
+
+## Judge: gemini-4-carbon-medium (6 passages, $1.98 list)
+
+| Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
+|---|---|---|---|---|
+| gemini-4-carbon-medium (itself) | 1.33 | 4 (67%) | 8.2 | 6 of 6 |
+| gemini-4-neon-medium | 1.67 | 2 (33%) | 7.8 | 6 of 6 |
+| opus-5.5 | 3.83 | 0 (0%) | 5.3 | 6 of 6 |
+| gpt-6-astra | 4.33 | 0 (0%) | 5.0 | 6 of 6 |
+| gpt-6.1-sol | 4.83 | 0 (0%) | 4.2 | 6 of 6 |
+| gemini-4-argon-medium | 5.00 | 0 (0%) | 3.7 | 6 of 6 |
+
+## All judges together
+
+| Writer | Mean rank | Wins | Mean score | Rank by itself | Rank by the other judges |
+|---|---|---|---|---|---|
+| gemini-4-neon-medium | 2.23 | 8 (36%) | 7.8 | - | - |
+| gemini-4-carbon-medium | 2.32 | 9 (41%) | 7.6 | 1.33 | 2.69 |
+| opus-5.5 | 3.00 | 2 (9%) | 6.9 | 2.25 | 3.43 |
+| gpt-6-astra | 4.23 | 1 (5%) | 6.3 | 4.00 | 4.36 |
+| gpt-6.1-sol | 4.45 | 0 (0%) | 6.0 | - | - |
+| gemini-4-argon-medium | 4.77 | 2 (9%) | 5.5 | - | - |
+
+## Agreement on the best candidate
+
+- opus-5.5 and gpt-6-astra: same best candidate on 1 of 8 passages
+- opus-5.5 and gemini-4-carbon-medium: same best candidate on 1 of 6 passages
+- gpt-6-astra and gemini-4-carbon-medium: same best candidate on 2 of 6 passages
+
+## Slips flagged, for a person to check
+
+- c4 / gemini-4-neon-medium, by opus-5.5: 'showing his teeth sticking out more than he had done yet' is awkward and ungrammatical
+- c4 / gemini-4-neon-medium, by opus-5.5: 'toilet glass' becomes just 'a small mirror on my table', so the sense of a dressing mirror is weakened
+- c4 / opus-5.5, by opus-5.5: 'only noticed the backs of his hands' adds 'only', which the source does not say
+- c4 / opus-5.5, by opus-5.5: Short sentences throughout make the description of the face choppy
+- c4 / opus-5.5, by opus-5.5: The reason for wanting something to read is split off and repeated ('I wanted something to read because...')
+- c4 / gemini-4-carbon-medium, by opus-5.5: 'The upper part of his thin nose was high' is an unclear rendering of 'high bridge'
+- c4 / gemini-4-carbon-medium, by opus-5.5: 'around his temples, at the sides of his forehead' adds an explanation, and 'very thinly' makes it stronger than the source
+- c4 / gemini-4-carbon-medium, by opus-5.5: 'features, sharp and curved like an eagle's' adds 'sharp'
+- c4 / gemini-4-carbon-medium, by opus-5.5: 'Perhaps his breath smelled foul' uses 'foul', a word above B1
+- c4 / gpt-6.1-sol, by opus-5.5: 'himself opened the door for me' has awkward word order
+- c4 / gpt-6.1-sol, by opus-5.5: 'a rather hard smile' loses the grimness of 'grim'
+- c4 / gpt-6.1-sol, by opus-5.5: 'small mirror on my dressing table' turns his table into a dressing table
+- c4 / gpt-6.1-sol, by opus-5.5: 'I have doubts; I am afraid' is split up, which flattens the rhythm
+- c4 / gpt-6-astra, by opus-5.5: 'It was held still' is an odd rendering of 'fixed'
+- c4 / gpt-6-astra, by opus-5.5: 'showing more of his teeth than before as they stuck out' is clumsy
+- c4 / gpt-6-astra, by opus-5.5: 'are among the most expensive' weakens 'of the costliest'
+- c4 / gpt-6-astra, by opus-5.5: 'admit even to myself' drops 'my own soul'
+- c4 / gemini-4-argon-medium, by opus-5.5: 'Perhaps his breath smelled bad, for a horrible feeling...' turns the source's 'but' into a cause, which reverses the logic
+- c4 / gemini-4-argon-medium, by opus-5.5: 'a sudden shake of fear and disgust' adds feelings the source does not name
+- c4 / gemini-4-argon-medium, by opus-5.5: 'dishes and spoons' invents spoons
+- c4 / gemini-4-argon-medium, by opus-5.5: 'strongly shaped, very strongly shaped' is clumsy
+- c4 / gemini-4-argon-medium, by opus-5.5: 'admit even to myself' drops 'my own soul'
+- c7 / opus-5.5, by opus-5.5: Adds an explanation of the proverb: 'When something happens, a lot of it happens at once'.
+- c7 / opus-5.5, by opus-5.5: Adds a gloss after 'lunatic-asylum man': 'the man from the hospital for mad people'.
+- c7 / opus-5.5, by opus-5.5: Adds a gloss for lancet: 'a small, sharp knife that doctors use'.
+- c7 / opus-5.5, by opus-5.5: 'Mr. Morris was always telling us his stories': 'always' is invented.
+- c7 / gemini-4-carbon-medium, by opus-5.5: 'strongly look down on': 'strongly' is invented.
+- c7 / gemini-4-carbon-medium, by opus-5.5: 'a cruel brute': 'cruel' is added.
+- c7 / gemini-4-carbon-medium, by opus-5.5: 'informal slang expressions' adds a gloss.
+- c7 / gemini-4-carbon-medium, by opus-5.5: 'wonderful, very polite manners' is padded.
+- c7 / gemini-4-carbon-medium, by opus-5.5: Padding throughout makes the prose wordy ('wild, unrealistic', 'stained and smudged').
+- c7 / gemini-4-neon-medium, by opus-5.5: The proverb itself is dropped, so 'How true the old sayings are' has no saying to refer to.
+- c7 / gemini-4-neon-medium, by opus-5.5: 'tried to look as happy and cheerful as he could' changes 'looked as happy and jolly as he could'.
+- c7 / gpt-6.1-sol, by opus-5.5: Invents a rain image for the proverb: 'like heavy rain after the first few drops'.
+- c7 / gpt-6.1-sol, by opus-5.5: 'He seemed very calm' loses 'outwardly'.
+- c7 / gpt-6.1-sol, by opus-5.5: Adds a gloss for slang: 'those informal words people use when talking'.
+- c7 / gemini-4-argon-medium, by opus-5.5: Adds an explanation: 'Desdemona in Shakespeare's play'.
+- c7 / gemini-4-argon-medium, by opus-5.5: Changes 'dangerous stream' to 'exciting stream of stories'.
+- c7 / gemini-4-argon-medium, by opus-5.5: Invents 'brave man', and softens 'cowards' to 'so easily frightened'.
+- c7 / gemini-4-argon-medium, by opus-5.5: Invents 'training himself ... in all kinds of small ways to stay calm'.
+- c7 / gemini-4-argon-medium, by opus-5.5: Invents 'how wonderful his life would be'.
+- c7 / gemini-4-argon-medium, by opus-5.5: 'he said he was being cruel' weakens 'brute'.
+- c7 / gemini-4-argon-medium, by opus-5.5: 'even while I was helping him' distorts the sense of 'I helping him all I could'.
+- c7 / gemini-4-argon-medium, by opus-5.5: Adds 'honest' to 'just as fair'.
+- c7 / gemini-4-argon-medium, by opus-5.5: Modernises the source's 'black man' to 'Black man'.
+- c7 / gpt-6-astra, by opus-5.5: The proverb is dropped.
+- c7 / gpt-6-astra, by opus-5.5: 'Then he wanted to look relaxed, but he kept playing' gets the logic wrong.
+- c7 / gpt-6-astra, by opus-5.5: 'I felt that perhaps I ought to tell him' weakens 'a sort of duty'.
+- c7 / gpt-6-astra, by opus-5.5: 'trained himself to remember ... and he remembered them' is redundant.
+- c7 / gpt-6-astra, by opus-5.5: Adds a gloss for slang: 'those informal words people use in conversation'.
+- c10 / gemini-4-neon-medium, by opus-5.5: 'I call him Arthur from her habit' is an awkward literal phrase a B1 reader may not follow
+- c10 / gemini-4-neon-medium, by opus-5.5: 'teams' is left without 'of horses', so a B1 reader may not understand it
+- c10 / gemini-4-neon-medium, by opus-5.5: Latin 'Pro Carter, Paterson & Co.' is left unexplained for a B1 reader
+- c10 / opus-5.5, by opus-5.5: Keeps 'anaemic' and adds a gloss ('with not enough healthy blood'), which is an added explanation
+- c10 / opus-5.5, by opus-5.5: 'the amount that you paid too much' is ungrammatical
+- c10 / opus-5.5, by opus-5.5: Latin 'Pro Carter, Paterson & Co.' is left unexplained
+- c10 / gemini-4-argon-medium, by opus-5.5: Uses the American spelling 'check' and 'color' in a British text
+- c10 / gemini-4-argon-medium, by opus-5.5: 'The pink color like roses' explains the image instead of keeping it
+- c10 / gemini-4-argon-medium, by opus-5.5: 'lack of red blood cells ... she does not have that illness' adds a medical explanation
+- c10 / gemini-4-argon-medium, by opus-5.5: 'came back to myself' adds to 'came back'
+- c10 / gpt-6.1-sol, by opus-5.5: 'too few healthy red blood cells' is an anachronistic, added explanation of 'anaemic'
+- c10 / gpt-6.1-sol, by opus-5.5: Very choppy short sentences flatten the voice of both the letter and the journal
+- c10 / gpt-6-astra, by opus-5.5: The closing 'Dear Sirs, Yours faithfully' drops 'We are' and garbles the sign-off
+- c10 / gpt-6-astra, by opus-5.5: The second letter's closing 'Dear Sirs, Yours respectfully' is also garbled
+- c10 / gpt-6-astra, by opus-5.5: 'being impolite in our business dealings' weakens 'exceeding the bounds of business courtesy'
+- c10 / gpt-6-astra, by opus-5.5: The choppy sentences flatten the prose
+- c10 / gemini-4-carbon-medium, by opus-5.5: The closing 'Dear Sirs, we are yours respectfully. For Carter...' is garbled
+- c10 / gemini-4-carbon-medium, by opus-5.5: 'thick, flat stone' adds 'thick', which is not in the source
+- c10 / gemini-4-carbon-medium, by opus-5.5: 'dark, unhealthy habit of holding back and keeping things to herself' is wordy and over-explained
+- c10 / gemini-4-carbon-medium, by opus-5.5: 'I also had an unclear memory of something very sweet' adds a repeated frame and makes it wordy
+- c13 / gpt-6.1-sol, by opus-5.5: 'did with my howl' turned into 'I stopped my howling', which reverses the meaning
+- c13 / gpt-6.1-sol, by opus-5.5: 'half-quid' kept as unexplained slang
+- c13 / gpt-6.1-sol, by opus-5.5: 'bloody' is stronger than 'bloomin''
+- c13 / gpt-6.1-sol, by opus-5.5: 'lit my pipe' adds a pipe that is not in the source
+- c13 / gpt-6.1-sol, by opus-5.5: 'white gloves made from soft young goat skin' adds an explanation
+- c13 / gemini-4-carbon-medium, by opus-5.5: 'half-pound of money' sounds like a weight and reads awkwardly
+- c13 / gemini-4-carbon-medium, by opus-5.5: 'lit my tobacco' is an odd phrase
+- c13 / gemini-4-carbon-medium, by opus-5.5: 'clawing' is added to 'tearing at the bars'
+- c13 / gpt-6-astra, by opus-5.5: 'the man in charge' adds an explanation of 'Superintendent'
+- c13 / gpt-6-astra, by opus-5.5: 'half-quid' kept as unexplained slang
+- c13 / gpt-6-astra, by opus-5.5: 'white gloves made from soft young goat's skin' adds an explanation
+- c13 / gpt-6-astra, by opus-5.5: 'I'm so bad-tempered' shifts the past mood into the present
+- c13 / gemini-4-argon-medium, by opus-5.5: 'I stopped my howling' reverses 'did with my howl'
+- c13 / gemini-4-argon-medium, by opus-5.5: 'you are just a bag full of bones' gets the bagful line wrong
+- c13 / gemini-4-argon-medium, by opus-5.5: 'Jamrach's animal shop' adds an explanation
+- c13 / gemini-4-argon-medium, by opus-5.5: 'a bed of straw' adds straw, which is not in the source
+- c13 / gemini-4-argon-medium, by opus-5.5: 'lit my pipe' adds a pipe
+- c13 / gemini-4-argon-medium, by opus-5.5: writing out 'do not', 'I am' and so on in full flattens the keeper's speech
+- c13 / opus-5.5, by opus-5.5: 'half-quid' and 'blooming' kept as slang a B1 reader has not learned
+- c13 / opus-5.5, by opus-5.5: 'insolent' kept, which is above B1
+- c13 / opus-5.5, by opus-5.5: 'what you're coming to' shifts the meaning of 'what you're getting at'
+- c13 / gemini-4-neon-medium, by opus-5.5: 'I'd have seen you blowed first' flattened to 'refused to answer you at all'
+- c13 / gemini-4-neon-medium, by opus-5.5: 'Not even when you asked…' left as a hard-to-follow sentence fragment
+- c16 / opus-5.5, by opus-5.5: 'hysterical' kept; it may be hard for some B1 readers, but it is accurate
+- c16 / gemini-4-carbon-medium, by opus-5.5: 'That loneliness has already grown' adds 'already', which shifts the meaning slightly
+- c16 / gemini-4-neon-medium, by opus-5.5: 'seen such great goodness and honour' adds 'honour'
+- c16 / gemini-4-neon-medium, by opus-5.5: 'to avoid causing upset' sounds flat and loses the sense of distressing her
+- c16 / gpt-6-astra, by opus-5.5: 'fever of doubt' becomes 'full of doubts that leave me restless and upset', which drops the image
+- c16 / gpt-6-astra, by opus-5.5: 'help him live as a strong man' weakens 'strong and manly'
+- c16 / gpt-6.1-sol, by opus-5.5: 'When someone he loves looks unwell, it upsets him' narrows and reinterprets 'what he like not where he love'
+- c16 / gpt-6.1-sol, by opus-5.5: 'As I began speaking' is wrong because she hesitates before she starts
+- c16 / gpt-6.1-sol, by opus-5.5: 'unable to feel calm' drops the 'fever of doubt' image
+- c16 / gpt-6.1-sol, by opus-5.5: 'keep my mind open to different ideas' adds an explanation
+- c16 / gemini-4-argon-medium, by opus-5.5: 'Neither could strange and extraordinary things' reverses the meaning: in the source, strange things could close the mind
+- c16 / gemini-4-argon-medium, by opus-5.5: 'Because of this, I have felt the loneliness ... growing' invents a reason (work) for the loneliness growing
+- c16 / gemini-4-argon-medium, by opus-5.5: 'my mind has been burning with doubt' changes the fever image
+- c16 / gemini-4-argon-medium, by opus-5.5: 'When a man sees something upsetting in the person he loves' changes the meaning slightly
+- c19 / gemini-4-neon-medium, by opus-5.5: Keeps the idiom 'I gave myself away' without explaining it for a B1 reader.
+- c19 / gemini-4-neon-medium, by opus-5.5: Calls the papers a 'pile' and then 'the parcel', so the wording is inconsistent.
+- c19 / gemini-4-neon-medium, by opus-5.5: Dangling construction: 'seeing those sweet eyes ... went straight to my heart'.
+- c19 / gemini-4-carbon-medium, by opus-5.5: Keeps the idiom 'I gave myself away' without explaining it for a B1 reader.
+- c19 / gemini-4-carbon-medium, by opus-5.5: Keeps the less common 'half-dozen' where 'six' would be clearer.
+- c19 / gemini-4-carbon-medium, by opus-5.5: Dangling construction: 'seeing those sweet eyes ... went straight to my heart'.
+- c19 / gemini-4-carbon-medium, by opus-5.5: 'No one must hear them spoken' leaves 'them' without a clear referent.
+- c19 / gpt-6-astra, by opus-5.5: Adds an explanation that is not in the source: 'the machine that plays recorded sounds'.
+- c19 / gpt-6-astra, by opus-5.5: Adds an explanation that is not in the source: 'God, who has power over everything'.
+- c19 / opus-5.5, by opus-5.5: Keeps the untaught idiom 'Honest Indian!'.
+- c19 / opus-5.5, by opus-5.5: Splitting the sentence garbles the meaning: 'I never thought about it in case I wanted to look something up'.
+- c19 / gpt-6.1-sol, by opus-5.5: Keeps the untaught idiom 'Honest Indian!'.
+- c19 / gpt-6.1-sol, by opus-5.5: Adds an explanation that is not in the source: 'the machine that played these recordings'.
+- c19 / gpt-6.1-sol, by opus-5.5: Adds an explanation that is not in the source: 'God, who has power over everything'.
+- c19 / gpt-6.1-sol, by opus-5.5: 'I showed you something about myself' is a weak version of 'I gave myself away'.
+- c19 / gemini-4-argon-medium, by opus-5.5: 'I showed my secret that time!' misrenders 'I gave myself away'.
+- c19 / gemini-4-argon-medium, by opus-5.5: Keeps the archaic idiom 'For all the world'.
+- c19 / gemini-4-argon-medium, by opus-5.5: 'went on with my reading' narrows the source's 'my work'.
+- c19 / gemini-4-argon-medium, by opus-5.5: 'when I already know one side of it' is awkward and changes the logic of the sentence.
+- c19 / gemini-4-argon-medium, by opus-5.5: Dangling construction: 'seeing those sweet eyes ... went straight to my heart'.
+- c22 / gemini-4-neon-medium, by opus-5.5: 'watch our meetings from the outside' adds a small gloss
+- c22 / gemini-4-neon-medium, by opus-5.5: 'dark, terrible task' adds 'dark'
+- c22 / gemini-4-argon-medium, by opus-5.5: 'stopping telling her everything' is awkward and unclear
+- c22 / gemini-4-argon-medium, by opus-5.5: 'considering what it all meant' is added
+- c22 / gemini-4-argon-medium, by opus-5.5: 'worn out and ill' adds 'ill' for haggard
+- c22 / opus-5.5, by opus-5.5: Very short, choppy sentences flatten the narrator's voice
+- c22 / opus-5.5, by opus-5.5: 'If he can't, I don't see a way' is a repeated, padded line
+- c22 / opus-5.5, by opus-5.5: 'worn out and ill' adds 'ill'
+- c22 / opus-5.5, by opus-5.5: 'mighty different' keeps an idiom that a B1 reader may not know
+- c22 / gpt-6-astra, by opus-5.5: 'make things seem normal, even to ourselves' changes 'among ourselves'
+- c22 / gpt-6-astra, by opus-5.5: 'considered how everything was connected' is invented
+- c22 / gpt-6-astra, by opus-5.5: 'shakes with horror' adds 'horror'
+- c22 / gpt-6.1-sol, by opus-5.5: 'watches us discussing things without her' contradicts the original: she is present and looking on
+- c22 / gpt-6.1-sol, by opus-5.5: 'shakes with fear or disgust' adds a hedged explanation
+- c22 / gpt-6.1-sol, by opus-5.5: 'considered what it might involve' is added
+- c22 / gpt-6.1-sol, by opus-5.5: 'make her suffer terribly' weakens the 'torture' image
+- c22 / gemini-4-carbon-medium, by opus-5.5: 'break into a house illegally' adds an explanation, and does it twice
+- c22 / gemini-4-carbon-medium, by opus-5.5: 'That seems likely because' adds reasoning that isn't in the original
+- c22 / gemini-4-carbon-medium, by opus-5.5: 'shivers all over' exaggerates
+- c22 / gemini-4-carbon-medium, by opus-5.5: 'hateful and disgusting' pads one word into two
+- c22 / gemini-4-carbon-medium, by opus-5.5: 'thinking clearly and sensibly' pads
+- c22 / gemini-4-carbon-medium, by opus-5.5: 'worn out and exhausted' pads
+- c22 / gemini-4-carbon-medium, by opus-5.5: 'talked about everything connected with it' is added
+- c25 / gemini-4-argon-medium, by opus-5.5: 'quick, simple supper' adds speed, which 'perfunctory' does not imply
+- c25 / gemini-4-neon-medium, by opus-5.5: 'too deep and overwhelming' loses the 'sublime' quality of his misery
+- c25 / gemini-4-neon-medium, by opus-5.5: 'being together as friends' adds 'as friends'
+- c25 / gemini-4-neon-medium, by opus-5.5: Dangling modifier: 'Without thinking, his grip … grew tighter'
+- c25 / opus-5.5, by opus-5.5: 'how much he had done for her' is added to 'his devotion to her'
+- c25 / opus-5.5, by opus-5.5: 'an outcast from God, sent away from Him' adds an explanatory gloss
+- c25 / opus-5.5, by opus-5.5: 'the true Lucy might live afterwards' weakens 'hereafter' (life after death)
+- c25 / gpt-6.1-sol, by opus-5.5: 'His suffering was so great' drops the 'sublime' quality of his misery
+- c25 / gpt-6-astra, by opus-5.5: 'His misery was so great' drops 'sublime'
+- c25 / gpt-6-astra, by opus-5.5: 'we knew what the mark stood for. It showed…' narrows 'so far as symbols went' to the scar and drops the hedge
+- c25 / gemini-4-carbon-medium, by opus-5.5: 'so extreme and deep' gets 'sublime' wrong
+- c25 / gemini-4-carbon-medium, by opus-5.5: 'our plan was over and could no longer work' is padded
+- c25 / gemini-4-carbon-medium, by opus-5.5: 'cut off and shut out from God' is redundant
+- c25 / gemini-4-carbon-medium, by opus-5.5: 'She held it tight, as if holding onto him like that…' repeats itself
+- c4 / gemini-4-argon-medium, by gpt-6-astra: Adds fear and disgust as the explicit causes or character of the narrator’s shudder.
+- c4 / gemini-4-argon-medium, by gpt-6-astra: Replaces the hearth with the floor by the fireplace.
+- c4 / gemini-4-argon-medium, by gpt-6-astra: Narrows the gold table service to dishes and spoons.
+- c4 / gemini-4-argon-medium, by gpt-6-astra: Drops the explicit connection between the fabrics’ age and their estimated original value.
+- c4 / gpt-6.1-sol, by gpt-6-astra: Replaces the precise placement on the hearth with placement by the fire.
+- c4 / gpt-6.1-sol, by gpt-6-astra: Reduces 'most beautiful' fabrics to merely beautiful fabrics.
+- c4 / gpt-6.1-sol, by gpt-6-astra: Drops the explicit connection between the fabrics’ age and their estimated original value.
+- c4 / gpt-6.1-sol, by gpt-6-astra: Makes the narrator’s table specifically a dressing table.
+- c4 / opus-5.5, by gpt-6-astra: Transfers the emphatically eagle-like description of the face to the nose, making the face merely strong.
+- c4 / opus-5.5, by gpt-6-astra: Moves uncertainty from the wolves’ location to whether the sound is wolves howling.
+- c4 / opus-5.5, by gpt-6-astra: Changes frayed edges to torn edges.
+- c4 / opus-5.5, by gpt-6-astra: Leaves demanding vocabulary and expressions such as 'temples', 'hearth', 'grim' and 'worth a fortune' insufficiently adapted for independent B1 reading.
+- c4 / gemini-4-carbon-medium, by gpt-6-astra: Specifies a stone hearth, although the source gives no material.
+- c4 / gemini-4-carbon-medium, by gpt-6-astra: Leaves 'shudder', 'foul' and 'grim' as vocabulary obstacles for an independent B1 reader.
+- c4 / gemini-4-neon-medium, by gpt-6-astra: Replaces placement on the hearth with placement by the fire.
+- c4 / gemini-4-neon-medium, by gpt-6-astra: Narrows the gold table service to plates and dishes.
+- c4 / gemini-4-neon-medium, by gpt-6-astra: Drops the explicit connection between the fabrics’ age and their estimated original value.
+- c4 / gemini-4-neon-medium, by gpt-6-astra: Changes frayed edges to torn edges.
+- c4 / gemini-4-neon-medium, by gpt-6-astra: Drops the dressing function of the missing table mirror.
+- c4 / gemini-4-neon-medium, by gpt-6-astra: Leaves expressions such as 'dim streak', 'worth a fortune' and 'a sea of wonders' insufficiently adapted for independent B1 reading.
+- c4 / gpt-6-astra, by gpt-6-astra: Changes a firmly set mouth into a mouth 'held still'.
+- c4 / gpt-6-astra, by gpt-6-astra: Strengthens 'rather coarse' hands to 'how rough they were'.
+- c4 / gpt-6-astra, by gpt-6-astra: Replaces placement on the hearth with placement beside the fire.
+- c4 / gpt-6-astra, by gpt-6-astra: Drops the explicit connection between the fabrics’ age and their estimated original value.
+- c4 / gpt-6-astra, by gpt-6-astra: Calls the curtains and coverings themselves 'materials', producing an awkward category mismatch.
+- c7 / gemini-4-neon-medium, by gpt-6-astra: The opening proverb loses its rain image.
+- c7 / gemini-4-neon-medium, by gpt-6-astra: The unexplained 'dangerous stream' poured into Desdemona's ear remains difficult for an independent B1 reader.
+- c7 / gemini-4-neon-medium, by gpt-6-astra: 'Arthur tried twice to make a chance' retains an unclear, unnatural expression.
+- c7 / gemini-4-argon-medium, by gpt-6-astra: Saying Seward 'runs' the hospital adds a role not specified in this passage.
+- c7 / gemini-4-argon-medium, by gpt-6-astra: Seward's rehearsed details become exercises specifically intended 'to stay calm'.
+- c7 / gemini-4-argon-medium, by gpt-6-astra: 'It was my duty' removes the uncertainty in 'a sort of duty'.
+- c7 / gemini-4-argon-medium, by gpt-6-astra: 'Full of energy' changes the description of Morris's fresh appearance.
+- c7 / gemini-4-argon-medium, by gpt-6-astra: 'In Shakespeare's play' adds an explanation absent from the source.
+- c7 / gemini-4-argon-medium, by gpt-6-astra: 'An exciting stream of stories' replaces the image's explicit danger with excitement.
+- c7 / gemini-4-argon-medium, by gpt-6-astra: 'A brave man' adds a qualification absent from the narrator's generalization.
+- c7 / gemini-4-argon-medium, by gpt-6-astra: 'His exciting stories' adds an evaluation.
+- c7 / gemini-4-argon-medium, by gpt-6-astra: The definition of slang adds an explanatory aside and incorrectly restricts slang generally to American expressions.
+- c7 / gemini-4-argon-medium, by gpt-6-astra: 'Made me laugh' asserts a reaction beyond merely being amused.
+- c7 / gpt-6.1-sol, by gpt-6-astra: The opening adds 'the first few drops', an image detail absent from the proverb.
+- c7 / gpt-6.1-sol, by gpt-6-astra: 'Look down on girls' shifts the stated object of contempt from vanity to people.
+- c7 / gpt-6.1-sol, by gpt-6-astra: 'A woman did not already love someone' removes the image of a free heart.
+- c7 / gpt-6.1-sol, by gpt-6-astra: The definition of slang adds an explanatory aside absent from the source.
+- c7 / gpt-6.1-sol, by gpt-6-astra: 'Brute' remains a difficult, unexplained word for B1 readers.
+- c7 / gpt-6.1-sol, by gpt-6-astra: 'Arthur tried twice to find a chance' weakens his active attempt to create an opportunity.
+- c7 / opus-5.5, by gpt-6-astra: The proverb is followed by an added explanation.
+- c7 / opus-5.5, by gpt-6-astra: The retained 'lunatic-asylum' and 'lancet' introduce difficult vocabulary followed by added glosses.
+- c7 / opus-5.5, by gpt-6-astra: 'The trouble I was already in' suggests an external predicament rather than her present distress.
+- c7 / opus-5.5, by gpt-6-astra: 'Ink stains' makes the letter's unspecified blotting more specific and obscures its connection with her tears.
+- c7 / opus-5.5, by gpt-6-astra: 'Mr. Morris was always telling us his stories' invents habitual frequency.
+- c7 / opus-5.5, by gpt-6-astra: 'Vain', 'vanity', and 'brute' remain unexplained vocabulary obstacles.
+- c7 / opus-5.5, by gpt-6-astra: 'Arthur tried twice to make a chance' retains an unclear, unnatural expression.
+- c7 / gpt-6-astra, by gpt-6-astra: The opening proverb loses its rain image.
+- c7 / gpt-6-astra, by gpt-6-astra: 'Look down on girls' shifts the stated object of contempt from vanity to people.
+- c7 / gpt-6-astra, by gpt-6-astra: 'Trained himself to remember' narrows rehearsing his conduct into training his memory.
+- c7 / gpt-6-astra, by gpt-6-astra: 'Wanted to look relaxed, but' weakens the connection between playing with the knife and trying to appear relaxed.
+- c7 / gpt-6-astra, by gpt-6-astra: 'After a short pause' replaces Seward's hesitation with elapsed time.
+- c7 / gpt-6-astra, by gpt-6-astra: 'Perhaps I ought' weakens the narrator's felt sense of duty.
+- c7 / gpt-6-astra, by gpt-6-astra: The definition of slang adds an explanatory aside absent from the source.
+- c7 / gemini-4-carbon-medium, by gpt-6-astra: The proverb is followed by an added explanation.
+- c7 / gemini-4-carbon-medium, by gpt-6-astra: 'Strongly look down on' is an unnatural collocation.
+- c7 / gemini-4-carbon-medium, by gpt-6-astra: The unexplained 'dangerous stream' poured into Desdemona's ear remains difficult for an independent B1 reader.
+- c7 / gemini-4-carbon-medium, by gpt-6-astra: 'For goodness’ sake', 'a woman’s heart was free', and 'a little ahead of myself' retain potentially difficult figurative expressions.
+- c7 / gemini-4-carbon-medium, by gpt-6-astra: 'Cruel brute' retains a difficult noun despite the added adjective.
+- c10 / opus-5.5, by gpt-6-astra: “Old chapel” weakens “ancient chapel.”
+- c10 / opus-5.5, by gpt-6-astra: Retains “anaemic” and adds an explanatory gloss instead of replacing the difficult term.
+- c10 / opus-5.5, by gpt-6-astra: Leaves “Pro” untranslated and “receipted bill” unnecessarily difficult.
+- c10 / opus-5.5, by gpt-6-astra: “I didn’t really dream” makes Lucy’s uncertain “didn’t quite dream” more categorical.
+- c10 / gemini-4-neon-medium, by gpt-6-astra: “Weak blood” is an imprecise substitute for being anaemic.
+- c10 / gemini-4-neon-medium, by gpt-6-astra: “Gloomy silence” changes reluctance to communicate into silence.
+- c10 / gemini-4-neon-medium, by gpt-6-astra: Leaves the historical transport meaning of “teams” unclear.
+- c10 / gemini-4-neon-medium, by gpt-6-astra: Retains untranslated “Pro” and the idiom “high spirits.”
+- c10 / gemini-4-neon-medium, by gpt-6-astra: “I call him Arthur from her habit” preserves an awkward construction rather than making its meaning accessible.
+- c10 / gemini-4-argon-medium, by gpt-6-astra: Specifies wagons, which the source does not explicitly name.
+- c10 / gemini-4-argon-medium, by gpt-6-astra: “Old chapel” weakens “ancient chapel.”
+- c10 / gemini-4-argon-medium, by gpt-6-astra: Adds a medical explanation about red blood cells.
+- c10 / gemini-4-argon-medium, by gpt-6-astra: Adds “of thought” to the description of Lucy’s forehead, interpreting her expression.
+- c10 / gemini-4-argon-medium, by gpt-6-astra: “Came back to myself” narrows the ambiguity of “came back” after Lucy describes her soul leaving her body.
+- c10 / gpt-6.1-sol, by gpt-6-astra: “Attached to the house” asserts a physical relationship more specific than “forming part of the house.”
+- c10 / gpt-6.1-sol, by gpt-6-astra: “House’s ancient chapel” drops the mansion’s scale.
+- c10 / gpt-6.1-sol, by gpt-6-astra: Drops the expressly grateful tone of the request to have transport ready.
+- c10 / gpt-6.1-sol, by gpt-6-astra: “Terribly pale” replaces Mina’s sadness in “sadly pale” with an intensifier.
+- c10 / gpt-6.1-sol, by gpt-6-astra: Introduces technical red-blood-cell language in place of “anaemic.”
+- c10 / gpt-6.1-sol, by gpt-6-astra: Splitting Mr. Swales’s imagined reply makes “He would have told me” more definite than Lucy’s original supposition.
+- c10 / gpt-6-astra, by gpt-6-astra: Specifies carts, which the source does not explicitly name.
+- c10 / gpt-6-astra, by gpt-6-astra: Drops the expressly grateful tone of the request to have transport ready.
+- c10 / gpt-6-astra, by gpt-6-astra: Removes the reference to payment procedures within the recipient’s departments.
+- c10 / gpt-6-astra, by gpt-6-astra: “Weak blood” is an imprecise substitute for being anaemic.
+- c10 / gpt-6-astra, by gpt-6-astra: “Rather unhealthy” softens the force of “morbid.”
+- c10 / gpt-6-astra, by gpt-6-astra: Splitting Mr. Swales’s imagined reply makes “He would have told me” more definite than Lucy’s original supposition.
+- c10 / gpt-6-astra, by gpt-6-astra: “Trying to remember” states as fact what Mina cautiously describes as “as if trying.”
+- c10 / gpt-6-astra, by gpt-6-astra: Retains “passing away from me,” an opaque expression for an independent B1 reader.
+- c13 / gpt-6-astra, by gpt-6-astra: Adds the explanation that the Superintendent is ‘the man in charge’.
+- c13 / gpt-6-astra, by gpt-6-astra: Twice replaces the mild ‘blooming’ with the stronger ‘damn’.
+- c13 / gpt-6-astra, by gpt-6-astra: Changes ‘I’d have seen you blowed’ into another threat to tell the questioner to go to the devil.
+- c13 / gpt-6-astra, by gpt-6-astra: Leaves ‘half-quid’ unexplained for an independent B1 reader.
+- c13 / gpt-6-astra, by gpt-6-astra: ‘I used my howl’ is an awkward, unclear rendering of the animal comparison.
+- c13 / gemini-4-argon-medium, by gpt-6-astra: Specifies a half-sovereign coin where the source gives only an amount.
+- c13 / gemini-4-argon-medium, by gpt-6-astra: Adds that Jamrach’s is an animal shop.
+- c13 / gemini-4-argon-medium, by gpt-6-astra: Specifies straw as the bedding material.
+- c13 / gemini-4-argon-medium, by gpt-6-astra: Specifies a pipe where the source only says he has lit up.
+- c13 / gemini-4-argon-medium, by gpt-6-astra: Makes stopping his howling explicit where the source leaves the action unspecified.
+- c13 / gemini-4-argon-medium, by gpt-6-astra: Drops both instances of the keeper’s mild ‘blooming’ expletive.
+- c13 / gemini-4-argon-medium, by gpt-6-astra: ‘I would have seen you cursed’ is an unnatural literal rendering of the dismissive expression.
+- c13 / gemini-4-carbon-medium, by gpt-6-astra: Replaces kid gloves with generic soft leather gloves, losing the specific material.
+- c13 / gemini-4-carbon-medium, by gpt-6-astra: Adds ‘only’ to the account of howling, narrowing the source’s comparison.
+- c13 / gemini-4-carbon-medium, by gpt-6-astra: Drops both instances of the keeper’s mild ‘blooming’ expletive.
+- c13 / gemini-4-carbon-medium, by gpt-6-astra: ‘Half-pound of money’ is unnatural English.
+- c13 / gemini-4-carbon-medium, by gpt-6-astra: Retains difficult expressions such as ‘seen you damned’ and ‘Lord love your heart’ without making them accessible.
+- c13 / gpt-6.1-sol, by gpt-6-astra: Twice strengthens the euphemistic ‘blooming’ into ‘bloody’.
+- c13 / gpt-6.1-sol, by gpt-6-astra: Specifies a pipe where the source only says he has lit up.
+- c13 / gpt-6.1-sol, by gpt-6-astra: Makes stopping his howling explicit where the source leaves the action unspecified.
+- c13 / gpt-6.1-sol, by gpt-6-astra: Changes never causing significant trouble into hardly ever causing trouble, shifting significance to frequency.
+- c13 / gpt-6.1-sol, by gpt-6-astra: Leaves ‘half-quid’ and several old-fashioned idioms unexplained.
+- c13 / gemini-4-neon-medium, by gpt-6-astra: Replaces kid gloves with generic soft leather gloves, losing the specific material.
+- c13 / gemini-4-neon-medium, by gpt-6-astra: Removes the dismissive force of ‘I’d have seen you blowed’ by reducing it to refusing to answer.
+- c13 / gemini-4-neon-medium, by gpt-6-astra: Drops both instances of the keeper’s mild ‘blooming’ expletive.
+- c13 / gemini-4-neon-medium, by gpt-6-astra: Changes the comic image of rinsing the keeper out into simply washing down his cake.
+- c13 / gemini-4-neon-medium, by gpt-6-astra: Adds ‘just’ to the account of howling, narrowing the source’s comparison.
+- c13 / gemini-4-neon-medium, by gpt-6-astra: ‘Which we bought’ has an unclear attachment after ‘Jamrach’s’.
+- c13 / gemini-4-neon-medium, by gpt-6-astra: Leaves vocabulary and expressions such as ‘yelping’ and ‘so to speak’ insufficiently accessible.
+- c13 / opus-5.5, by gpt-6-astra: Replaces kid gloves with generic soft leather gloves, losing the specific material.
+- c13 / opus-5.5, by gpt-6-astra: ‘Did my howling’ makes the source’s less explicit comparison into a definite action.
+- c13 / opus-5.5, by gpt-6-astra: Leaves ‘half-quid’, ‘seen you damned’, and ‘Lord love your heart’ inaccessible to many independent B1 readers.
+- c13 / opus-5.5, by gpt-6-astra: Retains difficult vocabulary such as ‘insolent’ and ‘yelping’.
+- c16 / gemini-4-argon-medium, by gpt-6-astra: Reverses the final claim: strange things can close his mind, rather than being unable to do so.
+- c16 / gemini-4-argon-medium, by gpt-6-astra: Adds an explicit causal connection between work and loneliness increasing with age.
+- c16 / gemini-4-argon-medium, by gpt-6-astra: Replaces the man's learning with wisdom.
+- c16 / gemini-4-argon-medium, by gpt-6-astra: Adds bravery as the specific meaning of 'manly'.
+- c16 / gemini-4-argon-medium, by gpt-6-astra: Drops the narrator's expressive 'oh' and the repeated 'glad'.
+- c16 / gpt-6.1-sol, by gpt-6-astra: Says the persistent fear 'came back', implying an interruption absent from the source.
+- c16 / gpt-6.1-sol, by gpt-6-astra: Replaces the fever image with an explanation about doubt and inability to feel calm.
+- c16 / gpt-6.1-sol, by gpt-6-astra: Narrows the statement about what Jonathan dislikes in someone he loves to seeing that person look unwell.
+- c16 / gpt-6-astra, by gpt-6-astra: Replaces the fever image with an explanation about being restless and upset.
+- c16 / gpt-6-astra, by gpt-6-astra: Reduces 'strong and manly' to living 'as a strong man', losing the distinct quality of manliness.
+- c16 / gemini-4-neon-medium, by gpt-6-astra: Adds impact imagery through feelings that 'hit' and 'crashed', intensifying the source's rushing confusion.
+- c19 / gpt-6.1-sol, by gpt-6-astra: Adds an explanatory gloss defining the phonograph.
+- c19 / gpt-6.1-sol, by gpt-6-astra: Leaves “Honest Indian!” unexplained, making the childish oath difficult for an independent B1 reader.
+- c19 / gemini-4-argon-medium, by gpt-6-astra: “I showed my secret” invents a specific secret where Seward merely reveals something about himself.
+- c19 / gemini-4-argon-medium, by gpt-6-astra: “Wax tubes” misnames the metal cylinders coated with wax.
+- c19 / gemini-4-argon-medium, by gpt-6-astra: Replaces the culturally specific “Honest Indian!” oath with a generic assertion.
+- c19 / gemini-4-argon-medium, by gpt-6-astra: Leaves the difficult idiom “For all the world” unchanged.
+- c19 / gemini-4-neon-medium, by gpt-6-astra: Replaces the culturally specific “Honest Indian!” oath, though it preserves the childish tone.
+- c19 / gemini-4-neon-medium, by gpt-6-astra: Leaves “I gave myself away” and “on my honour” without accessible reformulation.
+- c19 / gemini-4-neon-medium, by gpt-6-astra: Retains difficult wording such as “phonograph” and “cruelly true.”
+- c19 / opus-5.5, by gpt-6-astra: “I let the truth slip out” changes an unintended revelation of character into an accidental disclosure of information.
+- c19 / opus-5.5, by gpt-6-astra: “I have given it every thought” suggests devoting thought to the cause rather than disclosing every private thought.
+- c19 / opus-5.5, by gpt-6-astra: “I never thought about it in case…” breaks the original conditional relationship and obscures the meaning.
+- c19 / opus-5.5, by gpt-6-astra: Leaves “Honest Indian!”, “phonograph,” and “cruelly true” difficult for a B1 reader.
+- c19 / gemini-4-carbon-medium, by gpt-6-astra: Replaces the culturally specific “Honest Indian!” oath, though it preserves the childish tone.
+- c19 / gemini-4-carbon-medium, by gpt-6-astra: “Give every thought … for this purpose” makes the disclosure of private thoughts less clear.
+- c19 / gemini-4-carbon-medium, by gpt-6-astra: Leaves “I gave myself away,” “on my honour,” “half-dozen,” and “phonograph” insufficiently accessible.
+- c19 / gemini-4-carbon-medium, by gpt-6-astra: “No one must hear them spoken” leaves the reference of “them” unclear.
+- c19 / gpt-6-astra, by gpt-6-astra: Adds an explanatory gloss defining the phonograph.
+- c19 / gpt-6-astra, by gpt-6-astra: Replaces the culturally specific, childish “Honest Indian!” oath with the more neutral “Honestly!”
+- c19 / gpt-6-astra, by gpt-6-astra: “Simply and honestly” shifts the emphasis from innocent naïveté toward truthfulness.
+- c22 / opus-5.5, by gpt-6-astra: “Quincey is right” adds agreement with his conclusion to the original praise of his judgment.
+- c22 / opus-5.5, by gpt-6-astra: “Keep up appearances” leaves an opaque idiom unexplained.
+- c22 / opus-5.5, by gpt-6-astra: “Wretch” retains vocabulary unsuitable for an independent B1 reader.
+- c22 / gemini-4-carbon-medium, by gpt-6-astra: “That seems likely” adds an explicit judgment about which explanation of Mina’s behaviour is more probable.
+- c22 / gemini-4-carbon-medium, by gpt-6-astra: “Shivers all over” adds bodily emphasis absent from “shudders.”
+- c22 / gemini-4-carbon-medium, by gpt-6-astra: “Wretch” retains vocabulary unsuitable for an independent B1 reader.
+- c22 / gpt-6.1-sol, by gpt-6-astra: “It hurt me deeply” drops the heart image.
+- c22 / gpt-6.1-sol, by gpt-6-astra: “Shakes with fear or disgust” supplies emotions the original does not explicitly assign to the shudder.
+- c22 / gpt-6.1-sol, by gpt-6-astra: “Suffer terribly” drops the image of torture.
+- c22 / gpt-6.1-sol, by gpt-6-astra: The forehead description retains wrinkles but drops their contracted, puckered appearance.
+- c22 / gpt-6.1-sol, by gpt-6-astra: “Wretch” retains vocabulary unsuitable for an independent B1 reader.
+- c22 / gpt-6-astra, by gpt-6-astra: “It hurt me deeply” drops the heart image.
+- c22 / gpt-6-astra, by gpt-6-astra: “Shakes with horror” replaces an unspecified shudder with a definite emotional explanation.
+- c22 / gpt-6-astra, by gpt-6-astra: “Even to ourselves” shifts maintaining appearances among the group towards deceiving themselves.
+- c22 / gpt-6-astra, by gpt-6-astra: “Little lines across her forehead” loses the puckered appearance of the original.
+- c22 / gpt-6-astra, by gpt-6-astra: “Wretch” retains vocabulary unsuitable for an independent B1 reader.
+- c22 / gemini-4-neon-medium, by gpt-6-astra: “Final move” weakens the force of the decisive blow conveyed by “final coup.”
+- c22 / gemini-4-neon-medium, by gpt-6-astra: Discussing the matter “from different sides” omits the separate attention to its implications and connections.
+- c22 / gemini-4-neon-medium, by gpt-6-astra: “Wretch” retains vocabulary unsuitable for an independent B1 reader.
+- c22 / gemini-4-argon-medium, by gpt-6-astra: “To hide us” narrows the original broader claim that the night and park protected them.
+- c22 / gemini-4-argon-medium, by gpt-6-astra: “Wretch” retains vocabulary unsuitable for an independent B1 reader.
+- c22 / gemini-4-argon-medium, by gpt-6-astra: “Right enough” leaves a potentially unfamiliar idiomatic expression.
+- c25 / gemini-4-carbon-medium, by gpt-6-astra: Calling the supper 'quick' adds a detail absent from the source.
+- c25 / gemini-4-carbon-medium, by gpt-6-astra: 'Extreme and deep' loses the elevated, awe-inspiring quality of 'sublime misery'.
+- c25 / gemini-4-carbon-medium, by gpt-6-astra: 'Our plan was over and could no longer work' introduces a specific plan where the source describes defeat.
+- c25 / gpt-6-astra, by gpt-6-astra: 'We could do no more' weakens the opening admission of defeat into an inability to continue.
+- c25 / gpt-6-astra, by gpt-6-astra: 'Misery was so great' loses the elevated quality of 'sublime misery'.
+- c25 / gpt-6-astra, by gpt-6-astra: 'How deeply he loved her' narrows his demonstrated devotion to a feeling.
+- c25 / gpt-6-astra, by gpt-6-astra: 'We knew what the mark stood for' replaces the cautious qualification 'so far as symbols went' with a definite explanation.
+- c25 / gpt-6-astra, by gpt-6-astra: 'The most unhappy of all' changes 'the saddest case of all' from most pitiable to most subjectively unhappy.
+- c25 / gpt-6-astra, by gpt-6-astra: 'Or show pain' goes beyond the statement that Mina did not flinch.
+- c25 / gpt-6.1-sol, by gpt-6-astra: 'We could do no more' weakens the opening admission of defeat into an inability to continue.
+- c25 / gpt-6.1-sol, by gpt-6-astra: 'Suffering was so great' loses the elevated quality of 'sublime misery'.
+- c25 / gpt-6.1-sol, by gpt-6-astra: 'His deep love for her' narrows his demonstrated devotion to a feeling.
+- c25 / gpt-6.1-sol, by gpt-6-astra: 'Someone God had shut out' makes God the explicit agent of exclusion.
+- c25 / gpt-6.1-sol, by gpt-6-astra: 'Or show it' goes beyond the statement that Mina did not flinch.
+- c25 / gemini-4-argon-medium, by gpt-6-astra: 'Quick, simple' invents characteristics of the supper.
+- c25 / gemini-4-argon-medium, by gpt-6-astra: 'Only because we had to eat' adds a definite motive for the supper.
+- c25 / gemini-4-argon-medium, by gpt-6-astra: 'Carelessly' suggests insufficient care rather than the reckless daring of Harker's attack.
+- c25 / gemini-4-argon-medium, by gpt-6-astra: 'In anger' explicitly explains the teeth-grinding image.
+- c25 / gemini-4-argon-medium, by gpt-6-astra: 'His very soul' replaces the broader 'his being' with a specifically spiritual term.
+- c25 / gemini-4-argon-medium, by gpt-6-astra: 'Or show it' goes beyond the statement that Mina did not flinch.
+- c25 / opus-5.5, by gpt-6-astra: 'Our chase was over' narrows the admission of defeat to a chase.
+- c25 / opus-5.5, by gpt-6-astra: 'We knew something terrible' adds explanatory commentary.
+- c25 / opus-5.5, by gpt-6-astra: 'Live afterwards' fails to convey clearly that Lucy would live after death.
+- c25 / opus-5.5, by gpt-6-astra: 'Earth-box' retains an opaque compound for a B1 reader.
+- c25 / opus-5.5, by gpt-6-astra: 'Hold your hands back' leaves the figurative expression insufficiently simplified.
+- c25 / gemini-4-neon-medium, by gpt-6-astra: 'Deep and overwhelming' loses the elevated, awe-inspiring quality of 'sublime misery'.
+- c25 / gemini-4-neon-medium, by gpt-6-astra: 'Earth-box' retains an opaque compound for a B1 reader.
+- c4 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds an explanatory gloss ('at the sides of his forehead') alongside untaught 'temples'.
+- c4 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves several above-B1 words unadapted ('temples', 'bushy', 'shudder', 'foul', 'grim').
+- c4 / gemini-4-neon-medium, by gemini-4-carbon-medium: Adds 'of his face' before describing the ears ('As for the rest of his face, his ears...').
+- c4 / gemini-4-neon-medium, by gemini-4-carbon-medium: Loses the specificity of 'on the hearth' ('placed by the fire').
+- c4 / gemini-4-neon-medium, by gemini-4-carbon-medium: Narrows 'table service' to 'plates and dishes'.
+- c4 / gemini-4-neon-medium, by gemini-4-carbon-medium: Mistranslates 'frayed' as 'torn at the edges'.
+- c4 / gemini-4-neon-medium, by gemini-4-carbon-medium: Drops the dressing function of 'toilet glass' ('a small mirror on my table').
+- c4 / gemini-4-neon-medium, by gemini-4-carbon-medium: Leaves C1 words and literary phrasing unadapted ('dome', 'temples', 'shudder', 'first dim streak of the coming dawn').
+- c4 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'For the rest' before the description of the ears.
+- c4 / gpt-6.1-sol, by gemini-4-carbon-medium: Replaces a single involuntary 'shudder' with continuous 'shaking'.
+- c4 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates dread-filled 'wonders' as positive 'strange and wonderful things'.
+- c4 / gpt-6.1-sol, by gemini-4-carbon-medium: Loses the specificity of 'on the hearth' ('stood by the fire').
+- c4 / gpt-6.1-sol, by gemini-4-carbon-medium: Shifts 'toilet' from 'toilet glass' to the furniture ('my dressing table').
+- c4 / opus-5.5, by gemini-4-carbon-medium: Narrows 'His face was... aquiline' to 'His nose was curved like an eagle's beak'.
+- c4 / opus-5.5, by gemini-4-carbon-medium: Adds 'only' in 'only noticed the backs of his hands'.
+- c4 / opus-5.5, by gemini-4-carbon-medium: Uses the wrong word 'shivering' for 'shudder'.
+- c4 / opus-5.5, by gemini-4-carbon-medium: Mistranslates 'frayed' as 'torn at the edges'.
+- c4 / opus-5.5, by gemini-4-carbon-medium: Leaves C1/C2 words unadapted ('dome', 'temples', 'grim', 'hearth', 'hangings') and glosses 'hearth' with 'by the fire'.
+- c4 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'For the rest' before the description of the ears.
+- c4 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates 'long and fine' (thin) nails as 'long and delicate'.
+- c4 / gpt-6-astra, by gemini-4-carbon-medium: Replaces 'shudder' with 'shaking'.
+- c4 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates 'wonders' as positive 'strange and wonderful things'.
+- c4 / gpt-6-astra, by gemini-4-carbon-medium: Drops the image 'to my own soul', flattening it to 'to myself'.
+- c4 / gpt-6-astra, by gemini-4-carbon-medium: Adds 'even' in 'even if only for the sake of those I love'.
+- c4 / gpt-6-astra, by gemini-4-carbon-medium: Loses the specificity of 'on the hearth' ('beside the fire').
+- c4 / gpt-6-astra, by gemini-4-carbon-medium: Alters 'are of the costliest... fabrics' to 'are among the most expensive... materials'.
+- c4 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds 'only' in 'only noticed the backs of his hands'.
+- c4 / gemini-4-argon-medium, by gemini-4-carbon-medium: Invents an emotional explanation ('a sudden shake of fear and disgust') for 'shudder'.
+- c4 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates contrastive 'but' as causal 'for' after 'Perhaps his breath smelled bad'.
+- c4 / gemini-4-argon-medium, by gemini-4-carbon-medium: Drops the image 'to my own soul', flattening it to 'to myself'.
+- c4 / gemini-4-argon-medium, by gemini-4-carbon-medium: Renders 'on the hearth' inaccurately as 'on the floor by the fireplace'.
+- c4 / gemini-4-argon-medium, by gemini-4-carbon-medium: Narrows 'table service' to 'dishes and spoons'.
+- c10 / gemini-4-neon-medium, by gemini-4-carbon-medium: Leaves 'teams' unglossed in its archaic sense of horse-teams, which is misleading at B1.
+- c10 / gemini-4-neon-medium, by gemini-4-carbon-medium: Leaves the untaught Latin 'Pro' in the second letter's signature.
+- c10 / gemini-4-neon-medium, by gemini-4-carbon-medium: Renders 'wan-looking' (sickly or weak) slightly inaccurately as 'tired-looking'.
+- c10 / gemini-4-neon-medium, by gemini-4-carbon-medium: Renders 'puckered' (frowning) as 'wrinkled'.
+- c10 / gemini-4-neon-medium, by gemini-4-carbon-medium: Carries over 'from her habit' verbatim, which is unidiomatic at B1.
+- c10 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Dilutes the metaphor 'The roses' into 'The colour of roses'.
+- c10 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Uses awkward, repetitive phrasing in 'we would be grateful if you have... We would also be grateful if you take...'.
+- c10 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Collapses the formal multi-line closing of the second letter into a single sentence.
+- c10 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Over-paraphrases 'morbid reticence' as 'dark, unhealthy habit of holding back and keeping things to herself'.
+- c10 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Uses unnatural phrasing for B1 in 'that sweet look came onto her forehead, gathering it into little lines'.
+- c10 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Repeats 'I also had an unclear memory of' in Lucy's speech and flattens 'passing away' to 'go away'.
+- c10 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'which form the consignment'.
+- c10 / gpt-6-astra, by gemini-4-carbon-medium: Omits the polite framing 'we shall be obliged by' and 'in your departments' in the first letter.
+- c10 / gpt-6-astra, by gemini-4-carbon-medium: Adds 'carts' ('horses and carts') where the source specifies only 'teams'.
+- c10 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'We are,' from the closings of both letters.
+- c10 / gpt-6-astra, by gemini-4-carbon-medium: Leaves the B2 noun 'mansion' unadapted.
+- c10 / gpt-6-astra, by gemini-4-carbon-medium: Invents the choppy filler clause 'I suppose poor old Mr. Swales would have said why.'
+- c10 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'at all' from 'dreamed at all that night'.
+- c10 / opus-5.5, by gemini-4-carbon-medium: Changes 'to destination' (the ruined chapel) inaccurately to 'to the house'.
+- c10 / opus-5.5, by gemini-4-carbon-medium: Leaves above-level terms unadapted for B1: 'anaemic', 'receipted', 'Pro', and 'stone slab'.
+- c10 / opus-5.5, by gemini-4-carbon-medium: Adds an inline explanation ('with not enough healthy blood') after 'anaemic'.
+- c10 / opus-5.5, by gemini-4-carbon-medium: Mistranslates 'I didn't quite dream' as 'I didn't really dream'.
+- c10 / opus-5.5, by gemini-4-carbon-medium: Uses unidiomatic phrasing in 'the amount that you paid too much' and 'put in with this letter'.
+- c10 / gemini-4-argon-medium, by gemini-4-carbon-medium: Changes 'to destination' inaccurately to 'to the house'.
+- c10 / gemini-4-argon-medium, by gemini-4-carbon-medium: Uses American English ('check', 'recognize', 'color', 'wagons', 'package') that clashes with the British setting and £/s/d currency.
+- c10 / gemini-4-argon-medium, by gemini-4-carbon-medium: Narrows 'seat' to 'bench' twice in the churchyard scene.
+- c10 / gemini-4-argon-medium, by gemini-4-carbon-medium: Explains away the metaphor 'The roses' as 'The pink color like roses'.
+- c10 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds an anachronistic medical explanation ('from lack of red blood cells... she does not have that illness').
+- c10 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds 'of thought' in 'sweet, wrinkled look of thought' and 'out of the water' after 'jumped'.
+- c10 / gemini-4-argon-medium, by gemini-4-carbon-medium: Distorts the literal soul-return 'I came back' into the idiom 'I came back to myself'.
+- c10 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'which form the consignment'.
+- c10 / gpt-6.1-sol, by gemini-4-carbon-medium: Alters 'forming part of the house' to 'attached to the house'.
+- c10 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'we shall be obliged by' and 'herewith', losing the first letter's deferential register.
+- c10 / gpt-6.1-sol, by gemini-4-carbon-medium: Changes the narrator's sympathetic 'sadly pale' to 'terribly pale'.
+- c10 / gpt-6.1-sol, by gemini-4-carbon-medium: Flattens 'The roses' to 'The colour of roses' and 'in gay spirits' to 'happy'.
+- c10 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds an anachronistic scientific explanation ('too few healthy red blood cells') for 'anæmic'.
+- c10 / gpt-6.1-sol, by gemini-4-carbon-medium: Invents choppy filler sentences ('would have said why', 'I asked about her dreams') that flatten the prose rhythm.
+- c10 / gpt-6.1-sol, by gemini-4-carbon-medium: Loses the physical pain of 'agonising feeling' by rendering it 'terrible, unbearable feeling'.
+- c16 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Replaces 'sane' with the untaught idiom 'in their right mind'.
+- c16 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Normalizes Van Helsing's distinctive 'Husband Jonathan' to 'Your husband Jonathan'.
+- c16 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Shifts 'for his sake' to 'for his good'.
+- c16 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves above-B1 words 'hesitated', 'madman', and 'extraordinary' unadapted.
+- c16 / gemini-4-neon-medium, by gemini-4-carbon-medium: Invents 'dark' in 'the dark fear' and adds 'and honour' to 'goodness' for 'nobility'.
+- c16 / gemini-4-neon-medium, by gemini-4-carbon-medium: Leaves 'drawing-room', 'for his sake', 'hesitated', and 'madman' unadapted for B1.
+- c16 / gemini-4-neon-medium, by gemini-4-carbon-medium: Adds an explanatory setup sentence in the final speech ('I am here because of a very strange matter').
+- c16 / gemini-4-neon-medium, by gemini-4-carbon-medium: Normalizes 'Husband Jonathan' to 'Your husband Jonathan'.
+- c16 / opus-5.5, by gemini-4-carbon-medium: Drops the causal link 'for' connecting Mr. Hawkins's death to Thursday's shock.
+- c16 / opus-5.5, by gemini-4-carbon-medium: Adds 'Please' in 'Please do not think I am foolish'.
+- c16 / opus-5.5, by gemini-4-carbon-medium: Leaves hard or untaught items 'hysterical', 'drawing-room', 'learned man', 'think little of', and 'extraordinary'.
+- c16 / gpt-6-astra, by gemini-4-carbon-medium: Leaves the archaic phrasing 'for when we were in town on Thursday last'.
+- c16 / gpt-6-astra, by gemini-4-carbon-medium: Drops the metaphor 'fever of doubt' for 'full of doubts that leave me restless and upset'.
+- c16 / gpt-6-astra, by gemini-4-carbon-medium: Weakens 'threw myself on my knees' to 'fell on my knees' and drops 'manly' in 'live as a strong man'.
+- c16 / gpt-6-astra, by gemini-4-carbon-medium: Shifts 'sweetness/sweet' to 'kindness/gentle', 'truths' to 'honesty', and 'think much' to 'think carefully'.
+- c16 / gpt-6.1-sol, by gemini-4-carbon-medium: Leaves the archaic phrasing 'for when we were in town on Thursday last'.
+- c16 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'When it came to speaking' as 'As I began speaking', clashing with 'I hesitated to go on'.
+- c16 / gpt-6.1-sol, by gemini-4-carbon-medium: Narrows 'what he like not where he love' to the invented detail 'looks unwell, it upsets him'.
+- c16 / gpt-6.1-sol, by gemini-4-carbon-medium: Drops the 'fever of doubt' image and the disorder of 'tumult', and shifts 'truths' to 'honesty' and 'sweetness' to 'kindness'.
+- c16 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds the explanatory gloss 'to different ideas' after 'keep my mind open'.
+- c16 / gemini-4-argon-medium, by gemini-4-carbon-medium: Reverses the final sentence's meaning by stating 'Neither could strange and extraordinary things' close his mind.
+- c16 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates 'learned' as 'wise' and narrows 'what I am seeking of' to 'the matter I am investigating'.
+- c16 / gemini-4-argon-medium, by gemini-4-carbon-medium: Invents 'dark' in 'dark fear' and adds the gloss 'brave like a man's' for 'manly'.
+- c16 / gemini-4-argon-medium, by gemini-4-carbon-medium: Drops the causal 'for' before Thursday's shock, the interjection 'oh,', and the repetition 'glad, glad'.
+- c16 / gemini-4-argon-medium, by gemini-4-carbon-medium: Replaces 'fever of doubt' with 'burning with doubt', 'sweetness' with 'kindness', and 'truths' with 'honesty'.
+- c13 / gemini-4-neon-medium, by gemini-4-carbon-medium: Omits 'bloomin'' twice, slightly softening the keeper's rough tone.
+- c13 / gemini-4-neon-medium, by gemini-4-carbon-medium: Flattens 'seen you blowed fust' to 'refused to answer you at all', leaving 'Not even when...' grammatically mismatched.
+- c13 / gemini-4-neon-medium, by gemini-4-carbon-medium: Softens 'the old 'ooman has stuck a chunk... an' rinsed me out' into ordinary 'my wife has fed me... and washed it down'.
+- c13 / gemini-4-neon-medium, by gemini-4-carbon-medium: Misattaches 'which' in 'came from Norway to Jamrach's, which we bought from him'.
+- c13 / gemini-4-neon-medium, by gemini-4-carbon-medium: Leaves above-B1 vocabulary ('sarcastic', 'yelping') and colloquial 'How do you mean'.
+- c13 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Omits 'bloomin'' twice and drops Mrs. Tom's 'blest if' exclamation.
+- c13 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds 'clawing' ('clawing and pulling') for 'tearin'' and 'fine' before 'soft white leather gloves'.
+- c13 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Misrenders 'for all you're worth' as 'as much as you can'.
+- c13 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Translates 'the old 'ooman' literally as 'the old woman', obscuring that he means his wife.
+- c13 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves untaught idioms ('seen you damned first', 'Lord love your heart', 'rinsed me out with her old teapot') and B2+ 'sarcastically'.
+- c13 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Uses unnatural collocations ('half-pound of money', 'lit my tobacco').
+- c13 / opus-5.5, by gemini-4-carbon-medium: Leaves untaught slang and idioms ('blooming', 'half-quid', 'seen you damned first', 'Lord love your heart', 'rinsed me out with her blooming old teapot').
+- c13 / opus-5.5, by gemini-4-carbon-medium: Leaves above-B1 vocabulary ('yelping', 'insolent', 'sarcastic').
+- c13 / opus-5.5, by gemini-4-carbon-medium: Translates 'the old 'ooman' literally as 'the old woman', obscuring that he means his wife.
+- c13 / opus-5.5, by gemini-4-carbon-medium: Mistranslates 'philosophically' as 'like a philosopher', 'flush' as 'Rich', and 'guv'nor' as American 'boss'.
+- c13 / opus-5.5, by gemini-4-carbon-medium: Adds a closing quotation mark at the end of the passage where the speaker's turn remains open.
+- c13 / gpt-6-astra, by gemini-4-carbon-medium: Adds explicit explanations not in the source ('the man in charge' and 'made from soft young goat's skin').
+- c13 / gpt-6-astra, by gemini-4-carbon-medium: Replaces mild 'bloomin'' with harsher 'damn' twice, including 'her damn old teapot'.
+- c13 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'a bit of a show-orf', flattening it to 'impress their girls'.
+- c13 / gpt-6-astra, by gemini-4-carbon-medium: Renders 'did with my 'owl' unnaturally as 'I used my howl' and changes 'did I tell yer' to 'didn't I tell you'.
+- c13 / gpt-6-astra, by gemini-4-carbon-medium: Leaves untaught slang and idioms ('half-quid', 'my old woman', 'go to the devil').
+- c13 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'did with my 'owl' as 'I stopped my howling', reversing the meaning.
+- c13 / gpt-6.1-sol, by gemini-4-carbon-medium: Invents 'lit my pipe' for 'lit hup'.
+- c13 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds a dictionary explanation ('made from soft young goat skin') for 'kid'.
+- c13 / gpt-6.1-sol, by gemini-4-carbon-medium: Replaces mild 'bloomin'' with strong profanity 'bloody' twice ('bloody half-quid', 'her bloody old teapot').
+- c13 / gpt-6.1-sol, by gemini-4-carbon-medium: Alters 'never gave no trouble to talk of' to 'hardly ever caused trouble', 'guv'nor' to 'boss', 'did I' to 'didn't I', and 'too' to 'himself'.
+- c13 / gpt-6.1-sol, by gemini-4-carbon-medium: Leaves untaught slang and idioms ('half-quid', 'seen you damned', 'Lord love your heart', 'my old woman').
+- c13 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates 'did with my 'owl' as 'I stopped my howling', reversing the meaning.
+- c13 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds external explanation 'Jamrach's animal shop' and 'coin' ('half-sovereign coin').
+- c13 / gemini-4-argon-medium, by gemini-4-carbon-medium: Invents 'lit my pipe', 'of straw' ('bed of straw'), and 'through the bars'.
+- c13 / gemini-4-argon-medium, by gemini-4-carbon-medium: Alters 'which you 'as a bagful' to 'you are just a bag full of bones'.
+- c13 / gemini-4-argon-medium, by gemini-4-carbon-medium: Omits 'bloomin'' twice and Mrs. Tom's 'blest if', and changes 'the old 'ooman' to 'my wife'.
+- c13 / gemini-4-argon-medium, by gemini-4-carbon-medium: Leaves archaic or untaught terms ('half-sovereign', 'seen you cursed', 'kid-leather') and strips all contractions from spoken dialogue.
+- c19 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves the idiom 'gave myself away' unadapted for B1
+- c19 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Keeps less accessible B1 phrasing in 'half-dozen', 'adjusted', and 'sweetly pretty'
+- c19 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves 'them' in 'hear them spoken' without a clear plural referent after 'tones'
+- c19 / gemini-4-neon-medium, by gemini-4-carbon-medium: Adds 'suddenly' to 'an idea came to him', reversing the gradual sense of 'dawned'
+- c19 / gemini-4-neon-medium, by gemini-4-carbon-medium: Drops causal 'at which' before 'he made a face'
+- c19 / gemini-4-neon-medium, by gemini-4-carbon-medium: Leaves the idiom 'gave myself away' unadapted for B1
+- c19 / gemini-4-neon-medium, by gemini-4-carbon-medium: Switches from 'a large pile of typed pages' to unintroduced 'the parcel'
+- c19 / gemini-4-neon-medium, by gemini-4-carbon-medium: Drops contrastive 'but' and the emphatic dash in 'Of course, you do not know me yet'
+- c19 / gemini-4-neon-medium, by gemini-4-carbon-medium: Drops causal 'for' before 'It will tell me the other side'
+- c19 / gemini-4-neon-medium, by gemini-4-carbon-medium: Weakens 'so absorbed' to 'so deeply interested'
+- c19 / gemini-4-neon-medium, by gemini-4-carbon-medium: Drops contrastive 'but' in Mina's final reply and weakens 'tones' and 'anguish' to 'sounds' and 'deep pain'
+- c19 / opus-5.5, by gemini-4-carbon-medium: Leaves the opaque archaic idiom 'Honest Indian!' untouched
+- c19 / opus-5.5, by gemini-4-carbon-medium: Shifts 'I gave myself away' to 'I let the truth slip out'
+- c19 / opus-5.5, by gemini-4-carbon-medium: Drops 'upon my honour' ('I promise you') and 'positively' before 'as pale as death'
+- c19 / opus-5.5, by gemini-4-carbon-medium: Clumsily splits and repeats 'I never once thought about how I would find a particular part of it'
+- c19 / opus-5.5, by gemini-4-carbon-medium: Expands 'May I make the only atonement in my power?' into a padded two-sentence paraphrase
+- c19 / opus-5.5, by gemini-4-carbon-medium: Replaces 'let the time run on without thinking' with the idiom 'lost track of the time'
+- c19 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates 'I gave myself away' as 'I showed my secret', falsely implying a hidden secret
+- c19 / gemini-4-argon-medium, by gemini-4-carbon-medium: Omits the rhetorical framing 'But do you know that...'
+- c19 / gemini-4-argon-medium, by gemini-4-carbon-medium: Changes 'boldly' to 'bravely', weakens 'had better' to 'should', and drops 'positively'
+- c19 / gemini-4-argon-medium, by gemini-4-carbon-medium: Uses 'several hollow metal tubes', clashing with 'The first six' immediately below
+- c19 / gemini-4-argon-medium, by gemini-4-carbon-medium: Drops 'let me say that' and replaces 'phonograph' with generic 'recording machine'
+- c19 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds 'While you listen' for 'In the meantime' and drops causal 'for' before 'It will tell me'
+- c19 / gemini-4-argon-medium, by gemini-4-carbon-medium: Weakens 'so absorbed' to 'very deeply interested' and changes 'my work' to 'my reading'
+- c19 / gpt-6.1-sol, by gemini-4-carbon-medium: Leaves the opaque archaic idiom 'Honest Indian!' untouched
+- c19 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds a forbidden explanation defining 'phonograph' ('the machine that played these recordings')
+- c19 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds a forbidden explanation defining 'Almighty' ('who has power over everything')
+- c19 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'an idea dawned upon him' as 'he suddenly understood something'
+- c19 / gpt-6.1-sol, by gemini-4-carbon-medium: Drops 'to look it up' ('if I wanted it again') and 'positively' before 'as pale as death'
+- c19 / gpt-6.1-sol, by gemini-4-carbon-medium: Changes 'let me say' to 'I must say' and 'let the time run on without thinking' to 'forgot about time'
+- c19 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates 'naïveté' as 'honestly', losing the image of childlike innocence
+- c19 / gpt-6-astra, by gemini-4-carbon-medium: Drops 'Even' in 'Even while he was speaking' and 'positively' in 'positively deathly pallor'
+- c19 / gpt-6-astra, by gemini-4-carbon-medium: Uses 'several hollow metal tubes', clashing with 'The first six' immediately below
+- c19 / gpt-6-astra, by gemini-4-carbon-medium: Adds a forbidden explanation defining 'phonograph' ('the machine that plays recorded sounds')
+- c19 / gpt-6-astra, by gemini-4-carbon-medium: Adds a forbidden explanation defining 'Almighty' ('who has power over everything')
+- c19 / gpt-6-astra, by gemini-4-carbon-medium: Adds 'While you listen' for 'In the meantime'
+- c19 / gpt-6-astra, by gemini-4-carbon-medium: Weakens 'so absorbed' to 'so interested' and replaces 'let the time run on without thinking' with 'forgot about time'
+- c19 / gpt-6-astra, by gemini-4-carbon-medium: Flattens the narrative voice into choppy sentences such as 'By now I had decided something'
+- c22 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Weakens 'secure a friend' to 'make a friend'.
+- c22 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds inferential 'That seems likely' and 'all over', and uses cold-related 'shivers' for 'shudders'.
+- c22 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds redundant explanation 'illegally' twice when rendering 'burglary'.
+- c22 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Softens 'little wrinkles' to 'little lines' and adds 'normal' in 'her normal self'.
+- c22 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves C1 noun 'wretch' unadapted for B1.
+- c22 / gemini-4-neon-medium, by gemini-4-carbon-medium: Simplifies 'I had had to keep... and so caused' to 'I had to keep... and make'.
+- c22 / gemini-4-neon-medium, by gemini-4-carbon-medium: Adds obligation 'has to' in 'has to watch', softens 'the sting' to 'the hurt', and omits 'showing' ('not trusting her').
+- c22 / gemini-4-neon-medium, by gemini-4-carbon-medium: Generalizes 'repugnant' to 'horrible' and uses 'shivers' for 'shudders'.
+- c22 / gemini-4-neon-medium, by gemini-4-carbon-medium: Uses unidiomatic 'held on to me closely' for 'clung to me'.
+- c22 / gemini-4-neon-medium, by gemini-4-carbon-medium: Weakens 'make our final coup' to 'make our final move'.
+- c22 / gemini-4-neon-medium, by gemini-4-carbon-medium: Omits 'and bearings' from 'discussing the matter in its various lights and bearings'.
+- c22 / gemini-4-neon-medium, by gemini-4-carbon-medium: Leaves untaught idioms 'Just a line' and 'Oh, but I am sleepy!', C1 syntax 'our not trusting', and 'wretch'.
+- c22 / gemini-4-argon-medium, by gemini-4-carbon-medium: Changes 'gave the address at Dr. Seward’s' to 'gave him Dr. Seward’s address'.
+- c22 / gemini-4-argon-medium, by gemini-4-carbon-medium: Narrows 'keep anything from her' to 'keep secrets from her'.
+- c22 / gemini-4-argon-medium, by gemini-4-carbon-medium: Replaces bystander 'looking on at' with obligatory 'has to watch', and omits 'showing' in 'showing our confidence'.
+- c22 / gemini-4-argon-medium, by gemini-4-carbon-medium: Drops 'grim' ('terrible task') and uses 'shivers' for 'shudders'.
+- c22 / gemini-4-argon-medium, by gemini-4-carbon-medium: Invents 'we' as the performers in 'played a little music', and changes 'things' to 'everything' in 'stopping telling her everything'.
+- c22 / gemini-4-argon-medium, by gemini-4-carbon-medium: Replaces 'to protect us' with 'to hide us'.
+- c22 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds outside explanation 'house agent' for 'agency duck'.
+- c22 / gemini-4-argon-medium, by gemini-4-carbon-medium: Changes physical 'turning from one to another' to 'looked from one of us to another'.
+- c22 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds 'ill' when rendering 'haggard' ('worn out and ill') and 'old... again' in 'her old self again'.
+- c22 / gemini-4-argon-medium, by gemini-4-carbon-medium: Leaves untaught idiom 'right enough' and C1 noun 'wretch'.
+- c22 / gpt-6-astra, by gemini-4-carbon-medium: Loses bystander sense of 'looking on at' ('watches us holding'), drops 'the sting', and drops 'grim'.
+- c22 / gpt-6-astra, by gemini-4-carbon-medium: Invents 'with horror' in 'shakes with horror' for 'shudders'.
+- c22 / gpt-6-astra, by gemini-4-carbon-medium: Invents 'we' as performers in 'we played a little music', and omits 'I found' in the study scene.
+- c22 / gpt-6-astra, by gemini-4-carbon-medium: Shifts 'This has been a great day’s work' to 'You have done excellent work today'.
+- c22 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates 'to his real death' as 'until he is truly dead', losing the undead contrast.
+- c22 / gpt-6-astra, by gemini-4-carbon-medium: Weakens 'nothing could well be done' to 'There was little we could do' and misplaces 'at least' ('At least, it seemed wise').
+- c22 / gpt-6-astra, by gemini-4-carbon-medium: Drops 'puckered up' and weakens 'wrinkles' ('There are little lines across her forehead'), and adds 'again' in 'herself again'.
+- c22 / gpt-6-astra, by gemini-4-carbon-medium: Leaves untaught idioms 'Just a line' and 'Oh, but I am sleepy!', and 'wretch'.
+- c22 / gpt-6.1-sol, by gemini-4-carbon-medium: Drops 'the sting', 'showing' ('showing our confidence'), and 'grim', and adds 'without her'.
+- c22 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds 'that she cannot bear it' and invents 'fear' in 'shakes with fear or disgust' for 'shudders'.
+- c22 / gpt-6.1-sol, by gemini-4-carbon-medium: Drops 'growing' and flattens 'would be torture to her' to 'would make her suffer terribly'.
+- c22 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'the ceasing of telling things' as 'keeping things from her', losing 'ceasing'.
+- c22 / gpt-6.1-sol, by gemini-4-carbon-medium: Shifts 'This has been a great day’s work' to 'You have done great work today'.
+- c22 / gpt-6.1-sol, by gemini-4-carbon-medium: Breaks the 'unless' condition about the agency key into a separate claim ('would have to find').
+- c22 / gpt-6.1-sol, by gemini-4-carbon-medium: Weakens 'nothing could well be done' to 'There was little we could do'.
+- c22 / gpt-6.1-sol, by gemini-4-carbon-medium: Drops 'puckered up' ('There are little wrinkles on her forehead') and adds 'again' in 'herself again'.
+- c22 / gpt-6.1-sol, by gemini-4-carbon-medium: Leaves untaught idioms 'Just a line' and 'Oh, but I am sleepy!', archaic ':—', and 'wretch'.
+- c22 / opus-5.5, by gemini-4-carbon-medium: Narrows 'secure a friend' to 'make him a friend', and adds 'I knew that' before 'this had made her uneasy'.
+- c22 / opus-5.5, by gemini-4-carbon-medium: Drops bystander 'looking on' ('watches our meetings'), 'showing' ('us not trusting'), and 'grim' ('terrible task').
+- c22 / opus-5.5, by gemini-4-carbon-medium: Invents 'we' as performers in 'we played a little music', and invents 'sitting' for 'gathered' round the fire.
+- c22 / opus-5.5, by gemini-4-carbon-medium: Adds repetitive padding ('If he can't, I don't see a way'; 'Quincey is right. He is thinking clearly').
+- c22 / opus-5.5, by gemini-4-carbon-medium: Omits 'and bearings' from 'in its various lights and bearings', and weakens 'up to the moment' to 'up to date'.
+- c22 / opus-5.5, by gemini-4-carbon-medium: Adds 'ill' for 'haggard' ('worn out and ill').
+- c22 / opus-5.5, by gemini-4-carbon-medium: Leaves C1 'shudders' and 'wretch', archaic ':—', and untaught idioms 'keep up appearances', 'a mighty different thing', 'Just a line', and 'Oh, but I am sleepy!'.

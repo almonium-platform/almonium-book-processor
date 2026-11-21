@@ -1,0 +1,56 @@
+{
+ "writer": "gpt-6-astra",
+ "passage": "c13",
+ "blocks": [
+  {
+   "block_id": "c13.p27",
+   "text": "“What do you mean by asking them questions?” I asked. I wanted to get him talking."
+  },
+  {
+   "block_id": "c13.p28",
+   "text": "“Hitting them over the head with a pole is one way. Scratching their ears is another. That happens when gentlemen with plenty of money want to impress their girls. I don’t mind the first so much—hitting them with a pole before I throw in their dinner. But I wait before I try scratching their ears. First they must have their sherry and coffee, so to speak. Mind you,” he added thoughtfully, “we’re very like those animals in many ways. Here you come, asking me questions about my work. And I’m so bad-tempered that I’d have told you to go to the devil instead of answering. Only your damn half-quid stopped me. Otherwise, I wouldn’t even have answered when you made that mocking offer. You offered to ask the Superintendent, the man in charge, for permission to ask me questions. No offence, but didn’t I tell you to go to hell?”"
+  },
+  {
+   "block_id": "c13.p29",
+   "text": "“You did.”"
+  },
+  {
+   "block_id": "c13.p30",
+   "text": "“And then you said you’d report me for using dirty language. That was like hitting me over the head. But the half-quid made everything all right. I wasn’t going to fight, so I waited for the food. I used my howl as the wolves, lions, and tigers do. But, bless your heart, my old woman has put a piece of her tea-cake into me now. She’s washed me out with tea from her damn old teapot, too. And I’ve lit up for a smoke. Now you can scratch my ears as much as you like. You won’t even get a growl out of me. Go ahead with your questions. I know what you’re getting at—that escaped wolf.”"
+  },
+  {
+   "block_id": "c13.p31",
+   "text": "“Exactly. I want to hear what you think about it. Just tell me how it happened. Once I know the facts, I’ll ask what you think caused it. Then you can tell me how you think it will all end.”"
+  },
+  {
+   "block_id": "c13.p32",
+   "text": "“All right, sir. This is more or less the whole story. That wolf we called Bersicker was one of three grey wolves. They came from Norway to Jamrach’s. We bought them from him four years ago. Bersicker was a nice wolf who behaved well. He never caused any real trouble. I’m more surprised that he wanted to get out than I would be with any other animal here. But there, you can’t trust wolves any more than you can trust women.”"
+  },
+  {
+   "block_id": "c13.p33",
+   "text": "“Don’t listen to him, sir!” Mrs. Tom interrupted with a cheerful laugh. “He’s been looking after the animals so long that, bless me, he’s like an old wolf himself! But there’s no harm in him.”"
+  },
+  {
+   "block_id": "c13.p34",
+   "text": "“Well, sir, I first heard the noise about two hours after feeding time yesterday. I was making a bed in the monkey-house for a young puma that’s ill. But when I heard the sharp cries and howling, I went straight out. There was Bersicker, tearing at the bars like a mad thing. He seemed to want to get out. There weren’t many people about that day. Only one man was nearby. He was tall and thin, with a nose that curved like a hook. He had a pointed beard with a few white hairs in it. His face looked hard and cold, and his eyes were red. I felt a sort of dislike for him. It seemed that he was the one upsetting the wolves. He wore white gloves made from soft young goat’s skin. He pointed to the animals and said, ‘Keeper, these wolves seem upset at something.’"
+  },
+  {
+   "block_id": "c13.p35",
+   "text": "“‘Maybe it’s you,’ I said. I didn’t like the way he acted as if he was so important. I hoped he would get angry, but he didn’t. Instead, he gave a rude sort of smile, showing a mouth full of sharp, white teeth. ‘Oh no, they wouldn’t like me,’ he said."
+  },
+  {
+   "block_id": "c13.p36",
+   "text": "“‘Oh yes, they would,’ I said, copying his way of speaking. ‘They always like a bone or two to clean their teeth on around tea-time. And you’ve got a whole bagful of bones.’"
+  },
+  {
+   "block_id": "c13.p37",
+   "text": "“Well, a strange thing happened. When the animals saw us talking, they lay down. I went over to Bersicker, and he let me stroke his ears as usual. Then that man came over. And, bless me, he put his hand inside and stroked the old wolf’s ears too!"
+  }
+ ],
+ "usage": {
+  "input_tokens": 19100,
+  "cached_input_tokens": 0,
+  "output_tokens": 1712,
+  "list_usd": 0.2766
+ }
+}

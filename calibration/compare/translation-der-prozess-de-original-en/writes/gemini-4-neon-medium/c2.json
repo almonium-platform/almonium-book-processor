@@ -1,0 +1,28 @@
+{
+ "writer": "gemini-4-neon-medium",
+ "passage": "c2",
+ "blocks": [
+  {
+   "block_id": "c2.p12",
+   "text": "Between two men who were conversing right by the door—one was making, with both hands stretched far forward, the motion of counting out money, the other was looking sharply into his eyes—a hand reached for K. It was a small, rosy-cheeked boy. “Come, come,” he said. K. let himself be led by him; it turned out that in the milling, swarming throng a narrow path was after all clear, which possibly divided two parties; what also spoke for this was that in the front rows to the right and left K. saw scarcely a face turned toward him, but only the backs of people who directed their speeches and movements solely to people of their own party. Most of them were dressed in black, in old holiday coats hanging down long and loose. Only this clothing puzzled K., otherwise he would have taken the whole thing for a political district meeting."
+  },
+  {
+   "block_id": "c2.p13",
+   "text": "At the other end of the hall, to which K. was led, stood on a very low, likewise overcrowded platform a small table, set crosswise, and behind it near the edge of the platform sat a small, fat, puffing man who was just conversing with someone standing behind him—the latter had rested his elbow on the back of the chair and crossed his legs—amid great laughter. Sometimes he threw his arm into the air, as if caricaturing someone. The boy who was leading K. had trouble delivering his message. Twice already, standing on tiptoe, he had tried to convey something without being noticed by the man above. Only when one of the people up on the platform drew attention to the boy did the man turn toward him and, bending down, listen to his quiet report. Then he drew out his watch and glanced quickly over at K. “You should have appeared 1 hour and 5 minutes ago,” he said. K. wanted to answer something, but he had no time, for scarcely had the man finished speaking when a general murmur rose in the right half of the hall. “You should have appeared 1 hour and 5 minutes ago,” the man now repeated in a raised voice, and now also looked quickly down into the hall. At once the murmur too grew louder and, since the man said nothing more, died away only gradually. It was now much quieter in the hall than at K.’s entrance. Only the people in the gallery did not stop making their remarks. They seemed, so far as one could make anything out up there in the half-darkness, haze, and dust, to be worse dressed than those below. Some had brought cushions, which they had placed between their heads and the ceiling so as not to chafe themselves."
+  },
+  {
+   "block_id": "c2.p14",
+   "text": "K. had resolved to observe more than to speak; consequently he forewent any defense regarding his alleged lateness and said merely: “Even if I have come late, now I am here.” Applause, again from the right half of the hall, followed. “People easy to win over,” thought K., and was disturbed only by the silence in the left half of the hall, which lay directly behind him and from which only quite isolated hand-clapping had risen. He pondered what he might say in order to win over everyone at once or, if that should not be possible, at least temporarily the others as well."
+  },
+  {
+   "block_id": "c2.p15",
+   "text": "“Yes,” said the man, “but I am no longer obliged to interrogate you now”—again the murmur, this time however misleading, for the man continued, waving the people off with his hand—“I will, however, do so today by way of exception. Such lateness, however, must not happen again. And now step forward!” Someone or other jumped down from the platform, so that a space became free for K., onto which he climbed. He stood pressed tight against the table; the throng behind him was so great that he had to resist it if he did not wish to push the Examining Magistrate’s table, and perhaps the man himself, off the platform."
+  }
+ ],
+ "usage": {
+  "input_tokens": 10556,
+  "cached_input_tokens": 0,
+  "output_tokens": 9963,
+  "list_usd": 0.181113
+ }
+}

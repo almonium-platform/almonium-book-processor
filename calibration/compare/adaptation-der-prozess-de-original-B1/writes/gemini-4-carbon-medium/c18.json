@@ -1,0 +1,32 @@
+{
+ "writer": "gemini-4-carbon-medium",
+ "passage": "c18",
+ "blocks": [
+  {
+   "block_id": "c18.p9",
+   "text": "Diese Anweisungen wurden sehr streng und ohne Ausnahme ausgesprochen. Trotzdem lehne ich es ab, die schreckliche Tat der Zerstörung auszuführen, die mein Freund von mir verlangt. Dafür habe ich die allerstärksten und überzeugendsten Gründe."
+  },
+  {
+   "block_id": "c18.p10",
+   "text": "Über einige dieser Gründe kann man nicht in der Öffentlichkeit sprechen. Andere kann ich aber mitteilen. Und auch diese Gründe reichen meiner Meinung nach völlig aus, um meinen Entschluss zu verstehen."
+  },
+  {
+   "block_id": "c18.p11",
+   "text": "Der Hauptgrund ist folgender: Als ich 1921 meinen Beruf wechselte, sagte ich meinem Freund, dass ich mein Testament gemacht hatte. Ich sagte ihm, dass ich ihn darin bitte, dies und das zu vernichten, anderes durchzusehen und so weiter. Darauf zeigte mir Kafka den mit Tinte geschriebenen Zettel von außen. Es war der Zettel, den man später in seinem Schreibtisch gefunden hat. Dabei sagte Kafka: „Mein Testament wird ganz einfach sein — die Bitte an dich, alles zu verbrennen.“ Ich erinnere mich auch noch ganz genau an die Antwort, die ich damals gab: „Wenn du im Ernst etwas so Schweres von mir verlangen solltest, sage ich dir schon jetzt, dass ich deine Bitte nicht erfüllen werde.“ Wir führten das ganze Gespräch in dem scherzhaften Ton, der zwischen uns üblich war. Trotzdem war in unseren Worten ein heimlicher Ernst. Jeder von uns ging dabei immer selbstverständlich davon aus, dass auch der andere diesen Ernst hatte. Franz war überzeugt, dass meine Ablehnung ernst gemeint war. Wenn ihm seine eigene Anweisung ohne jede Bedingung und endgültig ernst gewesen wäre, hätte er jemand anderen bestimmen müssen, der sein Testament ausführt."
+  },
+  {
+   "block_id": "c18.p12",
+   "text": "Ich bin ihm nicht dankbar dafür, dass er mich in diesen schweren Konflikt mit meinem Gewissen gestürzt hat. Diesen Konflikt musste er voraussehen. Denn er wusste, wie fanatisch ich jedes seiner Worte verehrte. Unsere Freundschaft wurde 22 Jahre lang niemals durch irgendetwas gestört oder belastet. In dieser Zeit brachte mich meine Verehrung (unter anderem) dazu, nicht einmal das kleinste Zettelchen von ihm wegzuwerfen. Auch keine Ansichtskarte, die von ihm kam, warf ich weg. — Man soll dieses „ich bin nicht dankbar“ übrigens nicht falsch verstehen! Diesem Freund verdanke ich einen unendlichen Segen. Was wiegt dagegen schon ein noch so schwerer Konflikt mit dem Gewissen! Er war der feste Halt und das eigentliche Rückgrat für mein ganzes Denken und geistiges Leben!"
+  },
+  {
+   "block_id": "c18.p13",
+   "text": "Es gibt noch weitere Gründe: Franz hat sich selbst nicht an die Anweisung auf dem mit Bleistift geschriebenen Blatt gehalten. Später hat er nämlich ausdrücklich erlaubt, Teile der ‚Betrachtung‘ noch einmal in einer Zeitung zu drucken und drei weitere Erzählungen zu veröffentlichen. Diese drei Erzählungen hat er selbst mit dem „Hungerkünstler“ zusammengestellt und dem Verlag Die Schmiede übergeben. Außerdem stammen beide Anweisungen aus einer Zeit, in der die Selbstkritik meines Freundes ihren Höhepunkt erreicht hatte. Aber in seinem letzten Lebensjahr hat sein ganzes Leben eine unerwartete, neue, glückliche und positive Wendung genommen. Diese Wendung macht seinen Selbsthass ungültig und hebt auch seine Haltung auf, dass nichts einen Sinn oder Wert hat. — Übrigens macht mir eine Erinnerung den Entschluss leichter, seine hinterlassenen Schriften zu veröffentlichen. Ich denke dabei an all die heftigen, zähen Kämpfe zurück, mit denen ich jede einzelne Veröffentlichung von Kafka erzwungen und oft genug erbettelt habe. Und trotzdem hatte er hinterher seinen Frieden mit diesen Veröffentlichungen gemacht und war relativ zufrieden. — Schließlich fällt bei einer Veröffentlichung nach seinem Tod eine Reihe von Gründen weg. Dazu gehörte zum Beispiel, dass eine Veröffentlichung seine weitere Arbeit stören und verunsichern könnte. Ein anderer Grund war, dass sie die Schatten von persönlich schmerzlichen und quälenden Lebensabschnitten wachrief. Werke unveröffentlicht zu lassen, hing für Kafka sehr stark mit dem Problem zusammen, wie er sein Leben führen sollte. (Dieses Problem stört zu unserem grenzenlosen Schmerz jetzt nicht mehr.) Wie stark dieser Zusammenhang war, zeigten viele Gespräche, und auch der folgende Brief an mich zeigt es: „… Die Romane lege ich nicht bei. Warum soll ich die alten Anstrengungen aufrühren? Nur deshalb, weil ich sie bisher nicht verbrannt habe? … Wenn ich demnächst komme, geschieht es hoffentlich. Welchen Sinn hat es, solche Arbeiten aufzubewahren, die „sogar“ künstlerisch misslungen sind? Der Sinn liegt darin, dass man hofft, dass sich aus diesen Stückchen ein Ganzes zusammensetzen wird. Man hofft auf irgendeine höhere Stelle, an die man sich wenden und auf die man sich berufen kann — eine Stelle, an deren Brust ich schlagen kann, wenn ich in Not bin. Ich weiß, dass das nicht möglich ist und dass von dort keine Hilfe kommt. Was soll ich also mit den Sachen? Sollen die Sachen, die mir nicht helfen können, mir auch noch schaden? Denn genau so muss es sein, wenn man dieses Wissen hat.“"
+  }
+ ],
+ "usage": {
+  "input_tokens": 12118,
+  "cached_input_tokens": 0,
+  "output_tokens": 72039,
+  "list_usd": 0.744626
+ }
+}

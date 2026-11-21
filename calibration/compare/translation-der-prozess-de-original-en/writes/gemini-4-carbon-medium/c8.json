@@ -1,0 +1,24 @@
+{
+ "writer": "gemini-4-carbon-medium",
+ "passage": "c8",
+ "blocks": [
+  {
+   "block_id": "c8.p4",
+   "text": "It was absolutely necessary that K. intervene himself. Precisely in states of great weariness, as on this winter morning, when everything drifted involuntarily through his head, this conviction was inescapable. The contempt he had formerly felt for the trial no longer held good. Had he been alone in the world, he could easily have disregarded the trial, though to be sure it was also certain that in that case the trial would never have arisen at all. Now, however, his uncle had already dragged him to the lawyer, family considerations played a part; his position was no longer completely independent of the course of the trial, he himself had incautiously, with a certain inexplicable satisfaction, mentioned the trial before acquaintances, others had learned of it in ways unknown, his relationship to Fräulein Bürstner seemed to fluctuate in keeping with the trial—in short, he scarcely had the choice any longer of accepting or rejecting the trial, he stood in the midst of it and had to defend himself. If he was tired, then it was bad."
+  },
+  {
+   "block_id": "c8.p5",
+   "text": "There was, to be sure, no reason for exaggerated anxiety for the time being. He had known how to work his way up in the bank to his high position in a relatively short time and to maintain himself in this position, recognized by all; he needed now only to turn those abilities that had enabled him to do so a little toward the trial, and there was no doubt that it would have to turn out well. Above all, if anything was to be achieved, it was necessary to reject from the very outset every thought of a possible guilt. There was no guilt. The trial was nothing other than a large business transaction, such as he had already often concluded to the advantage of the bank, a transaction within which, as was the rule, various dangers lurked that simply had to be warded off. For this purpose, to be sure, one must not toy with thoughts of any guilt whatever, but hold fast as far as possible to the thought of one's own advantage. From this point of view it was also unavoidable to withdraw the representation from the lawyer very soon, best of all that very evening. According to his accounts it was indeed something unheard-of and probably very offensive, but K. could not tolerate that his efforts in the trial should encounter obstacles that were perhaps occasioned by his own lawyer. Once the lawyer had been shaken off, however, the petition had to be submitted immediately and pressure exerted, if possible every day, that consideration be given to it. For this purpose it would naturally not suffice for K. to sit in the corridor like the others and put his hat under the bench. He himself or the women or other messengers had to besiege the officials day after day and compel them, instead of looking out into the corridor through the grating, to sit down at their desks and study K.'s petition. One must not relent in these efforts, everything would have to be organized and supervised; the court should for once come up against a defendant who knew how to uphold his rights."
+  },
+  {
+   "block_id": "c8.p6",
+   "text": "Even if K. felt confident of carrying all this through, however, the difficulty of composing the petition was overwhelming. Formerly, even as little as a week ago, he had been able to think only with a feeling of shame that he might one day be compelled to draw up such a petition himself; of the fact that this could also be difficult he had not thought at all. He remembered how once on a morning, just when he was heaped with work, he had suddenly pushed everything aside and taken up his writing pad in order tentatively to sketch out the train of thought of a petition of that kind and perhaps place it at the disposal of the ponderous lawyer, and how at that very moment the door of the director's office opened and the deputy director came in with loud laughter. It had been very embarrassing for K. at the time, even though the deputy director had naturally not been laughing at the petition, of which he knew nothing, but at a stock-exchange joke he had just heard, a joke that required for its comprehension a drawing, which the deputy director, leaning over K.'s desk, now executed with K.'s pencil, which he took from his hand, on the writing pad that had been intended for the petition."
+  }
+ ],
+ "usage": {
+  "input_tokens": 2354,
+  "cached_input_tokens": 8192,
+  "output_tokens": 9521,
+  "list_usd": 0.0960292
+ }
+}

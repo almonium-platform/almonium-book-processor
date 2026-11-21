@@ -1,0 +1,24 @@
+{
+ "writer": "gemini-4-neon-medium",
+ "passage": "c8",
+ "blocks": [
+  {
+   "block_id": "c8.p4",
+   "text": "Es war unbedingt nötig, dass K. selbst eingriff. Gerade wenn er sehr müde war, ließ sich diese Überzeugung nicht abweisen. So war es auch an diesem Wintervormittag, als ihm alles ohne seinen Willen durch den Kopf zog. Früher hatte er den Prozess verachtet. Das galt jetzt nicht mehr. Wäre er allein auf der Welt gewesen, hätte er den Prozess leicht ignorieren können. Allerdings war auch sicher, dass der Prozess dann überhaupt nicht entstanden wäre. Jetzt aber hatte ihn der Onkel schon zum Anwalt gezogen. Auch die Rücksicht auf seine Familie spielte nun eine Rolle. Seine Stellung war nicht mehr völlig unabhängig davon, wie der Prozess verlief. Er selbst war unvorsichtig gewesen und hatte den Prozess vor Bekannten erwähnt. Dabei hatte er eine gewisse unerklärliche Zufriedenheit gespürt. Andere hatten auf unbekannte Weise davon erfahren. Auch sein Verhältnis zu Fräulein Bürstner schien entsprechend dem Prozess zu schwanken. Kurz gesagt: Er hatte kaum noch die Wahl, den Prozess anzunehmen oder abzulehnen. Er stand mitten darin und musste sich wehren. Wenn er müde war, war das schlimm."
+  },
+  {
+   "block_id": "c8.p5",
+   "text": "Zu übertriebener Sorge gab es allerdings vorläufig keinen Grund. In der Bank hatte er es geschafft, in ziemlich kurzer Zeit seine hohe Stellung zu erreichen. Dort konnte er sich halten und wurde von allen anerkannt. Diese Fähigkeiten hatten ihm das ermöglicht. Jetzt musste er sie nur ein wenig für den Prozess nutzen. Dann gab es keinen Zweifel, dass alles gut ausgehen müsste. Wenn etwas erreicht werden sollte, war vor allem eines nötig: Man musste jeden Gedanken an eine mögliche Schuld von Anfang an ablehnen. Es gab keine Schuld. Der Prozess war nichts anderes als ein großes Geschäft. Solche Geschäfte hatte er schon oft mit Vorteil für die Bank abgeschlossen. Wie üblich lauerten bei so einem Geschäft verschiedene Gefahren. Diese Gefahren musste man eben abwehren. Dafür durfte man allerdings nicht mit dem Gedanken an irgendeine Schuld spielen. Stattdessen musste man den Gedanken an den eigenen Vorteil so gut wie möglich festhalten. Aus dieser Sicht war noch etwas unvermeidlich: Er musste dem Anwalt die Vertretung sehr bald wegnehmen, am besten noch an diesem Abend. Nach seinen Erzählungen war das zwar etwas Unerhörtes und wahrscheinlich sehr beleidigend. Aber K. konnte nicht zulassen, dass seinen Bemühungen im Prozess Hindernisse im Weg standen, die vielleicht sein eigener Anwalt verursacht hatte. Wenn der Anwalt erst einmal abgeschüttelt war, musste die Eingabe sofort abgegeben werden. Und wenn möglich, musste man jeden Tag darauf drängen, dass sie beachtet wurde. Dafür würde es natürlich nicht reichen, dass K. wie die anderen im Gang saß und den Hut unter die Bank stellte. Er selbst, die Frauen oder andere Boten mussten die Beamten Tag für Tag immer wieder aufsuchen und bedrängen. Sie mussten die Beamten zwingen, nicht mehr durch das Gitter auf den Gang zu schauen. Stattdessen sollten sie sich an ihren Tisch setzen und K.s Eingabe genau lesen. Mit diesen Bemühungen dürfte man nicht aufhören. Alles müsste organisiert und überwacht werden. Das Gericht sollte einmal auf einen Angeklagten treffen, der sein Recht zu verteidigen wusste."
+  },
+  {
+   "block_id": "c8.p6",
+   "text": "K. traute sich zwar zu, das alles durchzuführen. Doch die Schwierigkeit, die Eingabe zu schreiben, war überwältigend. Früher, noch vor etwa einer Woche, hatte er nur mit Scham an diese Möglichkeit denken können: dass er vielleicht einmal gezwungen sein könnte, eine solche Eingabe selbst zu machen. Dass das auch schwer sein konnte, daran hatte er gar nicht gedacht. Er erinnerte sich an einen Vormittag, an dem er gerade mit Arbeit überladen war. Plötzlich hatte er alles zur Seite geschoben und seinen Schreibblock genommen. Er wollte zur Probe aufschreiben, wie die Gedanken in einer solchen Eingabe aufgebaut sein sollten. Vielleicht konnte er diesen Entwurf dem langsamen und umständlichen Anwalt geben. Doch genau in diesem Augenblick öffnete sich die Tür zum Direktionszimmer. Der Direktor-Stellvertreter kam mit lautem Gelächter herein. Für K. war das damals sehr peinlich gewesen. Natürlich hatte der Direktor-Stellvertreter nicht über die Eingabe gelacht, denn davon wusste er nichts. Er hatte über einen Börsenwitz gelacht, den er gerade gehört hatte. Um den Witz zu verstehen, brauchte man eine Zeichnung. Der Direktor-Stellvertreter beugte sich über K.s Tisch und nahm ihm den Bleistift aus der Hand. Mit K.s Bleistift machte er die Zeichnung auf dem Schreibblock, der für die Eingabe bestimmt gewesen war."
+  }
+ ],
+ "usage": {
+  "input_tokens": 12097,
+  "cached_input_tokens": 0,
+  "output_tokens": 19881,
+  "list_usd": 0.334506
+ }
+}

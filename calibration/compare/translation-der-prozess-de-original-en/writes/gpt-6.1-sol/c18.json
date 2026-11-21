@@ -1,0 +1,32 @@
+{
+ "writer": "gpt-6.1-sol",
+ "passage": "c18",
+ "blocks": [
+  {
+   "block_id": "c18.p9",
+   "text": "If, in the face of these so categorically expressed instructions, I nevertheless refuse to perform the Herostratic deed my friend demands of me, I have the most cogent reasons for doing so."
+  },
+  {
+   "block_id": "c18.p10",
+   "text": "Some of them cannot be discussed publicly. Yet even those I can communicate are, in my opinion, entirely sufficient to make my decision understood."
+  },
+  {
+   "block_id": "c18.p11",
+   "text": "The chief reason: when I changed my profession in 1921, I told my friend that I had made my will, in which I asked him to destroy this and that, to look through other things, and so forth. Kafka then said, showing me, without opening it, the note written in ink which was afterwards found in his desk: “My will shall be quite simple—the request to you to burn everything.” I also remember quite precisely the answer I gave at the time: “Should you seriously expect such a thing of me, I tell you here and now that I shall not fulfil your request.” The whole conversation was conducted in that jesting tone customary between us, yet with the secret earnestness which each of us always assumed in the other on such occasions. Convinced of the earnestness of my refusal, Franz would have had to appoint another executor if his own instructions had been a matter of absolute and final earnest to him."
+  },
+  {
+   "block_id": "c18.p12",
+   "text": "I am not grateful to him for having plunged me into this grievous conflict of conscience, which he must have foreseen, for he knew the fanatical reverence I bore every word of his, and which, during the twenty-two years of our never-clouded friendship, led me (among other things) never to throw away even the smallest scrap of paper, a single picture postcard, that came from him. — Let that “I am not grateful” not be misunderstood, however! What does even the most grievous conflict of conscience weigh against the infinite blessing I owe to the friend who was the very backbone of my whole spiritual existence!"
+  },
+  {
+   "block_id": "c18.p13",
+   "text": "Further reasons: the order on the sheet written in pencil was not obeyed by Franz himself, for he later expressly gave permission for portions of ‘Contemplation’ to be reprinted in a newspaper, and for three further stories to be published, which he himself grouped with “A Hunger Artist” and handed over to the publishers Die Schmiede. Both sets of instructions date, moreover, from a time when my friend’s self-critical tendencies had reached their height. In the last year of his life, however, his whole existence took an unforeseen, new, happy, positive turn, which overrides this self-hatred and nihilism. — My decision to publish the literary remains is, moreover, made easier by the recollection of all the bitter struggles by which I wrung every single publication from Kafka and often enough begged it of him. And yet afterwards he was reconciled to these publications and relatively satisfied with them. — Finally, with posthumous publication a number of motives cease to apply, for instance, that publication might disturb further work, that it might summon up the shadows of periods of his life personally painful to him. How closely, for Kafka, withholding publication was bound up with the problem of how to conduct his life (a problem which, to our immeasurable sorrow, no longer troubles him) is evident, as from many conversations, from the following letter to me: “... I am not enclosing the novels. Why stir up the old endeavours? Merely because I have not yet burnt them? ... When I next come, it will, I hope, be done. What is the sense of preserving such ‘even’ artistically unsuccessful works? It lies in the hope that out of these little pieces a whole will assemble itself, some court of appeal upon whose breast I shall be able to beat when I am in distress. I know that this is not possible, that no help comes from that quarter. What, then, am I to do with these things? Are those things which cannot help me to harm me as well, as, given this knowledge, they must?”"
+  }
+ ],
+ "usage": {
+  "input_tokens": 17436,
+  "cached_input_tokens": 0,
+  "output_tokens": 1132,
+  "list_usd": 0.046192
+ }
+}

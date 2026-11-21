@@ -1,0 +1,28 @@
+{
+ "writer": "gpt-6.1-sol",
+ "passage": "c2",
+ "blocks": [
+  {
+   "block_id": "c2.p12",
+   "text": "Direkt bei der Tür unterhielten sich zwei Männer. Einer hielt beide Hände weit vor sich und bewegte sie, als zählte er Geld. Der andere sah ihm scharf in die Augen. Zwischen den beiden Männern hindurch griff eine Hand nach K. Sie gehörte einem kleinen Jungen mit roten Wangen. „Kommen Sie, kommen Sie“, sagte er. K. ließ sich von ihm führen. In der Menschenmenge bewegten sich alle durcheinander. Trotzdem war ein schmaler Weg frei. Vielleicht trennte er zwei Parteien voneinander. Dafür sprach auch etwas anderes: In den ersten Reihen rechts und links sah K. kaum ein Gesicht, das ihm zugewandt war. Er sah fast nur die Rücken der Leute. Sie sprachen nur zu Leuten ihrer eigenen Partei und machten ihre Bewegungen nur zu diesen hin. Die meisten trugen schwarze Kleidung. Ihre alten Jacken für Feiertage hingen lang und locker an ihnen herunter. Nur diese Kleidung machte K. unsicher. Sonst hätte er das Ganze für eine politische Versammlung des Bezirks gehalten."
+  },
+  {
+   "block_id": "c2.p13",
+   "text": "Der Junge führte K. zum anderen Ende des Saales. Dort stand auf einer sehr niedrigen Bühne ein kleiner Tisch. Er war quer aufgestellt. Auch die Bühne war voller Menschen. Hinter dem Tisch saß nahe am Bühnenrand ein kleiner, dicker Mann, der laut und schwer atmete. Er unterhielt sich gerade mit einem Mann hinter ihm. Dieser hatte einen Ellbogen auf die Stuhllehne gestützt und die Beine gekreuzt. Bei ihrem Gespräch lachten sie laut. Manchmal warf der sitzende Mann den Arm in die Luft. Es sah aus, als machte er jemanden auf übertriebene Weise nach. Der Junge, der K. führte, konnte ihm seine Nachricht nur schwer mitteilen. Zweimal hatte er sich schon auf die Zehenspitzen gestellt und versucht, etwas zu sagen. Doch der Mann oben hatte ihn nicht beachtet. Erst einer der Leute auf der Bühne machte den Mann auf den Jungen aufmerksam. Da wandte er sich dem Jungen zu. Er beugte sich hinunter und hörte dessen leisen Bericht an. Dann holte er seine Uhr hervor und sah kurz zu K. „Sie hätten vor 1 Stunde und 5 Minuten hier sein sollen“, sagte er. K. wollte antworten, aber dazu blieb ihm keine Zeit. Kaum hatte der Mann zu Ende gesprochen, begannen überall in der rechten Saalhälfte Leute unzufrieden zu murmeln. „Sie hätten vor 1 Stunde und 5 Minuten hier sein sollen“, wiederholte der Mann nun lauter. Dabei sah er auch kurz in den Saal hinunter. Sofort wurde das unzufriedene Murmeln lauter. Der Mann sagte nichts mehr, und es hörte nur langsam auf. Jetzt war es im Saal viel stiller als bei K.s Ankunft. Nur die Leute auf der Galerie, dem oberen Teil des Saales, machten weiter ihre Bemerkungen. Oben war es halbdunkel, und Dunst und Staub lagen in der Luft. Soweit man dort etwas erkennen konnte, schienen die Leute schlechter gekleidet zu sein als unten. Manche hatten Kissen mitgebracht. Sie hatten sie zwischen ihren Kopf und die Zimmerdecke gelegt. So wollten sie verhindern, dass der Druck der Decke ihre Köpfe wund machte."
+  },
+  {
+   "block_id": "c2.p14",
+   "text": "K. hatte beschlossen, mehr zu beobachten als zu reden. Deshalb verteidigte er sich nicht gegen den Vorwurf, zu spät gekommen zu sein. Er sagte nur: „Vielleicht bin ich zu spät gekommen, aber jetzt bin ich hier.“ Wieder klatschten Leute in der rechten Saalhälfte Beifall. „Diese Leute kann man leicht für sich gewinnen“, dachte K. Nur die Stille in der linken Saalhälfte störte ihn. Dieser Teil des Saales lag direkt hinter ihm. Dort hatten nur ganz wenige Leute geklatscht. Er überlegte, was er sagen könnte, um alle auf einmal für sich zu gewinnen. Falls das nicht möglich war, wollte er wenigstens auch die anderen für einige Zeit für sich gewinnen."
+  },
+  {
+   "block_id": "c2.p15",
+   "text": "„Ja“, sagte der Mann, „aber ich muss Sie jetzt nicht mehr verhören.“ Wieder murmelten die Leute unzufrieden. Diesmal war aber nicht klar, was ihr Murmeln bedeuten sollte. Denn der Mann machte eine abwehrende Handbewegung zu den Leuten und sprach weiter: „Ich will Sie heute aber ausnahmsweise doch noch verhören. Sie dürfen sich jedoch nicht noch einmal so verspäten. Und nun kommen Sie nach vorn!“ Irgendjemand sprang von der Bühne herunter. Dadurch wurde ein Platz für K. frei, und er stieg hinauf. Er stand dicht an den Tisch gedrückt. Die Menschen hinter ihm drängten so stark, dass er sich dagegenstemmen musste. Sonst hätte er den Tisch des Untersuchungsrichters von der Bühne gestoßen, vielleicht sogar den Richter selbst."
+  }
+ ],
+ "usage": {
+  "input_tokens": 18963,
+  "cached_input_tokens": 15104,
+  "output_tokens": 1453,
+  "list_usd": 0.0252688
+ }
+}

@@ -1,0 +1,56 @@
+{
+ "writer": "opus-5.5",
+ "passage": "c22",
+ "blocks": [
+  {
+   "block_id": "c22.p35",
+   "text": "I wanted to make him a friend, not an enemy. So I thanked him, gave him the address at Dr. Seward's, and left. It was dark by now, and I was tired and hungry. I had a cup of tea at the Aërated Bread Company. Then I took the next train down to Purfleet."
+  },
+  {
+   "block_id": "c22.p36",
+   "text": "I found all the others at home. Mina looked tired and pale. But she tried bravely to be bright and cheerful. It hurt my heart to think that I had had to keep things from her. I knew that this had made her uneasy. Thank God, tonight will be the last night that she watches our meetings. It will be the last night that she feels the sting of us not trusting her with our secrets. It took all my courage to keep to our wise decision. We had decided to keep her out of our terrible task. Somehow she seems to accept it better now. Or perhaps the subject itself has become hateful to her. When anyone mentions it by accident, she actually shudders. I am glad we made our decision in time. She has this feeling about it, so everything new we learn would be torture to her."
+  },
+  {
+   "block_id": "c22.p37",
+   "text": "I could not tell the others about the day's discovery until we were alone. So after dinner we played a little music. We did this to keep up appearances, even among ourselves. Then I took Mina to her room and left her to go to bed. The dear girl was more loving to me than ever. She held on to me as if she wanted to keep me there. But there was a lot to talk about, so I left. Thank God, the fact that we no longer tell her things has made no difference between us."
+  },
+  {
+   "block_id": "c22.p38",
+   "text": "When I came down again, I found the others all sitting round the fire in the study. On the train I had written my diary up to that point. I simply read it out to them. This was the best way to let them know everything that I knew. When I had finished, Van Helsing said:—"
+  },
+  {
+   "block_id": "c22.p39",
+   "text": "“This has been a great day's work, friend Jonathan. No doubt we are on the track of the missing boxes. If we find them all in that house, then our work is near the end. But if some are missing, we must search until we find them. Then we shall strike our final blow, and hunt the wretch to his real death.” We all sat silent for a while. Then suddenly Mr. Morris spoke:—"
+  },
+  {
+   "block_id": "c22.p40",
+   "text": "“Say! how are we going to get into that house?”"
+  },
+  {
+   "block_id": "c22.p41",
+   "text": "“We got into the other,” answered Lord Godalming quickly."
+  },
+  {
+   "block_id": "c22.p42",
+   "text": "“But, Art, this is different. We broke into the house at Carfax. But we had the night and a walled park to protect us. Breaking into a house in Piccadilly will be a mighty different thing, by day or by night. I admit I don't see how we are going to get in. That agency fellow might find us some kind of key. If he can't, I don't see a way. Perhaps we shall know when you get his letter in the morning.” Lord Godalming frowned. He stood up and walked about the room. After a while he stopped. He turned from one of us to another and said:—"
+  },
+  {
+   "block_id": "c22.p43",
+   "text": "“Quincey is right. He is thinking clearly. This business of breaking into houses is getting serious. We got away with it once. But now we have a really hard job in front of us—unless we can find the Count's basket of keys.”"
+  },
+  {
+   "block_id": "c22.p44",
+   "text": "Nothing much could be done before morning. Also, it would at least be wise to wait until Lord Godalming heard from Mitchell's. So we decided not to take any action before breakfast time. For a long while we sat and smoked. We discussed the matter from every side. I used the time to bring this diary right up to date. I am very sleepy and shall go to bed...."
+  },
+  {
+   "block_id": "c22.p45",
+   "text": "Just a line. Mina is sleeping soundly and her breathing is regular. Her forehead is pulled into little wrinkles, as if she is thinking even in her sleep. She is still too pale. But she does not look as worn out and ill as she did this morning. Tomorrow, I hope, will put all this right. She will be herself, at home in Exeter. Oh, but I am sleepy!"
+  }
+ ],
+ "usage": {
+  "input_tokens": 5785,
+  "cached_input_tokens": 0,
+  "output_tokens": 4219,
+  "list_usd": 0.10752
+ }
+}

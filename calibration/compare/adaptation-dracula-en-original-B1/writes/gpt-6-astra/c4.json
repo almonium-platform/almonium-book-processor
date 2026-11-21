@@ -1,0 +1,44 @@
+{
+ "writer": "gpt-6-astra",
+ "passage": "c4",
+ "blocks": [
+  {
+   "block_id": "c4.p21",
+   "text": "His face had a strong—a very strong—shape like an eagle’s. His narrow nose had a high bridge, and his nostrils curved in an unusual way. His forehead was high and rounded. His hair was thin at the sides of his forehead, but thick everywhere else. His eyebrows were very thick and almost met above his nose. Their bushy hair seemed to curl because there was so much of it. I could only partly see his mouth beneath his thick moustache. It was held still and looked rather cruel. His unusually sharp white teeth stuck out over his lips. His lips were remarkably red, showing surprising life and energy for a man of his age. His ears were pale, with extremely pointed tops. His chin was broad and strong, and his cheeks were firm but thin. Altogether, he looked extraordinarily pale."
+  },
+  {
+   "block_id": "c4.p22",
+   "text": "Until now, I had noticed the backs of his hands resting on his knees in the firelight. They had seemed rather white and delicate. But now that they were close to me, I could not help noticing how rough they were. They were broad, with short, thick fingers. Strangely, there were hairs in the centre of his palm. His nails were long and delicate, and cut to a sharp point. As the Count leaned over me and his hands touched me, I could not stop myself from shaking. Perhaps it was because his breath smelled so bad. But a horrible feeling of sickness came over me. However hard I tried, I could not hide it. The Count clearly noticed and moved back. He gave a rather dark, unpleasant smile, showing more of his teeth than before as they stuck out. Then he sat down again on his own side of the fireplace. We were both silent for a while. I looked towards the window and saw the first faint line of approaching daylight. Everything seemed strangely still. But as I listened, I heard many wolves howling. The sound seemed to come from down below in the valley. The Count’s eyes shone, and he said:—"
+  },
+  {
+   "block_id": "c4.p23",
+   "text": "“Listen to them—the children of the night. What music they make!” I suppose he saw something in my expression that seemed strange to him. He added:—"
+  },
+  {
+   "block_id": "c4.p24",
+   "text": "“Ah, sir, you people who live in cities cannot understand a hunter’s feelings.” Then he stood up and said:—"
+  },
+  {
+   "block_id": "c4.p25",
+   "text": "“But you must be tired. Your bedroom is all ready. Tomorrow you shall sleep as late as you want. I have to be away until the afternoon, so sleep well and dream well!” He bowed politely and opened the door to the eight-sided room for me himself. I went into my bedroom...."
+  },
+  {
+   "block_id": "c4.p26",
+   "text": "I feel lost in a sea of strange and wonderful things. I am full of doubt. I am afraid. I think strange things that I dare not admit even to myself. May God protect me, even if only for the sake of those I love!"
+  },
+  {
+   "block_id": "c4.p27",
+   "text": "7 May.—It is early morning again. But I have rested and enjoyed the last twenty-four hours. I slept until late in the day and woke without anyone waking me. After dressing, I went into the room where we had eaten our evening meal. A cold breakfast was laid out for me. The coffee pot stood beside the fire to keep the coffee hot. There was a card on the table with these words:—"
+  },
+  {
+   "block_id": "c4.p28",
+   "text": "“I have to be away for a while. Do not wait for me.—D.” I began eating and enjoyed a large meal. Afterwards, I looked for a bell to tell the servants I had finished. But I could not find one. Some things are certainly strangely missing from this house. This is surprising, because everything around me shows such great wealth. The dishes and other things used at the table are made of gold. They are so beautifully made that they must be worth an enormous amount. The curtains and the cloth covering the chairs and sofas are among the most expensive and beautiful materials. So are the curtains around my bed. They must have been worth an enormous amount when they were made. They are centuries old, but still in excellent condition. I saw things like them at Hampton Court. But those were worn, with loose threads, and full of holes made by moths. Yet there is no mirror in any of the rooms. There is not even a small mirror on my table for getting ready. I had to take my little shaving mirror out of my bag before I could shave or brush my hair. I have not yet seen a servant anywhere. Nor have I heard any sound near the castle except wolves howling. Some time after my meal, I looked around for something to read. I do not know whether to call the meal breakfast or dinner. It was between five and six o’clock when I ate it. I did not want to walk about the castle until I had asked the Count’s permission. There was absolutely nothing in the room to read—not a book or a newspaper. There were not even any writing materials. So I opened another door in the room and found a sort of library. I also tried the door opposite mine, but it was locked."
+  }
+ ],
+ "usage": {
+  "input_tokens": 19024,
+  "cached_input_tokens": 0,
+  "output_tokens": 1436,
+  "list_usd": 0.26204
+ }
+}
