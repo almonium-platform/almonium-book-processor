@@ -1212,3 +1212,37 @@ resumes on the one the run began with. The third edition's title page and three 
 summaries were translated again on Codex though the second edition had the same ones ($0.008;
 the spend guard counts four calls paid twice): those are asked for each edition and not found
 by their content, which only a twin shows.
+
+## One whole book adapted by Gemini 4 Neon (21 November 2026)
+
+A Study in Scarlet to B2 (`a-study-in-scarlet-en-original-b2`), a whole production with Neon
+at medium as the writer and the usual judges and auditors (Opus 5.5 and Sol 6.1):
+
+- The probe passed; all 17 chapters held B2 at the judges' first reading, none was mended.
+- The auditors found no material difference from the source; 6 corrections both stood behind
+  were written in over two rounds, and the verdict was READY with both gates passed. Astra's
+  English B2 books took between 1 and 7 corrections (The Sign of Four 2, The Hound of the
+  Baskervilles 4, Treasure Island 7).
+- Neon wrote it in 25 minutes: 18 calls, 219,567 tokens in and 561,727 out, $0.71 as the
+  plan's share, 2% of the plan's week. It is left without a sign-off for the owner to read.
+
+So as an adapter Neon went through the gates as Astra's books do, where as a translator it
+left more for the editors than Sol. One book, in English.
+
+How it was run, and what stands in the way of another:
+
+- The writer of a production is the worker's `ADAPTATION_GENERATOR`, one for every book. This
+  one ran in a process of its own with that setting and tasks run inline, ticked by a loop
+  (run inline, the production's own tick calls itself until Python stops it). Sentence
+  alignment could not be queued from there and was queued afterwards by
+  `queue_sentence_alignment`.
+- An adaptation is found again by its source text and level, not by who wrote it
+  (`adaptation._paid_answer`). A second writer on a book the first has written or probed is
+  handed the first one's text: a B1 trial on In der Strafkolonie was stopped for that after
+  its first chapter. Only a source nothing has been written from tests another writer.
+- The French Frankenstein (a human translation) passed Neon's B2 probe, three chapters at B2
+  with nothing material, and could not be written whole: it has no block correspondence with
+  an original.
+- The Gemini login was lost once more between 13:02 and 13:10 with the start lock in place,
+  while some thirty judge calls were running; why is not known. The production held and went
+  on when the owner had signed in again.
