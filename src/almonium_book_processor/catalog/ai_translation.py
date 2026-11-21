@@ -67,14 +67,19 @@ TRANSLATION_MODEL_PRICING = {
 
 # A tier names who translates. "quality" and "draft" name a model (the stronger and the
 # cheaper), which ai/gateway.py runs on the owner's plan where this environment has one and on
-# the API elsewhere; the API's Batch service is used only on the API. "subscription" and
-# "codex" name a plan and its model outright, for the owner's machine. Only the model tiers
-# are offered to the product's API and priced in TRANSLATION_MODEL_PRICING.
+# the API elsewhere; the API's Batch service is used only on the API. "subscription", "codex"
+# and "antigravity" name a plan and its model outright, for the owner's machine. Only the model
+# tiers are offered to the product's API and priced in TRANSLATION_MODEL_PRICING.
 SUBSCRIPTION_TIER = "subscription"
 CODEX_TIER = "codex"
+ANTIGRAVITY_TIER = "antigravity"
 PLAN_TIERS = {
     SUBSCRIPTION_TIER: {"provider": "claude-code", "model_setting": "CLAUDE_CODE_MODEL"},
     CODEX_TIER: {"provider": "codex", "model_setting": "CODEX_TRANSLATION_MODEL"},
+    ANTIGRAVITY_TIER: {
+        "provider": "antigravity",
+        "model_setting": "ANTIGRAVITY_TRANSLATION_MODEL",
+    },
 }
 
 
@@ -883,6 +888,7 @@ def run_translation_inline(edition_id: str, *, tier: str = "quality", provider=N
     workers = {
         "claude-code": settings.CLAUDE_CODE_WORKERS,
         "codex": settings.CODEX_WORKERS,
+        "antigravity": settings.ANTIGRAVITY_WORKERS,
     }.get(seat.provider, DIRECT_TRANSLATION_WORKERS)
     todo = [request for request in requests if request["custom_id"] not in kept]
     lines = dict(kept)

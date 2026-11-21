@@ -816,3 +816,41 @@ def test_the_quality_tier_runs_its_model_on_a_plan_where_one_serves_it(settings)
     assert float(ai_run.estimated_cost_usd) == pytest.approx(
         float(at_list * PLAN_SHARE_OF_LIST["codex"]), abs=1e-6
     )
+
+
+def test_the_antigravity_tier_translates_with_the_gemini_model_the_setting_names(settings) -> None:
+    from almonium_book_processor.ai.seats import Seat
+    from almonium_book_processor.catalog.ai_translation import (
+        ANTIGRAVITY_TIER,
+        run_translation_inline,
+        tier_seat,
+    )
+
+    settings.ANTIGRAVITY_TRANSLATION_MODEL = "gemini-4-neon"
+    assert tier_seat(ANTIGRAVITY_TIER) == Seat("antigravity", "gemini-4-neon")
+    edition = create_parallel_translation(
+        source_edition=canonical_edition(),
+        target_language="uk",
+        register="period-faithful",
+        tier=ANTIGRAVITY_TIER,
+    )
+    bodies = []
+
+    class FakeAntigravity:
+        name = "antigravity"
+
+        def respond(self, body):
+            bodies.append(body)
+            line = output_line(
+                "chapter-1",
+                [translated("c1.h1", "Розділ I"), translated("c1.p2", "Його шкіра.")],
+            )
+            return line["response"]["body"]
+
+    run = run_translation_inline(str(edition.id), tier=ANTIGRAVITY_TIER, provider=FakeAntigravity())
+
+    assert run.model_configuration.provider == "antigravity"
+    assert run.model_configuration.name == "antigravity-translation-v1"
+    assert bodies[0]["model"] == "gemini-4-neon"
+    assert bodies[0]["reasoning"] == {"effort": "medium"}
+    assert edition.blocks.get(block_id="c1.h1").text == "Розділ I"

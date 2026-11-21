@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from almonium_book_processor.ai.codex_provider import codex_meter
 from almonium_book_processor.catalog.ai_translation import (
+    ANTIGRAVITY_TIER,
     CODEX_TIER,
     SUBSCRIPTION_TIER,
     create_parallel_translation,
@@ -12,9 +13,9 @@ from almonium_book_processor.catalog.models import Edition
 
 class Command(BaseCommand):
     help = (
-        "Translate a canonical edition into a new parallel edition through the Claude Code or "
-        "the Codex CLI on one of the owner's plans. Runs here, on the machine where the CLI is "
-        "signed in; promote the result as a bundle."
+        "Translate a canonical edition into a new parallel edition through the Claude Code, "
+        "the Codex or the Antigravity CLI on one of the owner's plans. Runs here, on the machine "
+        "where the CLI is signed in; promote the result as a bundle."
     )
 
     def add_arguments(self, parser):
@@ -28,7 +29,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--through",
             default="claude-code",
-            choices=["claude-code", "codex"],
+            choices=["claude-code", "codex", "antigravity"],
             help="the CLI, and so the plan and the model, that writes the translation",
         )
         parser.add_argument(
@@ -41,7 +42,9 @@ class Command(BaseCommand):
             source = Edition.objects.get(slug=options["source_slug"])
         except Edition.DoesNotExist as error:
             raise CommandError(f"No edition with slug {options['source_slug']}") from error
-        tier = CODEX_TIER if options["through"] == "codex" else SUBSCRIPTION_TIER
+        tier = {"codex": CODEX_TIER, "antigravity": ANTIGRAVITY_TIER}.get(
+            options["through"], SUBSCRIPTION_TIER
+        )
         if options["edition"]:
             edition = Edition.objects.get(slug=options["edition"])
         else:

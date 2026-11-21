@@ -410,6 +410,11 @@ CODEX_WORKERS = int(os.getenv("CODEX_WORKERS", "4"))
 # serves the Gemini models. One login a machine user, kept in the system keyring.
 ANTIGRAVITY_BINARY = os.getenv("ANTIGRAVITY_BINARY", os.path.expanduser("~/.local/bin/agy"))
 ANTIGRAVITY_TIMEOUT_SECONDS = float(os.getenv("ANTIGRAVITY_TIMEOUT_SECONDS", "1800"))
+# Who translates on the "antigravity" tier. Neon and Carbon at medium effort led Opus, Sol and
+# Astra for both outside judges on Dracula and Der Prozess (21 November 2026); Neon costs less
+# of the plan. A whole book by it is a trial until its editors have read one.
+ANTIGRAVITY_TRANSLATION_MODEL = os.getenv("ANTIGRAVITY_TRANSLATION_MODEL", "gemini-4-neon")
+ANTIGRAVITY_WORKERS = int(os.getenv("ANTIGRAVITY_WORKERS", "4"))
 # The plan accounts whose meters are read, as the directories that hold their logins: the
 # CODEX_HOME (~/.codex by default) and CLAUDE_CONFIG_DIR (~/.claude) of the workers that work
 # on them, separated by commas. Empty is the one account the process itself would use. A

@@ -1150,3 +1150,32 @@ CLI's one argument of 120,000 bytes.
 The plan also serves Claude Opus 5.5, on a meter of its own. Twenty-four dictionary entries at
 high effort used 10% of that meter's week and 18% of its five-hour session: some 240 entries a
 week. It is not a second supply of the dictionary's writer.
+
+## One whole book translated by Gemini 4 Neon (21 November 2026)
+
+Translating has a fourth plan tier, `antigravity`
+(`./plan-manage translate_on_plan <source> <language> --through antigravity`), whose model is
+`ANTIGRAVITY_TRANSLATION_MODEL` (Neon) at medium effort, four chapters at a time. No setting
+makes a production use it.
+
+The Thirty-Nine Steps into Ukrainian (`the-thirty-nine-steps-uk-parallel`), 12 chapters and
+213,073 characters:
+
+- Written in 12 minutes. 222,089 tokens in, 384,605 out (112,783 of them thinking): $0.50 as
+  the plan's share, about $6.30 at list price. The plan's week went from 93% to 91% left and
+  its five-hour session from 100% to 97%, with a comparison's judge on the same meters. Two
+  chapters came back once as text that was not JSON and were asked again.
+- Every chapter passed the translation's own gates the first time the run ended.
+- The two editors (Opus 5.5 and Astra 6, review v3) raised 29 material findings and 7
+  uncertain ones: 13.6 material findings in 100,000 characters. The seventeen Ukrainian books
+  Sol translated and the same pair read have between 0 and 12.9, the middle one 7.2.
+- What they found is mostly English read word for word: "a white man" (a decent one) as a man
+  of the white race, "sweet milk" as sugared, "stepped out like a four-year-old" as a child,
+  "in the small hours" as dawn, "printed" in a handwritten notebook as typeset. Sol's books
+  have the same kind, less often.
+
+One book, and one with Scots speech and 1915 slang, so the count does not rank Neon below Sol
+by itself; it does not show Neon above it either, which the eight-passage comparisons had
+suggested. Neon stays a trial translator. What would settle it is the same book from both, read
+by the same editors: a second edition of one work and language, which the spend guard counts
+as a twin and nothing here makes without the owner's word.
