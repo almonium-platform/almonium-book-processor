@@ -35,33 +35,33 @@ Every judge saw the source and the candidates under shuffled letters, without mo
 | opus-5.5 | 3.88 | 0 (0%) | 7.2 | 7 of 8 |
 | gemini-4-argon-medium | 5.62 | 0 (0%) | 6.2 | 7 of 8 |
 
-## Judge: gemini-4-carbon-medium (2 passages, $0.43 list)
+## Judge: gemini-4-carbon-medium (7 passages, $2.84 list)
 
 | Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
 |---|---|---|---|---|
-| gemini-4-carbon-medium (itself) | 1.50 | 1 (50%) | 9.5 | 1 of 2 |
-| gpt-6.1-sol | 2.00 | 1 (50%) | 8.0 | 1 of 2 |
-| gemini-4-neon-medium | 3.50 | 0 (0%) | 9.0 | 1 of 2 |
-| opus-5.5 | 4.50 | 0 (0%) | 7.0 | 1 of 2 |
-| gemini-4-argon-medium | 4.50 | 0 (0%) | 6.5 | 1 of 2 |
-| gpt-6-astra | 5.00 | 0 (0%) | 5.5 | 2 of 2 |
+| gemini-4-carbon-medium (itself) | 1.29 | 5 (71%) | 8.6 | 5 of 7 |
+| gemini-4-neon-medium | 2.86 | 1 (14%) | 7.3 | 6 of 7 |
+| gpt-6.1-sol | 3.71 | 1 (14%) | 5.6 | 6 of 7 |
+| gpt-6-astra | 4.14 | 0 (0%) | 5.3 | 7 of 7 |
+| gemini-4-argon-medium | 4.43 | 0 (0%) | 5.1 | 6 of 7 |
+| opus-5.5 | 4.57 | 0 (0%) | 4.9 | 6 of 7 |
 
 ## All judges together
 
 | Writer | Mean rank | Wins | Mean score | Rank by itself | Rank by the other judges |
 |---|---|---|---|---|---|
-| gemini-4-carbon-medium | 2.61 | 6 (33%) | 7.8 | 1.50 | 2.75 |
-| gemini-4-neon-medium | 2.89 | 5 (28%) | 8.0 | - | - |
-| gpt-6.1-sol | 3.17 | 2 (11%) | 7.4 | - | - |
-| gpt-6-astra | 3.39 | 3 (17%) | 7.2 | 2.38 | 4.20 |
-| opus-5.5 | 3.78 | 2 (11%) | 7.0 | 3.50 | 4.00 |
-| gemini-4-argon-medium | 5.17 | 0 (0%) | 6.1 | - | - |
+| gemini-4-carbon-medium | 2.30 | 10 (43%) | 7.9 | 1.29 | 2.75 |
+| gemini-4-neon-medium | 2.83 | 6 (26%) | 7.7 | - | - |
+| gpt-6.1-sol | 3.43 | 2 (9%) | 6.8 | - | - |
+| gpt-6-astra | 3.48 | 3 (13%) | 6.8 | 2.38 | 4.07 |
+| opus-5.5 | 3.96 | 2 (9%) | 6.3 | 3.50 | 4.20 |
+| gemini-4-argon-medium | 5.00 | 0 (0%) | 5.7 | - | - |
 
 ## Agreement on the best candidate
 
 - opus-5.5 and gpt-6-astra: same best candidate on 3 of 8 passages
-- opus-5.5 and gemini-4-carbon-medium: same best candidate on 1 of 2 passages
-- gpt-6-astra and gemini-4-carbon-medium: same best candidate on 0 of 2 passages
+- opus-5.5 and gemini-4-carbon-medium: same best candidate on 2 of 7 passages
+- gpt-6-astra and gemini-4-carbon-medium: same best candidate on 2 of 7 passages
 
 ## Slips flagged, for a person to check
 
@@ -430,3 +430,168 @@ Every judge saw the source and the candidates under shuffled letters, without mo
 - c2 / gemini-4-argon-medium, by gemini-4-carbon-medium: Contains a reflexive grammar error in 'Diese Leute sind leicht für sich zu gewinnen' ('für sich' refers to 'Diese Leute' instead of K.).
 - c2 / gemini-4-argon-medium, by gemini-4-carbon-medium: Leaves archaic 'Geld aufzählte' (modern meaning: 'enumerate') and weakens judicial 'verhören' to 'befragen'.
 - c2 / gemini-4-argon-medium, by gemini-4-carbon-medium: Paraphrases 'Untersuchungsrichters' ('des Richters, der den Fall untersuchte'), invents 'wild' and 'ruhig zu sein', omits 'fast' before 'nur die Rücken', and weakens 'Mag ich ... sein'.
+- c1 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Renders 'zum Steinerweichen' as 'zum Verzweifeln', shifting pity to despair and dropping the stone image
+- c1 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Flattens 'die hohe Schule reiten' to 'Kunststücke vorführen', losing the equestrian metaphor
+- c1 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Keeps above-B1 'Manschetten' with an inline gloss ('an seinen Hemdsärmeln')
+- c1 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Keeps figurative/above-B1 'blutarm' alongside added 'blass' and retains archaic 'Automobil'
+- c1 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Invents 'erwachsenen' in 'mit erwachsenen, selbstständigen Männern' and occasionally doubles adjectives ('dicken, schweren')
+- c1 / gemini-4-neon-medium, by gemini-4-carbon-medium: Mistranslates 'Drüben war noch die Gesellschaft' as 'standen die Leute', contradicting 'Die beiden Alten wollten aufstehen'
+- c1 / gemini-4-neon-medium, by gemini-4-carbon-medium: Renders 'zum Steinerweichen' as 'zum Verzweifeln', shifting pity to despair and dropping the image
+- c1 / gemini-4-neon-medium, by gemini-4-carbon-medium: Shifts 'nagte an den Lippen' to 'biss sich auf die Lippen'
+- c1 / gemini-4-neon-medium, by gemini-4-carbon-medium: Flattens subjunctive 'Ich dachte, ich wäre verhaftet' to indicative 'Ich dachte, ich bin verhaftet'
+- c1 / gemini-4-neon-medium, by gemini-4-carbon-medium: Mistranslates 'bei den Photographien' as spatial 'neben den Fotos' (with anachronistic 'Fotos') and omits the 'Lücke' image
+- c1 / gemini-4-neon-medium, by gemini-4-carbon-medium: Leaves several above-B1 words unadapted ('Manschetten', 'gestemmt', 'Muskelzerrung', 'Trab', 'schuldbewusst', 'Spitzbart')
+- c1 / gpt-6.1-sol, by gemini-4-carbon-medium: Retains regional/dated dative 'Kann ich ihm telefonieren?' instead of standard B1 'ihn anrufen'
+- c1 / gpt-6.1-sol, by gemini-4-carbon-medium: Reduces 'entgegenkommend' to 'freundlich', losing the accommodating nuance
+- c1 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds explicit simile 'wie ein dressiertes Pferd' to unpack 'die hohe Schule reiten'
+- c1 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'oder Nichtberechtigung' ('ob Sie so handeln durften') and the 'Lücke' image in 'Lücke in der Allwissenheit'
+- c1 / gpt-6.1-sol, by gemini-4-carbon-medium: Replaces the first 'verdeckt' with 'nicht erkannt', breaking the symmetrical obscuring image ('verdeckt ... verdeckt')
+- c1 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'Hinterdeck des Automobils' with the unidiomatic wrong word 'das hintere Deck des Autos'
+- c1 / gpt-6.1-sol, by gemini-4-carbon-medium: Flattens 'die Menschlichkeit verbot' into passive 'war leider aus Mitgefühl nicht erlaubt'
+- c1 / gpt-6-astra, by gemini-4-carbon-medium: Uses pre-1996 spelling throughout ('Gewiß', 'daß', 'mußte', 'wußte', 'beschloß', 'erfaßte'), unsuitable for B1 learners
+- c1 / gpt-6-astra, by gemini-4-carbon-medium: Reduces 'entgegenkommend' to 'freundlich' and omits 'oder Nichtberechtigung'
+- c1 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates both instances of 'verdeckt' as 'nicht bemerkt', losing the obscuring image and distorting the scene
+- c1 / gpt-6-astra, by gemini-4-carbon-medium: Retains archaic/above-B1 'Automobil' and 'Verdeck' ('das hintere Verdeck des Automobils')
+- c1 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates 'reichte ihm die Hand' as 'gab ihm die Hand', contradicting the unaccepted handshake immediately after
+- c1 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates 'war' as 'stand die Gruppe noch am Fenster', contradicting 'Die beiden Alten wollten aufstehen'
+- c1 / gemini-4-argon-medium, by gemini-4-carbon-medium: Weakens 'zum Steinerweichen' to 'zum Weinen' and adds 'wie ein dressiertes Pferd'
+- c1 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates 'Muskelzerrung' (muscle strain) as 'Krampf in seinen Gesichtsmuskeln' (facial cramp)
+- c1 / gemini-4-argon-medium, by gemini-4-carbon-medium: Invents 'beim Gehen' in 'der beim Gehen die Hände schwang'
+- c1 / gemini-4-argon-medium, by gemini-4-carbon-medium: Anachronistically replaces 'Automobil' with 'Taxi' twice
+- c1 / opus-5.5, by gemini-4-carbon-medium: Inserts four forbidden inline explanations ('also die Enden seiner Hemdärmel', 'wie in der hohen Schule der Reitkunst', 'chronischen, also dauernden', and a gloss of 'Geistesgegenwart')
+- c1 / opus-5.5, by gemini-4-carbon-medium: Mistranslates 'war' as 'Drüben standen die Leute', contradicting 'Die beiden Alten wollten aufstehen'
+- c1 / opus-5.5, by gemini-4-carbon-medium: Mistranslates tenement 'Haustor' twice as 'Haustür', undermining the tall man appearing in his full height in the archway
+- c1 / opus-5.5, by gemini-4-carbon-medium: Invents 'doch' in 'anbieten, ihn doch zu verhaften'
+- c1 / opus-5.5, by gemini-4-carbon-medium: Uses ungrammatical collocation 'der mit den Händen schwenkte' for 'die Hände schwingenden'
+- c1 / opus-5.5, by gemini-4-carbon-medium: Leaves above-B1 words in place ('Manschetten', 'chronischen', 'Automobil', 'Geistesgegenwart') and uses old spelling 'selbständigen'
+- c3 / gemini-4-argon-medium, by gemini-4-carbon-medium: Omits 'geradezu' in 'geradezu am Gitter standen' ('standen direkt am Gitter').
+- c3 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds 'und klein' and 'sich fühlen' in K.'s remark ('Wie gedemütigt und klein diese Menschen sich fühlen müssen').
+- c3 / gemini-4-argon-medium, by gemini-4-carbon-medium: Replaces the salvation image in 'so wahr ich selig werden will' with 'ich schwöre bei Gott'.
+- c3 / gemini-4-argon-medium, by gemini-4-carbon-medium: Changes 'wegen des Schreins' (shouting) to singular 'wegen des Schreis'.
+- c3 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds the explanation 'der Gelenkkrankheit' before 'Gicht' and omits 'abgemessenen'.
+- c3 / gemini-4-neon-medium, by gemini-4-carbon-medium: Generalizes 'Bretterwände' to 'Holzwände' and omits 'geradezu' in 'geradezu am Gitter standen'.
+- c3 / gemini-4-neon-medium, by gemini-4-carbon-medium: Renders 'Beweisanträge' three times with the wrong collocation 'Anträge auf Beweise'.
+- c3 / gemini-4-neon-medium, by gemini-4-carbon-medium: Omits the salvation image in 'so wahr ich selig werden will' ('Aber ich schwöre es').
+- c3 / gemini-4-neon-medium, by gemini-4-carbon-medium: Changes 'griff sogar mit der Hand hin' (reached toward it) into touching it ('fasste sie sogar mit der Hand an').
+- c3 / gemini-4-neon-medium, by gemini-4-carbon-medium: Omits 'abgemessenen' in 'durch Gicht abgemessenen Schritten' ('weil er Gicht hatte').
+- c3 / opus-5.5, by gemini-4-carbon-medium: Invents 'saßen' in 'an Tischen schrieben' and omits 'geradezu' in 'geradezu am Gitter standen'.
+- c3 / opus-5.5, by gemini-4-carbon-medium: Inserts an inline glossary explanation into spoken dialogue ('also Anträge, dass das Gericht Beweise prüfen soll').
+- c3 / opus-5.5, by gemini-4-carbon-medium: Inserts an inline glossary explanation for 'Scheide' ('also die Hülle des Säbels').
+- c3 / opus-5.5, by gemini-4-carbon-medium: Inserts an inline explanation for 'Gicht' ('einer Krankheit der Gelenke') and omits 'abgemessenen'.
+- c3 / gpt-6-astra, by gemini-4-carbon-medium: Changes 'Abteilungen' (court sections) to 'Räume' and omits both 'bloße' and 'geradezu'.
+- c3 / gpt-6-astra, by gemini-4-carbon-medium: Changes 'Holzbänke, die ... angebracht waren' (fixed benches) to 'standen lange Holzbänke'.
+- c3 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates 'die Überlegenheit, die er sich über viele erworben hatte' as 'hatte gelernt, vielen anderen überlegen zu sein'.
+- c3 / gpt-6-astra, by gemini-4-carbon-medium: Uses the wrong register 'verlangt' for 'Beweisanträge' and narrows 'meine Sache' to 'mein Verfahren'.
+- c3 / gpt-6-astra, by gemini-4-carbon-medium: Leaves the untaught archaic idiom 'bei meinem Seelenheil' for 'so wahr ich selig werden will'.
+- c3 / gpt-6-astra, by gemini-4-carbon-medium: Adds the explanation 'die Gelenkkrankheit' before 'Gicht' and omits 'abgemessenen'.
+- c3 / gpt-6.1-sol, by gemini-4-carbon-medium: Changes 'Abteilungen' to 'Räume' and 'angebracht waren' (fixed benches) to 'standen lange Holzbänke'.
+- c3 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'niemals' as 'Niemand' and softens 'die Knie geknickt' to 'leicht gebeugt'.
+- c3 / gpt-6.1-sol, by gemini-4-carbon-medium: Rewrites 'Wie gedemütigt die sein müssen' as past active mistreatment ('Wie sehr man diese Menschen erniedrigt haben muss').
+- c3 / gpt-6.1-sol, by gemini-4-carbon-medium: Shifts 'Überlegenheit' to 'Stellung'/'Vorteil' and 'hatte sich ... gesammelt' to 'konnte ... wieder klar denken'.
+- c3 / gpt-6.1-sol, by gemini-4-carbon-medium: Weakens 'ganz leicht angegriffen' (grasped) to 'berührt' and changes 'des Schreins' to singular 'des Schreis'.
+- c3 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds the explanation 'einer Krankheit der Gelenke' after 'Gicht' and omits 'abgemessenen'.
+- c8 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Invents 'offizielle' in 'das offizielle Schreiben an das Gericht' (K.'s Eingabe is a private petition, not an official document).
+- c8 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Replaces 'mit Arbeit überhäuft' with the colloquial idiom 'Berge von Arbeit' and leaves several B2/C1 words and idioms ('lauerten', 'mit Gedanken ... spielen', 'unerhört', 'abgeschüttelt', 'Börsenwitz').
+- c8 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Slightly shifts 'zwingen, statt durch das Gitter auf den Gang zu schauen' into a standalone prohibition ('Die Beamten durften nicht ... schauen').
+- c8 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'etwas Unerhörtes' (outrageous/scandalous) as 'noch nie vorgekommen' (never happened before).
+- c8 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'emporzuarbeiten' (working his way up) and changes 'seiner' to 'eine' in 'eine hohe Stellung erreicht'.
+- c8 / gpt-6.1-sol, by gemini-4-carbon-medium: Flattens 'Die Verachtung ... galt nicht mehr' into a mere change of opinion ('Jetzt dachte er anders darüber').
+- c8 / gpt-6.1-sol, by gemini-4-carbon-medium: Weakens 'zum Advokaten gezogen' to 'zum Anwalt gebracht' and drops the wavering image of 'schwanken' ('sich ... zu verändern').
+- c8 / gpt-6.1-sol, by gemini-4-carbon-medium: Narrows 'mit Vorteil' to financial 'mit Gewinn' and changes singular 'sein Recht' to plural 'seine Rechte'.
+- c8 / gpt-6.1-sol, by gemini-4-carbon-medium: Flattens 'mit Arbeit überhäuft' ('besonders viel Arbeit hatte') and 'schwerfälligen' ('der so langsam arbeitete'), and omits concessive 'trotzdem' in the final paragraph.
+- c8 / gpt-6-astra, by gemini-4-carbon-medium: Adds an explanatory sentence not in the source: 'Der Anwalt sollte ihn dann nicht mehr vertreten.'
+- c8 / gpt-6-astra, by gemini-4-carbon-medium: Invents 'berufliche' before 'Stellung', narrowing K.'s broader social and personal standing.
+- c8 / gpt-6-astra, by gemini-4-carbon-medium: Weakens 'eingriff' to 'etwas tun' and 'war diese Überzeugung unabweisbar' to 'fest überzeugt', losing its inescapable pressure.
+- c8 / gpt-6-astra, by gemini-4-carbon-medium: Omits the fluctuating image of 'schwanken' ('sich ... zu verändern') and drops concessive 'trotzdem' in the final paragraph.
+- c8 / gpt-6-astra, by gemini-4-carbon-medium: Rewrites Kafka's impersonal free-indirect 'man' into 'er' across most of paragraph 2 before abruptly switching back to 'man'.
+- c8 / gpt-6-astra, by gemini-4-carbon-medium: Slips from Plusquamperfekt into Präteritum ('Er lachte') mid-flashback, flattens 'überhäuft' and 'schwerfälligen', and leaves 'unvorsichtigerweise', 'lauerten', 'unerhört', and 'dulden'.
+- c8 / gemini-4-argon-medium, by gemini-4-carbon-medium: Retains archaic/regional 'Advokaten' throughout and introduces C1 formal 'das schriftliche Gesuch'.
+- c8 / gemini-4-argon-medium, by gemini-4-carbon-medium: Garbles the idiom 'mit Gedanken an irgendeine Schuld spielen' into unidiomatic 'nicht einmal im Gedanken mit irgendeiner Schuld spielen'.
+- c8 / gemini-4-argon-medium, by gemini-4-carbon-medium: Invents 'berufliche' before 'Stellung' and 'eigentlich' in the final sentence.
+- c8 / gemini-4-argon-medium, by gemini-4-carbon-medium: Weakens 'gezogen' to 'gebracht', 'schwanken' to 'verändern', 'mit Vorteil' to 'mit Erfolg', and 'die Vertretung ... entziehen' to 'den Fall ... wegzunehmen'.
+- c8 / gemini-4-argon-medium, by gemini-4-carbon-medium: Flattens 'mit Arbeit überhäuft' ('sehr viel Arbeit hatte'), shifts 'vielleicht' to 'Vielleicht wollte er', and omits concessive 'trotzdem'.
+- c8 / gemini-4-neon-medium, by gemini-4-carbon-medium: Creates a pronoun reference error in 'Nach seinen Erzählungen', making 'seinen' refer to K. ('Er') instead of the lawyer.
+- c8 / gemini-4-neon-medium, by gemini-4-carbon-medium: Leaves C1 legal 'Eingabe' unadapted five times alongside 'lauerten', 'mit dem Gedanken ... spielen', 'Unerhörtes', 'abgeschüttelt', 'überwältigend', and 'Börsenwitz'.
+- c8 / gemini-4-neon-medium, by gemini-4-carbon-medium: Omits 'emporzuarbeiten' ('seine hohe Stellung zu erreichen') and drops concessive 'trotzdem' in the final paragraph.
+- c8 / gemini-4-neon-medium, by gemini-4-carbon-medium: Keeps Konjunktiv II 'müsste' and 'dürfte' in standalone main clauses, turning K.'s determined plan into tentative conjecture.
+- c8 / opus-5.5, by gemini-4-carbon-medium: Inserts three inline dictionary glosses violating the brief ('zum Advokaten, also zum Anwalt', 'unerhört, also fast nie geschehen', 'die Eingabe einreichen, also das schriftliche Gesuch an das Gericht').
+- c8 / opus-5.5, by gemini-4-carbon-medium: Mistranslates 'etwas Unerhörtes' (outrageous) as 'fast nie geschehen' and adds 'für ihn' after 'beleidigend'.
+- c8 / opus-5.5, by gemini-4-carbon-medium: Mistranslates concessive 'Wenn sich aber auch K. ... getraute' (trusted himself to) as conditional 'selbst wenn K. den Mut hatte'.
+- c8 / opus-5.5, by gemini-4-carbon-medium: Invents habitual 'An solchen Tagen' in paragraph 1, weakens 'eingriff' and 'gezogen', and uses the wrong case in 'machte er die Zeichnung auf den Schreibblock'.
+- c17 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds an inline explanation of 'Kanzel' ('dem erhöhten Platz zum Predigen').
+- c17 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Shifts 'daß er nicht verstanden hatte' (had not caught the call) to 'dass er nichts verstanden hatte' (had understood nothing).
+- c17 / gemini-4-neon-medium, by gemini-4-carbon-medium: Omits 'Der Geistliche' in paragraph 1, leaving 'Es war ohne Zweifel ein Priester' without a referent.
+- c17 / gemini-4-neon-medium, by gemini-4-carbon-medium: Narrows 'Geistlicher' (clergyman) to 'Priester' throughout.
+- c17 / gemini-4-neon-medium, by gemini-4-carbon-medium: Turns the reflexive action 'sich zusammenkauern' into the static state 'kauerte ... da'.
+- c17 / gemini-4-neon-medium, by gemini-4-carbon-medium: Renders 'haschte er förmlich' as 'griff er sofort', losing the sense of hasty snatching.
+- c17 / gemini-4-neon-medium, by gemini-4-carbon-medium: Shifts 'mißbilligend' (disapprovingly) to 'ablehnend' (dismissively).
+- c17 / gemini-4-neon-medium, by gemini-4-carbon-medium: Shifts 'Keine Glasmalerei der großen Fenster' to 'Keines der großen, bemalten Glasfenster'.
+- c17 / gemini-4-neon-medium, by gemini-4-carbon-medium: Weakens 'was für einem Gericht du dienst' to 'für was für ein Gericht du arbeitest'.
+- c17 / opus-5.5, by gemini-4-carbon-medium: Weakens 'war keine Aussicht' to 'konnte er es ... wohl nicht mehr tun'.
+- c17 / opus-5.5, by gemini-4-carbon-medium: Adds an inline explanation of 'Gemeinde' ('also alle Zuhörer').
+- c17 / opus-5.5, by gemini-4-carbon-medium: Replaces 'Der Geistliche' in paragraph 1 with 'Der Mann', which has no prior referent.
+- c17 / opus-5.5, by gemini-4-carbon-medium: Adds an inline explanation of 'Brüstung' ('dem Geländer der Kanzel').
+- c17 / opus-5.5, by gemini-4-carbon-medium: Inserts an explanatory gloss into the chaplain's dialogue ('Ich bin der Gefängniskaplan, also der Priester des Gefängnisses').
+- c17 / opus-5.5, by gemini-4-carbon-medium: Omits the question mark at the end of the question 'Merkst du denn nicht, dass das nicht die wahre Hilfe ist.'
+- c17 / gpt-6-astra, by gemini-4-carbon-medium: Weakens 'war keine Aussicht' to 'konnte er ... wohl nicht mehr gehen' and adds 'wohl' in 'wohl aus Versehen'.
+- c17 / gpt-6-astra, by gemini-4-carbon-medium: Uses the tautological wording 'an der kantigen Kante' for 'an der kantigen Einfassung'.
+- c17 / gpt-6-astra, by gemini-4-carbon-medium: Turns 'mit langen fliegenden Schritten' into 'mit langen, schnellen Schritten ..., als würde er fliegen'.
+- c17 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates 'erhob eine Hand auf der Brüstung' as 'hob er eine Hand vom Geländer' (off rather than on the railing).
+- c17 / gpt-6-astra, by gemini-4-carbon-medium: Adds 'mit Bildern' to 'Album der städtischen Sehenswürdigkeiten'.
+- c17 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'ein niedriges Gericht', rephrasing around 'kein höheres Gericht' instead.
+- c17 / gpt-6-astra, by gemini-4-carbon-medium: Adds 'ständig' in 'ständig hinter Frauen her'.
+- c17 / gpt-6-astra, by gemini-4-carbon-medium: Alters 'überrennt' (knocks over) to 'rennt über ... hinweg' (runs over or past).
+- c17 / gpt-6-astra, by gemini-4-carbon-medium: Flattens 'trüber Tag' to 'dunkler Tag' and weakens 'dienst' to 'arbeitest'.
+- c17 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates 'die Gemeinde darstellen' (constitute the congregation) as 'alle Kirchenbesucher ersetzen' (replace all churchgoers).
+- c17 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds an inline explanation of 'Kanzel' ('dem erhöhten Platz für den Prediger').
+- c17 / gemini-4-argon-medium, by gemini-4-carbon-medium: Invents the clause 'Jetzt mussten sie sich nichts mehr vormachen'.
+- c17 / gemini-4-argon-medium, by gemini-4-carbon-medium: Drops the image 'fliegenden' in 'mit langen, schnellen Schritten'.
+- c17 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds 'mit Bildern' to 'Album der städtischen Sehenswürdigkeiten'.
+- c17 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates 'Eingabe' (written submission) as 'schriftlichen Antrag' (formal application/motion).
+- c17 / gemini-4-argon-medium, by gemini-4-carbon-medium: Distorts 'Vorurteil' into 'eine schlechte Meinung über mich, ohne die Wahrheit zu kennen', inventing the final clause.
+- c17 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates 'Hauptaltar' (main altar) as 'großen Altar' (big altar).
+- c17 / gpt-6.1-sol, by gemini-4-carbon-medium: Weakens 'war keine Aussicht' to 'wohl nicht mehr gehen' and adds 'wohl jemand' in 'wohl jemand aus Versehen'.
+- c17 / gpt-6.1-sol, by gemini-4-carbon-medium: Replaces 'Der Geistliche' in paragraph 1 with 'Der Mann', which has no prior referent.
+- c17 / gpt-6.1-sol, by gemini-4-carbon-medium: Expands 'geübte Stimme' awkwardly to 'Stimme, die geübt im Sprechen war'.
+- c17 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'erhob eine Hand auf der Brüstung' as 'hob er eine Hand vom Geländer'.
+- c17 / gpt-6.1-sol, by gemini-4-carbon-medium: Uses the redundant phrase 'der Geistliche für die Gefangenen im Gefängnis' for 'Gefängniskaplan'.
+- c17 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'Vorurteil' as 'eine schlechte Meinung von mir, ohne mich zu kennen', confusing judicial prejudice with lack of acquaintance.
+- c17 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'gewisse Möglichkeiten' (certain specific possibilities) as 'einige Möglichkeiten' (some possibilities).
+- c17 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds 'ständig' in 'ständig hinter Frauen her'.
+- c17 / gpt-6.1-sol, by gemini-4-carbon-medium: Flattens 'trüber Tag' to 'dunkler Tag', weakens 'dienst' to 'arbeitest', and alters 'Es sind doch nur meine Erfahrungen' to 'Das habe ich doch nur selbst erlebt'.
+- c9 / gemini-4-neon-medium, by gemini-4-carbon-medium: Omits 'verhältnismäßig' when comparing the advantage to the harm ('kleiner als der Schaden').
+- c9 / gemini-4-neon-medium, by gemini-4-carbon-medium: Flattens 'Briefe ... aus der Hand zu geben' to 'Briefe zu geben', losing the risk of surrendering written proof.
+- c9 / gemini-4-neon-medium, by gemini-4-carbon-medium: Mixes indicative past and Konjunktiv II within the same hypothetical ('einlud ... hätte ... gebeten, während ... trennte').
+- c9 / gemini-4-neon-medium, by gemini-4-carbon-medium: Simplifies 'mit gesammelten Kräften' to 'mit voller Kraft' and drops modal 'mußten' in 'kamen solche Zweifel ... auf'.
+- c9 / gemini-4-neon-medium, by gemini-4-carbon-medium: Flattens modal 'gewartet haben sollten' to 'hatten ... also ... gewartet' and shifts the subject of 'erstaunte' from K.'s proposals to the vain wait.
+- c9 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds an explanatory gloss ('zu schicken und damit') while leaving the untaught idiom 'aus der Hand zu geben' intact.
+- c9 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Mistranslates modal 'gewartet haben sollten' as 'Wenn es nach K. ging, hatten die Herren nun völlig umsonst gewartet'.
+- c9 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves above-B1 Konjunktiv I ('er werde') and untaught idioms or B2 lexis ('mit gesammelten Kräften auftreten', 'Ausweg', 'wachsam') unadapted.
+- c9 / gpt-6-astra, by gemini-4-carbon-medium: Replaces 'der Schaden, der darin lag, daß...' with vague 'die anderen Umstände' and weakens 'weiter verbreitete' to 'erzählte anderen davon'.
+- c9 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'irgendwie' and shifts 'zu schätzen wisse' (value/appreciate) to 'dankbar' (grateful).
+- c9 / gpt-6-astra, by gemini-4-carbon-medium: Softens 'fragwürdigen' with 'vielleicht' and expands 'deutlichen Brief' into an explanatory clause ('in dem deutlich stand, worum es ging').
+- c9 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'fühlte' ('hatte er Schwierigkeiten') and drops 'wie es möglich gewesen war' at the end of paragraph 1.
+- c9 / gpt-6-astra, by gemini-4-carbon-medium: Shifts state pluperfect 'waren sie aufgestanden' to eventive 'standen sie auf' and narrows 'schriftliche Antwort' to 'Antwort in einem Brief'.
+- c9 / gpt-6-astra, by gemini-4-carbon-medium: Leaves a C1 subordinate double-infinitive clause ('wie er Titorelli hatte schreiben und ihn in die Bank einladen wollen') and uses wrong dative case in 'bis dicht unter dem Hals'.
+- c9 / opus-5.5, by gemini-4-carbon-medium: Alters comparative 'verhältnismäßig kleiner als der Schaden' into 'war dieser Nutzen verhältnismäßig klein' while keeping B2 'verhältnismäßig'.
+- c9 / opus-5.5, by gemini-4-carbon-medium: Turns conditional 'Wenn es möglich war, daß er ... einlud' into factual past intention ('Er hatte ... einladen wollen. Dort wollte er...'), contradicting the prior sentence.
+- c9 / opus-5.5, by gemini-4-carbon-medium: Simplifies 'mit gesammelten Kräften auftreten' to 'mit all seiner Kraft handeln' and 'hoch unter dem Halse' to 'oben am Hals'.
+- c9 / opus-5.5, by gemini-4-carbon-medium: Uses unidiomatic 'zeigte ihm drei Herren' for 'aufmerksam machte' and colloquial pleonasm 'zu ihm hingehen'.
+- c9 / opus-5.5, by gemini-4-carbon-medium: Exaggerates 'sich ... an K. heranzumachen' into physical crowding ('an K. herandrängen').
+- c9 / opus-5.5, by gemini-4-carbon-medium: Leaves above-B1 unmarked Konjunktiv II ('Sie kämen bald einmal wieder') and a double-infinitive construction.
+- c9 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'verhältnismäßig' and replaces 'der Schaden, der darin lag, daß...' with vague 'als ihm die ganze Sache schadete'.
+- c9 / gpt-6.1-sol, by gemini-4-carbon-medium: Reduces 'Briefe ... aus der Hand zu geben' to 'Briefe zu schicken' and weakens 'alles durchgedacht' to 'über alles nachgedacht'.
+- c9 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'irgendwie' and shifts 'zu schätzen wisse' to 'dankbar'.
+- c9 / gpt-6.1-sol, by gemini-4-carbon-medium: Turns conditional 'Wenn es möglich war, daß er ... einlud' into counterfactual 'Er hätte also ... eingeladen' and uses awkward 'klaren Brief' for 'deutlichen Brief'.
+- c9 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'auftreten' ('sammeln und handeln'), 'fühlte' ('hatte er schon Schwierigkeiten'), and 'wie es möglich gewesen war'.
+- c9 / gpt-6.1-sol, by gemini-4-carbon-medium: Softens K.'s direct offer ('wollen Sie ... und ich gebe') to Konjunktiv II ('Sie könnten ... Dann würde ich') and narrows 'schriftliche Antwort' to 'in einem Brief antworten'.
+- c9 / gpt-6.1-sol, by gemini-4-carbon-medium: Leaves Konjunktiv I ('er werde'), subordinate double infinitive, unmarked 'Sie kämen', B2 lexis ('Ausweg', 'gewiss', 'beliebigen'), and wrong dative case in 'bis dicht unter dem Hals'.
+- c9 / gemini-4-argon-medium, by gemini-4-carbon-medium: Muddles K.'s clean alternative ('hingehn ... oder ... schreiben') into 'Aber ich bin jetzt sehr beschäftigt. Vielleicht schreibe ich ihm deshalb auch...'.
+- c9 / gemini-4-argon-medium, by gemini-4-carbon-medium: Turns the purpose clause 'um mit ihm hier über den Prozeß zu sprechen' into an added assumption ('Sie wollen hier doch sicher nicht...').
+- c9 / gemini-4-argon-medium, by gemini-4-carbon-medium: Reduces 'Briefe ... aus der Hand zu geben' to 'Briefe zu geben', omits 'irgendwie', shifts 'zu schätzen wisse' to 'dankbar', and drops modal 'mußten'.
+- c9 / gemini-4-argon-medium, by gemini-4-carbon-medium: Uses wrong word 'offenen Brief' (public open letter) for 'deutlichen Brief' (explicit letter).
+- c9 / gemini-4-argon-medium, by gemini-4-carbon-medium: Turns K.'s hypothetical scenario into factual past ('Er war bereit gewesen ... Und dabei war der stellvertretende Direktor nur durch eine Tür von ihnen getrennt!').
+- c9 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates 'auf drei Herren aufmerksam machte' as pointing at them ('zeigte auf drei Herren').
+- c9 / gemini-4-argon-medium, by gemini-4-carbon-medium: Narrows 'wann immer' to 'an einem anderen Tag', uses wrong word 'genaue' for 'ausführliche', and mistranslates 'nächstens' (soon) as 'beim nächsten Mal' (next time).
+- c9 / gemini-4-argon-medium, by gemini-4-carbon-medium: Drops modal 'sollten' and the consecutive link 'in solches Staunen, daß...' in the gentlemen's reaction.
+- c9 / gemini-4-argon-medium, by gemini-4-carbon-medium: Invents 'Durch das Fenster sah man' and loses seeing the snowfall through the open door to K.'s room.

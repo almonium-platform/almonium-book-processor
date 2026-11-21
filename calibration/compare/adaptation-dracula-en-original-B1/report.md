@@ -35,33 +35,33 @@ Every judge saw the source and the candidates under shuffled letters, without mo
 | gpt-6.1-sol | 4.38 | 0 (0%) | 7.1 | 8 of 8 |
 | gemini-4-argon-medium | 4.88 | 1 (12%) | 6.6 | 8 of 8 |
 
-## Judge: gemini-4-carbon-medium (6 passages, $1.98 list)
+## Judge: gemini-4-carbon-medium (7 passages, $2.70 list)
 
 | Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
 |---|---|---|---|---|
-| gemini-4-carbon-medium (itself) | 1.33 | 4 (67%) | 8.2 | 6 of 6 |
-| gemini-4-neon-medium | 1.67 | 2 (33%) | 7.8 | 6 of 6 |
-| opus-5.5 | 3.83 | 0 (0%) | 5.3 | 6 of 6 |
-| gpt-6-astra | 4.33 | 0 (0%) | 5.0 | 6 of 6 |
-| gpt-6.1-sol | 4.83 | 0 (0%) | 4.2 | 6 of 6 |
-| gemini-4-argon-medium | 5.00 | 0 (0%) | 3.7 | 6 of 6 |
+| gemini-4-carbon-medium (itself) | 1.43 | 4 (57%) | 8.0 | 7 of 7 |
+| gemini-4-neon-medium | 1.57 | 3 (43%) | 7.9 | 7 of 7 |
+| opus-5.5 | 4.00 | 0 (0%) | 5.0 | 7 of 7 |
+| gpt-6-astra | 4.14 | 0 (0%) | 5.0 | 7 of 7 |
+| gpt-6.1-sol | 4.71 | 0 (0%) | 4.1 | 7 of 7 |
+| gemini-4-argon-medium | 5.14 | 0 (0%) | 3.4 | 7 of 7 |
 
 ## All judges together
 
 | Writer | Mean rank | Wins | Mean score | Rank by itself | Rank by the other judges |
 |---|---|---|---|---|---|
-| gemini-4-neon-medium | 2.23 | 8 (36%) | 7.8 | - | - |
-| gemini-4-carbon-medium | 2.32 | 9 (41%) | 7.6 | 1.33 | 2.69 |
-| opus-5.5 | 3.00 | 2 (9%) | 6.9 | 2.25 | 3.43 |
-| gpt-6-astra | 4.23 | 1 (5%) | 6.3 | 4.00 | 4.36 |
-| gpt-6.1-sol | 4.45 | 0 (0%) | 6.0 | - | - |
-| gemini-4-argon-medium | 4.77 | 2 (9%) | 5.5 | - | - |
+| gemini-4-neon-medium | 2.17 | 9 (39%) | 7.8 | - | - |
+| gemini-4-carbon-medium | 2.30 | 9 (39%) | 7.6 | 1.43 | 2.69 |
+| opus-5.5 | 3.09 | 2 (9%) | 6.7 | 2.25 | 3.53 |
+| gpt-6-astra | 4.17 | 1 (4%) | 6.2 | 4.00 | 4.27 |
+| gpt-6.1-sol | 4.43 | 0 (0%) | 5.9 | - | - |
+| gemini-4-argon-medium | 4.83 | 2 (9%) | 5.3 | - | - |
 
 ## Agreement on the best candidate
 
 - opus-5.5 and gpt-6-astra: same best candidate on 1 of 8 passages
-- opus-5.5 and gemini-4-carbon-medium: same best candidate on 1 of 6 passages
-- gpt-6-astra and gemini-4-carbon-medium: same best candidate on 2 of 6 passages
+- opus-5.5 and gemini-4-carbon-medium: same best candidate on 1 of 7 passages
+- gpt-6-astra and gemini-4-carbon-medium: same best candidate on 2 of 7 passages
 
 ## Slips flagged, for a person to check
 
@@ -645,3 +645,44 @@ Every judge saw the source and the candidates under shuffled letters, without mo
 - c22 / opus-5.5, by gemini-4-carbon-medium: Omits 'and bearings' from 'in its various lights and bearings', and weakens 'up to the moment' to 'up to date'.
 - c22 / opus-5.5, by gemini-4-carbon-medium: Adds 'ill' for 'haggard' ('worn out and ill').
 - c22 / opus-5.5, by gemini-4-carbon-medium: Leaves C1 'shudders' and 'wretch', archaic ':—', and untaught idioms 'keep up appearances', 'a mighty different thing', 'Just a line', and 'Oh, but I am sleepy!'.
+- c7 / gemini-4-neon-medium, by gemini-4-carbon-medium: Omits the rain image in 'it never rains but it pours', leaving 'the old sayings' without a proverb
+- c7 / gemini-4-neon-medium, by gemini-4-carbon-medium: Omits 'Here am I', 'managed to' before 'sit down', and three causal 'for' links
+- c7 / gemini-4-neon-medium, by gemini-4-carbon-medium: Shifts 'Men like women, certainly their wives' to 'Men want women, and especially their wives'
+- c7 / gemini-4-neon-medium, by gemini-4-carbon-medium: Invents 'tried to' in 'tried to look as happy and cheerful as he could'
+- c7 / gemini-4-neon-medium, by gemini-4-carbon-medium: Leaves above-B1 'smudged', 'miserable', 'amused' and the idiom 'getting ahead of myself'
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds inline explanations ('—things come all at once' and 'informal slang expressions')
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Uses the unnatural collocation 'strongly look down on' with an invented intensifier
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Pads single words into doublets ('wild, unrealistic', 'cruel brute', 'stained and smudged')
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves untaught idioms ('when it rains, it pours', 'for goodness’ sake', 'getting a little ahead of myself')
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Leaves above-B1 vocabulary ('unrealistic', 'brute', 'trembled', 'smudged', 'miserable', 'amused')
+- c7 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Omits the trailing dash after the final colon ('sweetly:' for 'sweetly:—')
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Omits the rain image in 'it never rains but it pours', leaving 'the old sayings' without a proverb
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'Here am I', 'imagining themselves', and five causal 'because'/'for' links
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Shifts 'not a real proposal' to 'not seriously' and 'despise vanity' to looking down on the girls
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates 'schooling himself as to all sorts of little things' as 'trained himself to remember...'
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Replaces 'care for' with 'love', weakens 'hesitation' to 'pause', and adds 'perhaps' to 'ought to'
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Alters and explains 'such a dangerous stream' as 'stories of danger poured into her ear like a stream'
+- c7 / gpt-6-astra, by gemini-4-carbon-medium: Adds an inline definition of slang ('those informal words people use in conversation')
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Invents 'after the first few drops' in expanding the proverb, leaving 'these old sayings' without a saying
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'Here am I', 'imagining themselves', and five causal 'because'/'for' links
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Shifts 'despise vanity' to looking down on the girls and replaces 'number One'/'Two' with 'the first/second man'
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Replaces 'care for' with 'love' and omits the image 'if a woman’s heart was free'
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Mistranslates 'I can’t help crying' as 'I can’t stop crying'
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Alters and explains 'such a dangerous stream' as 'a stream of stories about danger'
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Adds an inline definition of slang ('those informal words people use when talking')
+- c7 / gpt-6.1-sol, by gemini-4-carbon-medium: Leaves above-B1 'surgical' and 'brute'
+- c7 / opus-5.5, by gemini-4-carbon-medium: Leaves 'it never rains but it pours', 'lunatic-asylum', and 'lancet' in place with three added explanations
+- c7 / opus-5.5, by gemini-4-carbon-medium: Omits 'Here am I', 'imagining themselves', and causal 'because'/'for' links
+- c7 / opus-5.5, by gemini-4-carbon-medium: Mistranslates 'my present trouble' as 'the trouble I was already in'
+- c7 / opus-5.5, by gemini-4-carbon-medium: Mistranslates 'I can’t help crying' as 'I can’t stop crying'
+- c7 / opus-5.5, by gemini-4-carbon-medium: Adds 'of words' to 'dangerous stream' and invents 'always' in 'was always telling us his stories'
+- c7 / opus-5.5, by gemini-4-carbon-medium: Leaves above-B1 'vain', 'vanity', 'brute', 'trembled', 'miserable' and idiom 'getting ahead of myself'
+- c7 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds an explanation before the altered idiom 'it never rains, it pours' and omits 'Here am I'
+- c7 / gemini-4-argon-medium, by gemini-4-carbon-medium: Uses 'proud of themselves' for 'vain' and replaces 'number One'/'Two' with 'the first/second man'
+- c7 / gemini-4-argon-medium, by gemini-4-carbon-medium: Invents 'who runs', 'to stay calm', 'wonderful', and 'honest and' / 'honestly and'
+- c7 / gemini-4-argon-medium, by gemini-4-carbon-medium: Replaces 'care for' with 'love' and omits 'a sort of' before 'duty' and 'and all that sort of thing'
+- c7 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates 'I can’t help crying' as 'cannot stop crying' and changes 'fresh' to 'full of energy'
+- c7 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds the explanation 'in Shakespeare’s play' and changes 'dangerous stream' to 'exciting stream of stories'
+- c7 / gemini-4-argon-medium, by gemini-4-carbon-medium: Invents 'exciting' again and 'brave', and mistranslates 'and I helping him' with 'even while'
+- c7 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds the inaccurate definition 'informal American expressions' for slang and shifts 'I am afraid' to 'I think'
+- c7 / gemini-4-argon-medium, by gemini-4-carbon-medium: Invents 'tried to' in 'He tried to look as happy and cheerful as he could'

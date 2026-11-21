@@ -35,33 +35,33 @@ Every judge saw the source and the candidates under shuffled letters, without mo
 | opus-5.5 | 4.50 | 0 (0%) | 8.1 | 7 of 8 |
 | gemini-4-argon-medium | 4.88 | 1 (12%) | 7.6 | 6 of 8 |
 
-## Judge: gemini-4-carbon-medium (6 passages, $3.48 list)
+## Judge: gemini-4-carbon-medium (7 passages, $4.36 list)
 
 | Writer | Mean rank | Wins | Mean score | Passages with a slip flagged |
 |---|---|---|---|---|
-| gemini-4-carbon-medium (itself) | 2.67 | 3 (50%) | 7.5 | 6 of 6 |
-| gemini-4-neon-medium | 3.17 | 0 (0%) | 6.5 | 6 of 6 |
-| opus-5.5 | 3.50 | 2 (33%) | 6.2 | 6 of 6 |
-| gpt-6-astra | 3.50 | 1 (17%) | 5.8 | 6 of 6 |
-| gemini-4-argon-medium | 4.00 | 0 (0%) | 5.3 | 6 of 6 |
-| gpt-6.1-sol | 4.17 | 0 (0%) | 5.7 | 6 of 6 |
+| gemini-4-carbon-medium (itself) | 2.57 | 3 (43%) | 7.6 | 7 of 7 |
+| gemini-4-neon-medium | 2.86 | 1 (14%) | 6.9 | 7 of 7 |
+| opus-5.5 | 3.57 | 2 (29%) | 6.0 | 7 of 7 |
+| gpt-6-astra | 3.86 | 1 (14%) | 5.4 | 7 of 7 |
+| gpt-6.1-sol | 4.00 | 0 (0%) | 5.9 | 7 of 7 |
+| gemini-4-argon-medium | 4.14 | 0 (0%) | 5.1 | 7 of 7 |
 
 ## All judges together
 
 | Writer | Mean rank | Wins | Mean score | Rank by itself | Rank by the other judges |
 |---|---|---|---|---|---|
-| gemini-4-neon-medium | 3.00 | 5 (23%) | 7.5 | - | - |
-| gemini-4-carbon-medium | 3.05 | 7 (32%) | 8.0 | 2.67 | 3.19 |
-| opus-5.5 | 3.41 | 4 (18%) | 7.6 | 2.25 | 4.07 |
-| gpt-6.1-sol | 3.45 | 3 (14%) | 7.5 | - | - |
-| gpt-6-astra | 3.68 | 1 (5%) | 7.1 | 3.50 | 3.79 |
-| gemini-4-argon-medium | 4.41 | 2 (9%) | 6.6 | - | - |
+| gemini-4-neon-medium | 2.91 | 6 (26%) | 7.5 | - | - |
+| gemini-4-carbon-medium | 3.00 | 7 (30%) | 8.0 | 2.57 | 3.19 |
+| opus-5.5 | 3.43 | 4 (17%) | 7.5 | 2.25 | 4.07 |
+| gpt-6.1-sol | 3.43 | 3 (13%) | 7.4 | - | - |
+| gpt-6-astra | 3.78 | 1 (4%) | 7.0 | 3.50 | 3.93 |
+| gemini-4-argon-medium | 4.43 | 2 (9%) | 6.5 | - | - |
 
 ## Agreement on the best candidate
 
 - opus-5.5 and gpt-6-astra: same best candidate on 1 of 8 passages
-- opus-5.5 and gemini-4-carbon-medium: same best candidate on 1 of 6 passages
-- gpt-6-astra and gemini-4-carbon-medium: same best candidate on 1 of 6 passages
+- opus-5.5 and gemini-4-carbon-medium: same best candidate on 1 of 7 passages
+- gpt-6-astra and gemini-4-carbon-medium: same best candidate on 2 of 7 passages
 
 ## Slips flagged, for a person to check
 
@@ -561,3 +561,49 @@ Every judge saw the source and the candidates under shuffled letters, without mo
 - c9 / gemini-4-argon-medium, by gemini-4-carbon-medium: Violates English title conventions by calquing 'Herr Prokurist' as '"Mr. Chief Clerk,"'.
 - c9 / gemini-4-argon-medium, by gemini-4-carbon-medium: Renders 'nächstens' ('soon') clumsily as 'some other time soon'.
 - c9 / gemini-4-argon-medium, by gemini-4-carbon-medium: Misrenders 'gewartet haben sollten' ('were now to have waited') as 'were now supposed to have waited'.
+- c18 / gpt-6.1-sol, by gemini-4-carbon-medium: Drops the 'aller-' intensifier in 'allertriftigsten Gründe' ('most cogent reasons').
+- c18 / gpt-6.1-sol, by gemini-4-carbon-medium: Replaces the concrete image 'von außen' ('from the outside') with the gloss 'without opening it'.
+- c18 / gpt-6.1-sol, by gemini-4-carbon-medium: Uses unidiomatic third-person predictive 'shall' in 'My will shall be quite simple'.
+- c18 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'noch' ('still') in 'Ich entsinne mich auch noch' ('I also remember').
+- c18 / gpt-6.1-sol, by gemini-4-carbon-medium: Pluralizes singular 'seine eigne Verfügung' to 'his own instructions' and drops 'Testaments-' in 'executor'.
+- c18 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits a negative before 'a single picture postcard' ('keine Ansichtskarte').
+- c18 / gpt-6.1-sol, by gemini-4-carbon-medium: Softens factual past 'aufrief' to 'might summon up' and adds 'his' and 'to him'.
+- c18 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits 'jetzt' ('now'), adds 'him', and shifts 'stört' in 'no longer troubles him'.
+- c18 / gpt-6.1-sol, by gemini-4-carbon-medium: Omits impersonal 'man' in 'It lies in the hope', shifts 'geschieht' to passive 'be done', and adds 'things' at the end.
+- c18 / opus-5.5, by gemini-4-carbon-medium: Softens definite 'die Bitte' ('the request') to indefinite 'a request'.
+- c18 / opus-5.5, by gemini-4-carbon-medium: Adds 'him' in 'the answer I gave him then' ('die ich damals gab').
+- c18 / opus-5.5, by gemini-4-carbon-medium: Omits 'Ansichts-' ('picture') in 'not a single postcard' ('keine Ansichtskarte').
+- c18 / opus-5.5, by gemini-4-carbon-medium: Adds 'The words' and hardens optative 'möge' into 'are not to be misunderstood'.
+- c18 / opus-5.5, by gemini-4-carbon-medium: Narrows 'geistigen Existenz' ('spiritual existence') to 'intellectual existence'.
+- c18 / opus-5.5, by gemini-4-carbon-medium: Mistranslates legal 'derogiert' ('abrogates/repeals') with the English false friend 'derogates from'.
+- c18 / opus-5.5, by gemini-4-carbon-medium: Softens past 'aufrief' to 'might call up' and adds 'or' and 'his'.
+- c18 / opus-5.5, by gemini-4-carbon-medium: Omits 'jetzt' ('now') in 'no longer stands in the way' ('jetzt nicht mehr stört').
+- c18 / opus-5.5, by gemini-4-carbon-medium: Elevates diminutive 'Stückchen' ('little pieces') to 'fragments' and omits 'In' before 'That one hopes'.
+- c18 / opus-5.5, by gemini-4-carbon-medium: Shifts present 'kommt' to future 'will come' and uses straight ASCII quotation marks throughout.
+- c18 / gemini-4-argon-medium, by gemini-4-carbon-medium: Omits 'auch' ('also') in 'Ich entsinne mich auch noch' ('I still remember').
+- c18 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates conditional 'Falls' as precautionary 'In case' and 'schon jetzt' as colloquial 'right now'.
+- c18 / gemini-4-argon-medium, by gemini-4-carbon-medium: Mistranslates concessive 'ein noch so schwerer' ('however grave a') as intensive 'ever so grave a'.
+- c18 / gemini-4-argon-medium, by gemini-4-carbon-medium: Calques the German dative article in the title 'with the “Hunger Artist”' instead of '“A Hunger Artist”'.
+- c18 / gemini-4-argon-medium, by gemini-4-carbon-medium: Uses wrong verb collocation 'disconcert further work' ('weitere Arbeit beirren'); work cannot be disconcerted.
+- c18 / gemini-4-argon-medium, by gemini-4-carbon-medium: Adds 'his' in 'personally painful periods of his life' ('persönlich peinlicher Lebensperioden').
+- c18 / gemini-4-argon-medium, by gemini-4-carbon-medium: Produces ungrammatical intransitive English 'now troubles no longer' for 'jetzt nicht mehr stört'.
+- c18 / gemini-4-argon-medium, by gemini-4-carbon-medium: Calques German V2 topicalization in 'The novels I am not enclosing' ('Die Romane lege ich nicht bei').
+- c18 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Renders 'schon jetzt' ('here and now / already now') as colloquial 'right now', breaking 1920s register.
+- c18 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Adds 'his' in 'personally painful periods of his life' ('persönlich peinlicher Lebensperioden').
+- c18 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Uses awkward, pleonastic word order 'no longer interferes now' for 'jetzt nicht mehr stört'.
+- c18 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Calques 'Darin, daß man hofft' as 'In that one hopes' ('inasmuch as') in answer to 'Wherein lies...?'.
+- c18 / gemini-4-carbon-medium, by gemini-4-carbon-medium: Drops into colloquial 'So what', calqued 'the things' ('den Sachen'), and stiff third-person 'Shall those' at the close.
+- c18 / gemini-4-neon-medium, by gemini-4-carbon-medium: Drops the 'aller-' intensifier and shifts 'triftig' ('cogent') in 'the most compelling reasons'.
+- c18 / gemini-4-neon-medium, by gemini-4-carbon-medium: Splits 'Testament' into 'will' and 'My testament', losing Kafka's direct echo and sounding stiff in dialogue.
+- c18 / gemini-4-neon-medium, by gemini-4-carbon-medium: Omits dative 'ihm' ('to him') in 'had his own instruction been meant in absolute and ultimate earnest'.
+- c18 / gemini-4-neon-medium, by gemini-4-carbon-medium: Omits impersonal 'man' ('In hoping') and elevates diminutive 'Stückchen' ('little pieces') to 'fragments'.
+- c18 / gpt-6-astra, by gemini-4-carbon-medium: Drops 'aller-' in 'most compelling reasons' and softens 'durchaus hinreichend' to 'quite sufficient'.
+- c18 / gpt-6-astra, by gemini-4-carbon-medium: Uses unidiomatic third-person predictive 'shall' in 'My will shall be quite simple'.
+- c18 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'noch' ('still') in 'I also remember' and 'schon' in 'I tell you now' ('schon jetzt').
+- c18 / gpt-6-astra, by gemini-4-carbon-medium: Omits 'dabei' completely in 'which each of us always assumed in the other'.
+- c18 / gpt-6-astra, by gemini-4-carbon-medium: Pluralizes singular 'Verfügung' to 'instructions' and omits a negative before 'a single picture postcard'.
+- c18 / gpt-6-astra, by gemini-4-carbon-medium: Mistranslates 'übrigens' ('by the way') as contrastive 'Yet' in 'Yet let this... not be misunderstood!'.
+- c18 / gpt-6-astra, by gemini-4-carbon-medium: Flips passive to active in 'Franz himself did not obey...', disrupting parallel clause alignment.
+- c18 / gpt-6-astra, by gemini-4-carbon-medium: Softens past 'aufrief' to 'might summon up', and omits 'jetzt' while adding 'him' in 'no longer troubles him'.
+- c18 / gpt-6-astra, by gemini-4-carbon-medium: Uses anachronistic sentence-adverb 'hopefully' and passive 'be done' for 'geschieht es hoffentlich'.
+- c18 / gpt-6-astra, by gemini-4-carbon-medium: Paraphrases and softens Kafka's letter ('failures ‘even’ in artistic terms', omits 'man', 'fragments' for 'Stückchen', 'impossible' for 'nicht möglich').
