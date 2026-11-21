@@ -850,7 +850,7 @@ def test_the_antigravity_tier_translates_with_the_gemini_model_the_setting_names
     run = run_translation_inline(str(edition.id), tier=ANTIGRAVITY_TIER, provider=FakeAntigravity())
 
     assert run.model_configuration.provider == "antigravity"
-    assert run.model_configuration.name == "antigravity-translation-v1"
+    assert run.model_configuration.name == "antigravity-translation-gemini-4-neon-v1"
     assert bodies[0]["model"] == "gemini-4-neon"
     assert bodies[0]["reasoning"] == {"effort": "medium"}
     assert edition.blocks.get(block_id="c1.h1").text == "Розділ I"

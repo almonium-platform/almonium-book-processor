@@ -1195,4 +1195,20 @@ The owner asked for that twin the same day: The Call of the Wild into Ukrainian 
 Neon wrote it in seven minutes for 1% of the plan's five-hour session. Its rate is the one it
 had on The Thirty-Nine Steps (13.6), so the first book was not the book's fault. Neon is not
 the translator: Sol stays, and the Gemini plan's use in translating is as a spare when the
-Codex plan is held. Carbon has not written a whole book.
+Codex plan is held.
+
+Carbon at medium then wrote the same book (`the-call-of-the-wild-uk-parallel-3`; set
+`ANTIGRAVITY_TRANSLATION_MODEL=gemini-4-carbon` for the command), in eleven minutes and 1% of
+the plan's week: 26 material findings and 6 uncertain, 14.9 in 100,000 characters, and ten of
+them raised by both editors where Sol had four and Neon three. Seven are Ukrainian grammar
+(a wrong gender or case: "цей витівку", "швидкою перевальцем"), which Sol's and Neon's have
+less of. Neither Gemini model translates a whole book as well as Sol; the passages judged
+blind ranked them the other way round, so a ranking of eight passages does not choose a
+translator, and an editors' reading of a whole book does.
+
+A translation on this tier is recorded under a configuration named with its model
+(`antigravity-translation-gemini-4-carbon-v1`), since the plan serves several and a retry
+resumes on the one the run began with. The third edition's title page and three chapter
+summaries were translated again on Codex though the second edition had the same ones ($0.008;
+the spend guard counts four calls paid twice): those are asked for each edition and not found
+by their content, which only a twin shows.

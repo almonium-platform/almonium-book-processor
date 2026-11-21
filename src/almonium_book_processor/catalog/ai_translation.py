@@ -115,7 +115,10 @@ def _configuration(tier: str) -> tuple[ModelConfiguration, PromptTemplate]:
     seat = tier_seat(tier)
     model = seat.model
     # the names past runs were saved under: a plan tier's, and a model tier's on the API
-    if tier in PLAN_TIERS:
+    if tier == ANTIGRAVITY_TIER:
+        # this plan serves several models that translate, and a run keeps the one it began on
+        name = f"{seat.provider}-translation-{model}-v1"
+    elif tier in PLAN_TIERS:
         name = f"{seat.provider}-translation-v1"
     elif seat.provider == "openai":
         name = f"openai-translation-{tier}-v1"
