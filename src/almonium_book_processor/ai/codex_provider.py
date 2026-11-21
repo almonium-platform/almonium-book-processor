@@ -205,20 +205,30 @@ class CodexProvider:
         )
 
     def _ask(self, body: dict[str, Any], account: Path | None = None) -> dict[str, Any]:
-        schema = ((body.get("text") or {}).get("format") or {}).get("schema")
-        if not schema:
+        text_format = (body.get("text") or {}).get("format") or {}
+        schema = text_format.get("schema")
+        # The Responses API's own two shapes of answer: held to a schema, or ``{"type": "text"}``
+        # for prose, which a caller from outside (catalog/outside_calls.py) may ask for.
+        prose = text_format.get("type") == "text"
+        if not schema and not prose:
             raise ValueError("Codex requests need a JSON schema for the output")
         effort = (body.get("reasoning") or {}).get("effort", "medium")
-        prompt = (
-            f"{body['instructions']}\n\n"
-            "Do not run commands or read files; answer from the material below.\n\n"
-            f"{body['input']}"
+        # ``tools: [{"type": "web_search"}]``, as the Responses API writes it, lets the model
+        # look things up: the dictionary's reader checks a word in the dictionaries of its
+        # language. Nothing else is ever allowed, and no other step asks for it.
+        search = any(tool.get("type") == "web_search" for tool in body.get("tools") or [])
+        how = (
+            "Do not run commands or read files. Look up on the web whatever you are not sure of."
+            if search
+            else "Do not run commands or read files; answer from the material below."
         )
+        parts = (body.get("instructions"), how, body["input"])
+        prompt = "\n\n".join(part for part in parts if part)
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".schema.json", dir=tempfile.gettempdir(), delete=False
         ) as stream:
             schema_path = Path(stream.name)
-            json.dump(schema, stream, ensure_ascii=False)
+            json.dump(schema or {}, stream, ensure_ascii=False)
         try:
             completed = self.runner(
                 [
@@ -235,8 +245,8 @@ class CodexProvider:
                     "mcp_servers={}",
                     "-c",
                     f"model_reasoning_effort={effort}",
-                    "--output-schema",
-                    str(schema_path),
+                    *(["-c", 'web_search="live"'] if search else []),
+                    *([] if prose else ["--output-schema", str(schema_path)]),
                     # the prompt comes on standard input; an open stdin would make the CLI wait
                     "-",
                 ],
@@ -283,11 +293,12 @@ class CodexProvider:
             if not text:
                 detail = error or (completed.stderr or "").strip()[-500:] or "no answer"
                 raise RuntimeError(f"Codex returned no answer: {detail}")
-            try:
-                answer = json.loads(text)
-            except json.JSONDecodeError as failure:
-                raise RuntimeError("Codex returned an answer that is not JSON") from failure
-            fits_schema(answer, schema)
+            if not prose:
+                try:
+                    answer = json.loads(text)
+                except json.JSONDecodeError as failure:
+                    raise RuntimeError("Codex returned an answer that is not JSON") from failure
+                fits_schema(answer, schema)
         except RuntimeError as failure:
             # the turn was paid for whether or not its answer can be used
             raise CallFailed(str(failure), spent if usage else None) from failure

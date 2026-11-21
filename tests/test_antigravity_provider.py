@@ -157,3 +157,44 @@ def test_a_lost_login_holds_the_work_and_is_not_counted_as_its_failure():
     with pytest.raises(AllowanceUsedUp, match="not signed in"):
         provider(runner).respond(BODY)
     assert len(asked) == 2  # once more after the pause, as any plan call; then held
+
+
+def test_calls_start_one_at_a_time_so_the_keyring_is_never_asked_twice_at_once(
+    tmp_path, monkeypatch
+):
+    import sys
+    import threading
+    import time
+
+    monkeypatch.setattr(antigravity_provider, "START_LOCK", tmp_path / "start.lock")
+    monkeypatch.setattr(antigravity_provider, "START_SECONDS", 0.4)
+    started = tmp_path / "started"
+    script = (
+        "import sys, time; open(sys.argv[1], 'a').write(f'{time.time()}\\n'); time.sleep(1); "
+        "print('done')"
+    )
+    results = []
+
+    def call():
+        results.append(
+            antigravity_provider.one_start_at_a_time(
+                [sys.executable, "-c", script, str(started)],
+                stdin=None,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+        )
+
+    threads = [threading.Thread(target=call) for _ in range(3)]
+    began = time.time()
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    times = sorted(float(line) for line in started.read_text().split())
+    assert all(later - earlier >= 0.35 for earlier, later in zip(times, times[1:], strict=False))
+    assert [result.stdout.strip() for result in results] == ["done"] * 3
+    # only the start waits its turn: the three ran side by side, not one after another
+    assert time.time() - began < 2.8

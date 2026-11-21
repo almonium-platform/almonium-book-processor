@@ -84,6 +84,12 @@ seams between them were not.
   model runs it on a plan where `AI_PLANS` has one that serves it, else on the
   API; a plan has no Batch service, so a batching step calls it directly.
   A retry stays on the provider its run began on.
+- Work outside this repository that asks a model (the backend's dictionary
+  review loop) comes through the same gateway by `./plan-manage ask`: one
+  JSON request on standard input, one JSON answer on standard output
+  (`catalog/outside_calls.py`; the contract is the command's help). It is
+  cached by content, capped, paused and recorded like any step here. Do not
+  add a second way to call a plan's CLI from another repository.
 - Every paid call passes `catalog/budgets.check(provider)` first (the
   adapters in `ai/` do it), so the owner's monthly cap per provider on the
   dashboard holds the book (`BudgetReached`, an `AllowanceUsedUp`) instead of

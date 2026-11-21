@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -31,12 +32,44 @@ ARGUMENT_BYTES = 120_000
 _SIGNED_OUT = re.compile(r"authentication (?:required|failed)|not logged in", re.IGNORECASE)
 
 
+# The CLI reads its login from the system keyring as it starts. Two that start in the same
+# moment make the keyring answer late; the CLI then gives up on it for an hour and every call
+# after is refused as signed out (20 and 21 November 2026: four at once, then two). Calls
+# already under way are not disturbed, so only the start is taken in turn, by every process on
+# the machine: the backend's dictionary scripts hold the same file for their own calls.
+START_LOCK = Path(tempfile.gettempdir()) / "almonium-antigravity-start.lock"
+START_SECONDS = 5.0
+
+
+def one_start_at_a_time(command: list[str], *, timeout: float | None = None, **kwargs: Any):
+    """``subprocess.run`` for the CLI, with its start taken in turn across processes."""
+
+    import fcntl
+
+    kwargs.pop("capture_output", None)
+    with open(START_LOCK, "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        process = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs
+        )
+        # the lock is held while the CLI starts, and let go as soon as it has answered
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            process.wait(timeout=START_SECONDS)
+    try:
+        out, err = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.communicate()
+        raise
+    return subprocess.CompletedProcess(command, process.returncode, out, err)
+
+
 def configured_accounts() -> list[Path]:
     return [Path(ACCOUNT)]
 
 
 def antigravity_meter(
-    *, binary: str | None = None, runner: Callable[..., Any] = subprocess.run
+    *, binary: str | None = None, runner: Callable[..., Any] = one_start_at_a_time
 ) -> dict[str, Any] | None:
     """The plan's meters as the CLI reports them, or None when they cannot be read.
 
@@ -99,7 +132,7 @@ class AntigravityProvider:
         *,
         binary: str | None = None,
         timeout_seconds: float | None = None,
-        runner: Callable[..., Any] = subprocess.run,
+        runner: Callable[..., Any] = one_start_at_a_time,
         pause: Callable[[float], None] = time.sleep,
         accounts: Callable[[], list[Path]] = configured_accounts,
         clock: Callable[[], float] = time.monotonic,

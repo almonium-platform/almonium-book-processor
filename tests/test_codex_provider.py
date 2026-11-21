@@ -377,3 +377,36 @@ def test_with_every_codex_account_paused_the_call_holds_its_book():
 
     with pytest.raises(AllowanceUsedUp, match=EVERY_ACCOUNT_PAUSED):
         provider.respond(BODY)
+
+
+def test_a_request_for_prose_with_web_search_has_no_schema_and_may_look_things_up():
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=0, stdout=answer(text="1. lexeme 1: fine"), stderr="")
+
+    provider = CodexProvider(binary="codex", timeout_seconds=5, runner=runner, pause=lambda _: None)
+
+    body = provider.respond(
+        {
+            **BODY,
+            "instructions": "",
+            "text": {"format": {"type": "text"}},
+            "tools": [{"type": "web_search"}],
+        }
+    )
+
+    command, kwargs = calls[0]
+    assert body["output"][0]["content"][0]["text"] == "1. lexeme 1: fine"
+    assert "--output-schema" not in command and 'web_search="live"' in command
+    assert kwargs["input"].startswith("Do not run commands or read files. Look up on the web")
+
+
+def test_no_step_searches_the_web_unless_its_request_asks():
+    provider, calls = provider_with(stdout=answer())
+
+    provider.respond(BODY)
+
+    assert 'web_search="live"' not in calls[0][0]
+    assert "answer from the material below" in calls[0][1]["input"]
