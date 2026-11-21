@@ -1179,3 +1179,20 @@ by itself; it does not show Neon above it either, which the eight-passage compar
 suggested. Neon stays a trial translator. What would settle it is the same book from both, read
 by the same editors: a second edition of one work and language, which the spend guard counts
 as a twin and nothing here makes without the owner's word.
+
+The owner asked for that twin the same day: The Call of the Wild into Ukrainian by Neon
+(`the-call-of-the-wild-uk-parallel-2`), beside Sol's edition of 14 October, both read by Opus
+5.5 and Astra 6 under review v3.
+
+| | Sol | Neon at medium |
+|---|---|---|
+| Material findings (first reading) | 17 | 23 |
+| In 100,000 characters | 9.7 | 13.2 |
+| Uncertain | 4 | 7 |
+| Raised by both editors | 4 | 3 |
+| Output tokens | 69,982 | 231,635 (thinking counted) |
+
+Neon wrote it in seven minutes for 1% of the plan's five-hour session. Its rate is the one it
+had on The Thirty-Nine Steps (13.6), so the first book was not the book's fault. Neon is not
+the translator: Sol stays, and the Gemini plan's use in translating is as a spare when the
+Codex plan is held. Carbon has not written a whole book.
