@@ -189,28 +189,28 @@ CIRCUMSTANTIAL_HOLDS = (
 PROVIDER_HOLDS = (ALLOWANCE_USED_UP, BUDGET_REACHED, NETWORK_DOWN)
 
 
-def requeue_held(
+def held(
     *,
     allowance_only: bool = False,
     older_than: timedelta = timedelta(minutes=30),
     not_held_for: tuple[str, ...] = (),
-):
-    """Start again the productions that were held by circumstance, not by the book.
+) -> list[PipelineRun]:
+    """The newest production of each source that a circumstance holds and nothing has restarted.
 
     A hold names its cause in the run's error. With ``allowance_only`` only the ones a plan's
-    used-up allowance held are started, which the meter's timer does once an account answers
-    again; ``older_than`` keeps a book from being started twice in one bad hour, and a hold
-    whose error holds any of ``not_held_for`` is left for later. The sources whose newest
-    production is finished well or under way are left alone. Returns the runs.
+    used-up allowance held; ``older_than`` keeps a book from being started twice in one bad
+    hour, and a hold whose error holds any of ``not_held_for`` is left for later. The sources
+    whose newest production is finished well or under way are left alone, and so is a book
+    the owner paused: it is started again when resumed.
     """
 
     causes = PROVIDER_HOLDS if allowance_only else CIRCUMSTANTIAL_HOLDS
     cutoff = timezone.now() - older_than
     paused = paused_books()
-    started = []
     newest_by_source: dict = {}
     for run in PipelineRun.objects.filter(processor_version=VERSION).order_by("-created_at"):
         newest_by_source.setdefault(run.edition_id, run)
+    waiting = []
     for run in newest_by_source.values():
         if run.status != PipelineRun.Status.FAILED or run.finished_at is None:
             continue
@@ -219,7 +219,27 @@ def requeue_held(
         if any(reason in (run.error or "") for reason in not_held_for):
             continue
         if run.edition_id in paused:
-            continue  # the owner stopped this book; it is started again when resumed
+            continue
+        waiting.append(run)
+    return waiting
+
+
+def requeue_held(
+    *,
+    allowance_only: bool = False,
+    older_than: timedelta = timedelta(minutes=30),
+    not_held_for: tuple[str, ...] = (),
+):
+    """Start again the productions that were held by circumstance, not by the book (``held``).
+
+    With ``allowance_only`` only the ones a plan's used-up allowance held are started, which
+    the meter's timer does once an account answers again. Returns the runs.
+    """
+
+    started = []
+    for run in held(
+        allowance_only=allowance_only, older_than=older_than, not_held_for=not_held_for
+    ):
         state = run.summary
         started.append(
             queue_production(

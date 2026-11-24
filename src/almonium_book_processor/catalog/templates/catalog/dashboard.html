@@ -8,15 +8,16 @@
     {% if meters %}
     <details class="plan-meters" id="plans">
       <summary class="plan-meters-inline" title="Plans this week: open for what is left and when each resets">
-        {% for meter in meters %}<span class="plan-meter-inline{% if meter.stale %} plan-meter-stale{% endif %}{% if meter.paused %} plan-meter-paused{% endif %}">{{ meter.short_label }} <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>{{ meter.week_percent }}%{% if meter.paused %} ⏸{% endif %}</span>{% endfor %}
+        {% for meter in meters %}<span class="plan-meter-inline{% if meter.stale %} plan-meter-stale{% endif %}{% if meter.paused %} plan-meter-paused{% endif %}{% if meter.in_use %} plan-meter-in-use{% endif %}"{% if meter.in_use %} title="In use now: {{ meter.used_by|join:', ' }}"{% endif %}>{{ meter.short_label }} <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>{{ meter.week_percent }}%{% if meter.paused %} ⏸{% endif %}</span>{% endfor %}
       </summary>
       <section class="panel plan-meters-popover" aria-label="Plan accounts">
         <p class="eyebrow">Plans this week</p>
         <ul class="plan-meter-list">
           {% for meter in meters %}
-          <li class="plan-meter{% if meter.stale %} plan-meter-stale{% endif %}{% if meter.paused %} plan-meter-paused{% endif %}" title="Read {{ meter.read_at|timesince }} ago{% if meter.stale %}; the host's meter timer has not run for over an hour{% endif %}">
+          <li class="plan-meter{% if meter.stale %} plan-meter-stale{% endif %}{% if meter.paused %} plan-meter-paused{% endif %}{% if meter.in_use %} plan-meter-in-use{% endif %}" title="Read {{ meter.read_at|timesince }} ago{% if meter.stale %}; the host's meter timer has not run for over an hour{% endif %}">
             <div class="plan-meter-who">
               <p><strong>{{ meter.provider_label }}</strong> <code>{{ meter.account }}</code></p>
+              {% if meter.in_use %}<p class="plan-meter-sub plan-meter-using">In use now: {{ meter.used_by|join:", " }}</p>{% endif %}
               {% if meter.email or meter.plan_label %}<p class="plan-meter-sub">{{ meter.email }}{% if meter.email and meter.plan_label %} · {% endif %}{{ meter.plan_label }}</p>{% endif %}
               {% if meter.workers %}<p class="plan-meter-sub">worker{{ meter.workers|length|pluralize }}: {{ meter.workers|join:", " }}</p>{% endif %}
             </div>
@@ -130,16 +131,19 @@
       <div class="book-queue-actions"><button class="button button-small" type="submit">Save caps</button><a class="button button-small button-secondary" href="{% url 'catalog:spending' %}">By day, week and month</a><small class="muted">A provider at its cap is not asked again this month: its books wait, uncounted, and go on once the cap is raised or the month turns. Modal falls back to the worker's CPU instead. An empty cap is none.</small></div>
     </form>
   </details>
-  {% if factory.enabled or factory.queue %}
+  {% if factory.enabled or factory.queue or factory.held %}
   <details class="book-queue">
     <summary class="book-queue-head">
-      <span class="book-queue-count"><strong>Books under way · {{ factory.queue|length }}</strong>{% if factory.paused_count %} · {{ factory.paused_count }} paused{% endif %}</span>
+      <span class="book-queue-count"><strong>Books under way · {{ factory.queue|length }}</strong>{% if factory.paused_count %} · {{ factory.paused_count }} paused{% endif %}{% if factory.held %} · {{ factory.held }} held{% endif %}</span>
       {% if factory.enabled %}<span class="status{% if factory.switch.running %} status-succeeded{% endif %}" title="{% if factory.switch.changed_by %}Last pressed by {{ factory.switch.changed_by }} {{ factory.switch.updated_at|timesince }} ago{% else %}Never started{% endif %}">Factory {% if factory.switch.running %}running{% else %}paused{% endif %}</span>{% endif %}
       {% if factory.enabled and factory.switch.ticked_at %}<span class="book-queue-tick" title="The host's timer runs the factory every 15 minutes; it starts a new book while fewer than {{ factory.max }} are under way and the plans have room">{{ factory.switch.ticked_at|date:"H:i" }} · {{ factory.switch.tick_note }}</span>{% endif %}
     </summary>
     <div class="book-queue-actions">
       {% if factory.enabled %}
       <form method="post" action="{% url 'catalog:factory-switch' %}">{% csrf_token %}<input type="hidden" name="action" value="{% if factory.switch.running %}pause{% else %}start{% endif %}"><button class="button button-small{% if factory.switch.running %} button-secondary{% endif %}" type="submit" title="{% if factory.switch.running %}Start no new book; the books under way go on until you pause them{% else %}Start the next wanted book on the next tick, while the plans have room and fewer than {{ factory.max }} are under way{% endif %}">{% if factory.switch.running %}Pause factory{% else %}Start factory{% endif %}</button></form>
+      {% endif %}
+      {% if factory.held %}
+      <form method="post" action="{% url 'catalog:factory-switch' %}">{% csrf_token %}<input type="hidden" name="action" value="start-held"><button class="button button-small" type="submit" title="Books whose last production was stopped by a circumstance (a plan's allowance, a step that broke too often, a worker that died) and not by the book. Each goes on from what it has; nothing written is paid for again." onclick="return confirm('Start {{ factory.held }} held book(s) again? They use the Codex and Claude plans.')">Start {{ factory.held }} held book{{ factory.held|pluralize }} again · AI</button></form>
       {% endif %}
       {% if factory.queue %}
       <form method="post" action="{% url 'catalog:factory-switch' %}">{% csrf_token %}<input type="hidden" name="action" value="pause-books"><button class="button button-small button-secondary" type="submit" title="Start nothing new for any book under way; steps already running finish and are kept">Pause every book</button></form>
@@ -158,6 +162,17 @@
     {% endfor %}
   </details>
   {% endif %}
+  <details class="book-queue" id="entries">
+    <summary class="book-queue-head">
+      <span class="book-queue-count"><strong>Entries · {{ entry_writers.on }} writer{{ entry_writers.on|pluralize }} on</strong>{% if entry_writers.off %} · {{ entry_writers.off }} off{% endif %}</span>
+      {% if entry_writers.on %}<span class="status status-succeeded">Writing</span>{% endif %}
+      {% if entries %}<span class="book-queue-tick" title="Summed {{ entries.built_at|date:'j F H:i' }} by the host's timer">{{ entries.totals.entries }} entries · {{ entries.totals.last_day }} in the last day{% if entries.stale %} · stale{% endif %}</span>{% endif %}
+    </summary>
+    <div class="entry-writers">
+      {% include "catalog/_entry_writers.html" with back="dashboard" %}
+      <p class="muted"><a href="{% url 'catalog:operations' %}?show=entries">Entries by language and by writer</a></p>
+    </div>
+  </details>
   <div class="catalogue-line">
     <span>{{ catalogue.breakdown }}</span>
     {% for rollup in summary.promotable %}

@@ -138,17 +138,37 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "budgets": _budgets_context(),
             "factory": _factory_context(),
             "alignment": alignment_overview(),
+            **_entries_context(),
         },
     )
+
+
+def _entries_context() -> dict:
+    """The dictionary's entry writers and what they have written, for the dashboard's panel."""
+
+    from almonium_book_processor.catalog import lexicon_writers
+    from almonium_book_processor.catalog.lexicon_status import lexicon_status
+    from almonium_book_processor.catalog.models import LexiconWriter
+
+    writers = list(LexiconWriter.objects.all())
+    on = sum(writer.running for writer in writers)
+    return {
+        "entries": lexicon_status(),
+        "writers": writers,
+        "writer_choices": lexicon_writers.choices(),
+        "entry_writers": {"on": on, "off": len(writers) - on},
+    }
 
 
 def _factory_context() -> dict:
     """The factory's switch, where this host has one, and every book under way."""
 
     from almonium_book_processor.catalog import factory
+    from almonium_book_processor.catalog.production import held
 
     queue = factory.queue()
     return {
+        "held": len(held()),
         "enabled": settings.FACTORY_ENABLED,
         "switch": factory.switch(),
         "queue": queue,
@@ -2077,7 +2097,11 @@ def lexicon_writer_view(request: HttpRequest) -> HttpResponse:
 
     action = request.POST.get("action", "")
     by = str(request.user)
-    back = f"{reverse('catalog:operations')}?show=entries"
+    back = (
+        f"{reverse('catalog:dashboard')}#entries"
+        if request.POST.get("back") == "dashboard"
+        else f"{reverse('catalog:operations')}?show=entries"
+    )
     try:
         if action == "add":
             writer = lexicon_writers.add_writer(
@@ -2117,7 +2141,7 @@ def factory_switch_view(request: HttpRequest) -> HttpResponse:
     """Let the factory start new books, or stop it starting them; or every book at once."""
 
     from almonium_book_processor.catalog import factory
-    from almonium_book_processor.catalog.production import pause_book, resume_book
+    from almonium_book_processor.catalog.production import pause_book, requeue_held, resume_book
 
     action = request.POST.get("action", "")
     if action == "start":
@@ -2140,6 +2164,12 @@ def factory_switch_view(request: HttpRequest) -> HttpResponse:
         for row in factory.queue():
             resume_book(row["edition"].id)
         messages.info(request, "Every book under way goes on from where it stood.")
+    elif action == "start-held":
+        started = requeue_held()
+        messages.info(
+            request,
+            f"{len(started)} held book(s) started again; each goes on from what it has.",
+        )
     else:
         messages.error(request, "Choose start or pause.")
     return redirect("catalog:dashboard")

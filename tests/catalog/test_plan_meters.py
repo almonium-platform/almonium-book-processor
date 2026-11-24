@@ -142,3 +142,86 @@ def test_the_renewal_date_rolls_forward_a_month_at_a_time():
     )
     nxt = old.renews_next
     assert nxt >= datetime.now(UTC).date() and nxt.day in (28, 29, 30, 31)
+
+
+def test_an_account_says_what_is_using_it_now():
+    from almonium_book_processor.catalog.models import (
+        AIRun,
+        LexiconWriter,
+        ModelConfiguration,
+        PromptTemplate,
+    )
+
+    for account in (".codex", ".codex-2"):
+        reading("codex", account, 10)
+    for account in (".claude", ".claude-2"):
+        reading("claude-code", account, 10, session_percent=20)
+    # a chat session moved this one's meter since the reading before
+    earlier = reading("antigravity", "antigravity-cli", 3, session_percent=5)
+    PlanMeterReading.objects.filter(pk=earlier.pk).update(
+        created_at=datetime.now(UTC) - timedelta(minutes=15)
+    )
+    reading("antigravity", "antigravity-cli", 3, session_percent=9)
+
+    configuration = ModelConfiguration.objects.create(
+        name="codex-translation-v1", provider="codex", model="gpt-6.1-sol", purpose="p"
+    )
+    prompt = PromptTemplate.objects.create(
+        name="p", version=1, purpose="p", system_prompt="s", user_template="u"
+    )
+    for account, minutes_ago in ((".codex", 2), (".codex-2", 40)):
+        run = AIRun.objects.create(
+            model_configuration=configuration,
+            prompt_template=prompt,
+            idempotency_key=account,
+            status=AIRun.Status.SUCCEEDED,
+            plan_account=account,
+        )
+        AIRun.objects.filter(pk=run.pk).update(
+            updated_at=datetime.now(UTC) - timedelta(minutes=minutes_ago)
+        )
+    LexiconWriter.objects.create(
+        account=".claude-2", language="en", word_list="healthy", running=True, state="active"
+    )
+    LexiconWriter.objects.create(
+        account=".claude", language="de", word_list="healthy", running=False, state="inactive"
+    )
+
+    using = {meter.account: meter.used_by for meter in plan_meters()}
+
+    assert using == {
+        ".codex": ("books",),
+        ".codex-2": (),  # its last call was forty minutes ago
+        ".claude": (),  # its writer is off
+        ".claude-2": ("entries",),
+        "antigravity-cli": ("other use",),
+    }
+
+    # a call under way has no account yet: the plan's rising meter is the books'
+    gemini = ModelConfiguration.objects.create(
+        name="antigravity-translation", provider="antigravity", model="gemini-4-neon", purpose="p"
+    )
+    AIRun.objects.create(
+        model_configuration=gemini,
+        prompt_template=prompt,
+        idempotency_key="under-way",
+        status=AIRun.Status.SUBMITTED,
+    )
+    assert {m.account: m.used_by for m in plan_meters()}["antigravity-cli"] == ("books",)
+
+
+def test_the_dashboard_marks_the_accounts_in_use():
+    reading("codex", ".codex", 10)
+    earlier = reading("codex", ".codex-2", 3)
+    PlanMeterReading.objects.filter(pk=earlier.pk).update(
+        created_at=datetime.now(UTC) - timedelta(minutes=15)
+    )
+    reading("codex", ".codex-2", 5)
+    staff = get_user_model().objects.create_user("staff", password="x", is_staff=True)
+    client = Client()
+    client.force_login(staff)
+
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+
+    assert page.count("plan-meter-inline plan-meter-in-use") == 1
+    assert "In use now: other use" in page

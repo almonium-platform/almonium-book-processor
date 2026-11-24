@@ -165,3 +165,24 @@ def test_a_writer_at_the_end_of_its_list_switches_itself_off(host):
 
     writer.refresh_from_db()
     assert not writer.running and writer.state == "finished" and writer.last_line == "done"
+
+
+def test_the_dashboard_has_the_writers_and_its_buttons_come_back_to_it(client, accounts):
+    user = get_user_model().objects.create_user("staff", password="x", is_staff=True)
+    client.force_login(user)
+    writer = LexiconWriter.objects.create(
+        account=".claude-2", language="en", word_list="healthy", running=True, state="active"
+    )
+    LexiconWriter.objects.create(account=".claude", language="de", word_list="healthy")
+
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+
+    assert "Entries · 1 writer on" in page and "· 1 off" in page
+    assert 'name="back" value="dashboard"' in page
+    response = client.post(
+        reverse("catalog:lexicon-writer"),
+        {"action": "pause", "writer": writer.id, "back": "dashboard"},
+    )
+    assert response.url == reverse("catalog:dashboard") + "#entries"
+    writer.refresh_from_db()
+    assert not writer.running

@@ -842,6 +842,11 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .plan-meter-all { display: flex; gap: .6rem; padding-top: .9rem; border-top: 1px solid #eee4d6; }
 .plan-meter-inline.plan-meter-paused, .plan-meter-paused > :not(.plan-meter-action) { opacity: .6; }
 .plan-meter-stale .run-bar span { background: var(--muted); }
+/* an account something is using now: its name in green behind a dot */
+.plan-meter-inline.plan-meter-in-use { color: var(--green); font-weight: 700; }
+.plan-meter-inline.plan-meter-in-use::before, .plan-meter-using::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex: none; }
+.plan-meter-using { display: inline-flex; align-items: center; gap: 6px; color: var(--green); font-weight: 700; }
+.plan-meter-in-use .plan-meter-who strong { color: var(--green); }
 .plan-meter-stale .plan-meter-headline strong::after { content: " · stale"; color: var(--amber); font-weight: 700; }
 @media (max-width: 900px) {
   .plan-meter { grid-template-columns: minmax(0, 1fr) auto; row-gap: .7rem; }
@@ -945,10 +950,14 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .ops-table thead th { font-weight: 600; color: var(--muted); white-space: nowrap; }
 .ops-table tbody th { font-weight: 600; white-space: nowrap; }
 .ops-table small { color: var(--muted); }
+.ops-table td.ops-nowrap { white-space: nowrap; }
 .ops-inline { display: flex; gap: .4rem; align-items: center; margin: 0; }
 .ops-writer-form { display: flex; flex-wrap: wrap; gap: .5rem .9rem; align-items: end; margin: .2rem 0 1.4rem; font-size: .85rem; }
 .ops-writer-form label { display: flex; flex-direction: column; gap: .2rem; color: var(--muted); }
 .ops-writer-form input[type=number] { width: 4.5rem; }
+/* the same writers on the dashboard, inside their folded panel */
+.entry-writers { padding: .2rem 1.1rem .6rem; overflow-x: auto; }
+.entry-writers .ops-table { font-size: .82rem; margin-bottom: .9rem; }
 .work-floor { display: inline-block; margin-left: .4rem; padding: .05rem .45rem; border: 1px solid var(--line); border-radius: 999px; font-size: .72rem; font-weight: 600; color: var(--muted); vertical-align: middle; }
 .work-floor-final { border-color: var(--green); color: var(--green); }
 

@@ -46,6 +46,18 @@ def claude_accounts() -> list[str]:
     return sorted(set(known.values_list("account", flat=True)) | set(named)) or [".claude"]
 
 
+def choices() -> dict:
+    """What the form that adds a writer offers."""
+
+    return {
+        "languages": LANGUAGES,
+        "accounts": claude_accounts(),
+        "models": MODELS,
+        "efforts": EFFORTS,
+        "max_workers": MAX_WORKERS,
+    }
+
+
 def add_writer(
     *,
     account: str,

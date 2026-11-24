@@ -11,6 +11,8 @@ from django.utils import timezone
 
 from almonium_book_processor.ai.pricing import PLAN_WEEK_USD
 from almonium_book_processor.catalog.models import (
+    AIRun,
+    LexiconWriter,
     PlanAccount,
     PlanAccountPause,
     PlanMeterReading,
@@ -18,6 +20,9 @@ from almonium_book_processor.catalog.models import (
 )
 
 PROVIDER_LABELS = {"codex": "Codex", "claude-code": "Claude", "antigravity": "Gemini"}
+# A call recorded on an account this recently counts as the books using it now: a chapter's
+# call takes minutes, and a step between two calls is still the same work.
+IN_USE_WITHIN = timedelta(minutes=15)
 
 
 @dataclass(frozen=True)
@@ -43,6 +48,15 @@ class PlanMeter:
     workers: tuple[str, ...] = ()
     # Where the account stands among its plan's when calls go in order; 1 is spent first.
     priority: int | None = None
+    # What is using the account now: "books" (a model call recorded on it in the last quarter
+    # of an hour, or its meter rising while a call on its plan is under way), "entries" (a
+    # dictionary writer running on it), or, with neither, "other use" when its meter rose
+    # between the last two readings (a chat session, a run started by hand).
+    used_by: tuple[str, ...] = ()
+
+    @property
+    def in_use(self) -> bool:
+        return bool(self.used_by)
 
     @property
     def provider_label(self) -> str:
@@ -128,9 +142,34 @@ def plan_meters() -> list[PlanMeter]:
         )
         if reading is not None:
             latest[pair] = reading
+    since = timezone.now() - IN_USE_WITHIN
+    on_books = set(
+        AIRun.objects.filter(updated_at__gte=since)
+        .exclude(plan_account="")
+        .values_list("model_configuration__provider", "plan_account")
+        .distinct()
+    )
+    calling = set(
+        AIRun.objects.filter(status=AIRun.Status.SUBMITTED, updated_at__gte=since)
+        .values_list("model_configuration__provider", flat=True)
+        .distinct()
+    )
+    on_entries = {
+        ("claude-code", account)
+        for account in LexiconWriter.objects.filter(running=True, state="active").values_list(
+            "account", flat=True
+        )
+    }
     meters = []
     for key, reading in latest.items():
         about = details.get(key)
+        used_by = tuple(
+            name for name, users in (("books", on_books), ("entries", on_entries)) if key in users
+        )
+        if not used_by and _rising(reading):
+            # a call still under way has no account yet: a rising meter on a plan the books
+            # are calling now is theirs
+            used_by = ("books",) if reading.provider in calling else ("other use",)
         meters.append(
             PlanMeter(
                 provider=reading.provider,
@@ -149,9 +188,34 @@ def plan_meters() -> list[PlanMeter]:
                 renews_on=about.renews_on if about else None,
                 workers=every_worker,
                 priority=about.priority if about else None,
+                used_by=used_by,
             )
         )
     return sorted(meters, key=lambda meter: (meter.provider != "codex", meter.account))
+
+
+def _rising(reading: PlanMeterReading) -> bool:
+    """Whether a fresh reading stands above the one before it, in the week or in the session."""
+
+    if timezone.now() - reading.created_at > timedelta(hours=1):
+        return False
+    before = (
+        PlanMeterReading.objects.filter(
+            provider=reading.provider,
+            account=reading.account,
+            created_at__lt=reading.created_at,
+            created_at__gte=reading.created_at - timedelta(hours=1),
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if before is None:
+        return False
+    return reading.week_percent > before.week_percent or (
+        reading.session_percent is not None
+        and before.session_percent is not None
+        and reading.session_percent > before.session_percent
+    )
 
 
 def plan_routing(meters: list[PlanMeter]) -> list[dict]:

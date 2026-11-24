@@ -955,3 +955,34 @@ def test_a_production_started_again_keeps_what_the_held_one_rewrote(world):
     assert again.summary["mended"] == {"B2": {"2": ["paragraphs", "chapter"]}}
     assert again.summary["repaired"] == {"B2": [1, 2]}
     assert again.summary["settled"] == {"B2": 2}
+
+
+def test_the_dashboard_counts_the_held_books_and_its_button_starts_them_again(world, client):
+    from django.contrib.auth import get_user_model
+    from django.urls import reverse
+
+    from almonium_book_processor.catalog.production import VERSION, held
+
+    work = Work.objects.create(slug="held-button", title="Held", author="Author")
+    source = Edition.objects.create(work=work, slug="held-button-en", language="en")
+    PipelineRun.objects.create(
+        edition=source,
+        stage=PipelineRun.Stage.ADAPT,
+        processor_version=VERSION,
+        status=PipelineRun.Status.FAILED,
+        input_hash="",
+        idempotency_key="button:production",
+        error="B2 held: Allowance used up: Codex returned no answer.",
+        finished_at=timezone.now() - timedelta(minutes=90),
+        summary={"levels": ["B2"], "languages": [], "register": "", "sign_off": True},
+    )
+    assert [run.edition for run in held()] == [source]
+    client.force_login(get_user_model().objects.create_user("staff", password="x", is_staff=True))
+
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+    assert "· 1 held" in page and "Start 1 held book again · AI" in page
+
+    client.post(reverse("catalog:factory-switch"), {"action": "start-held"})
+    # the book has a production under way now, so nothing is left to start
+    assert held() == []
+    assert "held book again" not in client.get(reverse("catalog:dashboard")).content.decode()
