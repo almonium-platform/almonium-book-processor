@@ -1174,6 +1174,8 @@ class PlanMeterReading(TimestampedModel):
     fable_week_percent = models.PositiveSmallIntegerField(null=True, blank=True)
     resets_at = models.DateTimeField(null=True, blank=True)
     session_resets_at = models.DateTimeField(null=True, blank=True)
+    units_used = models.PositiveIntegerField(null=True, blank=True)
+    units_limit = models.PositiveIntegerField(null=True, blank=True)
     plan_type = models.CharField(max_length=40, blank=True)
 
     class Meta:

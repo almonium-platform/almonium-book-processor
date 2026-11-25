@@ -413,10 +413,10 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .catalogue-heading { align-items: flex-end; margin-bottom: 1.25rem; }
 .catalogue-actions { display: flex; align-items: center; gap: .9rem; }
 .plan-meters { position: relative; }
-.plan-meters-inline { display: inline-flex; align-items: center; gap: .65rem; font-size: .75rem; color: var(--muted); white-space: nowrap; cursor: pointer; list-style: none; padding: .35rem .2rem; }
+.plan-meters-inline { display: inline-flex; align-items: center; gap: .5rem; font-size: .75rem; color: var(--muted); white-space: nowrap; cursor: pointer; list-style: none; padding: .35rem .2rem; }
 .plan-meters-inline::-webkit-details-marker { display: none; }
-.plan-meter-inline { display: inline-flex; align-items: center; gap: 5px; }
-.plan-meter-inline .run-bar { width: 36px; height: 3px; }
+.plan-meter-inline { display: inline-flex; align-items: center; gap: 4px; }
+.plan-meter-inline .run-bar { width: 28px; height: 3px; }
 .plan-meters-popover { position: absolute; right: 0; top: calc(100% + .4rem); z-index: 20; width: min(1060px, 94vw); margin: 0; padding: 1.5rem 1.75rem 1.4rem; box-shadow: 0 16px 40px rgba(61,45,31,.16); }
 .catalogue-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .6rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .catalogue-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-right: auto; }
@@ -803,7 +803,7 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .plan-meters { padding: 1rem 1.5rem; }
 .plan-meter-list { list-style: none; margin: .5rem 0 0; padding: 0; }
 /* Four fixed tracks so long usage text wraps in its own column instead of pushing the date field down. */
-.plan-meter { display: grid; grid-template-columns: 12rem minmax(0, 1fr) 10.5rem auto; column-gap: 1.4rem; align-items: center; padding: 1rem 0; border-top: 1px solid #eee4d6; }
+.plan-meter { display: grid; grid-template-columns: 12rem minmax(0, 1fr) 10.5rem 15.2rem; column-gap: 1.4rem; align-items: center; padding: 1rem 0; border-top: 1px solid #eee4d6; }
 .plan-meter p { margin: 0; }
 .plan-meter-who { display: grid; gap: 3px; min-width: 0; }
 .plan-meter-who strong { font-size: 1.05rem; font-weight: 600; }
@@ -824,6 +824,7 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .plan-meter-resets strong { color: var(--ink); font-weight: 600; }
 .plan-meter-label { display: block; font-size: .75rem; color: var(--muted); margin-bottom: 5px; }
 .plan-meter-renews summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: .6rem; font-size: .92rem; }
+.plan-meter-renews > .plan-meter-date { font-size: .92rem; }
 .plan-meter-renews summary::-webkit-details-marker { display: none; }
 .plan-meter-change, .plan-meter-cancel { color: var(--accent); font-size: .82rem; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .plan-meter-cancel, .plan-meter-renews details[open] .plan-meter-date, .plan-meter-renews details[open] .plan-meter-change { display: none; }
@@ -832,7 +833,7 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .plan-meter-renews input[type=date] { flex: 1; min-width: 0; height: 32px; padding: 0 .35rem; font: inherit; font-size: .8rem; }
 .button-soft { background: #f1e6d6; color: var(--accent); border-radius: 8px; height: 32px; }
 .button-soft:hover { background: #e8d9c4; }
-.plan-meter-controls { display: grid; grid-template-columns: 4.7rem 4.7rem auto; gap: .5rem; align-items: end; }
+.plan-meter-controls { display: grid; grid-template-columns: 4.7rem 4.7rem 1fr; gap: .5rem; align-items: end; }
 .plan-meter-controls > .button { grid-column: 3; }
 .plan-meter-field { display: grid; }
 .plan-meter-field .plan-meter-label { white-space: nowrap; }
@@ -841,6 +842,7 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .plan-meter-percent input:focus { outline: none; }
 .plan-meter-percent:focus-within { border-color: var(--accent); }
 .plan-meter-action .button { min-width: 4.6rem; }
+.plan-meter-readonly { display: grid; align-content: center; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; }
 .plan-meter-all { display: flex; gap: .6rem; padding-top: .9rem; border-top: 1px solid #eee4d6; }
 .plan-meter-inline.plan-meter-paused, .plan-meter-paused > :not(.plan-meter-action) { opacity: .6; }

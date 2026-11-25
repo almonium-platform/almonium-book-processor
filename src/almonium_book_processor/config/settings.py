@@ -429,6 +429,9 @@ FACTORY_ENABLED = env_bool("FACTORY_ENABLED", False)
 LEXICON_STATUS_FILE = os.getenv("LEXICON_STATUS_FILE", "")
 # The backend checkout whose entry writers the host runs (catalog/lexicon_writers.py).
 LEXICON_BACKEND_DIR = os.getenv("LEXICON_BACKEND_DIR", str(BASE_DIR.parent / "almonium-be"))
+# Optional ElevenLabs key for reading its monthly TTS character meter on the dashboard;
+# when empty, plan_meter checks <LEXICON_BACKEND_DIR>/.env on the owner's host.
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 # books under way at once, from download to promotion
 FACTORY_MAX_PRODUCTIONS = int(os.getenv("FACTORY_MAX_PRODUCTIONS", "2"))
 # the share of each plan's week left untouched for the owner's own work

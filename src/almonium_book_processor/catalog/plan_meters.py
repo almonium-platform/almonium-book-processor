@@ -19,7 +19,13 @@ from almonium_book_processor.catalog.models import (
     PlanWorker,
 )
 
-PROVIDER_LABELS = {"codex": "Codex", "claude-code": "Claude", "antigravity": "Gemini"}
+PROVIDER_LABELS = {
+    "codex": "Codex",
+    "claude-code": "Claude",
+    "antigravity": "Gemini",
+    "elevenlabs": "ElevenLabs",
+}
+ROUTABLE_PROVIDERS = ("codex", "claude-code", "antigravity")
 # A call recorded on an account this recently counts as the books using it now: a chapter's
 # call takes minutes, and a step between two calls is still the same work.
 IN_USE_WITHIN = timedelta(minutes=15)
@@ -54,6 +60,27 @@ class PlanMeter:
     # dictionary writer running on it), or, with neither, "other use" when its meter rose
     # between the last two readings (a chat session, a run started by hand).
     used_by: tuple[str, ...] = ()
+    # Credit/character counts for monthly unit-metered subscriptions such as ElevenLabs.
+    units_used: int | None = None
+    units_limit: int | None = None
+
+    @property
+    def is_monthly(self) -> bool:
+        return self.provider == "elevenlabs"
+
+    @property
+    def is_routable(self) -> bool:
+        return self.provider in ROUTABLE_PROVIDERS
+
+    @property
+    def period_label(self) -> str:
+        return "Month" if self.is_monthly else "Week"
+
+    @property
+    def units_left(self) -> int | None:
+        if self.units_limit is None or self.units_used is None:
+            return None
+        return max(0, self.units_limit - self.units_used)
 
     @property
     def in_use(self) -> bool:
@@ -210,16 +237,24 @@ def plan_meters() -> list[PlanMeter]:
                 email=about.email if about else "",
                 plan_label=(about.plan_label if about else "") or reading.plan_type or "",
                 renews_on=about.renews_on if about else None,
-                workers=every_worker,
+                workers=every_worker if reading.provider in ROUTABLE_PROVIDERS else (),
                 priority=about.priority if about else None,
                 used_by=used_by,
+                units_used=reading.units_used,
+                units_limit=reading.units_limit,
             )
         )
-    return sorted(meters, key=lambda meter: (meter.provider != "codex", meter.account))
+    return sorted(
+        meters,
+        key=lambda meter: (
+            0 if meter.provider == "codex" else (2 if meter.provider == "elevenlabs" else 1),
+            meter.account,
+        ),
+    )
 
 
 def _rising(reading: PlanMeterReading) -> bool:
-    """Whether a fresh reading stands above the one before it, in the week or in the session."""
+    """Whether a fresh reading stands above the one before it, in the week, session, or units."""
 
     if timezone.now() - reading.created_at > timedelta(hours=1):
         return False
@@ -235,10 +270,18 @@ def _rising(reading: PlanMeterReading) -> bool:
     )
     if before is None:
         return False
-    return reading.week_percent > before.week_percent or (
-        reading.session_percent is not None
-        and before.session_percent is not None
-        and reading.session_percent > before.session_percent
+    return (
+        reading.week_percent > before.week_percent
+        or (
+            reading.session_percent is not None
+            and before.session_percent is not None
+            and reading.session_percent > before.session_percent
+        )
+        or (
+            reading.units_used is not None
+            and before.units_used is not None
+            and reading.units_used > before.units_used
+        )
     )
 
 
@@ -250,7 +293,7 @@ def plan_routing(meters: list[PlanMeter]) -> list[dict]:
 
     modes = dict(PlanRouting.objects.values_list("provider", "mode"))
     plans = []
-    for provider in PROVIDER_LABELS:
+    for provider in ROUTABLE_PROVIDERS:
         own = sorted(
             (meter for meter in meters if meter.provider == provider),
             key=lambda meter: (meter.priority is None, meter.priority or 0, meter.account),

@@ -22,17 +22,22 @@
               {% if meter.workers %}<p class="plan-meter-sub">worker{{ meter.workers|length|pluralize }}: {{ meter.workers|join:", " }}</p>{% endif %}
             </div>
             <div class="plan-meter-usage">
-              <p class="plan-meter-headline"><strong>Week {{ meter.week_percent }}% used{% if meter.paused and not meter.paused_at_limit %} · paused{% endif %}</strong><span>${{ meter.left_usd|floatformat:2 }} of ${{ meter.week_usd|floatformat:2 }} left</span></p>
+              <p class="plan-meter-headline"><strong>{{ meter.period_label }} {{ meter.week_percent }}% used{% if meter.paused and not meter.paused_at_limit %} · paused{% endif %}</strong><span>{% if meter.units_limit is not None %}{{ meter.units_left|thousands }} of {{ meter.units_limit|thousands }} chars left{% else %}${{ meter.left_usd|floatformat:2 }} of ${{ meter.week_usd|floatformat:2 }} left{% endif %}</span></p>
               <span class="plan-meter-bar"><span class="run-bar{% if meter.week_percent >= 85 %} run-bar-high{% endif %}"><span style="width:{{ meter.week_percent }}%"></span></span>{% if meter.pause_at_percent is not None %}<i class="plan-meter-limit" style="left:{{ meter.pause_at_percent }}%" title="Pauses at {{ meter.pause_at_percent }}%"></i>{% endif %}</span>
-              <p class="plan-meter-sub plan-meter-resets"><span>{% if meter.resets_at %}Week resets {{ meter.resets_at|date:"D j M H:i" }}{% else %}Week reset unknown{% endif %}</span>{% if meter.session_percent is not None %}<span>Session {{ meter.session_percent }}%{% if meter.session_resets_at %}, resets {{ meter.session_resets_at|date:"H:i" }}{% endif %}</span>{% endif %}{% if meter.fable_week_percent is not None %}<span>Fable {{ meter.fable_week_percent }}%</span>{% endif %}{% if meter.paused_at_week_limit %}<strong>Paused at {{ meter.pause_at_percent }}% limit</strong>{% elif meter.paused_at_session_limit %}<strong>Paused at {{ meter.pause_at_session_percent }}% session limit</strong>{% elif not meter.paused %}{% if meter.pause_at_percent is not None and meter.pause_at_session_percent is not None %}<strong>Auto-pauses at {{ meter.pause_at_percent }}% week / {{ meter.pause_at_session_percent }}% session</strong>{% elif meter.pause_at_percent is not None %}<strong>Auto-pauses at {{ meter.pause_at_percent }}%</strong>{% elif meter.pause_at_session_percent is not None %}<strong>Auto-pauses at {{ meter.pause_at_session_percent }}% session</strong>{% endif %}{% endif %}</p>
+              <p class="plan-meter-sub plan-meter-resets"><span>{% if meter.resets_at %}{{ meter.period_label }} resets {{ meter.resets_at|date:"D j M H:i" }}{% else %}{{ meter.period_label }} reset unknown{% endif %}</span>{% if meter.session_percent is not None %}<span>Session {{ meter.session_percent }}%{% if meter.session_resets_at %}, resets {{ meter.session_resets_at|date:"H:i" }}{% endif %}</span>{% endif %}{% if meter.fable_week_percent is not None %}<span>Fable {{ meter.fable_week_percent }}%</span>{% endif %}{% if meter.paused_at_week_limit %}<strong>Paused at {{ meter.pause_at_percent }}% limit</strong>{% elif meter.paused_at_session_limit %}<strong>Paused at {{ meter.pause_at_session_percent }}% session limit</strong>{% elif not meter.paused %}{% if meter.pause_at_percent is not None and meter.pause_at_session_percent is not None %}<strong>Auto-pauses at {{ meter.pause_at_percent }}% week / {{ meter.pause_at_session_percent }}% session</strong>{% elif meter.pause_at_percent is not None %}<strong>Auto-pauses at {{ meter.pause_at_percent }}%</strong>{% elif meter.pause_at_session_percent is not None %}<strong>Auto-pauses at {{ meter.pause_at_session_percent }}% session</strong>{% endif %}{% endif %}</p>
             </div>
             <div class="plan-meter-renews">
               <span class="plan-meter-label">Renews</span>
+              {% if meter.is_routable %}
               <details>
                 <summary title="{% if meter.renews_on %}Paid on the {{ meter.renews_on|date:'jS' }} of the month{% else %}No CLI knows the billing day; set it here{% endif %}"><span class="plan-meter-date">{% if meter.renews_next %}{{ meter.renews_next|date:"D j M" }}{% else %}Not set{% endif %}</span><span class="plan-meter-change">{% if meter.renews_on %}Change{% else %}Set{% endif %}</span><span class="plan-meter-cancel">Cancel</span></summary>
                 <form method="post" action="{% url 'catalog:plan-account-details' %}">{% csrf_token %}<input type="hidden" name="provider" value="{{ meter.provider }}"><input type="hidden" name="account" value="{{ meter.account }}"><input type="date" name="renews_on" value="{{ meter.renews_on|date:'Y-m-d' }}" aria-label="Renewal date of {{ meter.account }}"><button class="button button-small button-soft" type="submit">Save</button></form>
               </details>
+              {% else %}
+              <p class="plan-meter-date" title="Read from {{ meter.provider_label }} subscription">{% if meter.renews_next %}{{ meter.renews_next|date:"D j M" }}{% else %}Not set{% endif %}</p>
+              {% endif %}
             </div>
+            {% if meter.is_routable %}
             <form method="post" action="{% url 'catalog:plan-account-pause' %}" class="plan-meter-action">{% csrf_token %}<input type="hidden" name="provider" value="{{ meter.provider }}"><input type="hidden" name="account" value="{{ meter.account }}">
               {# The first submit button is the one Enter presses: it saves the limits and leaves the account as it is. #}
               <button class="visually-hidden" type="submit" name="action" value="limit" tabindex="-1">Save limit</button>
@@ -50,6 +55,12 @@
                 {% if meter.paused %}<button class="button button-small button-secondary" type="submit" name="action" value="resume" title="Let calls use this account again; a limit it is already past does not stop it">Run</button>{% else %}<button class="button button-small" type="submit" name="action" value="pause" title="Send this account's calls to the next open account of the plan; with none open, books wait and nothing is paid">Pause</button>{% endif %}
               </span>
             </form>
+            {% else %}
+            <div class="plan-meter-action plan-meter-readonly">
+              <span class="plan-meter-label">Audio TTS</span>
+              <span class="plan-meter-sub">Read-only meter</span>
+            </div>
+            {% endif %}
           </li>
           {% endfor %}
         </ul>

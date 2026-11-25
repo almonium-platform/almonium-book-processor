@@ -225,3 +225,136 @@ def test_the_dashboard_marks_the_accounts_in_use():
 
     assert page.count("plan-meter-inline plan-meter-in-use") == 1
     assert "In use now: other use" in page
+
+
+def test_elevenlabs_meter_reads_subscription_and_fallback_dotenv(tmp_path, settings):
+    import io
+    import json
+
+    from almonium_book_processor.ai.elevenlabs_meter import elevenlabs_api_key, elevenlabs_meter
+
+    settings.ELEVENLABS_API_KEY = ""
+    settings.LEXICON_BACKEND_DIR = str(tmp_path)
+    (tmp_path / ".env").write_text('ELEVENLABS_API_KEY="sk_test_123"\n', encoding="utf-8")
+    assert elevenlabs_api_key() == "sk_test_123"
+
+    settings.ELEVENLABS_API_KEY = "sk_direct"
+    assert elevenlabs_api_key() == "sk_direct"
+
+    payload = {
+        "tier": "starter",
+        "character_count": 1200,
+        "character_limit": 62056,
+        "next_character_count_reset_unix": 1796233495,
+        "next_invoice": {"amount_due_cents": 720},
+        "currency": "usd",
+    }
+
+    class FakeResponse(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    seen = {}
+
+    def fake_open(request, timeout=0):
+        seen["url"] = request.full_url
+        seen["key"] = request.get_header("Xi-api-key")
+        return FakeResponse(json.dumps(payload).encode("utf-8"))
+
+    meter = elevenlabs_meter(opener=fake_open)
+    assert seen == {
+        "url": "https://api.elevenlabs.io/v1/user/subscription",
+        "key": "sk_direct",
+    }
+    assert meter is not None
+    assert meter["used_percent"] == 2
+    assert meter["units_used"] == 1200
+    assert meter["units_limit"] == 62056
+    assert meter["resets_at"] == datetime(2026, 12, 2, 17, 44, 55, tzinfo=UTC)
+    assert meter["plan_label"] == "Starter · $7.20/mo"
+    assert meter["renews_on"].day == 2
+
+    def broken(request, timeout=0):
+        raise OSError("offline")
+
+    assert elevenlabs_meter(opener=broken) is None
+    assert elevenlabs_meter(api_key="") is None
+
+
+def test_elevenlabs_shows_on_dashboard_as_readonly_monthly_meter_and_skips_routing(
+    settings, monkeypatch
+):
+    from datetime import date
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    from almonium_book_processor.ai import elevenlabs_meter as elevenlabs_mod
+    from almonium_book_processor.catalog.models import PlanAccount, PlanWorker
+    from almonium_book_processor.catalog.plan_meters import plan_routing
+
+    settings.AI_PLANS = ""
+    settings.CODEX_HOMES = []
+    settings.CLAUDE_CONFIG_DIRS = []
+    settings.ELEVENLABS_API_KEY = "sk_live_test"
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.management.commands.plan_meter.codex_meter",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.management.commands.plan_meter.claude_meter",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        elevenlabs_mod,
+        "elevenlabs_meter",
+        lambda: {
+            "used_percent": 0,
+            "units_used": 0,
+            "units_limit": 62056,
+            "resets_at": datetime(2026, 12, 2, 17, 44, 55, tzinfo=UTC),
+            "plan_type": "starter",
+            "plan_label": "Starter · $7.20/mo",
+            "renews_on": date(2026, 12, 2),
+        },
+    )
+
+    out = StringIO()
+    call_command("plan_meter", "--record", stdout=out)
+    assert "elevenlabs (starter): 0% of the month used, 0 of 62,056 chars" in out.getvalue()
+
+    reading("codex", ".codex", 10)
+    PlanWorker.objects.create(name="main", nodename="plans-main@yoga", seen_at=datetime.now(UTC))
+
+    meters = plan_meters()
+    assert [m.provider for m in meters] == ["codex", "elevenlabs"]
+    eleven = meters[1]
+    assert eleven.is_monthly and not eleven.is_routable
+    assert eleven.units_left == 62056 and eleven.workers == ()
+    assert eleven.plan_label == "Starter · $7.20/mo"
+    assert PlanAccount.objects.get(provider="elevenlabs").renews_on == date(2026, 12, 2)
+    assert [p["provider"] for p in plan_routing(meters)] == ["codex"]
+
+    # An increase in units_used marks ElevenLabs as in use even within the same integer percent.
+    earlier = PlanMeterReading.objects.get(provider="elevenlabs")
+    PlanMeterReading.objects.filter(pk=earlier.pk).update(
+        created_at=datetime.now(UTC) - timedelta(minutes=10)
+    )
+    reading("elevenlabs", "api", 0, units_used=250, units_limit=62056)
+    assert plan_meters()[1].used_by == ("other use",)
+
+    staff = get_user_model().objects.create_user("staff", password="x", is_staff=True)
+    client = Client()
+    client.force_login(staff)
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+
+    assert "<strong>ElevenLabs</strong> <code>api</code>" in page
+    assert "Starter · $7.20/mo" in page
+    assert "Month 0% used" in page
+    assert "61\u202f806 of 62\u202f056 chars left" in page
+    assert "Wed 2 Dec" in page
+    assert "Read-only meter" in page
+    assert 'name="provider" value="elevenlabs"' not in page

@@ -154,6 +154,49 @@ class Command(BaseCommand):
                         account=ACCOUNT,
                         defaults={"plan_label": "AI Ultra"},
                     )
+        from almonium_book_processor.ai.elevenlabs_meter import (
+            ACCOUNT as ELEVENLABS_ACCOUNT,
+        )
+        from almonium_book_processor.ai.elevenlabs_meter import (
+            elevenlabs_api_key,
+            elevenlabs_meter,
+        )
+
+        if elevenlabs_api_key():
+            eleven = elevenlabs_meter()
+            if eleven is None:
+                self.stdout.write(self.style.WARNING("The ElevenLabs meter could not be read."))
+            else:
+                used = eleven["used_percent"]
+                resets = eleven["resets_at"]
+                reset_note = f"; resets {resets.astimezone():%a %d %b %H:%M %Z}" if resets else ""
+                self.stdout.write(
+                    f"elevenlabs ({eleven['plan_type'] or 'api'}): {used}% of the month used, "
+                    f"{eleven['units_used']:,} of {eleven['units_limit']:,} chars{reset_note}"
+                )
+                if record:
+                    PlanMeterReading.objects.create(
+                        provider="elevenlabs",
+                        account=ELEVENLABS_ACCOUNT,
+                        week_percent=used,
+                        units_used=eleven["units_used"],
+                        units_limit=eleven["units_limit"],
+                        resets_at=resets,
+                        plan_type=eleven["plan_type"],
+                    )
+                    defaults = {
+                        key: value
+                        for key, value in (
+                            ("plan_label", eleven["plan_label"]),
+                            ("renews_on", eleven["renews_on"]),
+                        )
+                        if value
+                    }
+                    PlanAccount.objects.update_or_create(
+                        provider="elevenlabs",
+                        account=ELEVENLABS_ACCOUNT,
+                        defaults=defaults,
+                    )
         if record and answering:
             # a Codex account answers: the books its used-up allowance held can go on
             from almonium_book_processor.ai import claude_code_provider, codex_provider
