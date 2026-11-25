@@ -138,9 +138,24 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "budgets": _budgets_context(),
             "factory": _factory_context(),
             "alignment": alignment_overview(),
+            "sync": _promotion_sync_context(request),
             **_entries_context(),
         },
     )
+
+
+def _promotion_sync_context(request: HttpRequest) -> dict:
+    """Per-target promotion counts and any remote check stored in the session."""
+
+    from almonium_book_processor.catalog.release_state import promotion_sync_summary
+
+    remote_checks = request.session.get("promotion_sync") or {}
+    targets = promotion_sync_summary(remote_checks)
+    return {
+        "targets": targets,
+        "has_pull": any(row["pull_count"] for row in targets),
+        "has_error": any(row["remote"] and row["remote"].get("error") for row in targets),
+    }
 
 
 def _entries_context() -> dict:
@@ -2052,20 +2067,34 @@ def plan_account_pause_view(request: HttpRequest) -> HttpResponse:
     provider = request.POST.get("provider", "")
     account = request.POST.get("account", "")
     plans = redirect(f"{reverse('catalog:dashboard')}#plans")
-    if "pause_at" in request.POST and provider and account:
-        # The row's limit travels with every press of its form, so the field is never lost.
+    if ("pause_at" in request.POST or "pause_at_session" in request.POST) and provider and account:
+        # The row's limits travel with every press of its form, so neither field is lost.
         try:
-            limit = plan_pause.set_limit(provider, account, request.POST["pause_at"])
+            if "pause_at" in request.POST:
+                plan_pause.set_limit(provider, account, request.POST["pause_at"])
+            if "pause_at_session" in request.POST:
+                plan_pause.set_session_limit(provider, account, request.POST["pause_at_session"])
         except ValueError as error:
             messages.error(request, str(error))
             return plans
         if action in ("limit", ""):
-            messages.info(
-                request,
-                f"{account} pauses itself at {limit}% of its week."
-                if limit is not None
-                else f"{account} has no limit; it runs until paused.",
-            )
+            from almonium_book_processor.catalog.models import PlanAccount
+
+            row = PlanAccount.objects.filter(provider=provider, account=account).first()
+            week_limit = row.pause_at_percent if row else None
+            session_limit = row.pause_at_session_percent if row else None
+            if week_limit is not None and session_limit is not None:
+                note = (
+                    f"{account} pauses itself at {week_limit}% of its week "
+                    f"or {session_limit}% of its session."
+                )
+            elif week_limit is not None:
+                note = f"{account} pauses itself at {week_limit}% of its week."
+            elif session_limit is not None:
+                note = f"{account} pauses itself at {session_limit}% of its session."
+            else:
+                note = f"{account} has no limit; it runs until paused."
+            messages.info(request, note)
             return plans
     try:
         if action == "pause-all":
@@ -2358,6 +2387,94 @@ def promote_behind_view(request: HttpRequest) -> HttpResponse:
         "Each row shows its promotion as it lands.",
     )
     return redirect("catalog:dashboard")
+
+
+@staff_member_required
+@require_POST
+def promotion_sync_view(request: HttpRequest) -> HttpResponse:
+    """Promote all ready editions to a target, check for remote changes, or pull them."""
+
+    from almonium_book_processor.catalog.release_state import (
+        check_target_sync,
+        editions_to_promote,
+        queue_promotions,
+    )
+    from almonium_book_processor.catalog.tasks import pull_from_target
+
+    action = request.POST.get("action", "")
+    target = promotion_target(request.POST.get("target"))
+    back = redirect(f"{reverse('catalog:dashboard')}#sync")
+    if target is None:
+        messages.error(request, "Choose a configured promotion target.")
+        return back
+
+    if action == "check":
+        result = check_target_sync(target)
+        stored = dict(request.session.get("promotion_sync") or {})
+        stored[target.name] = result
+        request.session["promotion_sync"] = stored
+        if result.get("error"):
+            messages.error(request, f"Could not check {target.name}: {result['error']}")
+        else:
+            only_n = len(result["only_on_target"])
+            newer_n = len(result["newer_on_target"])
+            if only_n or newer_n:
+                parts = []
+                if only_n:
+                    parts.append(f"{only_n} only on {target.name}")
+                if newer_n:
+                    parts.append(f"{newer_n} newer on {target.name}")
+                messages.warning(
+                    request,
+                    f"{target.name} has changes to pull first: {', '.join(parts)}.",
+                )
+            else:
+                messages.info(
+                    request,
+                    f"Checked {target.name} ({result['remote_count']} reviewed editions): "
+                    "nothing to pull.",
+                )
+        return back
+
+    if action == "pull":
+        stored = dict(request.session.get("promotion_sync") or {})
+        remote = stored.get(target.name) or check_target_sync(target)
+        if remote.get("error"):
+            messages.error(request, f"Could not pull from {target.name}: {remote['error']}")
+            return back
+        slugs = remote.get("pull_slugs") or []
+        if not slugs:
+            messages.info(request, f"Nothing to pull from {target.name}.")
+            return back
+        pull_from_target.delay(target.name, slugs)
+        stored.pop(target.name, None)
+        request.session["promotion_sync"] = stored
+        messages.success(
+            request,
+            f"Pulling {len(slugs)} edition{'s' if len(slugs) != 1 else ''} from {target.name} "
+            f"in the background: {', '.join(slugs)}.",
+        )
+        return back
+
+    if action in ("promote-all", "promote-behind"):
+        include_never = action == "promote-all"
+        editions = editions_to_promote(target.name, include_never=include_never)
+        if not editions:
+            messages.info(request, f"Nothing to promote to {target.name}.")
+            return back
+        runs = queue_promotions(target, editions, publish_new=True)
+        slugs = ", ".join(run.edition.slug for run in runs[:10])
+        if len(runs) > 10:
+            slugs += f" and {len(runs) - 10} more"
+        messages.success(
+            request,
+            f"{len(runs)} promotion{'s' if len(runs) != 1 else ''} to {target.name} queued: "
+            f"{slugs}. Each row shows its promotion as it lands.",
+        )
+        return back
+
+    messages.error(request, "Choose check, pull, or promote.")
+    return back
 
 
 @staff_member_required

@@ -214,13 +214,7 @@ def resume_all() -> None:
     apply_to_workers()
 
 
-def set_limit(provider: str, account: str, value: str) -> int | None:
-    """Keep the share of the week at which the account pauses itself; empty clears it."""
-
-    from almonium_book_processor.catalog.models import PlanAccount
-
-    if provider not in PROVIDERS:
-        raise ValueError(f"Unknown plan provider: {provider}")
+def _parse_percent(value: str) -> int | None:
     value = value.strip().rstrip("%").strip()
     try:
         limit = int(value) if value else None
@@ -228,8 +222,33 @@ def set_limit(provider: str, account: str, value: str) -> int | None:
         raise ValueError("Give the limit as a whole percent, or leave it empty.") from None
     if limit is not None and not 1 <= limit <= 100:
         raise ValueError("Give the limit as a percent from 1 to 100.")
+    return limit
+
+
+def set_limit(provider: str, account: str, value: str) -> int | None:
+    """Keep the share of the week at which the account pauses itself; empty clears it."""
+
+    from almonium_book_processor.catalog.models import PlanAccount
+
+    if provider not in PROVIDERS:
+        raise ValueError(f"Unknown plan provider: {provider}")
+    limit = _parse_percent(value)
     PlanAccount.objects.update_or_create(
         provider=provider, account=account, defaults={"pause_at_percent": limit}
+    )
+    return limit
+
+
+def set_session_limit(provider: str, account: str, value: str) -> int | None:
+    """Keep the share of the session at which the account pauses itself; empty clears it."""
+
+    from almonium_book_processor.catalog.models import PlanAccount
+
+    if provider not in PROVIDERS:
+        raise ValueError(f"Unknown plan provider: {provider}")
+    limit = _parse_percent(value)
+    PlanAccount.objects.update_or_create(
+        provider=provider, account=account, defaults={"pause_at_session_percent": limit}
     )
     return limit
 
@@ -238,33 +257,90 @@ def limit_note(percent: int) -> str:
     return f"Paused at {percent}% limit"
 
 
-def pause_on_limit(provider: str, account: str, week_percent: int) -> bool:
-    """Before a new reading is kept: pause the account when its week crosses its limit.
+def session_limit_note(percent: int) -> str:
+    return f"Paused at {percent}% session limit"
+
+
+def _is_session_limit_note(note: str) -> bool:
+    return note.startswith("Paused at ") and note.endswith("% session limit")
+
+
+def pause_on_limit(
+    provider: str,
+    account: str,
+    week_percent: int,
+    session_percent: int | None = None,
+) -> bool:
+    """Before a new reading is kept: pause the account when its week or session crosses its limit,
+    and resume an account paused at its session limit once the session resets under it.
 
     Only a crossing counts, from below the limit in the last reading to at or above it now, so
     an account the owner runs on past its limit keeps running until the limit is moved, and
-    the week's reset brings it back under to cross again.
+    the window's reset brings it back under to cross again.
     """
 
     from almonium_book_processor.catalog.models import PlanAccount, PlanMeterReading
 
-    limit = (
+    limits = (
         PlanAccount.objects.filter(provider=provider, account=account)
-        .values_list("pause_at_percent", flat=True)
+        .values_list("pause_at_percent", "pause_at_session_percent")
         .first()
     )
-    if limit is None or week_percent < limit or is_paused(provider, account):
+    if limits is None:
         return False
+    week_limit, session_limit = limits
+
+    existing_pause = PlanAccountPause.objects.filter(provider=provider, account=account).first()
+    if existing_pause is not None:
+        if (
+            _is_session_limit_note(existing_pause.note)
+            and session_percent is not None
+            and session_limit is not None
+            and session_percent < session_limit
+        ):
+            resume(provider, account)
+            logger.info(
+                "%s %s session is back under its %s%% limit (%s%%) and is resumed.",
+                provider,
+                account,
+                session_limit,
+                session_percent,
+            )
+        else:
+            return False
+
     last = (
         PlanMeterReading.objects.filter(provider=provider, account=account)
-        .values_list("week_percent", flat=True)
+        .values_list("week_percent", "session_percent")
         .first()
     )
-    if last is not None and last >= limit:
-        return False
-    pause(provider, account, note=limit_note(limit))
-    logger.warning("%s %s reached its %s%% limit and is paused.", provider, account, limit)
-    return True
+    last_week, last_session = last if last is not None else (None, None)
+
+    if (
+        week_limit is not None
+        and week_percent >= week_limit
+        and (last_week is None or last_week < week_limit)
+    ):
+        pause(provider, account, note=limit_note(week_limit))
+        logger.warning("%s %s reached its %s%% limit and is paused.", provider, account, week_limit)
+        return True
+
+    if (
+        session_limit is not None
+        and session_percent is not None
+        and session_percent >= session_limit
+        and (last_session is None or last_session < session_limit)
+    ):
+        pause(provider, account, note=session_limit_note(session_limit))
+        logger.warning(
+            "%s %s reached its %s%% session limit and is paused.",
+            provider,
+            account,
+            session_limit,
+        )
+        return True
+
+    return False
 
 
 def known_accounts() -> list[tuple[str, str]]:

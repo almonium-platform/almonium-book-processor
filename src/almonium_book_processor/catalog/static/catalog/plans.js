@@ -7,8 +7,8 @@
   document.addEventListener("change", function (event) {
     var field = event.target.closest("[data-submit-on-change]");
     if (!field || !field.form) return;
-    clearTimeout(timers.get(field));
-    timers.set(field, setTimeout(function () { field.form.requestSubmit(field.form.querySelector("button[value=limit]")); }, 900));
+    clearTimeout(timers.get(field.form));
+    timers.set(field.form, setTimeout(function () { field.form.requestSubmit(field.form.querySelector("button[value=limit]")); }, 900));
   });
 
   // Like any popover: Escape or a click outside it closes it.

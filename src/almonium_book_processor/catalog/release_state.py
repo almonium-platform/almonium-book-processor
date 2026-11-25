@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from django.db.models import Max
@@ -273,39 +273,45 @@ def _token(edition, target, runs, changed) -> PromotionToken:
     return PromotionToken(target=target, state=state, at=last.finished_at or last.created_at)
 
 
-def editions_behind(target: str) -> list[Edition]:
-    """Every public edition the target is behind on or last failed for, sources first.
+def editions_to_promote(target: str, *, include_never: bool = True) -> list[Edition]:
+    """Every public edition to send to ``target``, sources first.
 
-    Never-promoted editions are not here: sending a book somewhere for the
-    first time is a decision, catching a target up on what it already holds
-    is not. An edition whose chain has fallen out of review is left out too,
-    as the promote button on its own page would refuse it.
+    Includes editions that are behind or last failed on ``target`` and, when
+    ``include_never`` is True, ready/published editions never promoted there yet.
+    Editions blocked by ``promotion_blocker`` (e.g. still in review) are left out.
     """
 
     from almonium_book_processor.catalog.catalogue import _editions
     from almonium_book_processor.catalog.models import Work
     from almonium_book_processor.catalog.promotion import promotion_blocker, promotion_chain
 
+    wanted = ("never", "behind", "failed") if include_never else ("behind", "failed")
     editions = list(_editions(Work.Visibility.PUBLIC))
     states = listing_release_state(editions)
-    behind = [
+    selected = [
         edition
         for edition in editions
         if any(
-            token.target == target and token.state in ("behind", "failed")
-            for token in states[edition.id].tokens
+            token.target == target and token.state in wanted for token in states[edition.id].tokens
         )
         and not promotion_blocker(edition)
     ]
-    return sorted(behind, key=lambda edition: (len(promotion_chain(edition)), edition.slug))
+    return sorted(selected, key=lambda edition: (len(promotion_chain(edition)), edition.slug))
 
 
-def queue_promotions_behind(target, editions: list[Edition]) -> list[PipelineRun]:
-    """Queue one promotion per edition, repeating what the last one to that target asked.
+def editions_behind(target: str) -> list[Edition]:
+    """Every public edition the target is behind on or last failed for, sources first."""
 
-    A bundle that carried publication there before, or whose failed attempt
-    asked for it, asks again; nothing is published on a target for the first
-    time from here.
+    return editions_to_promote(target, include_never=False)
+
+
+def queue_promotions(
+    target, editions: list[Edition], *, publish_new: bool = True
+) -> list[PipelineRun]:
+    """Queue one promotion per edition.
+
+    Editions previously sent to ``target`` repeat what their last attempt asked
+    for ``publish``; never-promoted editions use ``publish_new`` (True by default).
     """
 
     from almonium_book_processor import __version__
@@ -320,7 +326,7 @@ def queue_promotions_behind(target, editions: list[Edition]) -> list[PipelineRun
             .order_by("-created_at")
             .first()
         )
-        publish = bool(last and last.summary.get("publish"))
+        publish = bool(last.summary.get("publish")) if last is not None else publish_new
         run = PipelineRun.objects.create(
             edition=edition,
             stage=PipelineRun.Stage.PROMOTE,
@@ -332,3 +338,168 @@ def queue_promotions_behind(target, editions: list[Edition]) -> list[PipelineRun
         promote_edition.delay(str(run.id), publish=publish)
         runs.append(run)
     return runs
+
+
+def queue_promotions_behind(target, editions: list[Edition]) -> list[PipelineRun]:
+    """Queue one promotion per behind/failed edition, repeating its last publish choice."""
+
+    return queue_promotions(target, editions, publish_new=False)
+
+
+def _local_changed_at(editions: list[Edition]) -> dict[Any, datetime]:
+    """Latest change timestamp per edition (edition update, text revision, or current artifact)."""
+
+    ids = [edition.id for edition in editions]
+    changed: dict[Any, datetime] = {edition.id: edition.updated_at for edition in editions}
+    if not ids:
+        return changed
+    for model, extra in (
+        (ContentBlockRevision, {}),
+        (EditionArtifact, {"is_current": True}),
+    ):
+        for row in (
+            model.objects.filter(edition_id__in=ids, **extra)
+            .values("edition_id")
+            .annotate(last=Max("created_at"))
+        ):
+            if row["last"] and (
+                row["edition_id"] not in changed or row["last"] > changed[row["edition_id"]]
+            ):
+                changed[row["edition_id"]] = row["last"]
+    return changed
+
+
+def check_target_sync(target) -> dict[str, Any]:
+    """Ask ``target`` what reviewed editions it holds and report anything to pull first."""
+
+    from django.utils.dateparse import parse_datetime
+
+    from almonium_book_processor.catalog.promotion import (
+        PromotionError,
+        source_compatibility_problem,
+    )
+    from almonium_book_processor.catalog.promotion_client import PromotionClient
+
+    checked_at = timezone.now().isoformat()
+    try:
+        listing = PromotionClient(target).exports()
+    except PromotionError as error:
+        return {"checked_at": checked_at, "error": str(error)}
+    problem = source_compatibility_problem(listing)
+    if problem:
+        return {"checked_at": checked_at, "error": problem}
+
+    remote_entries = listing.get("editions") or []
+    local_editions = list(Edition.objects.all().only("id", "slug", "updated_at"))
+    by_slug = {edition.slug: edition for edition in local_editions}
+    by_id = {str(edition.id): edition for edition in local_editions}
+    local_changed = _local_changed_at(local_editions)
+
+    last_pushed: dict[Any, datetime] = {}
+    for run in (
+        PipelineRun.objects.filter(
+            stage=PipelineRun.Stage.PROMOTE,
+            status=PipelineRun.Status.SUCCEEDED,
+            summary__target=target.name,
+        )
+        .order_by("-created_at")
+        .only("edition_id", "created_at", "finished_at")
+    ):
+        last_pushed.setdefault(run.edition_id, run.finished_at or run.created_at)
+
+    only_on_target: list[dict[str, str]] = []
+    newer_on_target: list[dict[str, str]] = []
+    supports_changed_at = False
+    for entry in remote_entries:
+        slug = entry.get("slug", "")
+        local = by_slug.get(slug) or by_id.get(entry.get("id", ""))
+        if local is None:
+            only_on_target.append({"slug": slug, "status": entry.get("status", "")})
+            continue
+        raw_changed = entry.get("changed_at")
+        if raw_changed:
+            supports_changed_at = True
+            remote_dt = parse_datetime(raw_changed)
+            local_dt = local_changed.get(local.id)
+            pushed_dt = last_pushed.get(local.id)
+            baseline = max(
+                (dt for dt in (local_dt, pushed_dt) if dt is not None),
+                default=None,
+            )
+            # Small 5-second tolerance so a bundle we just pushed is not flagged as newer.
+            if remote_dt and (baseline is None or remote_dt > baseline + timedelta(seconds=5)):
+                newer_on_target.append({"slug": slug, "changed_at": raw_changed})
+
+    pull_set = {item["slug"] for item in only_on_target} | {
+        item["slug"] for item in newer_on_target
+    }
+    # Pull leaf editions whose bundles carry their sources, plus any standalone/changed ones.
+    remote_sources = {
+        entry.get("source_edition")
+        for entry in remote_entries
+        if entry.get("slug") in pull_set and entry.get("source_edition")
+    }
+    pull_slugs = sorted(slug for slug in pull_set if slug not in remote_sources)
+    return {
+        "checked_at": checked_at,
+        "error": "",
+        "remote_count": len(remote_entries),
+        "only_on_target": sorted(only_on_target, key=lambda item: item["slug"]),
+        "newer_on_target": sorted(newer_on_target, key=lambda item: item["slug"]),
+        "pull_slugs": pull_slugs,
+        "supports_changed_at": supports_changed_at,
+    }
+
+
+def promotion_sync_summary(remote_checks: dict[str, dict] | None = None) -> list[dict[str, Any]]:
+    """Per-target promotion counts (new, behind, failed, queued) plus any cached remote check."""
+
+    from almonium_book_processor.catalog.catalogue import _editions
+    from almonium_book_processor.catalog.models import Work
+    from almonium_book_processor.catalog.promotion import promotion_blocker, promotion_targets
+
+    targets = promotion_targets()
+    if not targets:
+        return []
+    editions = list(_editions(Work.Visibility.PUBLIC))
+    states = listing_release_state(editions)
+    remote_checks = remote_checks or {}
+    rows: list[dict[str, Any]] = []
+    for target in targets:
+        new_count = behind_count = failed_count = queued_count = 0
+        for edition in editions:
+            token = next(
+                (item for item in states[edition.id].tokens if item.target == target.name), None
+            )
+            if token is None:
+                continue
+            if token.state == "queued":
+                queued_count += 1
+            elif token.state == "never" and not promotion_blocker(edition):
+                new_count += 1
+            elif token.state == "behind" and not promotion_blocker(edition):
+                behind_count += 1
+            elif token.state == "failed" and not promotion_blocker(edition):
+                failed_count += 1
+        total = new_count + behind_count + failed_count
+        behind_total = behind_count + failed_count
+        remote = remote_checks.get(target.name)
+        pull_count = (
+            len(remote.get("only_on_target", [])) + len(remote.get("newer_on_target", []))
+            if remote and not remote.get("error")
+            else 0
+        )
+        rows.append(
+            {
+                "target": target.name,
+                "new": new_count,
+                "behind": behind_count,
+                "failed": failed_count,
+                "behind_total": behind_total,
+                "queued": queued_count,
+                "total": total,
+                "remote": remote,
+                "pull_count": pull_count,
+            }
+        )
+    return rows

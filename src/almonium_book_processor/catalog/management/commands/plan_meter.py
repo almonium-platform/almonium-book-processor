@@ -86,7 +86,12 @@ class Command(BaseCommand):
                 + (f"; Fable's own week {fable}%" if fable is not None else "")
             )
             if record:
-                if pause_on_limit("claude-code", account.name, week):
+                if pause_on_limit(
+                    "claude-code",
+                    account.name,
+                    week,
+                    session_percent=claude.get("session_percent"),
+                ):
                     self.stdout.write(f"claude-code ({account.name}): paused at its limit")
                 PlanMeterReading.objects.create(
                     provider="claude-code",
@@ -128,7 +133,12 @@ class Command(BaseCommand):
                     f"session {gemini.get('session_percent', 0)}%"
                 )
                 if record:
-                    if pause_on_limit("antigravity", ACCOUNT, week):
+                    if pause_on_limit(
+                        "antigravity",
+                        ACCOUNT,
+                        week,
+                        session_percent=gemini.get("session_percent"),
+                    ):
                         self.stdout.write(f"antigravity ({ACCOUNT}): paused at its limit")
                     PlanMeterReading.objects.create(
                         provider="antigravity",

@@ -949,7 +949,9 @@ def test_the_export_listing_offers_what_may_leave_and_names_each_source():
     body = response.json()
     assert body["bundle_schema_version"] == BUNDLE_SCHEMA_VERSION
     assert body["catalog_migration"] == promotion.catalog_migration()
-    assert body["editions"] == [
+    assert [
+        {k: v for k, v in entry.items() if k != "changed_at"} for entry in body["editions"]
+    ] == [
         {"slug": "book-en", "id": str(original.id), "status": "ready", "source_edition": None},
         {
             "slug": "book-uk",
@@ -958,6 +960,7 @@ def test_the_export_listing_offers_what_may_leave_and_names_each_source():
             "source_edition": "book-en",
         },
     ]
+    assert all(entry.get("changed_at") for entry in body["editions"])
 
 
 def test_the_export_endpoint_serves_a_bundle_that_lands_or_says_why_not():

@@ -196,7 +196,13 @@ def _last_line(writer_id: int) -> str:
 
 
 def reconcile(*, runner: Runner = subprocess.run) -> list[str]:
-    """Make the host's writer services match the page; what was done, one line each."""
+    """Make the host's writer services match the page; what was done, one line each.
+
+    A writer whose Claude account is paused in the AI panel (manually or at its week/session
+    limit) is stopped while the pause holds, and started again once the account is resumed.
+    """
+
+    from almonium_book_processor.catalog.models import PlanAccountPause
 
     done = []
     systemd_dir = Path.home() / ".config" / "systemd" / "user"
@@ -209,6 +215,9 @@ def reconcile(*, runner: Runner = subprocess.run) -> list[str]:
         _systemctl(runner, "daemon-reload")
         done.append(f"wrote {UNIT}")
     log_path(0).parent.mkdir(parents=True, exist_ok=True)
+    paused_claude = set(
+        PlanAccountPause.objects.filter(provider="claude-code").values_list("account", flat=True)
+    )
     known = set()
     for writer in LexiconWriter.objects.all():
         unit = f"{SERVICE}@{writer.id}.service"
@@ -219,7 +228,8 @@ def reconcile(*, runner: Runner = subprocess.run) -> list[str]:
             env_file.write_text(env_text(writer))
         state = _state(runner, unit)
         last = _last_line(writer.id)
-        if writer.running:
+        account_paused = writer.account in paused_claude
+        if writer.running and not account_paused:
             if state == "inactive" and last == "done":
                 # the list is written: nothing to start again
                 writer.running = False
@@ -229,10 +239,14 @@ def reconcile(*, runner: Runner = subprocess.run) -> list[str]:
                 _systemctl(runner, "restart" if changed and state == "active" else "start", unit)
                 state = _state(runner, unit)
                 done.append(f"{unit}: started ({state})")
-        elif state in ("active", "activating"):
-            _systemctl(runner, "stop", unit)
-            state = _state(runner, unit)
-            done.append(f"{unit}: stopped")
+        else:
+            if state in ("active", "activating"):
+                _systemctl(runner, "stop", unit)
+                state = _state(runner, unit)
+                reason = " (account paused)" if writer.running and account_paused else ""
+                done.append(f"{unit}: stopped{reason}")
+            if writer.running and account_paused:
+                state = "account paused"
         writer.state = state[:40]
         writer.last_line = last
         writer.checked_at = timezone.now()

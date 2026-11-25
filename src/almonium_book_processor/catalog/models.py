@@ -1326,8 +1326,9 @@ class PlanAccount(TimestampedModel):
     email = models.CharField(max_length=200, blank=True)
     plan_label = models.CharField(max_length=60, blank=True)
     renews_on = models.DateField(null=True, blank=True)
-    # Pause the account when its week crosses this share; empty is no limit (plan_pause.py).
+    # Pause the account when its week or five-hour session crosses this share (plan_pause.py).
     pause_at_percent = models.PositiveSmallIntegerField(null=True, blank=True)
+    pause_at_session_percent = models.PositiveSmallIntegerField(null=True, blank=True)
     # Where the account stands among its plan's when calls go in order: 1 is spent first. The
     # meter timer fills it from the settings' order for an account that has none.
     priority = models.PositiveSmallIntegerField(null=True, blank=True)

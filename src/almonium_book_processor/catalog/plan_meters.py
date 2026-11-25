@@ -36,8 +36,9 @@ class PlanMeter:
     # Whether the owner has taken this account out of the pipeline (catalog/plan_pause.py).
     paused: bool = False
     pause_note: str = ""
-    # The week's share at which the account pauses itself; None is no limit.
+    # The week's and session's shares at which the account pauses itself; None is no limit.
     pause_at_percent: int | None = None
+    pause_at_session_percent: int | None = None
     session_percent: int | None = None
     session_resets_at: datetime | None = None
     # Whose account, what plan and when it renews (PlanAccount; the renewal date is the owner's).
@@ -103,7 +104,15 @@ class PlanMeter:
         return when
 
     @property
-    def paused_at_limit(self) -> bool:
+    def has_session(self) -> bool:
+        return (
+            self.session_percent is not None
+            or self.pause_at_session_percent is not None
+            or self.provider in ("claude-code", "antigravity")
+        )
+
+    @property
+    def paused_at_week_limit(self) -> bool:
         from almonium_book_processor.catalog.plan_pause import limit_note
 
         return (
@@ -111,6 +120,20 @@ class PlanMeter:
             and self.pause_at_percent is not None
             and self.pause_note == limit_note(self.pause_at_percent)
         )
+
+    @property
+    def paused_at_session_limit(self) -> bool:
+        from almonium_book_processor.catalog.plan_pause import session_limit_note
+
+        return (
+            self.paused
+            and self.pause_at_session_percent is not None
+            and self.pause_note == session_limit_note(self.pause_at_session_percent)
+        )
+
+    @property
+    def paused_at_limit(self) -> bool:
+        return self.paused_at_week_limit or self.paused_at_session_limit
 
     @property
     def stale(self) -> bool:
@@ -181,6 +204,7 @@ def plan_meters() -> list[PlanMeter]:
                 paused=key in paused,
                 pause_note=paused.get(key, ""),
                 pause_at_percent=about.pause_at_percent if about else None,
+                pause_at_session_percent=about.pause_at_session_percent if about else None,
                 session_percent=reading.session_percent,
                 session_resets_at=reading.session_resets_at,
                 email=about.email if about else "",

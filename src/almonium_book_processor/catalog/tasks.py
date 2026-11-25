@@ -773,6 +773,33 @@ def promote_edition(run_id: str, *, publish: bool = False) -> None:
         raise
 
 
+@shared_task
+def pull_from_target(target_name: str, slugs: list[str]) -> dict:
+    """Pull edition bundles from a promotion target and import them here in the background."""
+
+    from almonium_book_processor.catalog.promotion import (
+        import_bundle,
+        source_compatibility_problem,
+    )
+
+    target = promotion_target(target_name)
+    if target is None:
+        raise PromotionError(f"No promotion target named {target_name!r} is configured here.")
+    client = PromotionClient(target)
+    listing = client.exports()
+    problem = source_compatibility_problem(listing)
+    if problem:
+        raise PromotionError(problem)
+    imported: list[str] = []
+    skipped: list[str] = []
+    for slug in dict.fromkeys(slugs):
+        bundle = client.pull(slug)
+        result = import_bundle(bundle, origin=listing.get("origin"))
+        imported.extend(result["imported"])
+        skipped.extend(result["skipped"])
+    return {"target": target_name, "imported": imported, "skipped": skipped}
+
+
 @shared_task(
     autoretry_for=(Exception,),
     retry_backoff=True,

@@ -158,6 +158,88 @@ def test_the_limit_is_saved_from_the_row_and_cleared_when_empty(client, control,
     assert PlanAccount.objects.get(account=".codex-2").pause_at_percent is None
 
 
+def test_an_account_pauses_at_its_session_limit_and_resumes_when_the_session_resets(
+    control, workers
+):
+    plan_pause.set_session_limit("claude-code", ".claude-2", "80")
+    PlanMeterReading.objects.create(
+        provider="claude-code", account=".claude-2", week_percent=20, session_percent=70
+    )
+
+    assert plan_pause.pause_on_limit("claude-code", ".claude-2", 22, session_percent=79) is False
+    assert plan_pause.pause_on_limit("claude-code", ".claude-2", 25, session_percent=82) is True
+    assert PlanAccountPause.objects.get().note == "Paused at 80% session limit"
+    meter = next(m for m in plan_meters() if m.account == ".claude-2")
+    assert (
+        meter.paused_at_limit
+        and meter.paused_at_session_limit
+        and meter.pause_at_session_percent == 80
+    )
+
+    # once the five-hour session resets under the limit, the account is open again
+    PlanMeterReading.objects.create(
+        provider="claude-code", account=".claude-2", week_percent=25, session_percent=82
+    )
+    assert plan_pause.pause_on_limit("claude-code", ".claude-2", 25, session_percent=0) is False
+    assert not PlanAccountPause.objects.exists()
+
+    # a manual pause is never lifted by a session reset
+    plan_pause.pause("claude-code", ".claude-2", note="Paused by staff")
+    assert plan_pause.pause_on_limit("claude-code", ".claude-2", 25, session_percent=0) is False
+    assert PlanAccountPause.objects.get().note == "Paused by staff"
+
+
+def test_a_session_run_on_past_its_limit_keeps_running(control, workers):
+    plan_pause.set_session_limit("claude-code", ".claude-2", "80")
+    PlanMeterReading.objects.create(
+        provider="claude-code", account=".claude-2", week_percent=20, session_percent=85
+    )
+
+    assert plan_pause.pause_on_limit("claude-code", ".claude-2", 22, session_percent=90) is False
+    assert not PlanAccountPause.objects.exists()
+
+    # after the session resets under the limit, the next crossing pauses again
+    PlanMeterReading.objects.create(
+        provider="claude-code", account=".claude-2", week_percent=22, session_percent=5
+    )
+    assert plan_pause.pause_on_limit("claude-code", ".claude-2", 24, session_percent=80) is True
+
+
+def test_the_session_limit_is_saved_and_shown_in_the_ai_panel(client, control, workers):
+    from almonium_book_processor.catalog.models import PlanAccount
+
+    client.force_login(get_user_model().objects.create_user(username="staff", is_staff=True))
+    PlanMeterReading.objects.create(
+        provider="claude-code", account=".claude-2", week_percent=30, session_percent=40
+    )
+    PlanMeterReading.objects.create(provider="codex", account=".codex", week_percent=10)
+    url = reverse("catalog:plan-account-pause")
+    row = {"provider": "claude-code", "account": ".claude-2"}
+
+    response = client.post(
+        url, {**row, "action": "limit", "pause_at": "", "pause_at_session": "75"}
+    )
+    assert response.url.endswith("#plans")
+    saved = PlanAccount.objects.get(provider="claude-code", account=".claude-2")
+    assert saved.pause_at_percent is None and saved.pause_at_session_percent == 75
+
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+    assert 'name="pause_at_session"' in page
+    assert "Auto-pauses at 75% session" in page
+    # only the Claude row (which has a session window) gets a session limit input, not Codex
+    assert page.count('name="pause_at_session"') == 1
+
+    # both week and session limits can be set together
+    client.post(url, {**row, "action": "limit", "pause_at": "90", "pause_at_session": "75"})
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+    assert "Auto-pauses at 90% week / 75% session" in page
+
+    # clearing the session limit leaves the week limit intact
+    client.post(url, {**row, "action": "limit", "pause_at": "90", "pause_at_session": ""})
+    saved.refresh_from_db()
+    assert saved.pause_at_percent == 90 and saved.pause_at_session_percent is None
+
+
 def test_claude_calls_go_to_the_open_accounts_in_order(settings):
     settings.CLAUDE_CONFIG_DIRS = ["/home/ok/.claude-2", "/home/ok/.claude"]
 

@@ -501,11 +501,29 @@ def exportable_editions() -> list[Edition]:
 def export_listing() -> dict[str, Any]:
     """What a puller has to know: what this build writes, and what may leave.
 
-    Each entry names its source edition, so a puller that wants everything
-    can fetch only the editions nothing else was generated from; their
-    bundles carry the sources.
+    Each entry names its source edition and its last change timestamp, so a puller
+    can tell whether this environment has editions or edits it does not hold yet.
     """
 
+    from django.db.models import Max
+
+    editions = list(exportable_editions())
+    ids = [edition.id for edition in editions]
+    changed: dict[Any, datetime] = {edition.id: edition.updated_at for edition in editions}
+    if ids:
+        for model, extra in (
+            (ContentBlockRevision, {}),
+            (EditionArtifact, {"is_current": True}),
+        ):
+            for row in (
+                model.objects.filter(edition_id__in=ids, **extra)
+                .values("edition_id")
+                .annotate(last=Max("created_at"))
+            ):
+                if row["last"] and (
+                    row["edition_id"] not in changed or row["last"] > changed[row["edition_id"]]
+                ):
+                    changed[row["edition_id"]] = row["last"]
     return {
         "processor_version": __version__,
         "bundle_schema_version": BUNDLE_SCHEMA_VERSION,
@@ -517,8 +535,9 @@ def export_listing() -> dict[str, Any]:
                 "id": str(edition.id),
                 "status": edition.status,
                 "source_edition": edition.source_edition.slug if edition.source_edition else None,
+                "changed_at": changed[edition.id].isoformat() if changed.get(edition.id) else None,
             }
-            for edition in exportable_editions()
+            for edition in editions
         ],
     }
 

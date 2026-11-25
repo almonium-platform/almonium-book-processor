@@ -293,7 +293,8 @@ def test_the_catalogue_catches_a_target_up_on_everything_it_is_behind_on(
     )
     client.force_login(get_user_model().objects.create_user(username="staff", is_staff=True))
     dashboard = client.get(reverse("catalog:dashboard")).content.decode()
-    assert "Promote " not in dashboard  # nothing behind, no button
+    assert "3 to promote (3 new)" in dashboard
+    assert "Promote 3 to staging" in dashboard
 
     # The original was promoted without publication and corrected since; the
     # adaptation's last attempt, which asked for publication, failed.
@@ -303,8 +304,8 @@ def test_the_catalogue_catches_a_target_up_on_everything_it_is_behind_on(
     promote(adapted, "staging")
     promote(adapted, "staging", status="failed", when=timezone.now())
     dashboard = client.get(reverse("catalog:dashboard")).content.decode()
-    assert "2 editions behind staging" in dashboard
-    assert "Promote 2 to staging" in dashboard
+    assert "3 to promote (1 new, 2 behind)" in dashboard
+    assert "Update 2 existing" in dashboard
 
     response = client.post(reverse("catalog:promote-behind"), {"target": "staging"}, follow=True)
     assert "2 promotions to staging queued: release-en, release-en-b2" in response.content.decode()
@@ -320,10 +321,88 @@ def test_the_catalogue_catches_a_target_up_on_everything_it_is_behind_on(
     assert runs[str(original.id)].summary["publish"] is False
     assert runs[str(adapted.id)].summary["publish"] is True
     assert not PipelineRun.objects.filter(edition=fresh, stage="promote").exists()
-    # Both rows now follow their run, and the button is gone until something lands.
+    # Both rows now follow their run, and only the never-promoted edition remains.
     dashboard = client.get(reverse("catalog:dashboard")).content.decode()
     assert dashboard.count('<span class="run-stage"><span>Promotion</span>') == 2
-    assert "Promote 2 to" not in dashboard
+    assert "Promote 1 to staging" in dashboard
+    assert "Update 2 existing" not in dashboard
 
     response = client.post(reverse("catalog:promote-behind"), {"target": "nowhere"}, follow=True)
     assert "Choose a configured promotion target." in response.content.decode()
+
+
+def test_promotion_sync_promotes_all_with_publish_and_checks_or_pulls_remote_changes(
+    client, published, monkeypatch
+):
+    from almonium_book_processor.catalog.promotion import BUNDLE_SCHEMA_VERSION, catalog_migration
+
+    original, adapted = published
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TARGETS", "staging=https://staging.example")
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TOKEN_STAGING", "t")
+    queued_promote = []
+    queued_pull = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.promote_edition.delay",
+        lambda run_id, publish=False: queued_promote.append((run_id, publish)),
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.pull_from_target.delay",
+        lambda target_name, slugs: queued_pull.append((target_name, slugs)),
+    )
+    client.force_login(get_user_model().objects.create_user(username="staff", is_staff=True))
+
+    # Promote all sends never-promoted editions with publish=True by default, sources first.
+    response = client.post(
+        reverse("catalog:promotion-sync"),
+        {"target": "staging", "action": "promote-all"},
+        follow=True,
+    )
+    assert "2 promotions to staging queued: release-en, release-en-b2" in response.content.decode()
+    assert [publish for _, publish in queued_promote] == [True, True]
+
+    # Check staging reports editions only on staging and editions edited more recently there.
+    future = (timezone.now() + timedelta(hours=1)).isoformat()
+    listing = {
+        "bundle_schema_version": BUNDLE_SCHEMA_VERSION,
+        "catalog_migration": catalog_migration(),
+        "origin": "staging",
+        "editions": [
+            {
+                "slug": original.slug,
+                "id": str(original.id),
+                "status": "published",
+                "source_edition": None,
+                "changed_at": future,
+            },
+            {
+                "slug": "remote-only-de",
+                "id": str(uuid.uuid4()),
+                "status": "published",
+                "source_edition": None,
+                "changed_at": future,
+            },
+        ],
+    }
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.promotion_client.PromotionClient.exports",
+        lambda self: listing,
+    )
+    response = client.post(
+        reverse("catalog:promotion-sync"),
+        {"target": "staging", "action": "check"},
+        follow=True,
+    )
+    html = response.content.decode()
+    assert "Pull before pushing" in html
+    assert "remote-only-de" in html and "Only on staging" in html
+    assert "Newer on staging" in html
+    assert "Pull 2 from staging" in html
+
+    # Pulling queues the background task and clears the cached warning.
+    response = client.post(
+        reverse("catalog:promotion-sync"),
+        {"target": "staging", "action": "pull"},
+        follow=True,
+    )
+    assert queued_pull == [("staging", ["release-en", "remote-only-de"])]
+    assert "Pulling 2 editions from staging in the background" in response.content.decode()

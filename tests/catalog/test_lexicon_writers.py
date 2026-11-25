@@ -186,3 +186,29 @@ def test_the_dashboard_has_the_writers_and_its_buttons_come_back_to_it(client, a
     assert response.url == reverse("catalog:dashboard") + "#entries"
     writer.refresh_from_db()
     assert not writer.running
+
+
+def test_a_writer_stops_when_its_claude_account_is_paused_and_resumes_when_lifted(host):
+    from almonium_book_processor.catalog.models import PlanAccountPause
+
+    writer = _add(account=".claude")
+    lexicon_writers.set_running(writer, True, by="editor")
+    unit = f"almonium-lexicon-writer@{writer.id}.service"
+    systemd = FakeSystemd(active={unit})
+
+    PlanAccountPause.objects.create(provider="claude-code", account=".claude", note="Paused by app")
+    done = lexicon_writers.reconcile(runner=systemd)
+
+    assert f"stop {unit}" in systemd.calls
+    assert any("account paused" in line for line in done)
+    writer.refresh_from_db()
+    assert writer.running and writer.state == "account paused"
+
+    # unpausing the account in the AI panel brings the writer back up on the next pass
+    systemd.calls.clear()
+    PlanAccountPause.objects.filter(provider="claude-code", account=".claude").delete()
+    lexicon_writers.reconcile(runner=systemd)
+
+    assert f"start {unit}" in systemd.calls
+    writer.refresh_from_db()
+    assert writer.running and writer.state == "active"
