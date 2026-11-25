@@ -501,15 +501,30 @@ def exportable_editions() -> list[Edition]:
 def export_listing() -> dict[str, Any]:
     """What a puller has to know: what this build writes, and what may leave.
 
-    Each entry names its source edition and its last change timestamp, so a puller
-    can tell whether this environment has editions or edits it does not hold yet.
+    Each entry names its source edition and its last change timestamp (``None``
+    when this environment holds an unmodified imported copy), so a puller can
+    tell whether this environment has editions or edits it does not hold yet.
     """
+
+    from datetime import timedelta
 
     from django.db.models import Max
 
     editions = list(exportable_editions())
     ids = [edition.id for edition in editions]
-    changed: dict[Any, datetime] = {edition.id: edition.updated_at for edition in editions}
+    # For an imported edition, only changes strictly after promoted_at count as
+    # edits made in this environment (import_bundle stamps updated_at on arrival).
+    changed: dict[Any, datetime | None] = {}
+    for edition in editions:
+        edited_after_import = (
+            edition.updated_at is not None
+            and edition.promoted_at is not None
+            and edition.updated_at > edition.promoted_at + timedelta(seconds=5)
+        )
+        changed[edition.id] = (
+            edition.updated_at if edition.promoted_at is None or edited_after_import else None
+        )
+    promoted_at_by_id = {edition.id: edition.promoted_at for edition in editions}
     if ids:
         for model, extra in (
             (ContentBlockRevision, {}),
@@ -520,10 +535,15 @@ def export_listing() -> dict[str, Any]:
                 .values("edition_id")
                 .annotate(last=Max("created_at"))
             ):
-                if row["last"] and (
-                    row["edition_id"] not in changed or row["last"] > changed[row["edition_id"]]
-                ):
-                    changed[row["edition_id"]] = row["last"]
+                last = row["last"]
+                if not last:
+                    continue
+                promoted_at = promoted_at_by_id.get(row["edition_id"])
+                if promoted_at is not None and last <= promoted_at + timedelta(seconds=5):
+                    continue
+                prev = changed.get(row["edition_id"])
+                if prev is None or last > prev:
+                    changed[row["edition_id"]] = last
     return {
         "processor_version": __version__,
         "bundle_schema_version": BUNDLE_SCHEMA_VERSION,

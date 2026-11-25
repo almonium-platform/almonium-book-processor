@@ -390,11 +390,16 @@ def check_target_sync(target) -> dict[str, Any]:
         return {"checked_at": checked_at, "error": problem}
 
     remote_entries = listing.get("editions") or []
-    local_editions = list(Edition.objects.all().only("id", "slug", "updated_at"))
+    local_editions = list(
+        Edition.objects.all().only("id", "slug", "updated_at", "source_edition_id")
+    )
     by_slug = {edition.slug: edition for edition in local_editions}
     by_id = {str(edition.id): edition for edition in local_editions}
+    parent_of = {edition.id: edition.source_edition_id for edition in local_editions}
     local_changed = _local_changed_at(local_editions)
 
+    # Pushing a derived edition carries its source chain in the same bundle, so
+    # credit the push timestamp to the edition and every ancestor in its chain.
     last_pushed: dict[Any, datetime] = {}
     for run in (
         PipelineRun.objects.filter(
@@ -405,11 +410,18 @@ def check_target_sync(target) -> dict[str, Any]:
         .order_by("-created_at")
         .only("edition_id", "created_at", "finished_at")
     ):
-        last_pushed.setdefault(run.edition_id, run.finished_at or run.created_at)
+        moment = run.finished_at or run.created_at
+        cursor = run.edition_id
+        seen: set[Any] = set()
+        while cursor and cursor not in seen:
+            seen.add(cursor)
+            if cursor not in last_pushed or moment > last_pushed[cursor]:
+                last_pushed[cursor] = moment
+            cursor = parent_of.get(cursor)
 
     only_on_target: list[dict[str, str]] = []
     newer_on_target: list[dict[str, str]] = []
-    supports_changed_at = False
+    supports_changed_at = any("changed_at" in entry for entry in remote_entries)
     for entry in remote_entries:
         slug = entry.get("slug", "")
         local = by_slug.get(slug) or by_id.get(entry.get("id", ""))
@@ -418,7 +430,6 @@ def check_target_sync(target) -> dict[str, Any]:
             continue
         raw_changed = entry.get("changed_at")
         if raw_changed:
-            supports_changed_at = True
             remote_dt = parse_datetime(raw_changed)
             local_dt = local_changed.get(local.id)
             pushed_dt = last_pushed.get(local.id)

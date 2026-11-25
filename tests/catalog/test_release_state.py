@@ -406,3 +406,50 @@ def test_promotion_sync_promotes_all_with_publish_and_checks_or_pulls_remote_cha
     )
     assert queued_pull == [("staging", ["release-en", "remote-only-de"])]
     assert "Pulling 2 editions from staging in the background" in response.content.decode()
+
+
+def test_check_target_sync_does_not_flag_a_source_just_pushed_via_its_adaptation(
+    published, monkeypatch
+):
+    from almonium_book_processor.catalog.promotion import (
+        BUNDLE_SCHEMA_VERSION,
+        catalog_migration,
+        export_listing,
+        promotion_target,
+    )
+    from almonium_book_processor.catalog.release_state import check_target_sync
+
+    original, adapted = published
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TARGETS", "staging=https://staging.example")
+    monkeypatch.setenv("ALMONIUM_BOOKS_PROMOTION_TOKEN_STAGING", "t")
+
+    # An unmodified imported edition reports changed_at=None in export_listing.
+    now = timezone.now()
+    Edition.objects.filter(pk=original.pk).update(promoted_at=now, updated_at=now)
+    listing_here = {item["slug"]: item for item in export_listing()["editions"]}
+    assert listing_here[original.slug]["changed_at"] is None
+
+    # Even if an older staging reports updated_at from the import, a succeeded promotion
+    # of its derived edition credits the source edition so it is not flagged as newer.
+    promote(adapted, "staging", status="succeeded", when=now)
+    remote = {
+        "bundle_schema_version": BUNDLE_SCHEMA_VERSION,
+        "catalog_migration": catalog_migration(),
+        "origin": "staging",
+        "editions": [
+            {
+                "slug": original.slug,
+                "id": str(original.id),
+                "status": "published",
+                "source_edition": None,
+                "changed_at": now.isoformat(),
+            }
+        ],
+    }
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.promotion_client.PromotionClient.exports",
+        lambda self: remote,
+    )
+    result = check_target_sync(promotion_target("staging"))
+    assert result["newer_on_target"] == []
+    assert result["only_on_target"] == []
