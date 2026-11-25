@@ -153,6 +153,7 @@ def _promotion_sync_context(request: HttpRequest) -> dict:
     targets = promotion_sync_summary(remote_checks)
     return {
         "targets": targets,
+        "has_newer": any(row["remote"] and row["remote"].get("newer_on_target") for row in targets),
         "has_pull": any(row["pull_count"] for row in targets),
         "has_error": any(row["remote"] and row["remote"].get("error") for row in targets),
     }

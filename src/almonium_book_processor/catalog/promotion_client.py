@@ -134,5 +134,5 @@ class PromotionClient:
             request,
             timeout=EXPORT_TIMEOUT_SECONDS,
             failure=f"Pulling {slug} from {self.target.name} failed",
-            accept="application/zip",
+            accept="application/zip, */*",
         )

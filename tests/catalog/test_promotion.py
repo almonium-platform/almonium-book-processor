@@ -1027,7 +1027,7 @@ def test_the_client_lists_and_pulls_exports_and_relays_a_refusal(monkeypatch):
         },
         {
             "url": "https://staging.example.test/api/v1/internal/promotions/exports/book-en/",
-            "accept": "application/zip",
+            "accept": "application/zip, */*",
         },
     ]
 
