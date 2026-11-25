@@ -275,3 +275,54 @@ def test_lexicon_publish_queues_ingests_and_publishes_on_the_host(client, host):
 
     page = client.get(reverse("catalog:dashboard")).content.decode()
     assert "Publish to Staging" in page and "42 accepted" in page
+
+
+def test_lexicon_publish_syncs_cached_audio_clips_after_publishing(host):
+    from almonium_book_processor.catalog.models import LexiconPublishRun
+
+    audio_dir = host / "almonium-be" / "scripts" / "lexicon_research" / "out" / "audio"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    run = LexiconPublishRun.objects.create(
+        target=LexiconPublishRun.Target.LOCAL,
+        languages="en,it",
+        requested_by="editor",
+    )
+
+    calls = []
+
+    def fake_runner(command, **kwargs):
+        calls.append((command, kwargs.get("env") or {}))
+        if command[0] == "systemctl":
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if "publish_entries.py" in command[1]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout="10 accepted, 0 rejected (0 whole batches failed) in 1s\n",
+                stderr="",
+            )
+        if "render_clips.py" in command[1]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=(
+                    "| Language | Pending | Rendered | Verified |\n"
+                    "|---|---|---|---|\n"
+                    "| en | 10 | 6 | 6 |\n"
+                ),
+                stderr="",
+            )
+        return subprocess.CompletedProcess(command, 0, stdout="ingested\n", stderr="")
+
+    done = lexicon_writers.reconcile(runner=fake_runner)
+
+    run.refresh_from_db()
+    assert run.status == LexiconPublishRun.Status.SUCCEEDED
+    assert "6 cached clips synced" in run.last_line
+    assert any("6 cached clips synced" in line for line in done)
+    script_calls = [c[0] for c in calls if c[0][0] != "systemctl"]
+    assert len(script_calls) == 3
+    assert "render_clips.py" in script_calls[2][1]
+    assert "--cached-only" in script_calls[2]
+    # "it" has no voice yet, so only "en" is passed to render_clips.py
+    assert script_calls[2][script_calls[2].index("--langs") + 1] == "en"

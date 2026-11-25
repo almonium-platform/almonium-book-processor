@@ -26,6 +26,7 @@ from django.utils import timezone
 from almonium_book_processor.catalog.models import LexiconPublishRun, LexiconWriter
 
 LANGUAGES = ("en", "de", "fr", "es", "it", "pt")
+VOICED_LANGUAGES = ("en", "de", "fr", "es")
 PUBLISH_TARGETS = tuple(LexiconPublishRun.Target.values)
 DEFAULT_LOCAL_BACKEND_URL = "http://localhost:9998/api/v1"
 MODELS = ("claude-opus-5-5", "claude-fable-5-2")
@@ -369,8 +370,19 @@ def _parse_publish_counts(output: str) -> tuple[int, int, str]:
     return accepted, rejected, last_line
 
 
+def _parse_clip_sync_count(output: str) -> int:
+    import re
+
+    total = 0
+    for line in output.splitlines():
+        match = re.match(r"^\|\s*[a-z]{2}\s*\|\s*\d+\s*\|\s*(\d+)\s*\|", line.strip())
+        if match:
+            total += int(match.group(1))
+    return total
+
+
 def reconcile_publishes(*, runner: Runner = subprocess.run) -> list[str]:
-    """Run the oldest queued LexiconPublishRun on the host: ingest_v4.py then publish_entries.py."""
+    """Run the oldest queued LexiconPublishRun: ingest_v4, publish_entries, then cached audio."""
 
     if LexiconPublishRun.objects.filter(status=LexiconPublishRun.Status.RUNNING).exists():
         return []
@@ -431,8 +443,45 @@ def reconcile_publishes(*, runner: Runner = subprocess.run) -> list[str]:
                 f"({accepted} accepted, {rejected} rejected)"
             )
         else:
+            target_langs = (
+                [lang.strip() for lang in run.languages.split(",") if lang.strip()]
+                if run.languages
+                else list(LANGUAGES)
+            )
+            audio_langs = [lang for lang in target_langs if lang in VOICED_LANGUAGES]
+            audio_dir = backend / "scripts" / "lexicon_research" / "out" / "audio"
+            clips_synced = 0
+            if audio_langs and audio_dir.is_dir():
+                clips = runner(
+                    [
+                        python,
+                        "scripts/lexicon_research/render_clips.py",
+                        "--cached-only",
+                        "--backend",
+                        url,
+                        "--langs",
+                        ",".join(audio_langs),
+                    ],
+                    cwd=backend,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                clips_out = f"{clips.stdout or ''}\n{clips.stderr or ''}"
+                if clips.returncode != 0:
+                    raise RuntimeError(
+                        f"render_clips.py --cached-only failed: {clips_out.strip()[-500:]}"
+                    )
+                clips_synced = _parse_clip_sync_count(clips_out)
             run.status = LexiconPublishRun.Status.SUCCEEDED
-            note = f"lexicon publish -> {run.target}: {accepted} accepted, {rejected} rejected"
+            audio_note = f", {clips_synced} cached clips synced" if clips_synced else ""
+            if audio_note:
+                run.last_line = f"{last_line}{audio_note}"[:300]
+            note = (
+                f"lexicon publish -> {run.target}: {accepted} accepted, {rejected} rejected"
+                f"{audio_note}"
+            )
     except Exception as error:
         run.status = LexiconPublishRun.Status.FAILED
         run.error = str(error)[:1000]
