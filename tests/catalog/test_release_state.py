@@ -453,3 +453,36 @@ def test_check_target_sync_does_not_flag_a_source_just_pushed_via_its_adaptation
     result = check_target_sync(promotion_target("staging"))
     assert result["newer_on_target"] == []
     assert result["only_on_target"] == []
+
+
+def test_publish_ready_queues_ready_editions_sources_first_and_skips_blocked(
+    client, published, monkeypatch
+):
+    from almonium_book_processor.catalog.release_state import editions_to_publish
+
+    original, adapted = published
+    Edition.objects.filter(pk__in=[original.pk, adapted.pk]).update(
+        status="ready", published_at=None
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.publication_blocker",
+        lambda edition, allow_unpublished_source=False: "",
+    )
+    assert [ed.slug for ed in editions_to_publish()] == [original.slug, adapted.slug]
+
+    triggered = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.publish_ready_editions.delay",
+        lambda: triggered.append(True),
+    )
+    client.force_login(get_user_model().objects.create_user(username="staff", is_staff=True))
+
+    dashboard = client.get(reverse("catalog:dashboard")).content.decode()
+    assert "Publish 2 to Almonium" in dashboard
+
+    response = client.post(reverse("catalog:publish-ready"), follow=True)
+    assert triggered == [True]
+    assert (
+        "Queued publication of all ready editions to Almonium in the background."
+        in response.content.decode()
+    )

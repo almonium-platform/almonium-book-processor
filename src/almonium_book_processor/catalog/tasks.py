@@ -579,7 +579,7 @@ def process_normalized_edition(self, edition_id: str) -> None:
         raise
 
 
-def publication_blocker(edition: Edition) -> str:
+def publication_blocker(edition: Edition, *, allow_unpublished_source: bool = False) -> str:
     """Why this edition cannot go to Almonium right now, or an empty string.
 
     The web layer asks before queueing so the editor sees the reason instead of
@@ -601,7 +601,11 @@ def publication_blocker(edition: Edition) -> str:
         return "A CEFR level is required before publication."
     if edition.work.publication_year is None:
         return "A publication year is required before publication."
-    if edition.source_edition_id and edition.source_edition.status != Edition.Status.PUBLISHED:
+    if (
+        not allow_unpublished_source
+        and edition.source_edition_id
+        and edition.source_edition.status != Edition.Status.PUBLISHED
+    ):
         return "Publish the source edition first: " + edition.source_edition.slug + "."
     spacy_model = settings.NLP_SPACY_MODELS.get(edition.language, "blank")
     sentence_input_hash = _text_hash(
@@ -771,6 +775,19 @@ def promote_edition(run_id: str, *, publish: bool = False) -> None:
         run.error = str(error)[:10000]
         run.save(update_fields=["status", "finished_at", "error", "updated_at"])
         raise
+
+
+@shared_task
+def publish_ready_editions() -> dict:
+    """Queue publication for every ready/stale public edition in the background."""
+
+    from almonium_book_processor.catalog.release_state import (
+        editions_to_publish,
+        queue_bulk_publications,
+    )
+
+    queued = queue_bulk_publications(editions_to_publish())
+    return {"queued": [edition.slug for edition in queued]}
 
 
 @shared_task

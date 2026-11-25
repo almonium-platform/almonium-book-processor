@@ -181,13 +181,21 @@
       <p class="muted"><a href="{% url 'catalog:operations' %}?show=entries">Entries by language and by writer</a></p>
     </div>
   </details>
-  {% if sync.targets %}
+  {% if sync.targets or sync.publish_total or sync.publish_queued %}
   <details class="book-queue" id="sync"{% if sync.has_pull or sync.has_error %} open{% endif %}>
     <summary class="book-queue-head">
-      <strong>Promotion</strong>
-      <span class="book-queue-tick">{% for item in sync.targets %}{{ item.target }}: {% if item.total %}{{ item.total }} to promote ({% if item.new %}{{ item.new }} new{% endif %}{% if item.new and item.behind_total %}, {% endif %}{% if item.behind_total %}{{ item.behind_total }} behind{% endif %}){% else %}up to date{% endif %}{% if item.queued %} · {{ item.queued }} queued{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+      <strong>Release</strong>
+      <span class="book-queue-tick">{% if sync.publish_total or sync.publish_queued %}Here: {% if sync.publish_total %}{{ sync.publish_total }} to publish ({% if sync.publish_ready %}{{ sync.publish_ready }} ready{% endif %}{% if sync.publish_ready and sync.publish_stale %}, {% endif %}{% if sync.publish_stale %}{{ sync.publish_stale }} stale{% endif %}){% else %}all published{% endif %}{% if sync.publish_queued %} · {{ sync.publish_queued }} queued{% endif %}{% if sync.targets %} · {% endif %}{% endif %}{% for item in sync.targets %}{{ item.target }}: {% if item.total %}{{ item.total }} to promote ({% if item.new %}{{ item.new }} new{% endif %}{% if item.new and item.behind_total %}, {% endif %}{% if item.behind_total %}{{ item.behind_total }} behind{% endif %}){% else %}up to date{% endif %}{% if item.queued %} · {{ item.queued }} queued{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
       {% if sync.has_newer %}<span class="status status-review">Pull before pushing</span>{% elif sync.has_pull %}<span class="status status-review">Available to pull</span>{% elif sync.has_error %}<span class="status status-failed">Check failed</span>{% endif %}
     </summary>
+    {% if sync.publish_total or sync.publish_queued %}
+    <div class="book-queue-actions">
+      {% if sync.publish_total %}
+      <form method="post" action="{% url 'catalog:publish-ready' %}">{% csrf_token %}<button class="button button-small" type="submit" title="Queue publication to this environment's Almonium for every ready edition (and any published edition with stale metadata), sources first.">Publish {{ sync.publish_total }} to Almonium</button></form>
+      {% endif %}
+      <small class="muted">{% if sync.publish_total %}{% if sync.publish_ready %}{{ sync.publish_ready }} ready{% endif %}{% if sync.publish_ready and sync.publish_stale %}, {% endif %}{% if sync.publish_stale %}{{ sync.publish_stale }} metadata behind{% endif %} here.{% endif %}{% if sync.publish_queued %} {{ sync.publish_queued }} publication{{ sync.publish_queued|pluralize }} already queued.{% endif %}</small>
+    </div>
+    {% endif %}
     {% for item in sync.targets %}
     <div class="book-queue-actions">
       {% if item.total %}

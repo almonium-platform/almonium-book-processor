@@ -145,14 +145,33 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 
 
 def _promotion_sync_context(request: HttpRequest) -> dict:
-    """Per-target promotion counts and any remote check stored in the session."""
+    """Local ready count, per-target promotion counts, and any remote check in session."""
 
     from almonium_book_processor.catalog.release_state import promotion_sync_summary
 
     remote_checks = request.session.get("promotion_sync") or {}
     targets = promotion_sync_summary(remote_checks)
+    in_flight = set(
+        PipelineRun.objects.filter(
+            stage=PipelineRun.Stage.PUBLISH,
+            status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING],
+            edition__work__visibility=Work.Visibility.PUBLIC,
+        ).values_list("edition_id", flat=True)
+    )
+    ready_count = (
+        Edition.objects.filter(
+            work__visibility=Work.Visibility.PUBLIC,
+            status=Edition.Status.READY,
+        )
+        .exclude(id__in=in_flight)
+        .count()
+    )
     return {
         "targets": targets,
+        "publish_total": ready_count,
+        "publish_ready": ready_count,
+        "publish_stale": 0,
+        "publish_queued": len(in_flight),
         "has_newer": any(row["remote"] and row["remote"].get("newer_on_target") for row in targets),
         "has_pull": any(row["pull_count"] for row in targets),
         "has_error": any(row["remote"] and row["remote"].get("error") for row in targets),
@@ -2476,6 +2495,21 @@ def promotion_sync_view(request: HttpRequest) -> HttpResponse:
 
     messages.error(request, "Choose check, pull, or promote.")
     return back
+
+
+@staff_member_required
+@require_POST
+def publish_ready_view(request: HttpRequest) -> HttpResponse:
+    """Queue publication to this environment's Almonium for every ready/stale public edition."""
+
+    from almonium_book_processor.catalog.tasks import publish_ready_editions
+
+    publish_ready_editions.delay()
+    messages.success(
+        request,
+        "Queued publication of all ready editions to Almonium in the background.",
+    )
+    return redirect(f"{reverse('catalog:dashboard')}#sync")
 
 
 @staff_member_required

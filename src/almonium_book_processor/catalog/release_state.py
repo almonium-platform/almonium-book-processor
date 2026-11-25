@@ -514,3 +514,69 @@ def promotion_sync_summary(remote_checks: dict[str, dict] | None = None) -> list
             }
         )
     return rows
+
+
+def editions_to_publish() -> list[Edition]:
+    """Every public ready edition (and published edition with stale metadata) ready to publish here,
+    in source-first order, skipping anything already queued/running for publication.
+    """
+
+    from almonium_book_processor.catalog.catalogue import _editions
+    from almonium_book_processor.catalog.models import Work
+    from almonium_book_processor.catalog.promotion import promotion_chain
+    from almonium_book_processor.catalog.tasks import publication_blocker, publication_stale
+
+    editions = list(_editions(Work.Visibility.PUBLIC))
+    in_flight = set(
+        PipelineRun.objects.filter(
+            stage=PipelineRun.Stage.PUBLISH,
+            status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING],
+            edition__work__visibility=Work.Visibility.PUBLIC,
+        ).values_list("edition_id", flat=True)
+    )
+    will_be_published = {
+        edition.id for edition in editions if edition.status == Edition.Status.PUBLISHED
+    }
+    ordered = sorted(
+        (
+            edition
+            for edition in editions
+            if edition.status in (Edition.Status.READY, Edition.Status.PUBLISHED)
+            and edition.id not in in_flight
+        ),
+        key=lambda edition: (len(promotion_chain(edition)), edition.slug),
+    )
+    selected: list[Edition] = []
+    for edition in ordered:
+        if edition.status == Edition.Status.PUBLISHED:
+            if publication_stale(edition) and not publication_blocker(edition):
+                selected.append(edition)
+            continue
+        if edition.source_edition_id and edition.source_edition_id not in will_be_published:
+            continue
+        if not publication_blocker(edition, allow_unpublished_source=True):
+            selected.append(edition)
+            will_be_published.add(edition.id)
+    return selected
+
+
+def queue_bulk_publications(editions: list[Edition]) -> list[Edition]:
+    """Queue publication of ``editions``, chained per source root so sources land before
+    their derived editions while an error in one book never blocks the rest.
+    """
+
+    from celery import chain
+
+    from almonium_book_processor.catalog.promotion import promotion_chain
+    from almonium_book_processor.catalog.tasks import publish_edition
+
+    by_root: dict[Any, list[Edition]] = {}
+    for edition in editions:
+        root_id = promotion_chain(edition)[0].id
+        by_root.setdefault(root_id, []).append(edition)
+    for group in by_root.values():
+        if len(group) == 1:
+            publish_edition.delay(str(group[0].id))
+        else:
+            chain(*[publish_edition.si(str(ed.id)) for ed in group]).apply_async()
+    return editions

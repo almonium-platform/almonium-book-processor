@@ -270,6 +270,7 @@ urlpatterns = [
     ),
     path("promote-behind/", views.promote_behind_view, name="promote-behind"),
     path("promotions/sync/", views.promotion_sync_view, name="promotion-sync"),
+    path("publish-ready/", views.publish_ready_view, name="publish-ready"),
     path("spend-guard/run/", views.run_spend_guard_view, name="run-spend-guard"),
     path("spending/", views.spending_view, name="spending"),
     path("spending/caps/", views.set_budgets_view, name="set-budgets"),
