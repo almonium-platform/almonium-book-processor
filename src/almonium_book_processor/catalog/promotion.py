@@ -579,7 +579,9 @@ def _edition_section(edition: Edition) -> dict[str, Any]:
     for key, model, fields, user_field, scope in EDITION_TABLES:
         queryset = model.objects.filter(**{scope: edition.id}).order_by("id")
         if model is PipelineRun:
-            queryset = queryset.exclude(stage__in=LOCAL_RUN_STAGES)
+            queryset = queryset.exclude(stage__in=LOCAL_RUN_STAGES).exclude(
+                status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING]
+            )
         if model is EditionArtifact:
             queryset = queryset.filter(
                 Q(is_current=True) | Q(text_quality_findings__edition_id=edition.id)

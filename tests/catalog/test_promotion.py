@@ -927,6 +927,38 @@ def test_targets_come_from_the_environment_and_need_their_token(monkeypatch):
 # Pulling from an environment that cannot push here.
 
 
+def test_in_flight_pipeline_runs_do_not_travel_in_a_promotion_bundle():
+    edition = build_edition(slug="live-factory-en")
+    done = PipelineRun.objects.create(
+        edition=edition,
+        stage=PipelineRun.Stage.ADAPT,
+        status=PipelineRun.Status.SUCCEEDED,
+        idempotency_key="done-adapt",
+        processor_version="production-v1",
+    )
+    active = PipelineRun.objects.create(
+        edition=edition,
+        stage=PipelineRun.Stage.ADAPT,
+        status=PipelineRun.Status.RUNNING,
+        idempotency_key="live-adapt",
+        processor_version="production-v1",
+    )
+    queued = PipelineRun.objects.create(
+        edition=edition,
+        stage=PipelineRun.Stage.ADAPT,
+        status=PipelineRun.Status.QUEUED,
+        idempotency_key="queued-adapt",
+        processor_version="production-v1",
+    )
+
+    manifest, _ = promotion._read_manifest(promotion.export_bundle(edition))
+    exported_ids = {row["id"] for row in manifest["editions"][0]["pipeline_runs"]}
+
+    assert str(done.id) in exported_ids
+    assert str(active.id) not in exported_ids
+    assert str(queued.id) not in exported_ids
+
+
 def test_the_export_listing_offers_what_may_leave_and_names_each_source():
     original = build_edition(slug="book-en")
     translation = build_edition(
