@@ -42,3 +42,20 @@
       <label><input type="checkbox" name="start" value="1" checked> start now</label>
       <button class="button button-small">Add writer</button>
     </form>
+
+    {% if lexicon_publish %}
+    <div class="ops-publish-bar">
+      <form method="post" action="{% url 'catalog:lexicon-publish' %}" class="ops-writer-form">
+        {% csrf_token %}<input type="hidden" name="back" value="{{ back }}">
+        <label>Publish entries <select name="languages"><option value="">All languages</option>{% for code in writer_choices.languages %}<option value="{{ code }}">{{ code|upper }}</option>{% endfor %}</select></label>
+        {% for t in lexicon_publish.targets %}
+          <button class="button button-small{% if t.name != 'local' %} button-secondary{% endif %}" type="submit" name="target" value="{{ t.name }}"{% if t.in_flight %} disabled{% endif %}{% if t.name == 'prod' %} onclick="return confirm('{% if lexicon_publish.staging_ok %}Ingest and publish dictionary entries to PROD?{% else %}Staging has not succeeded yet. Ingest and publish dictionary entries to PROD anyway?{% endif %}')"{% endif %} title="Runs ingest_v4.py then publish_entries.py to {{ t.name }} on the host within a minute">{% if t.in_flight %}{{ t.label }} ({{ t.run.status }}…){% else %}Publish to {{ t.label }}{% endif %}</button>
+        {% endfor %}
+      </form>
+      <p class="muted ops-publish-status">
+        {% for t in lexicon_publish.targets %}
+          <span><strong>{{ t.label }}:</strong> {% if t.run %}{% if t.run.status == 'succeeded' %}{{ t.run.accepted }} accepted{% if t.run.rejected %}, {{ t.run.rejected }} rejected{% endif %} · {{ t.run.finished_at|timesince }} ago{% elif t.run.status == 'failed' %}<span class="ops-error">failed</span>{% if t.run.last_line %} ({{ t.run.last_line|truncatechars:80 }}){% endif %}{% else %}{{ t.run.status }}…{% endif %}{% else %}never published{% endif %}</span>{% if not forloop.last %} · {% endif %}
+        {% endfor %}
+      </p>
+    </div>
+    {% endif %}

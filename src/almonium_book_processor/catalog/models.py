@@ -1411,6 +1411,43 @@ class LexiconWriter(TimestampedModel):
         return f"{self.language} {self.word_list} on {self.account}"
 
 
+class LexiconPublishRun(TimestampedModel):
+    """One ingest + publish pass of dictionary entries to a backend environment.
+
+    Requested from the Entries panel on the dashboard or Operations page; the host's
+    reconcile timer (``manage.py lexicon_writers --reconcile``) runs ``ingest_v4.py``
+    and ``publish_entries.py`` against the target's backend URL and records the result.
+    """
+
+    class Target(models.TextChoices):
+        LOCAL = "local", "Local"
+        STAGING = "staging", "Staging"
+        PROD = "prod", "Prod"
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        RUNNING = "running", "Running"
+        SUCCEEDED = "succeeded", "Succeeded"
+        FAILED = "failed", "Failed"
+
+    target = models.CharField(max_length=16, choices=Target.choices)
+    languages = models.CharField(max_length=40, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.QUEUED)
+    requested_by = models.CharField(max_length=150, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    accepted = models.PositiveIntegerField(default=0)
+    rejected = models.PositiveIntegerField(default=0)
+    last_line = models.CharField(max_length=300, blank=True)
+    error = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Lexicon publish -> {self.target} ({self.status})"
+
+
 class BookPause(TimestampedModel):
     """A book the owner has stopped for now.
 

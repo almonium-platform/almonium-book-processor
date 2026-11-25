@@ -23,9 +23,11 @@ from pathlib import Path
 from django.conf import settings
 from django.utils import timezone
 
-from almonium_book_processor.catalog.models import LexiconWriter
+from almonium_book_processor.catalog.models import LexiconPublishRun, LexiconWriter
 
 LANGUAGES = ("en", "de", "fr", "es", "it", "pt")
+PUBLISH_TARGETS = tuple(LexiconPublishRun.Target.values)
+DEFAULT_LOCAL_BACKEND_URL = "http://localhost:9998/api/v1"
 MODELS = ("claude-opus-5-5", "claude-fable-5-2")
 EFFORTS = ("low", "medium", "high")
 MAX_WORKERS = 6
@@ -108,6 +110,60 @@ def set_running(writer: LexiconWriter, running: bool, *, by: str) -> None:
     writer.running = running
     writer.changed_by = by[:150]
     writer.save(update_fields=["running", "changed_by", "updated_at"])
+
+
+def request_publish(*, target: str, languages: str = "", by: str = "") -> LexiconPublishRun:
+    """Queue an ingest + publish pass to ``target`` for the host timer to pick up."""
+
+    if target not in PUBLISH_TARGETS:
+        raise ValueError(f"Choose one of: {', '.join(PUBLISH_TARGETS)}.")
+    cleaned_langs = [lang.strip() for lang in languages.split(",") if lang.strip()]
+    bad = [lang for lang in cleaned_langs if lang not in LANGUAGES]
+    if bad:
+        raise ValueError(f"Unknown language(s): {', '.join(bad)}.")
+    if LexiconPublishRun.objects.filter(
+        target=target,
+        status__in=[LexiconPublishRun.Status.QUEUED, LexiconPublishRun.Status.RUNNING],
+    ).exists():
+        raise ValueError(f"A publish run to {target} is already queued or running.")
+    return LexiconPublishRun.objects.create(
+        target=target,
+        languages=",".join(cleaned_langs),
+        requested_by=by[:150],
+    )
+
+
+def publish_summary() -> dict:
+    """Latest publish run per target, plus whether staging succeeded more recently than prod."""
+
+    latest = {}
+    for target in PUBLISH_TARGETS:
+        latest[target] = LexiconPublishRun.objects.filter(target=target).first()
+    staging = latest.get("staging")
+    prod = latest.get("prod")
+    staging_ok = bool(staging and staging.status == LexiconPublishRun.Status.SUCCEEDED)
+    staging_ahead = staging_ok and (
+        prod is None
+        or prod.status != LexiconPublishRun.Status.SUCCEEDED
+        or (staging.finished_at and prod.finished_at and staging.finished_at >= prod.finished_at)
+    )
+    return {
+        "targets": [
+            {
+                "name": target,
+                "label": target.capitalize(),
+                "run": latest[target],
+                "in_flight": bool(
+                    latest[target]
+                    and latest[target].status
+                    in (LexiconPublishRun.Status.QUEUED, LexiconPublishRun.Status.RUNNING)
+                ),
+            }
+            for target in PUBLISH_TARGETS
+        ],
+        "staging_ok": staging_ok,
+        "staging_ahead": staging_ahead,
+    }
 
 
 # ---------------------------------------------------------------------------------- on the host
@@ -258,4 +314,140 @@ def reconcile(*, runner: Runner = subprocess.run) -> list[str]:
         if unit.startswith(f"{SERVICE}@") and unit not in known:
             _systemctl(runner, "stop", unit)
             done.append(f"{unit}: stopped, its writer was removed")
+    done.extend(reconcile_publishes(runner=runner))
     return done
+
+
+def _target_env() -> dict[str, str]:
+    """Read host-side target URLs and secrets from ~/.config/almonium/lexicon-targets.env."""
+
+    path = Path.home() / ".config" / "almonium" / "lexicon-targets.env"
+    values: dict[str, str] = {}
+    if not path.is_file():
+        return values
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        values[key.strip()] = val.strip().strip('"').strip("'")
+    return values
+
+
+def _target_config(target: str) -> tuple[str, str]:
+    """Return ``(backend_url, secret)`` for ``target``; local may omit secret (.env fallback)."""
+
+    env = {**_target_env(), **os.environ}
+    prefix = f"LEXICON_{target.upper()}"
+    url = env.get(f"{prefix}_URL", "").strip()
+    secret = env.get(f"{prefix}_SECRET", "").strip()
+    if target == LexiconPublishRun.Target.LOCAL and not url:
+        url = DEFAULT_LOCAL_BACKEND_URL
+    if not url:
+        raise ValueError(
+            f"Configure {prefix}_URL (and {prefix}_SECRET) in "
+            "~/.config/almonium/lexicon-targets.env on the host."
+        )
+    if target != LexiconPublishRun.Target.LOCAL and not secret:
+        raise ValueError(
+            f"Configure {prefix}_SECRET in ~/.config/almonium/lexicon-targets.env on the host."
+        )
+    return url, secret
+
+
+def _parse_publish_counts(output: str) -> tuple[int, int, str]:
+    import re
+
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    last_line = lines[-1][:300] if lines else ""
+    accepted = rejected = 0
+    for line in reversed(lines):
+        match = re.search(r"(\d+)\s+accepted,\s+(\d+)\s+rejected", line)
+        if match:
+            accepted, rejected = int(match.group(1)), int(match.group(2))
+            break
+    return accepted, rejected, last_line
+
+
+def reconcile_publishes(*, runner: Runner = subprocess.run) -> list[str]:
+    """Run the oldest queued LexiconPublishRun on the host: ingest_v4.py then publish_entries.py."""
+
+    if LexiconPublishRun.objects.filter(status=LexiconPublishRun.Status.RUNNING).exists():
+        return []
+    run = (
+        LexiconPublishRun.objects.filter(status=LexiconPublishRun.Status.QUEUED)
+        .order_by("created_at")
+        .first()
+    )
+    if run is None:
+        return []
+    run.status = LexiconPublishRun.Status.RUNNING
+    run.started_at = timezone.now()
+    run.error = ""
+    run.save(update_fields=["status", "started_at", "error", "updated_at"])
+
+    backend = backend_dir()
+    python = str(backend / "scripts" / ".venv" / "bin" / "python")
+    langs_args = ["--langs", run.languages] if run.languages else []
+    try:
+        url, secret = _target_config(run.target)
+        ingest = runner(
+            [python, "scripts/lexicon_research/ingest_v4.py", *langs_args],
+            cwd=backend,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if ingest.returncode != 0:
+            detail = (ingest.stderr or ingest.stdout or "ingest_v4.py failed").strip()
+            raise RuntimeError(f"ingest_v4.py failed: {detail[-500:]}")
+        env = dict(os.environ)
+        if secret:
+            env["ALMONIUM_BOOKS_PUBLISHER_SECRET"] = secret
+        publish = runner(
+            [
+                python,
+                "scripts/lexicon_research/publish_entries.py",
+                "--backend",
+                url,
+                *langs_args,
+            ],
+            cwd=backend,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        combined = f"{publish.stdout or ''}\n{publish.stderr or ''}"
+        accepted, rejected, last_line = _parse_publish_counts(combined)
+        run.accepted = accepted
+        run.rejected = rejected
+        run.last_line = last_line
+        if publish.returncode != 0:
+            run.status = LexiconPublishRun.Status.FAILED
+            run.error = combined.strip()[-1000:]
+            note = (
+                f"lexicon publish -> {run.target}: failed "
+                f"({accepted} accepted, {rejected} rejected)"
+            )
+        else:
+            run.status = LexiconPublishRun.Status.SUCCEEDED
+            note = f"lexicon publish -> {run.target}: {accepted} accepted, {rejected} rejected"
+    except Exception as error:
+        run.status = LexiconPublishRun.Status.FAILED
+        run.error = str(error)[:1000]
+        run.last_line = str(error)[:300]
+        note = f"lexicon publish -> {run.target}: failed ({error})"
+    run.finished_at = timezone.now()
+    run.save(
+        update_fields=[
+            "status",
+            "accepted",
+            "rejected",
+            "last_line",
+            "error",
+            "finished_at",
+            "updated_at",
+        ]
+    )
+    return [note]

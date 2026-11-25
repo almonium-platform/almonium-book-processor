@@ -961,6 +961,9 @@ span.toolbar-step { color: var(--line); background: transparent; }
 .ops-writer-form { display: flex; flex-wrap: wrap; gap: .5rem .9rem; align-items: end; margin: .2rem 0 1.4rem; font-size: .85rem; }
 .ops-writer-form label { display: flex; flex-direction: column; gap: .2rem; color: var(--muted); }
 .ops-writer-form input[type=number] { width: 4.5rem; }
+.ops-publish-bar { padding-top: .8rem; margin: .2rem 0 1rem; border-top: 1px solid var(--line); }
+.ops-publish-bar .ops-writer-form { margin: 0 0 .45rem; }
+.ops-publish-status { margin: 0; font-size: .8rem; }
 /* the same writers on the dashboard, inside their folded panel */
 .entry-writers { padding: .2rem 1.1rem .6rem; overflow-x: auto; }
 .entry-writers .ops-table { font-size: .82rem; margin-bottom: .9rem; }

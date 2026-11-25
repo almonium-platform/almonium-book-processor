@@ -212,3 +212,66 @@ def test_a_writer_stops_when_its_claude_account_is_paused_and_resumes_when_lifte
     assert f"start {unit}" in systemd.calls
     writer.refresh_from_db()
     assert writer.running and writer.state == "active"
+
+
+def test_lexicon_publish_queues_ingests_and_publishes_on_the_host(client, host):
+    from almonium_book_processor.catalog.models import LexiconPublishRun
+
+    user = get_user_model().objects.create_user("staff", password="x", is_staff=True)
+    client.force_login(user)
+
+    response = client.post(
+        reverse("catalog:lexicon-publish"),
+        {"target": "staging", "languages": "en", "back": "dashboard"},
+    )
+    assert response.url == reverse("catalog:dashboard") + "#entries"
+    run = LexiconPublishRun.objects.get()
+    assert (run.target, run.languages, run.status) == ("staging", "en", "queued")
+
+    # duplicate request while queued is refused
+    client.post(
+        reverse("catalog:lexicon-publish"),
+        {"target": "staging", "languages": "en", "back": "dashboard"},
+    )
+    assert LexiconPublishRun.objects.count() == 1
+
+    # configure staging target in host-side env file
+    cfg = host / "home" / ".config" / "almonium"
+    cfg.mkdir(parents=True, exist_ok=True)
+    (cfg / "lexicon-targets.env").write_text(
+        "LEXICON_STAGING_URL=https://staging.almonium.com/api/v1\n"
+        "LEXICON_STAGING_SECRET=super-secret\n",
+        encoding="utf-8",
+    )
+
+    calls = []
+
+    def fake_runner(command, **kwargs):
+        calls.append((command, kwargs.get("env") or {}))
+        if command[0] == "systemctl":
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if "publish_entries.py" in command[1]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout="42 accepted, 0 rejected (0 whole batches failed) in 3s\n",
+                stderr="",
+            )
+        return subprocess.CompletedProcess(command, 0, stdout="ingested\n", stderr="")
+
+    done = lexicon_writers.reconcile(runner=fake_runner)
+
+    run.refresh_from_db()
+    assert run.status == LexiconPublishRun.Status.SUCCEEDED
+    assert (run.accepted, run.rejected) == (42, 0)
+    assert any("lexicon publish -> staging: 42 accepted, 0 rejected" in line for line in done)
+    script_calls = [c for c in calls if c[0][0] != "systemctl"]
+    assert len(script_calls) == 2
+    assert "ingest_v4.py" in script_calls[0][0][1] and "--langs" in script_calls[0][0]
+    assert "publish_entries.py" in script_calls[1][0][1]
+    assert "--backend" in script_calls[1][0]
+    assert "https://staging.almonium.com/api/v1" in script_calls[1][0]
+    assert script_calls[1][1].get("ALMONIUM_BOOKS_PUBLISHER_SECRET") == "super-secret"
+
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+    assert "Publish to Staging" in page and "42 accepted" in page

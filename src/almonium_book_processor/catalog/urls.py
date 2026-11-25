@@ -279,6 +279,7 @@ urlpatterns = [
     path("plan-accounts/routing/", views.plan_routing_view, name="plan-routing"),
     path("factory/switch/", views.factory_switch_view, name="factory-switch"),
     path("operations/writers/", views.lexicon_writer_view, name="lexicon-writer"),
+    path("operations/writers/publish/", views.lexicon_publish_view, name="lexicon-publish"),
     path("editions/<uuid:edition_id>/pause/", views.book_pause_view, name="book-pause"),
     path(
         "editions/<uuid:edition_id>/purge/",

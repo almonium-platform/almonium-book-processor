@@ -192,6 +192,7 @@ def _entries_context() -> dict:
         "writers": writers,
         "writer_choices": lexicon_writers.choices(),
         "entry_writers": {"on": on, "off": len(writers) - on},
+        "lexicon_publish": lexicon_writers.publish_summary(),
     }
 
 
@@ -2179,6 +2180,35 @@ def lexicon_writer_view(request: HttpRequest) -> HttpResponse:
             messages.info(request, f"{writer} removed; the host stops it within a minute.")
         else:
             messages.error(request, "Choose add, start, pause or remove.")
+    except ValueError as error:
+        messages.error(request, str(error))
+    return redirect(back)
+
+
+@staff_member_required
+@require_POST
+def lexicon_publish_view(request: HttpRequest) -> HttpResponse:
+    """Queue an ingest + publish pass of dictionary entries to local, staging, or prod."""
+
+    from almonium_book_processor.catalog import lexicon_writers
+
+    back = (
+        f"{reverse('catalog:dashboard')}#entries"
+        if request.POST.get("back") == "dashboard"
+        else f"{reverse('catalog:operations')}?show=entries"
+    )
+    target = request.POST.get("target", "")
+    languages = request.POST.get("languages", "")
+    try:
+        run = lexicon_writers.request_publish(
+            target=target, languages=languages, by=str(request.user)
+        )
+        scope = run.languages or "all languages"
+        messages.info(
+            request,
+            f"Queued ingest + publish of dictionary entries ({scope}) to {run.target}; "
+            "the host picks it up within a minute.",
+        )
     except ValueError as error:
         messages.error(request, str(error))
     return redirect(back)
