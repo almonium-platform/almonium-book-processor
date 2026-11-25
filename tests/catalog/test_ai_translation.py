@@ -818,6 +818,23 @@ def test_the_quality_tier_runs_its_model_on_a_plan_where_one_serves_it(settings)
     )
 
 
+def test_create_parallel_translation_inherits_sources_cefr_level() -> None:
+    source = canonical_edition()
+    source.cefr_level = "C1"
+    source.cefr_level_source = Edition.LevelSource.ANALYSIS
+    source.save(update_fields=["cefr_level", "cefr_level_source"])
+
+    edition = create_parallel_translation(
+        source_edition=source,
+        target_language="de",
+        register="period-faithful",
+        tier="quality",
+    )
+
+    assert edition.cefr_level == "C1"
+    assert edition.cefr_level_source == Edition.LevelSource.ANALYSIS
+
+
 def test_the_antigravity_tier_translates_with_the_gemini_model_the_setting_names(settings) -> None:
     from almonium_book_processor.ai.seats import Seat
     from almonium_book_processor.catalog.ai_translation import (

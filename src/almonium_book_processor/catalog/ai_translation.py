@@ -198,6 +198,8 @@ def create_parallel_translation(
         language=target_language,
         edition_type=Edition.EditionType.MACHINE_TRANSLATION,
         parallel_role=Edition.ParallelRole.PARALLEL,
+        cefr_level=source_edition.cefr_level,
+        cefr_level_source=source_edition.cefr_level_source,
         translator=f"AI ({register})",
         literary_register=register,
         status=Edition.Status.PROCESSING,
