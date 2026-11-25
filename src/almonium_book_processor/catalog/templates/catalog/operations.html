@@ -5,7 +5,7 @@
   <div>
     <p class="eyebrow">Book pipeline</p>
     <h1>Operations</h1>
-    <p class="muted">Every step a book takes and every model call it makes, newest first. A line with no end yet is running now. "% wk" is an estimate of the plan's week, not a meter reading. A call names its account once it has answered.</p>
+    <p class="muted">Every step a book takes and every model call it makes, newest first. A line with no end yet is running now. "% wk" is an estimate of the plan's week, not a meter reading. A call names its account once it has answered. A call a plan turned away for its allowance is counted above the list, not listed.</p>
   </div>
 </div>
 
@@ -13,6 +13,14 @@
   <p class="ops-now">
     <strong>{{ running }} running now</strong>{% for plan in last_hour %}<span>{{ plan.plan }} last hour: {{ plan.calls }} calls, about {{ plan.share }} of a week</span>{% endfor %}
   </p>
+  {% for plan in waiting %}
+  <p class="ops-waiting" title="A call the plan's allowance or your monthly cap turned away is not listed below: nothing was asked and nothing paid. The books wait and ask again by themselves.">
+    <strong>{{ plan.plan }} is refusing</strong>
+    <span>{{ plan.requests }} request{{ plan.requests|pluralize }} of {{ plan.books }} book{{ plan.books|pluralize }} waiting for its allowance</span>
+    <span>turned away {{ plan.refusals }} time{{ plan.refusals|pluralize }} in the last hour, last at {{ plan.latest|date:"H:i" }}</span>
+    <span>nothing paid</span>
+  </p>
+  {% endfor %}
 
   <nav class="ops-filters" aria-label="Show">
     {% for filter in filters %}

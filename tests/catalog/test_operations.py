@@ -251,3 +251,35 @@ def test_the_entries_tab_says_where_the_status_comes_from_when_there_is_none(
     settings.LEXICON_STATUS_FILE = ""
 
     assert "No dictionary status here" in _page(client, show="entries")
+
+
+def test_calls_a_plan_turned_away_are_counted_in_one_line_and_not_listed(client, staff, edition):
+    job = _job(edition)
+    refusal = "Allowance used up: every open Claude account refused for its allowance"
+    for attempt in range(6):
+        _call(
+            edition,
+            job,
+            status=AIRun.Status.FAILED,
+            error=refusal,
+            input_hash="one" if attempt < 4 else "two",
+            idempotency_key=f"refused-{attempt}",
+        )
+    # a call that used tokens and then failed is a real failure and stays in the list
+    _call(
+        edition,
+        job,
+        status=AIRun.Status.FAILED,
+        error="Allowance used up: cut off halfway",
+        input_tokens=900,
+        idempotency_key="paid",
+    )
+
+    page = _page(client)
+
+    assert "Claude is refusing" in page
+    assert "2 requests of 1 book waiting for its allowance" in page
+    assert "turned away 6 times in the last hour" in page
+    assert "every open Claude account refused" not in page
+    assert page.count("cut off halfway") == 1
+    assert "last hour: 1 calls" in page

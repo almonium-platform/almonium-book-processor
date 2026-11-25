@@ -24,6 +24,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
+from almonium_book_processor.ai.cli_calls import ALLOWANCE_USED_UP, BUDGET_REACHED
 from almonium_book_processor.ai.pricing import PLAN_WEEK_USD
 from almonium_book_processor.catalog import lexicon_writers
 from almonium_book_processor.catalog.activity import ACTIVE_STATUSES, _fingerprint
@@ -137,8 +138,47 @@ def _used(provider: str, cost: Decimal | None) -> tuple[str, str]:
     )
 
 
+def _refused() -> Q:
+    """A call a plan's allowance or the owner's cap turned away: nothing was asked or paid.
+
+    A book that waits asks again every few minutes, so one dry session leaves thousands of
+    these. They are counted in one line above the list (``_waiting``) and not listed.
+    """
+
+    turned_away = Q(error__startswith=ALLOWANCE_USED_UP) | Q(error__startswith=BUDGET_REACHED)
+    return Q(status=AIRun.Status.FAILED, input_tokens=0, output_tokens=0) & turned_away
+
+
+def _waiting(now: datetime) -> list[dict]:
+    """By plan: the requests refused in the last hour, how often, and when last."""
+
+    rows = (
+        AIRun.objects.filter(_refused(), created_at__gte=now - timedelta(hours=1))
+        .values("model_configuration__provider")
+        .annotate(
+            requests=Count("input_hash", distinct=True),
+            books=Count("edition__work_id", distinct=True),
+            refusals=Count("id"),
+            latest=Max("created_at"),
+        )
+        .order_by("model_configuration__provider")
+    )
+    return [
+        {
+            "plan": PLAN_NAMES.get(
+                row["model_configuration__provider"], row["model_configuration__provider"]
+            ),
+            "requests": row["requests"],
+            "books": row["books"],
+            "refusals": row["refusals"],
+            "latest": row["latest"],
+        }
+        for row in rows
+    ]
+
+
 def _calls(now: datetime, *, chosen: str, work: str, before: datetime | None) -> list[dict]:
-    runs = AIRun.objects.order_by("-created_at")
+    runs = AIRun.objects.exclude(_refused()).order_by("-created_at")
     if chosen == "live":
         runs = runs.filter(_running_filter(now))
     elif chosen in PLAN_NAMES:
@@ -287,7 +327,8 @@ def _with_days(lines: list[dict]) -> list[dict]:
 
 def _last_hour(now: datetime) -> list[dict]:
     rows = (
-        AIRun.objects.filter(created_at__gte=now - timedelta(hours=1))
+        AIRun.objects.exclude(_refused())
+        .filter(created_at__gte=now - timedelta(hours=1))
         .values("model_configuration__provider")
         .annotate(calls=Count("id"), cost=Sum("estimated_cost_usd"))
         .order_by("model_configuration__provider")
@@ -355,6 +396,7 @@ def operations_view(request: HttpRequest) -> HttpResponse:
                 "writer_choices": lexicon_writers.choices(),
                 "running": AIRun.objects.filter(_running_filter(now)).count(),
                 "last_hour": _last_hour(now),
+                "waiting": _waiting(now),
             },
         )
     rows = [] if chosen == "steps" else _calls(now, chosen=chosen, work=work, before=before)
@@ -389,6 +431,7 @@ def operations_view(request: HttpRequest) -> HttpResponse:
             "older": oldest.isoformat() if oldest else "",
             "running": AIRun.objects.filter(_running_filter(now)).count(),
             "last_hour": _last_hour(now),
+            "waiting": _waiting(now),
             # an older page stands still: only the newest lines move
             "live_url": "" if before else reverse("catalog:operations-activity"),
             "fingerprint": activity["fingerprint"],

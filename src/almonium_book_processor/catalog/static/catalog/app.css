@@ -906,6 +906,9 @@ span.toolbar-step { color: var(--line); background: transparent; }
 /* The operations page: one line per step or model call, newest first. */
 .ops-now { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; align-items: baseline; margin: .4rem 0 .8rem; font-size: .9rem; }
 .ops-now span { color: var(--muted); }
+/* a plan turning calls away: one line for all of them, in place of a row each */
+.ops-waiting { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; align-items: baseline; margin: 0 0 .8rem; padding: .55rem .9rem; border-radius: 10px; background: #f3e4c4; color: var(--amber); font-size: .88rem; }
+.ops-waiting span + span::before { content: "· "; }
 .ops-filters { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .9rem; font-size: .82rem; }
 .ops-filters a { padding: .28rem .7rem; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; color: var(--ink); background: var(--card); }
 .ops-filters a.is-on { background: var(--accent); border-color: var(--accent); color: var(--card); }
