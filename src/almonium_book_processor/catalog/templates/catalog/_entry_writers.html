@@ -1,5 +1,5 @@
 {# The dictionary's entry writers: each one's state with Start and Pause, and the form that adds one. #}
-    <p class="muted">Each writer runs the backend's entry writer on one Claude account, for one language, from one headword list, on the owner's machine. Start and Pause take effect within a minute (the host timer <code>almonium-lexicon-writers.timer</code>); a writer that reaches the end of its list switches itself off. A writer waits out the plan's limits by itself.</p>
+    <p class="muted">Each writer runs the backend's entry writer on one account (a Claude account, or Google's plan as <code>antigravity-cli</code>, which serves Gemini 4 Carbon and Claude Opus), for one language, from one headword list, on the owner's machine. A writer stops while its account is paused in the plans panel. Start and Pause take effect within a minute (the host timer <code>almonium-lexicon-writers.timer</code>); a writer that reaches the end of its list switches itself off. A writer waits out the plan's limits by itself. Pause at % is the five-hour session of a Claude account; Google's plan has no such stop.</p>
     {% if writers %}
     <table class="ops-table">
       <thead><tr><th>Language</th><th>List</th><th>Account</th><th>Model</th><th>Workers</th><th>Pause at</th><th>Wanted</th><th>On the host</th><th>Last line</th><th></th></tr></thead>

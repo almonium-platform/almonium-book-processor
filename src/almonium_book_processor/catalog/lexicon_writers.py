@@ -30,6 +30,10 @@ VOICED_LANGUAGES = ("en", "de", "fr", "es")
 PUBLISH_TARGETS = tuple(LexiconPublishRun.Target.values)
 DEFAULT_LOCAL_BACKEND_URL = "http://localhost:9998/api/v1"
 MODELS = ("claude-opus-5-5", "claude-fable-5-2")
+# Google's plan has one login a machine (ai/antigravity_provider.ACCOUNT) and serves, beside
+# its own models, Claude Opus on a meter apart. Its writer is the backend's seat_writer.py.
+GEMINI_ACCOUNT = "antigravity-cli"
+GEMINI_MODELS = ("gemini-4-carbon", "claude-opus-5-5")
 EFFORTS = ("low", "medium", "high")
 MAX_WORKERS = 6
 SERVICE = "almonium-lexicon-writer"
@@ -49,13 +53,25 @@ def claude_accounts() -> list[str]:
     return sorted(set(known.values_list("account", flat=True)) | set(named)) or [".claude"]
 
 
+def provider_of(account: str) -> str:
+    """The plan an account's writer runs on, as the meters name it."""
+
+    return "antigravity" if account == GEMINI_ACCOUNT else "claude-code"
+
+
+def accounts() -> list[str]:
+    """Every account a writer may use: the Claude accounts, then Google's plan."""
+
+    return [*claude_accounts(), GEMINI_ACCOUNT]
+
+
 def choices() -> dict:
     """What the form that adds a writer offers."""
 
     return {
         "languages": LANGUAGES,
-        "accounts": claude_accounts(),
-        "models": MODELS,
+        "accounts": accounts(),
+        "models": (*MODELS, *(m for m in GEMINI_MODELS if m not in MODELS)),
         "efforts": EFFORTS,
         "max_workers": MAX_WORKERS,
     }
@@ -74,8 +90,8 @@ def add_writer(
 ) -> LexiconWriter:
     """A new writer, off until it is started; ValueError when the page asked for something wrong."""
 
-    if account not in claude_accounts():
-        raise ValueError(f"Choose one of the Claude accounts: {', '.join(claude_accounts())}.")
+    if account not in accounts():
+        raise ValueError(f"Choose one of the accounts: {', '.join(accounts())}.")
     if language not in LANGUAGES:
         raise ValueError(
             f"Entries are written for {', '.join(LANGUAGES)} only; "
@@ -88,8 +104,11 @@ def add_writer(
         raise ValueError(f"A writer has 1 to {MAX_WORKERS} workers.")
     if not 1 <= pause_at_percent <= 100:
         raise ValueError("Pause the writer at 1 to 100 percent of the five-hour window.")
-    if model not in MODELS or effort not in EFFORTS:
-        raise ValueError("Choose a model and an effort from the lists.")
+    served = GEMINI_MODELS if account == GEMINI_ACCOUNT else MODELS
+    if model not in served or effort not in EFFORTS:
+        raise ValueError(
+            f"Choose an effort from the list and a model {account} serves: {', '.join(served)}."
+        )
     if LexiconWriter.objects.filter(language=language, word_list=word_list).exists():
         raise ValueError(
             f"A writer for the {language} list {word_list} exists already: "
@@ -191,9 +210,8 @@ def unit_text() -> str:
         [
             "/usr/bin/systemd-inhibit --what=sleep:idle",
             f'--who={SERVICE}-%i --why="dictionary entries" --mode=block',
-            f"{backend}/scripts/.venv/bin/python scripts/lexicon_research/claude_code_writer.py",
-            "--model ${MODEL} --effort ${EFFORT} --langs ${LANGUAGE} --headwords ${WORD_LIST}",
-            "--workers ${WORKERS} --pause-session ${PAUSE_AT}",
+            # which writer and how it is asked are the row's (env_text): $ARGS is split into words
+            f"{backend}/scripts/.venv/bin/python scripts/lexicon_research/${{SCRIPT}} $ARGS",
         ]
     )
     return f"""[Unit]
@@ -214,17 +232,37 @@ TimeoutStopSec=20
 """
 
 
+def gemini_folder(writer: LexiconWriter) -> str:
+    """Where a writer on Google's plan keeps its entries: one folder a model and effort.
+
+    A folder ``review-*`` that the backend's writers know as written for the dictionary
+    (``--for-dictionary``): no ingest reads it yet, and no other writer buys its words again.
+    """
+
+    short = writer.model.removeprefix("gemini-4-").removeprefix("claude-").removesuffix("-5-5")
+    return f"review-writer-agy-{short}-{writer.effort}-healthy"
+
+
 def env_text(writer: LexiconWriter) -> str:
     home = Path.home()
+    if writer.account == GEMINI_ACCOUNT:
+        # the CLI has no meter a writer could pause on: it waits at the plan's wall instead
+        return "\n".join(
+            [
+                "SCRIPT=seat_writer.py",
+                f"ARGS=--seat agy:{writer.model}:{writer.effort} --headwords {writer.word_list}"
+                f" --langs {writer.language} --out {gemini_folder(writer)} --for-dictionary"
+                f" --workers {writer.workers} --budget-usd 100000",
+                "",
+            ]
+        )
     return "\n".join(
         [
             f"CLAUDE_CONFIG_DIR={home / writer.account}",
-            f"MODEL={writer.model}",
-            f"EFFORT={writer.effort}",
-            f"LANGUAGE={writer.language}",
-            f"WORD_LIST={writer.word_list}",
-            f"WORKERS={writer.workers}",
-            f"PAUSE_AT={writer.pause_at_percent}",
+            "SCRIPT=claude_code_writer.py",
+            f"ARGS=--model {writer.model} --effort {writer.effort} --langs {writer.language}"
+            f" --headwords {writer.word_list} --workers {writer.workers}"
+            f" --pause-session {writer.pause_at_percent}",
             "",
         ]
     )
@@ -255,7 +293,7 @@ def _last_line(writer_id: int) -> str:
 def reconcile(*, runner: Runner = subprocess.run) -> list[str]:
     """Make the host's writer services match the page; what was done, one line each.
 
-    A writer whose Claude account is paused in the AI panel (manually or at its week/session
+    A writer whose account is paused in the AI panel (manually or at its week/session
     limit) is stopped while the pause holds, and started again once the account is resumed.
     """
 
@@ -272,9 +310,7 @@ def reconcile(*, runner: Runner = subprocess.run) -> list[str]:
         _systemctl(runner, "daemon-reload")
         done.append(f"wrote {UNIT}")
     log_path(0).parent.mkdir(parents=True, exist_ok=True)
-    paused_claude = set(
-        PlanAccountPause.objects.filter(provider="claude-code").values_list("account", flat=True)
-    )
+    paused = set(PlanAccountPause.objects.values_list("provider", "account"))
     known = set()
     for writer in LexiconWriter.objects.all():
         unit = f"{SERVICE}@{writer.id}.service"
@@ -285,7 +321,7 @@ def reconcile(*, runner: Runner = subprocess.run) -> list[str]:
             env_file.write_text(env_text(writer))
         state = _state(runner, unit)
         last = _last_line(writer.id)
-        account_paused = writer.account in paused_claude
+        account_paused = (provider_of(writer.account), writer.account) in paused
         if writer.running and not account_paused:
             if state == "inactive" and last == "done":
                 # the list is written: nothing to start again

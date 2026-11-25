@@ -204,8 +204,10 @@ def plan_meters() -> list[PlanMeter]:
         .values_list("model_configuration__provider", flat=True)
         .distinct()
     )
+    from almonium_book_processor.catalog.lexicon_writers import provider_of
+
     on_entries = {
-        ("claude-code", account)
+        (provider_of(account), account)
         for account in LexiconWriter.objects.filter(running=True, state="active").values_list(
             "account", flat=True
         )

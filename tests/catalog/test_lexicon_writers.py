@@ -42,7 +42,7 @@ def test_a_writer_is_added_off_and_checked(accounts):
         _add(language="uk", word_list="v4-new")
     with pytest.raises(ValueError, match="would write the same words"):
         _add(account=".claude")
-    with pytest.raises(ValueError, match="Claude accounts"):
+    with pytest.raises(ValueError, match="one of the accounts"):
         _add(account=".codex", word_list="other")
     with pytest.raises(ValueError, match="list"):
         _add(word_list="../etc/passwd")
@@ -131,7 +131,8 @@ def test_the_host_starts_a_writer_that_is_on_and_reports_it(host):
     assert any(line.startswith(unit) for line in done)
     env = (host / "home" / ".config" / "almonium" / f"lexicon-writer-{writer.id}.env").read_text()
     assert "CLAUDE_CONFIG_DIR=" in env and env.count(".claude-2") == 1
-    assert "WORD_LIST=en-deep" in env and "WORKERS=4" in env
+    assert "SCRIPT=claude_code_writer.py" in env
+    assert "--headwords en-deep --workers 4 --pause-session" in env
     template = host / "home" / ".config" / "systemd" / "user" / "almonium-lexicon-writer@.service"
     assert "systemd-inhibit --what=sleep:idle" in template.read_text()
     writer.refresh_from_db()
@@ -326,3 +327,46 @@ def test_lexicon_publish_syncs_cached_audio_clips_after_publishing(host):
     assert "--cached-only" in script_calls[2]
     # "it" has no voice yet, so only "en" is passed to render_clips.py
     assert script_calls[2][script_calls[2].index("--langs") + 1] == "en"
+
+
+def test_a_writer_on_googles_plan_runs_the_seat_writer_for_the_dictionary(host):
+    with pytest.raises(ValueError, match="antigravity-cli serves"):
+        _add(
+            account="antigravity-cli", language="it", word_list="healthy", model="claude-fable-5-2"
+        )
+    writer = _add(
+        account="antigravity-cli",
+        language="it",
+        word_list="healthy",
+        model="gemini-4-carbon",
+        effort="medium",
+    )
+    lexicon_writers.set_running(writer, True, by="editor")
+    systemd = FakeSystemd()
+
+    lexicon_writers.reconcile(runner=systemd)
+
+    assert f"start almonium-lexicon-writer@{writer.id}.service" in systemd.calls
+    env = (host / "home" / ".config" / "almonium" / f"lexicon-writer-{writer.id}.env").read_text()
+    assert "SCRIPT=seat_writer.py" in env and "CLAUDE_CONFIG_DIR" not in env
+    assert "--seat agy:gemini-4-carbon:medium --headwords healthy --langs it" in env
+    assert "--out review-writer-agy-carbon-medium-healthy --for-dictionary" in env
+    writer.model, writer.effort = "claude-opus-5-5", "high"
+    assert lexicon_writers.gemini_folder(writer) == "review-writer-agy-opus-high-healthy"
+
+
+def test_a_writer_on_googles_plan_stops_while_that_plan_is_paused(host):
+    from almonium_book_processor.catalog.models import PlanAccountPause
+
+    writer = _add(
+        account="antigravity-cli", language="it", word_list="healthy", model="gemini-4-carbon"
+    )
+    lexicon_writers.set_running(writer, True, by="editor")
+    PlanAccountPause.objects.create(provider="antigravity", account="antigravity-cli")
+    systemd = FakeSystemd(active={f"almonium-lexicon-writer@{writer.id}.service"})
+
+    done = lexicon_writers.reconcile(runner=systemd)
+
+    assert any("account paused" in line for line in done)
+    writer.refresh_from_db()
+    assert writer.state == "account paused" and writer.running
