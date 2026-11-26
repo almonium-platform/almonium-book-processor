@@ -268,7 +268,7 @@ def test_lexicon_publish_queues_ingests_and_publishes_on_the_host(client, host):
     cfg = host / "home" / ".config" / "almonium"
     cfg.mkdir(parents=True, exist_ok=True)
     (cfg / "lexicon-targets.env").write_text(
-        "LEXICON_STAGING_URL=https://staging.almonium.com/api/v1\n"
+        "LEXICON_STAGING_URL=https://staging.api.almonium.com/v1\n"
         "LEXICON_STAGING_SECRET=super-secret\n",
         encoding="utf-8",
     )
@@ -299,7 +299,7 @@ def test_lexicon_publish_queues_ingests_and_publishes_on_the_host(client, host):
     assert "ingest_v4.py" in script_calls[0][0][1] and "--langs" in script_calls[0][0]
     assert "publish_entries.py" in script_calls[1][0][1]
     assert "--backend" in script_calls[1][0]
-    assert "https://staging.almonium.com/api/v1" in script_calls[1][0]
+    assert "https://staging.api.almonium.com/v1" in script_calls[1][0]
     assert script_calls[1][1].get("ALMONIUM_BOOKS_PUBLISHER_SECRET") == "super-secret"
 
     page = client.get(reverse("catalog:dashboard")).content.decode()

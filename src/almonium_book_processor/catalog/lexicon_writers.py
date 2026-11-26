@@ -28,7 +28,7 @@ from almonium_book_processor.catalog.models import LexiconPublishRun, LexiconWri
 LANGUAGES = ("en", "de", "fr", "es", "it", "pt")
 VOICED_LANGUAGES = ("en", "de", "fr", "es")
 PUBLISH_TARGETS = tuple(LexiconPublishRun.Target.values)
-DEFAULT_LOCAL_BACKEND_URL = "http://localhost:9998/api/v1"
+DEFAULT_LOCAL_BACKEND_URL = "http://localhost:9998/v1"
 MODELS = ("claude-opus-5-5", "claude-fable-5-2")
 # Google's plan has one login a machine (ai/antigravity_provider.ACCOUNT) and serves, beside
 # its own models, Claude Opus on a meter apart. Its writer is the backend's seat_writer.py.

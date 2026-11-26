@@ -369,7 +369,7 @@ def test_confirming_the_same_language_does_not_reprocess(monkeypatch) -> None:
 
 
 def test_import_event_carries_detected_metadata(monkeypatch) -> None:
-    monkeypatch.setenv("ALMONIUM_API_URL", "http://almonium.test/api/v1/")
+    monkeypatch.setenv("ALMONIUM_API_URL", "http://almonium.test/v1/")
     monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", SECRET)
     sent: dict = {}
 
@@ -393,7 +393,7 @@ def test_import_event_carries_detected_metadata(monkeypatch) -> None:
 
     send_private_import_event(edition, progress=40)
 
-    assert sent["url"] == "http://almonium.test/api/v1/internal/books/import-events"
+    assert sent["url"] == "http://almonium.test/v1/internal/books/import-events"
     assert sent["body"]["metadata"] == {
         "title": "Detected Title",
         "author": "Detected Author",
