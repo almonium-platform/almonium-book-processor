@@ -1334,6 +1334,8 @@ class PlanAccount(TimestampedModel):
     # Where the account stands among its plan's when calls go in order: 1 is spent first. The
     # meter timer fills it from the settings' order for an account that has none.
     priority = models.PositiveSmallIntegerField(null=True, blank=True)
+    # Hidden from the dashboard, routing, meters and writers without losing history; restorable.
+    archived = models.BooleanField(default=False)
     note = models.CharField(max_length=200, blank=True)
 
     class Meta:

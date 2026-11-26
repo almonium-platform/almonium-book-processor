@@ -215,6 +215,34 @@ def test_a_writer_stops_when_its_claude_account_is_paused_and_resumes_when_lifte
     assert writer.running and writer.state == "active"
 
 
+def test_archiving_a_claude_account_hides_it_from_choices_and_stops_its_writer(host, settings):
+    from almonium_book_processor.catalog.models import PlanAccount
+
+    settings.CLAUDE_CONFIG_DIRS = ["/home/me/.claude", "/home/me/.claude-2"]
+    writer = _add(account=".claude-2")
+    lexicon_writers.set_running(writer, True, by="editor")
+    unit = f"almonium-lexicon-writer@{writer.id}.service"
+    systemd = FakeSystemd(active={unit})
+
+    PlanAccount.objects.create(provider="claude-code", account=".claude-2", archived=True)
+    assert lexicon_writers.claude_accounts() == [".claude"]
+
+    done = lexicon_writers.reconcile(runner=systemd)
+    assert f"stop {unit}" in systemd.calls
+    assert any("account archived" in line for line in done)
+    writer.refresh_from_db()
+    assert writer.running and writer.state == "account archived"
+
+    # restoring brings it back to choices and restarts the writer
+    systemd.calls.clear()
+    PlanAccount.objects.filter(provider="claude-code", account=".claude-2").update(archived=False)
+    assert lexicon_writers.claude_accounts() == [".claude", ".claude-2"]
+    lexicon_writers.reconcile(runner=systemd)
+    assert f"start {unit}" in systemd.calls
+    writer.refresh_from_db()
+    assert writer.running and writer.state == "active"
+
+
 def test_lexicon_publish_queues_ingests_and_publishes_on_the_host(client, host):
     from almonium_book_processor.catalog.models import LexiconPublishRun
 

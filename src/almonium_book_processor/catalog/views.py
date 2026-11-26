@@ -76,7 +76,11 @@ from almonium_book_processor.catalog.models import (
     TextQualityFinding,
     Work,
 )
-from almonium_book_processor.catalog.plan_meters import plan_meters, plan_routing
+from almonium_book_processor.catalog.plan_meters import (
+    archived_plan_meters,
+    plan_meters,
+    plan_routing,
+)
 from almonium_book_processor.catalog.promotion import (
     promotion_blocker,
     promotion_chain,
@@ -133,6 +137,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "groups": catalogue.groups,
             "summary": catalogue.summary,
             "meters": (meters := plan_meters()),
+            "archived_meters": archived_plan_meters(),
             "routing": plan_routing(meters),
             "guard": _guard_context(),
             "budgets": _budgets_context(),
@@ -2088,7 +2093,12 @@ def plan_account_pause_view(request: HttpRequest) -> HttpResponse:
     provider = request.POST.get("provider", "")
     account = request.POST.get("account", "")
     plans = redirect(f"{reverse('catalog:dashboard')}#plans")
-    if ("pause_at" in request.POST or "pause_at_session" in request.POST) and provider and account:
+    if (
+        action not in ("archive", "restore")
+        and ("pause_at" in request.POST or "pause_at_session" in request.POST)
+        and provider
+        and account
+    ):
         # The row's limits travel with every press of its form, so neither field is lost.
         try:
             if "pause_at" in request.POST:
@@ -2130,8 +2140,17 @@ def plan_account_pause_view(request: HttpRequest) -> HttpResponse:
         elif action == "resume":
             plan_pause.resume(provider, account)
             messages.info(request, f"{account} is back in the pipeline.")
+        elif action == "archive":
+            plan_pause.archive(provider, account)
+            messages.info(
+                request,
+                f"{account} is archived and hidden; restore it anytime under Archived.",
+            )
+        elif action == "restore":
+            plan_pause.restore(provider, account)
+            messages.info(request, f"{account} is restored.")
         else:
-            messages.error(request, "Choose pause or resume.")
+            messages.error(request, "Choose pause, resume, archive or restore.")
     except ValueError as error:
         messages.error(request, str(error))
     return plans

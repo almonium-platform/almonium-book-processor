@@ -61,8 +61,16 @@ def paused_accounts() -> set[tuple[str, str]]:
     return set(PlanAccountPause.objects.values_list("provider", "account"))
 
 
+def archived_accounts() -> set[tuple[str, str]]:
+    return set(PlanAccount.objects.filter(archived=True).values_list("provider", "account"))
+
+
 def is_paused(provider: str, account: str) -> bool:
     return PlanAccountPause.objects.filter(provider=provider, account=account).exists()
+
+
+def is_archived(provider: str, account: str) -> bool:
+    return PlanAccount.objects.filter(provider=provider, account=account, archived=True).exists()
 
 
 def worker_is_paused(worker: PlanWorker, paused: set | None = None) -> bool:  # noqa: ARG001
@@ -78,8 +86,12 @@ def open_codex_accounts() -> list[Path]:
 
     from almonium_book_processor.ai.codex_provider import configured_accounts
 
-    paused = {account for provider, account in paused_accounts() if provider == "codex"}
-    return call_order("codex", [path for path in configured_accounts() if path.name not in paused])
+    blocked = {
+        account
+        for provider, account in (paused_accounts() | archived_accounts())
+        if provider == "codex"
+    }
+    return call_order("codex", [path for path in configured_accounts() if path.name not in blocked])
 
 
 def open_claude_accounts() -> list[Path]:
@@ -87,19 +99,27 @@ def open_claude_accounts() -> list[Path]:
 
     from almonium_book_processor.ai.claude_code_provider import configured_accounts
 
-    paused = {account for provider, account in paused_accounts() if provider == "claude-code"}
+    blocked = {
+        account
+        for provider, account in (paused_accounts() | archived_accounts())
+        if provider == "claude-code"
+    }
     return call_order(
-        "claude-code", [path for path in configured_accounts() if path.name not in paused]
+        "claude-code", [path for path in configured_accounts() if path.name not in blocked]
     )
 
 
 def open_antigravity_accounts() -> list[Path]:
-    """The Gemini plan's one account, unless the owner has paused it."""
+    """The Gemini plan's one account, unless the owner has paused or archived it."""
 
     from almonium_book_processor.ai.antigravity_provider import configured_accounts
 
-    paused = {account for provider, account in paused_accounts() if provider == "antigravity"}
-    return [path for path in configured_accounts() if path.name not in paused]
+    blocked = {
+        account
+        for provider, account in (paused_accounts() | archived_accounts())
+        if provider == "antigravity"
+    }
+    return [path for path in configured_accounts() if path.name not in blocked]
 
 
 def routing_mode(provider: str) -> str:
@@ -201,6 +221,28 @@ def resume(provider: str, account: str) -> None:
     apply_to_workers()
 
 
+def archive(provider: str, account: str) -> None:
+    """Hide an account and stop using it everywhere, while keeping its history for restore."""
+
+    if provider not in PROVIDERS:
+        raise ValueError(f"Unknown plan provider: {provider}")
+    PlanAccount.objects.update_or_create(
+        provider=provider, account=account, defaults={"archived": True}
+    )
+    apply_to_workers()
+
+
+def restore(provider: str, account: str) -> None:
+    """Bring an archived account back into the dashboard, meters, routing, and writers."""
+
+    if provider not in PROVIDERS:
+        raise ValueError(f"Unknown plan provider: {provider}")
+    PlanAccount.objects.update_or_create(
+        provider=provider, account=account, defaults={"archived": False}
+    )
+    apply_to_workers()
+
+
 def pause_all(*, note: str = "") -> None:
     for provider, account in known_accounts():
         PlanAccountPause.objects.update_or_create(
@@ -282,7 +324,7 @@ def pause_on_limit(
     from almonium_book_processor.catalog.models import PlanAccount, PlanMeterReading
 
     limits = (
-        PlanAccount.objects.filter(provider=provider, account=account)
+        PlanAccount.objects.filter(provider=provider, account=account, archived=False)
         .values_list("pause_at_percent", "pause_at_session_percent")
         .first()
     )
@@ -358,6 +400,7 @@ def known_accounts() -> list[tuple[str, str]]:
         from almonium_book_processor.ai.antigravity_provider import ACCOUNT
 
         accounts.add(("antigravity", ACCOUNT))
+    accounts -= archived_accounts()
     return sorted(accounts, key=lambda pair: (pair[0] != "codex", pair[1]))
 
 

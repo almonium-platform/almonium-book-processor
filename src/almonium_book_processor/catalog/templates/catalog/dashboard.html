@@ -5,10 +5,10 @@
 <div class="page-heading catalogue-heading">
   <div><p class="eyebrow">Editorial catalogue</p><h1>Public books</h1></div>
   <div class="catalogue-actions">
-    {% if meters %}
+    {% if meters or archived_meters %}
     <details class="plan-meters" id="plans">
       <summary class="plan-meters-inline" title="Plans this week: open for what is left and when each resets">
-        {% for meter in meters %}<span class="plan-meter-inline{% if meter.stale %} plan-meter-stale{% endif %}{% if meter.paused %} plan-meter-paused{% endif %}{% if meter.in_use %} plan-meter-in-use{% endif %}"{% if meter.in_use %} title="In use now: {{ meter.used_by|join:', ' }}"{% endif %}>{{ meter.short_label }} <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>{{ meter.week_percent }}%{% if meter.paused %} ⏸{% endif %}</span>{% endfor %}
+        {% for meter in meters %}<span class="plan-meter-inline{% if meter.stale %} plan-meter-stale{% endif %}{% if meter.paused %} plan-meter-paused{% endif %}{% if meter.in_use %} plan-meter-in-use{% endif %}"{% if meter.in_use %} title="In use now: {{ meter.used_by|join:', ' }}"{% endif %}>{{ meter.short_label }} <span class="run-bar"><span style="width:{{ meter.week_percent }}%"></span></span>{{ meter.week_percent }}%{% if meter.paused %} ⏸{% endif %}</span>{% empty %}<span class="plan-meter-inline">Plans ({{ archived_meters|length }} archived)</span>{% endfor %}
       </summary>
       <section class="panel plan-meters-popover" aria-label="Plan accounts">
         <p class="eyebrow">Plans this week</p>
@@ -54,6 +54,7 @@
                 {% endif %}
                 {% if meter.paused %}<button class="button button-small button-secondary" type="submit" name="action" value="resume" title="Let calls use this account again; a limit it is already past does not stop it">Run</button>{% else %}<button class="button button-small" type="submit" name="action" value="pause" title="Send this account's calls to the next open account of the plan; with none open, books wait and nothing is paid">Pause</button>{% endif %}
               </span>
+              <div class="plan-meter-secondary"><button class="link-button plan-meter-archive" type="submit" name="action" value="archive" onclick="return confirm('Archive {{ meter.account }}? It will be hidden and unused until restored.')" title="Hide this account and stop using it; restore it anytime from Archived">Archive</button></div>
             </form>
             {% else %}
             <div class="plan-meter-action plan-meter-readonly">
@@ -91,6 +92,22 @@
           <form method="post" action="{% url 'catalog:plan-account-pause' %}">{% csrf_token %}<input type="hidden" name="action" value="pause-all"><button class="button button-small button-secondary" type="submit">Pause all</button></form>
           <form method="post" action="{% url 'catalog:plan-account-pause' %}">{% csrf_token %}<input type="hidden" name="action" value="resume-all"><button class="button button-small button-secondary" type="submit">Resume all</button></form>
         </div>
+        {% if archived_meters %}
+        <details class="plan-archived">
+          <summary>Archived ({{ archived_meters|length }})</summary>
+          <ul class="plan-archived-list">
+            {% for meter in archived_meters %}
+            <li class="plan-archived-item">
+              <div class="plan-archived-who">
+                <strong>{{ meter.provider_label }}</strong> <code>{{ meter.account }}</code>
+                {% if meter.email or meter.plan_label %}<span class="plan-meter-sub">{{ meter.email }}{% if meter.email and meter.plan_label %} · {% endif %}{{ meter.plan_label }}</span>{% endif %}
+              </div>
+              <form method="post" action="{% url 'catalog:plan-account-pause' %}">{% csrf_token %}<input type="hidden" name="provider" value="{{ meter.provider }}"><input type="hidden" name="account" value="{{ meter.account }}"><button class="button button-small button-secondary" type="submit" name="action" value="restore" title="Bring this account back to the dashboard, routing and meters">Restore</button></form>
+            </li>
+            {% endfor %}
+          </ul>
+        </details>
+        {% endif %}
       </section>
     </details>
     {% endif %}

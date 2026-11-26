@@ -316,3 +316,91 @@ def test_the_dashboard_sets_the_mode_and_the_first_account(client, control, work
     )
     assert PlanRouting.objects.get(provider="claude-code").mode == "balanced"
     assert "next call" in client.get(reverse("catalog:dashboard")).content.decode()
+
+
+def test_archiving_an_account_hides_it_stops_routing_and_allows_restore(
+    client, control, workers, settings
+):
+    from almonium_book_processor.catalog.models import PlanAccount
+    from almonium_book_processor.catalog.plan_meters import archived_plan_meters, plan_routing
+
+    settings.CLAUDE_CONFIG_DIRS = ["/home/ok/.claude", "/home/ok/.claude-2"]
+    PlanMeterReading.objects.create(provider="claude-code", account=".claude", week_percent=18)
+    PlanMeterReading.objects.create(provider="claude-code", account=".claude-2", week_percent=4)
+    PlanAccount.objects.create(
+        provider="claude-code",
+        account=".claude-2",
+        email="almonium.app@gmail.com",
+        plan_label="max",
+    )
+    client.force_login(get_user_model().objects.create_user("staff", is_staff=True))
+
+    response = client.post(
+        reverse("catalog:plan-account-pause"),
+        {"action": "archive", "provider": "claude-code", "account": ".claude-2"},
+    )
+    assert response.status_code == 302
+    assert PlanAccount.objects.get(provider="claude-code", account=".claude-2").archived is True
+    assert [m.account for m in plan_meters()] == [".claude"]
+    assert [m.account for m in archived_plan_meters()] == [".claude-2"]
+    assert [p.name for p in plan_pause.open_claude_accounts()] == [".claude"]
+    assert ("claude-code", ".claude-2") not in plan_pause.known_accounts()
+    assert [
+        m.account
+        for plan in plan_routing(plan_meters())
+        if plan["provider"] == "claude-code"
+        for m in plan["accounts"]
+    ] == [".claude"]
+
+    page = client.get(reverse("catalog:dashboard")).content.decode()
+    assert "Claude-2" not in page
+    assert "Archived (1)" in page
+    assert 'value="restore"' in page
+
+    response = client.post(
+        reverse("catalog:plan-account-pause"),
+        {"action": "restore", "provider": "claude-code", "account": ".claude-2"},
+    )
+    assert response.status_code == 302
+    assert PlanAccount.objects.get(provider="claude-code", account=".claude-2").archived is False
+    assert {m.account for m in plan_meters()} == {".claude", ".claude-2"}
+    assert archived_plan_meters() == []
+    assert {p.name for p in plan_pause.open_claude_accounts()} == {".claude", ".claude-2"}
+
+
+def test_plan_meter_command_skips_archived_accounts(monkeypatch, settings):
+    from django.core.management import call_command
+
+    from almonium_book_processor.catalog.models import PlanAccount
+
+    settings.CODEX_HOMES = []
+    settings.CLAUDE_CONFIG_DIRS = ["/home/ok/.claude", "/home/ok/.claude-2"]
+    settings.AI_PLANS = "claude-code"
+    PlanAccount.objects.create(provider="claude-code", account=".claude-2", archived=True)
+    asked = []
+
+    def fake_claude_meter(*, config_dir=None, **_kwargs):
+        asked.append(config_dir.name)
+        return {"week_percent": 12, "session_percent": 5}
+
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.management.commands.plan_meter.codex_meter",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.management.commands.plan_meter.claude_meter",
+        fake_claude_meter,
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.management.commands.plan_meter.claude_account",
+        lambda **_kwargs: {},
+    )
+    monkeypatch.setattr(
+        "almonium_book_processor.ai.elevenlabs_meter.elevenlabs_api_key",
+        lambda: "",
+    )
+
+    call_command("plan_meter", "--record")
+
+    assert asked == [".claude"]
+    assert list(PlanMeterReading.objects.values_list("account", flat=True)) == [".claude"]

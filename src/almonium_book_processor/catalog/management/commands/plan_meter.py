@@ -11,7 +11,11 @@ from almonium_book_processor.ai.claude_code_provider import (
 from almonium_book_processor.ai.codex_provider import codex_home, codex_meter
 from almonium_book_processor.ai.pricing import PLAN_WEEK_USD
 from almonium_book_processor.catalog.models import PlanAccount, PlanMeterReading
-from almonium_book_processor.catalog.plan_pause import pause_on_limit, seed_priorities
+from almonium_book_processor.catalog.plan_pause import (
+    archived_accounts,
+    pause_on_limit,
+    seed_priorities,
+)
 
 
 def _instant(value):
@@ -30,15 +34,29 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         record = options["record"]
         answering = False
+        archived = archived_accounts()
         if record:
             # the settings' order is where the dashboard's order of the accounts starts
-            seed_priorities("codex", [codex_home(home).name for home in settings.CODEX_HOMES])
+            seed_priorities(
+                "codex",
+                [
+                    codex_home(home).name
+                    for home in settings.CODEX_HOMES
+                    if ("codex", codex_home(home).name) not in archived
+                ],
+            )
             seed_priorities(
                 "claude-code",
-                [claude_config_dir(path).name for path in settings.CLAUDE_CONFIG_DIRS],
+                [
+                    claude_config_dir(path).name
+                    for path in settings.CLAUDE_CONFIG_DIRS
+                    if ("claude-code", claude_config_dir(path).name) not in archived
+                ],
             )
         for home in settings.CODEX_HOMES or [None]:
             account = codex_home(home)
+            if ("codex", account.name) in archived:
+                continue
             meter = codex_meter(home=account)
             if meter is None:
                 self.stdout.write(
@@ -71,6 +89,8 @@ class Command(BaseCommand):
                 )
         for config_dir in settings.CLAUDE_CONFIG_DIRS or [None]:
             account = claude_config_dir(config_dir)
+            if ("claude-code", account.name) in archived:
+                continue
             claude = claude_meter(config_dir=account)
             if claude is None:
                 self.stdout.write(
@@ -121,8 +141,10 @@ class Command(BaseCommand):
                 antigravity_meter,
             )
 
-            gemini = antigravity_meter()
-            if gemini is None:
+            gemini = None if ("antigravity", ACCOUNT) in archived else antigravity_meter()
+            if ("antigravity", ACCOUNT) in archived:
+                pass
+            elif gemini is None:
                 self.stdout.write(self.style.WARNING("The Gemini plan's meter could not be read."))
             else:
                 week = gemini["week_percent"]

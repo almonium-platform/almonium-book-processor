@@ -48,9 +48,20 @@ def claude_accounts() -> list[str]:
 
     from almonium_book_processor.catalog.models import PlanAccount
 
-    known = PlanAccount.objects.filter(provider="claude-code").order_by("account")
-    named = [Path(path).expanduser().name for path in settings.CLAUDE_CONFIG_DIRS]
-    return sorted(set(known.values_list("account", flat=True)) | set(named)) or [".claude"]
+    archived = set(
+        PlanAccount.objects.filter(provider="claude-code", archived=True).values_list(
+            "account", flat=True
+        )
+    )
+    known = PlanAccount.objects.filter(provider="claude-code", archived=False).order_by("account")
+    named = [
+        Path(path).expanduser().name
+        for path in settings.CLAUDE_CONFIG_DIRS
+        if Path(path).expanduser().name not in archived
+    ]
+    return sorted((set(known.values_list("account", flat=True)) | set(named)) - archived) or [
+        ".claude"
+    ]
 
 
 def provider_of(account: str) -> str:
@@ -298,6 +309,7 @@ def reconcile(*, runner: Runner = subprocess.run) -> list[str]:
     """
 
     from almonium_book_processor.catalog.models import PlanAccountPause
+    from almonium_book_processor.catalog.plan_pause import archived_accounts
 
     done = []
     systemd_dir = Path.home() / ".config" / "systemd" / "user"
@@ -311,6 +323,7 @@ def reconcile(*, runner: Runner = subprocess.run) -> list[str]:
         done.append(f"wrote {UNIT}")
     log_path(0).parent.mkdir(parents=True, exist_ok=True)
     paused = set(PlanAccountPause.objects.values_list("provider", "account"))
+    archived = archived_accounts()
     known = set()
     for writer in LexiconWriter.objects.all():
         unit = f"{SERVICE}@{writer.id}.service"
@@ -321,8 +334,10 @@ def reconcile(*, runner: Runner = subprocess.run) -> list[str]:
             env_file.write_text(env_text(writer))
         state = _state(runner, unit)
         last = _last_line(writer.id)
-        account_paused = (provider_of(writer.account), writer.account) in paused
-        if writer.running and not account_paused:
+        key = (provider_of(writer.account), writer.account)
+        account_archived = key in archived
+        account_paused = key in paused
+        if writer.running and not account_paused and not account_archived:
             if state == "inactive" and last == "done":
                 # the list is written: nothing to start again
                 writer.running = False
@@ -336,9 +351,16 @@ def reconcile(*, runner: Runner = subprocess.run) -> list[str]:
             if state in ("active", "activating"):
                 _systemctl(runner, "stop", unit)
                 state = _state(runner, unit)
-                reason = " (account paused)" if writer.running and account_paused else ""
+                if writer.running and account_archived:
+                    reason = " (account archived)"
+                elif writer.running and account_paused:
+                    reason = " (account paused)"
+                else:
+                    reason = ""
                 done.append(f"{unit}: stopped{reason}")
-            if writer.running and account_paused:
+            if writer.running and account_archived:
+                state = "account archived"
+            elif writer.running and account_paused:
                 state = "account paused"
         writer.state = state[:40]
         writer.last_line = last

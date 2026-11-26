@@ -63,6 +63,8 @@ class PlanMeter:
     # Credit/character counts for monthly unit-metered subscriptions such as ElevenLabs.
     units_used: int | None = None
     units_limit: int | None = None
+    # Hidden from the active dashboard, routing, and writers; restorable from the popover.
+    archived: bool = False
 
     @property
     def is_monthly(self) -> bool:
@@ -169,8 +171,8 @@ class PlanMeter:
         return timezone.now() - self.read_at > timezone.timedelta(hours=1)
 
 
-def plan_meters() -> list[PlanMeter]:
-    """The last reading of every account, Codex first, then by account name."""
+def plan_meters(*, include_archived: bool = False) -> list[PlanMeter]:
+    """The last reading of every active account, Codex first, then by account name."""
 
     paused = {
         (provider, account): note
@@ -215,6 +217,9 @@ def plan_meters() -> list[PlanMeter]:
     meters = []
     for key, reading in latest.items():
         about = details.get(key)
+        is_archived = bool(about and about.archived)
+        if is_archived and not include_archived:
+            continue
         used_by = tuple(
             name for name, users in (("books", on_books), ("entries", on_entries)) if key in users
         )
@@ -244,6 +249,39 @@ def plan_meters() -> list[PlanMeter]:
                 used_by=used_by,
                 units_used=reading.units_used,
                 units_limit=reading.units_limit,
+                archived=is_archived,
+            )
+        )
+    return sorted(
+        meters,
+        key=lambda meter: (
+            0 if meter.provider == "codex" else (2 if meter.provider == "elevenlabs" else 1),
+            meter.account,
+        ),
+    )
+
+
+def archived_plan_meters() -> list[PlanMeter]:
+    """Archived plan accounts, ready to be restored from the dashboard."""
+
+    meters = [meter for meter in plan_meters(include_archived=True) if meter.archived]
+    seen = {(meter.provider, meter.account) for meter in meters}
+    for about in PlanAccount.objects.filter(archived=True):
+        if (about.provider, about.account) in seen:
+            continue
+        meters.append(
+            PlanMeter(
+                provider=about.provider,
+                account=about.account,
+                week_percent=0,
+                read_at=about.updated_at,
+                resets_at=None,
+                fable_week_percent=None,
+                email=about.email,
+                plan_label=about.plan_label,
+                renews_on=about.renews_on,
+                priority=about.priority,
+                archived=True,
             )
         )
     return sorted(
