@@ -377,8 +377,9 @@ DATETIME_COLUMNS = {
 def origin_label() -> str:
     """The name other environments know this one by: its public host, or local."""
 
+    local = {"localhost", "127.0.0.1", "0.0.0.0", "host.docker.internal", "testserver", "*"}
     for host in settings.ALLOWED_HOSTS:
-        if host not in {"localhost", "127.0.0.1", "0.0.0.0", "testserver", "*"}:
+        if host not in local:
             return host
     return "local"
 
