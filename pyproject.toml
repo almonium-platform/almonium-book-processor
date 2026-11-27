@@ -12,7 +12,13 @@ license = { text = "Proprietary" }
 authors = [{ name = "Almonium" }]
 dependencies = [
   "beautifulsoup4>=4.12,<5",
-  "celery>=5.6,<6",
+  # Held below 5.7 with kombu: from 5.7.0 kombu asks RabbitMQ 4 for a fixed limit per
+  # consumer, so a job waiting for its retry time takes the worker's one place and
+  # nothing behind it starts (measured on the deployed 4.1 broker, 2026-11-27). 5.6 asks
+  # for the adjustable channel-wide limit, which 4.1 still serves. Lift the hold only
+  # with tests/test_broker_limit.py passing against the deployed broker's version.
+  "celery>=5.6,<5.7",
+  "kombu>=5.6,<5.7",
   "dj-database-url>=2.2,<3",
   "Django>=5.2,<5.3",
   "defusedxml>=0.7,<1",

@@ -22,11 +22,18 @@ keeps only what is open. Cross-repository work names its repository.
   Os Maias (6,547) 46 s, Les Trois Mousquetaires (8,850) 53 s; word lists about
   as long again. Sentence splitting is nearly all of it, about twice the
   laptop's time.
-- Found the same day, not fixed: on the deployed broker (RabbitMQ 4.1; the
-  local one is 3.13) a job waiting for its retry time holds the ordinary
-  worker's one place, so nothing behind it starts until it has run. A download
-  retrying a library that was down held a book for three minutes. Locally the
-  same two jobs do not block each other.
+- Fixed the same day: on the deployed broker (RabbitMQ 4.1; the local one is
+  3.13) a job waiting for its retry time held the ordinary worker's one place,
+  so nothing behind it started until it had run; a download retrying a library
+  that was down held a book for three minutes. The cause was kombu 5.7.0, which
+  the unpinned image had picked up: it asks RabbitMQ 4 for a fixed per-consumer
+  limit, where 5.6 asks for the channel-wide one Celery can raise for each
+  waiting job. RabbitMQ 4.1 still serves the channel-wide limit (it lists
+  `global_qos` as deprecated, permitted by default), and with it the second of
+  two jobs runs at once on a 4.1.8 broker. `celery` and `kombu` are held below
+  5.7 in `pyproject.toml`; `tests/test_broker_limit.py` guards the behaviour.
+  When RabbitMQ removes the channel-wide limit, the way out is quorum queues
+  on a topic exchange, where the broker holds delayed jobs itself.
 
 ## 2026-10-08
 
