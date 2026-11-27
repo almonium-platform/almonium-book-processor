@@ -479,6 +479,25 @@ class PublishedEditionViewSet(viewsets.ReadOnlyModelViewSet):
 
         return Response(public_chapters(self.get_object()))
 
+    @action(detail=False, methods=["get"], url_path="chapter-sequences")
+    def chapter_sequences(self, request):
+        """Every published edition's chapter sequences in one query, for the sitemap.
+
+        The per-edition chapters endpoint runs the reader analysis; a sitemap
+        only needs the numbers the reader's URLs carry, which need not run 1..n.
+        """
+        from almonium_book_processor.catalog.models import Chapter
+
+        sequences: dict[str, list[int]] = {}
+        rows = (
+            Chapter.objects.filter(edition__in=self.get_queryset())
+            .order_by("edition__slug", "sequence")
+            .values_list("edition__slug", "sequence")
+        )
+        for slug, sequence in rows:
+            sequences.setdefault(slug, []).append(sequence)
+        return Response(sequences)
+
     @action(detail=True, methods=["get"], url_path=r"chapters/(?P<sequence>\d+)/vocabulary")
     def chapter_vocabulary(self, request, slug=None, sequence=None):
         from django.shortcuts import get_object_or_404

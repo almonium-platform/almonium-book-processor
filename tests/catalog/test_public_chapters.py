@@ -148,3 +148,25 @@ def test_public_chapters_keep_the_last_complete_projection_when_the_run_is_stale
         rows = client.get(url).json()
         assert rows[1]["descriptions"] == ["An unchanged chapter."]
         assert rows[2]["analysisStatus"] == "running"
+
+
+@pytest.mark.django_db
+def test_chapter_sequences_list_every_published_public_edition_in_one_query(
+    client, django_assert_max_num_queries
+):
+    def edition(slug, status="published", visibility=Work.Visibility.PUBLIC, sequences=()):
+        work = Work.objects.create(slug=slug, title=slug, author="Author", visibility=visibility)
+        made = Edition.objects.create(work=work, slug=f"{slug}-en", language="en", status=status)
+        for sequence in sequences:
+            Chapter.objects.create(edition=made, sequence=sequence, title=str(sequence))
+
+    edition("late-start", sequences=(12, 11, 13))
+    edition("short", sequences=(1,))
+    edition("in-review", status="review", sequences=(1, 2))
+    edition("owned", visibility=Work.Visibility.PRIVATE, sequences=(1,))
+
+    with django_assert_max_num_queries(1):
+        response = client.get("/api/v1/public/editions/chapter-sequences/")
+
+    assert response.status_code == 200
+    assert response.json() == {"late-start-en": [11, 12, 13], "short-en": [1]}
