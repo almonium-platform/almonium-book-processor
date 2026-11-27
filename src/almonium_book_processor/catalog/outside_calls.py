@@ -8,7 +8,8 @@ module answers it like any step here: a seat routed by ``ai/gateway``, the provi
 checked first, the call recorded as an ``AIRun``.
 
 A request is bought once and found again by its content: the seat, the instructions, the
-input, the shape of the answer and whether the web may be searched. The caller's ``salt`` is
+input, the shape of the answer, whether the web may be searched and, for a request that shows
+the model pictures, what is in those files (never where they lie). The caller's ``salt`` is
 for a caller that means to ask the same thing again (a measure of how answers vary). The
 purpose and the caller's name are labels and move nothing. A refused allowance or cap buys
 nothing and records nothing: the caller holds and asks again. A call that failed after it used
@@ -22,6 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 from typing import Any
 
 from django.utils import timezone
@@ -34,6 +36,9 @@ from almonium_book_processor.catalog.models import AIRun, ModelConfiguration, Pr
 VERSION = 1
 PROMPT_NAME = "outside-call"
 TEXT = {"type": "text"}
+# a request may show the model a few pictures; only Claude Code can be handed a file to look at
+MAX_IMAGES = 8
+MAX_IMAGE_BYTES = 5_000_000
 
 
 class Refused(ValueError):
@@ -58,10 +63,39 @@ def identity(request: dict[str, Any]) -> str:
         "input": request["input"],
         "schema": request.get("schema"),
         "salt": request.get("salt") or "",
+        # absent for a request without pictures, so every identity bought before stays found
+        **({"images": _image_digests(request["images"])} if request.get("images") else {}),
     }
     return hashlib.sha256(
         json.dumps(content, ensure_ascii=False, sort_keys=True).encode("utf-8")
     ).hexdigest()
+
+
+def _image_digests(images: list[str]) -> list[str]:
+    return [hashlib.sha256(Path(image).read_bytes()).hexdigest() for image in images]
+
+
+def _images(request: dict[str, Any], seat: Seat) -> list[str]:
+    """The pictures a request shows the model, as absolute paths; ``Refused`` if it cannot."""
+
+    images = request.get("images")
+    if images is None:
+        return []
+    if not isinstance(images, list) or not all(isinstance(image, str) for image in images):
+        raise Refused("A request's images are a list of file paths")
+    if not images:
+        return []
+    if seat.provider != "claude-code":
+        raise Refused("Only a claude-code seat is shown images here")
+    if len(images) > MAX_IMAGES:
+        raise Refused(f"A request shows at most {MAX_IMAGES} images")
+    for image in images:
+        path = Path(image)
+        if not path.is_absolute() or not path.is_file():
+            raise Refused(f"An image is an absolute path to a file: {image[:200]}")
+        if path.stat().st_size > MAX_IMAGE_BYTES:
+            raise Refused(f"An image is at most {MAX_IMAGE_BYTES} bytes: {image[:200]}")
+    return images
 
 
 def _body(request: dict[str, Any], seat: Seat, search: bool) -> dict[str, Any]:
@@ -80,6 +114,7 @@ def _body(request: dict[str, Any], seat: Seat, search: bool) -> dict[str, Any]:
             )
         },
         **({"tools": [{"type": "web_search"}]} if search else {}),
+        **({"images": request["images"]} if request.get("images") else {}),
     }
 
 
@@ -187,6 +222,7 @@ def ask(request: dict[str, Any], *, provider=None) -> dict[str, Any]:
         raise Refused(f"A {seat.provider} seat answers in a JSON schema; the request has none")
     if reason := gateway.unavailable(seat):
         raise Refused(reason)
+    _images(request, seat)
 
     digest = identity(request)
     found = (

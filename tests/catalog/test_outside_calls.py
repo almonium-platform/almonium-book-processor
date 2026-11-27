@@ -193,3 +193,39 @@ def test_the_command_reads_one_request_and_writes_one_answer(monkeypatch):
         "status": "held",
         "reason": "cap",
     }
+
+
+CLAUDE = {**REQUEST, "seat": "claude-code:claude-sonnet-5-5:low", "purpose": "cover_choice"}
+
+
+def test_a_request_with_images_is_found_again_by_what_the_files_hold_not_where_they_lie(tmp_path):
+    here, there = tmp_path / "sheet.jpg", tmp_path / "moved" / "sheet.jpg"
+    there.parent.mkdir()
+    here.write_bytes(b"one picture")
+    there.write_bytes(b"one picture")
+    fake = Fake()
+
+    first = outside_calls.ask({**CLAUDE, "images": [str(here)]}, provider=fake)
+    again = outside_calls.ask({**CLAUDE, "images": [str(there)]}, provider=fake)
+
+    assert first["status"] == "completed" and again["cached"]
+    assert fake.bodies[0]["images"] == [str(here)] and len(fake.bodies) == 1
+    there.write_bytes(b"another picture")
+    assert not outside_calls.ask({**CLAUDE, "images": [str(there)]}, provider=fake)["cached"]
+    # a request without pictures keeps the identity it always had
+    assert outside_calls.identity(REQUEST) == outside_calls.identity({**REQUEST, "images": []})
+
+
+def test_images_are_refused_on_a_seat_that_cannot_be_handed_a_file_or_when_they_are_not_files(
+    tmp_path,
+):
+    picture = tmp_path / "sheet.jpg"
+    picture.write_bytes(b"one picture")
+
+    with pytest.raises(outside_calls.Refused, match="claude-code"):
+        outside_calls.ask({**REQUEST, "images": [str(picture)]}, provider=Fake())
+    with pytest.raises(outside_calls.Refused, match="absolute path"):
+        outside_calls.ask({**CLAUDE, "images": [str(tmp_path / "missing.jpg")]}, provider=Fake())
+    with pytest.raises(outside_calls.Refused, match="at most"):
+        outside_calls.ask({**CLAUDE, "images": [str(picture)] * 9}, provider=Fake())
+    assert not AIRun.objects.exists()

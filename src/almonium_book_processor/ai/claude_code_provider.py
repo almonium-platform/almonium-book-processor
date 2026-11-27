@@ -167,6 +167,9 @@ class ClaudeCodeProvider:
 
     One headless ``claude -p`` call per request: a fresh session with no tools,
     no MCP servers and no project context, so the input is the prompt alone.
+    A request that carries ``images`` (file paths) is the one exception: the
+    session gets the Read tool and those files' directories, and nothing else,
+    because the CLI has no other way to be shown a picture.
     It takes the same request body the OpenAI provider takes and returns a body
     of the same shape, so the jobs that call ``respond`` need no other change.
 
@@ -239,6 +242,14 @@ class ClaudeCodeProvider:
         effort = (body.get("reasoning") or {}).get("effort", "medium")
         # The prompt goes in on standard input: a chapter's worth of findings with their
         # blocks is longer than the operating system lets a single argument be.
+        images = [str(Path(image)) for image in body.get("images") or []]
+        prompt = body["input"]
+        if images:
+            listed = "\n".join(images)
+            prompt = (
+                "Read each of these image files with the Read tool before you answer, "
+                f"in this order:\n{listed}\n\n{prompt}"
+            )
         command = [
             self.binary,
             "-p",
@@ -247,7 +258,12 @@ class ClaudeCodeProvider:
             "--effort",
             effort,
             "--tools",
-            "",
+            "Read" if images else "",
+            *(
+                ["--add-dir", *sorted({str(Path(image).parent) for image in images})]
+                if images
+                else []
+            ),
             "--system-prompt",
             body["instructions"],
             "--json-schema",
@@ -261,7 +277,7 @@ class ClaudeCodeProvider:
         ]
         completed = self.runner(
             command,
-            input=body["input"],
+            input=prompt,
             capture_output=True,
             text=True,
             timeout=self.timeout_seconds,

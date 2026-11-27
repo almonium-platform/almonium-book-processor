@@ -15,7 +15,8 @@ class Command(BaseCommand):
         '{"seat": "antigravity:gemini-4-carbon:medium" (a seat or a bare model; a codex seat may '
         'end in ":search"), "purpose": "lexicon_review_rule", "caller": "review_v4", '
         '"instructions": "...", "input": "...", "schema": {...} (left out, a codex seat answers '
-        'in prose), "salt": "" (to ask the same thing again on purpose)}. The answer is one JSON '
+        'in prose), "salt": "" (to ask the same thing again on purpose), "images": ["/abs/a.jpg"] '
+        "(up to eight files a claude-code seat reads before it answers)}. The answer is one JSON "
         'object on the last line of standard output: {"status": "completed", "text", "cached", '
         '"usage", "cost_usd", "plan_account"} with exit 0; {"status": "held", "reason"} with '
         "exit 75 when a cap, a paused account or a plan's limit refused and nothing was paid; "

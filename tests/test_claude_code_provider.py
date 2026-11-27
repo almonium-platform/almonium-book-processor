@@ -100,6 +100,22 @@ def test_respond_runs_the_cli_without_tools_servers_or_project_context():
     assert list(provider.workdir.iterdir()) == []
 
 
+def test_a_request_with_images_gets_the_read_tool_their_directories_and_nothing_else(tmp_path):
+    first, second = tmp_path / "a" / "sheet.jpg", tmp_path / "b" / "plate.png"
+    provider, calls = provider_with(json.dumps(cli_result()))
+
+    provider.respond({**BODY, "images": [str(first), str(second)]})
+
+    command, kwargs = calls[0]
+    assert command[command.index("--tools") + 1] == "Read"
+    at = command.index("--add-dir")
+    assert command[at + 1 : at + 3] == [str(first.parent), str(second.parent)]
+    assert command[at + 3] == "--system-prompt"
+    # the paths go in ahead of the prompt, in the order the caller numbered them
+    assert kwargs["input"].index(str(first)) < kwargs["input"].index(str(second))
+    assert kwargs["input"].endswith("Translate this chapter.")
+
+
 def test_schema_is_converted_to_the_shape_the_cli_validates():
     provider, calls = provider_with(stdout=json.dumps(cli_result()))
 
