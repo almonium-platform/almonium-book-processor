@@ -96,12 +96,14 @@ def test_each_account_shows_who_it_is_when_it_resets_and_when_it_renews(client):
         resets_at=datetime(2026, 10, 26, 20, 0, tzinfo=UTC),
         session_resets_at=datetime(2026, 10, 26, 4, 0, tzinfo=UTC),
     )
+    today = datetime.now(UTC).date()
+    renews_on = date(today.year + (today.month // 12), (today.month % 12) + 1, 26)
     PlanAccount.objects.create(
         provider="claude-code",
         account=".claude-2",
         email="almonium.app@gmail.com",
         plan_label="max",
-        renews_on=date(2026, 11, 26),
+        renews_on=renews_on,
     )
     PlanWorker.objects.create(
         name="main",
@@ -113,14 +115,15 @@ def test_each_account_shows_who_it_is_when_it_resets_and_when_it_renews(client):
 
     (meter,) = plan_meters()
     assert meter.email == "almonium.app@gmail.com" and meter.plan_label == "max"
-    assert meter.session_percent == 12 and meter.renews_on == date(2026, 11, 26)
+    assert meter.session_percent == 12 and meter.renews_on == renews_on
     assert meter.workers == ("main",)
 
     client.force_login(get_user_model().objects.create_user(username="staff", is_staff=True))
     page = client.get(reverse("catalog:dashboard")).content.decode()
     assert "almonium.app@gmail.com" in page and "worker: main" in page
     assert "Week resets" in page and "Session 12%" in page
-    assert ">Thu 26 Nov</span>" in page and "Paid on the 26th of the month" in page
+    assert f">{renews_on.strftime('%a %-d %b')}</span>" in page
+    assert "Paid on the 26th of the month" in page
 
     response = client.post(
         reverse("catalog:plan-account-details"),

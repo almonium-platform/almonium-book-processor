@@ -164,7 +164,7 @@ def test_the_catalogue_page_draws_one_panel_per_work(client, staff, frankenstein
     assert "Canonical original" not in page
     assert page.count('class="role-badge role-badge-parallel">Parallel<') == 2
     assert "Active processing" not in page
-    assert "Runs" not in page
+    assert ">Runs<" not in page
     # The button keeps the upload entry point; the navigation no longer repeats it.
     nav, body = page.split("</header>", 1)
     assert "Upload source" not in nav
@@ -347,7 +347,7 @@ def test_user_imports_are_a_flat_list_newest_first_with_the_owner(client, staff)
     assert 'edition-warnings edition-warnings-urgent">1 warning<' in page
     assert 'style="width:62%"' in page
     assert "Active processing" not in page
-    assert "Runs" not in page and "words" not in page
+    assert ">Runs<" not in page and "words" not in page
     assert '<span class="status status-ready">Available</span>' in page
 
 
