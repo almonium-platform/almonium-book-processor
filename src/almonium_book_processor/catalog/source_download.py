@@ -43,6 +43,10 @@ DEADLINE_SECONDS = 15 * 60
 # illustrated EPUBs arrive in seconds; the exporter's long books do not make this.
 LIVE_READ_TIMEOUT_SECONDS = 20
 LIVE_DEADLINE_SECONDS = 60
+# Wikisource's exporter builds the EPUB before it sends a byte, so it alone is waited for
+# longer while a reader watches; it is offered live only when no library has the file ready.
+LIVE_EXPORT_READ_TIMEOUT_SECONDS = 90
+LIVE_EXPORT_DEADLINE_SECONDS = 150
 MAX_REDIRECTS = 5
 CHUNK = 64 * 1024
 EPUB_MAGIC = b"PK\x03\x04"
@@ -140,10 +144,11 @@ def check_page_url(url: str, source_kind: str) -> None:
     host = (parts.hostname or "").lower()
     if parts.scheme != "https":
         raise DownloadRefused("The source page link must use https.")
-    if source_kind == SourceDownload.Kind.GUTENBERG:
-        ok = host in GUTENBERG_HOSTS
-    else:
+    if source_kind == SourceDownload.Kind.WIKISOURCE:
         ok = host == "wikisource.org" or host.endswith(".wikisource.org")
+    else:
+        # a library's page is on the hosts its file is fetched from
+        ok = host in HOSTS.get(source_kind, frozenset())
     if not ok:
         raise DownloadRefused(f"The source page is not a {source_kind} page.")
 
@@ -181,11 +186,12 @@ def download(url: str, source_kind: str, *, urlopen=None, live: bool = False) ->
     ``live`` is a reader waiting: the library gets seconds to answer, not minutes.
     """
 
-    patience = (
-        (LIVE_READ_TIMEOUT_SECONDS, LIVE_DEADLINE_SECONDS)
-        if live
-        else (READ_TIMEOUT_SECONDS, DEADLINE_SECONDS)
-    )
+    if not live:
+        patience = (READ_TIMEOUT_SECONDS, DEADLINE_SECONDS)
+    elif source_kind == SourceDownload.Kind.WIKISOURCE:
+        patience = (LIVE_EXPORT_READ_TIMEOUT_SECONDS, LIVE_EXPORT_DEADLINE_SECONDS)
+    else:
+        patience = (LIVE_READ_TIMEOUT_SECONDS, LIVE_DEADLINE_SECONDS)
     try:
         return _download(url, source_kind, urlopen=urlopen, patience=patience)
     except DownloadRefused as refused:

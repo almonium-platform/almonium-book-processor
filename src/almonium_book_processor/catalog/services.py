@@ -226,11 +226,15 @@ def create_source_ingest(
     levels: list[str] | None = None,
     languages: list[str] | None = None,
     live: bool = False,
+    fallbacks: list[dict[str, str]] | None = None,
 ) -> tuple[Edition, bool]:
     """Seed a public catalogue edition whose text a worker fetches from a free library.
 
     ``live`` says a reader is waiting for the text: it is fetched and made readable on
-    the live queue, and a library that is down fails it at once (``tasks.queue_source_download``).
+    the live queue (``tasks.queue_source_download``), a library that is down is not waited
+    for, and the book goes to the shelf as it arrives (``tasks.publishes_as_arrived``).
+    ``fallbacks`` are other free texts of the same book, tried in order when this one
+    cannot be had.
 
     ``levels`` and ``languages`` name what to make of the text once it is on the shelf; the
     factory (``catalog/factory.py``) starts that production when the shelf pipeline ends.
@@ -273,6 +277,8 @@ def create_source_ingest(
                     if levels or languages
                     else {}
                 ),
+                live=live,
+                fallbacks=[dict(fallback) for fallback in fallbacks or []],
             )
             transaction.on_commit(lambda: queue_source_download(str(edition.id), live=live))
     except IntegrityError:

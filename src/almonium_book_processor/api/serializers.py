@@ -228,6 +228,28 @@ class LibraryIngestSerializer(serializers.Serializer):
     )
 
 
+class SourceFallbackSerializer(serializers.Serializer):
+    """Another free text of the same book, tried when the one asked for cannot be had."""
+
+    download_url = serializers.URLField(max_length=1000)
+    source_kind = serializers.ChoiceField(choices=SourceDownload.Kind.choices)
+    source_page_url = serializers.URLField(max_length=1000)
+
+    def validate(self, attrs):
+        errors = {}
+        for field, check in (
+            ("download_url", check_download_url),
+            ("source_page_url", check_page_url),
+        ):
+            try:
+                check(attrs[field], attrs["source_kind"])
+            except DownloadRefused as error:
+                errors[field] = str(error)
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
+
+
 class SourceIngestSerializer(serializers.Serializer):
     external_id = serializers.UUIDField()
     download_url = serializers.URLField(max_length=1000)
@@ -248,6 +270,8 @@ class SourceIngestSerializer(serializers.Serializer):
     )
     # a reader is waiting for the text: the live queue, and no patience with a library
     live = serializers.BooleanField(required=False, default=False)
+    # other free texts of the same book in the same language, best first
+    fallbacks = SourceFallbackSerializer(many=True, required=False, default=list, max_length=5)
 
     def validate(self, attrs):
         errors = {}

@@ -440,13 +440,34 @@ def library_ingest_status(edition: Edition) -> dict[str, Any]:
     latest_run = edition.pipeline_runs.order_by("-created_at").first()
     download = SourceDownload.objects.filter(edition=edition).first()
     error = (latest_run.error if latest_run else "") or ""
+    phase = _ingest_phase(edition, download)
     if download is not None and download.status == SourceDownload.Status.FAILED:
         error = download.error
+    elif download is not None and download.live and phase in ("ready", "review"):
+        # a live text goes to the shelf as it arrives; one that was refused there has
+        # failed the reader, whatever the word lists that follow report
+        refused = (
+            edition.pipeline_runs.filter(stage=PipelineRun.Stage.PUBLISH)
+            .order_by("-created_at")
+            .first()
+        )
+        if refused is not None and refused.status == PipelineRun.Status.FAILED:
+            phase, error = "failed", refused.error
     return {
         "edition_id": str(edition.id),
         "slug": edition.slug,
         "status": edition.status,
-        "phase": _ingest_phase(edition, download),
+        "phase": phase,
+        # the text the edition is made from; after a fallback, not the one first asked for
+        "source": (
+            {
+                "kind": download.source_kind,
+                "page_url": download.source_page_url,
+                "download_url": download.download_url,
+            }
+            if download is not None
+            else None
+        ),
         "progress": latest_run.progress if latest_run else 0,
         "error": error,
         "published_at": edition.published_at,

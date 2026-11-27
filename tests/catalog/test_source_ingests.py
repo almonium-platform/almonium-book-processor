@@ -8,6 +8,7 @@ from urllib.error import HTTPError, URLError
 
 import pytest
 from celery.exceptions import Retry
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -221,6 +222,11 @@ def test_a_request_makes_a_public_edition_that_waits_for_its_download(
         "published_book_id": None,
         "completed_stages": [],
         "current_stage": None,
+        "source": {
+            "kind": "wikisource",
+            "page_url": "https://fr.wikisource.org/wiki/Guerre_et_Paix",
+            "download_url": EXPORT,
+        },
     }
     assert edition.work.visibility == Work.Visibility.PUBLIC
     assert edition.work.title == "Guerre et Paix"
@@ -558,3 +564,235 @@ def test_a_live_download_that_drags_is_given_up_within_the_minute(monkeypatch) -
 
     with pytest.raises(source_download.DownloadUnavailable, match="took over 60 seconds"):
         source_download.download(GUTENBERG_EPUB, "gutenberg", live=True)
+
+
+# --- other free texts of the same book -------------------------------------------
+
+STANDARD = (
+    "https://standardebooks.org/ebooks/mary-shelley/frankenstein/downloads/"
+    "mary-shelley_frankenstein.epub?source=download"
+)
+STANDARD_PAGE = "https://standardebooks.org/ebooks/mary-shelley/frankenstein"
+FALLBACK = {
+    "download_url": STANDARD,
+    "source_kind": "standard_ebooks",
+    "source_page_url": STANDARD_PAGE,
+}
+
+
+def test_a_library_page_is_its_own_librarys(queued) -> None:
+    # every kind but Gutenberg was held to a Wikisource page, so no Standard Ebooks or
+    # Wolne Lektury text could be asked for over the API
+    edition = create(
+        download_url=STANDARD, source_kind="standard_ebooks", source_page_url=STANDARD_PAGE
+    )
+
+    assert edition.source_download.source_page_url == STANDARD_PAGE
+    wrong = APIClient().post(
+        ENDPOINT,
+        body(download_url=STANDARD, source_kind="standard_ebooks"),
+        format="json",
+        **HEADERS,
+    )
+    assert wrong.status_code == 400 and "source_page_url" in wrong.json()
+
+
+def test_a_fallback_off_the_allowlist_is_refused() -> None:
+    response = APIClient().post(
+        ENDPOINT,
+        body(fallbacks=[{**FALLBACK, "download_url": "https://evil.example/book.epub"}]),
+        format="json",
+        **HEADERS,
+    )
+
+    assert response.status_code == 400
+    assert "download_url" in str(response.json()["fallbacks"])
+
+
+def test_a_live_ingest_takes_the_next_text_when_its_library_is_down(
+    monkeypatch, queued, sent, django_capture_on_commit_callbacks
+) -> None:
+    edition = create(live=True, fallbacks=[FALLBACK])
+    seen = fake_web(
+        monkeypatch,
+        {GUTENBERG_EPUB: http_error(GUTENBERG_EPUB, 503), STANDARD: FakeResponse(EPUB_BYTES)},
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        tasks.download_source_edition.run(str(edition.id), live=True)
+
+    assert [request.full_url for request in seen] == [GUTENBERG_EPUB, STANDARD]
+    edition.refresh_from_db()
+    record = edition.source_download
+    record.refresh_from_db()
+    assert record.status == SourceDownload.Status.DOWNLOADED
+    assert (record.source_kind, record.download_url, record.source_page_url) == (
+        "standard_ebooks",
+        STANDARD,
+        STANDARD_PAGE,
+    )
+    assert sent == [("process_book_pipeline", (str(edition.id),), {}, "live")]
+    status = APIClient().get(f"{ENDPOINT}{edition.id}/", **HEADERS).json()
+    assert status["source"]["kind"] == "standard_ebooks"
+
+
+def test_a_text_that_cannot_become_a_book_gives_way_to_the_next(
+    monkeypatch, queued, django_capture_on_commit_callbacks
+) -> None:
+    edition = create(fallbacks=[FALLBACK])
+    # nothing routed: every Gutenberg build answers 404
+    fake_web(monkeypatch, {STANDARD: FakeResponse(EPUB_BYTES)})
+
+    with django_capture_on_commit_callbacks(execute=True):
+        tasks.download_source_edition.run(str(edition.id))
+
+    edition.source_download.refresh_from_db()
+    assert edition.source_download.source_kind == "standard_ebooks"
+    assert queued[-1] == ("pipeline", str(edition.id))
+
+
+def test_nobody_waiting_the_library_asked_for_is_tried_again_before_another(
+    monkeypatch, queued
+) -> None:
+    edition = create(fallbacks=[FALLBACK])
+    seen = fake_web(
+        monkeypatch,
+        {GUTENBERG_EPUB: http_error(GUTENBERG_EPUB, 503), STANDARD: FakeResponse(EPUB_BYTES)},
+    )
+
+    with pytest.raises(Retry):
+        tasks.download_source_edition.run(str(edition.id))
+
+    assert [request.full_url for request in seen] == [GUTENBERG_EPUB]
+
+
+def test_a_live_ingest_fails_with_what_every_library_said(monkeypatch, queued, sent) -> None:
+    edition = create(live=True, fallbacks=[FALLBACK])
+    fake_web(
+        monkeypatch,
+        {GUTENBERG_EPUB: http_error(GUTENBERG_EPUB, 503), STANDARD: http_error(STANDARD, 500)},
+    )
+
+    tasks.download_source_edition.run(str(edition.id), live=True)
+
+    edition.refresh_from_db()
+    edition.source_download.refresh_from_db()
+    assert edition.status == Edition.Status.FAILED
+    assert edition.source_download.error == (
+        "www.gutenberg.org answered HTTP 503. standardebooks.org answered HTTP 500."
+    )
+    # the row still names the text that was asked for
+    assert edition.source_download.source_kind == "gutenberg"
+
+
+def test_the_exporter_is_waited_for_longer_while_a_reader_watches(monkeypatch) -> None:
+    timeouts: list[int] = []
+
+    def urlopen(request, timeout):
+        timeouts.append(timeout)
+        return FakeResponse(EPUB_BYTES)
+
+    monkeypatch.setattr(source_download, "_open", urlopen)
+
+    source_download.download(EXPORT, "wikisource", live=True)
+
+    assert timeouts == [source_download.LIVE_EXPORT_READ_TIMEOUT_SECONDS]
+
+
+# --- on the shelf as it arrives ---------------------------------------------------
+
+
+def arrived(**overrides) -> Edition:
+    """A live ingest whose text is in and split: ready, confirmed, no level."""
+
+    edition = create(live=True)
+    Edition.objects.filter(id=edition.id).update(
+        slug="frankenstein-en-original", status=Edition.Status.READY, source_sha256="a" * 64
+    )
+    Work.objects.filter(id=edition.work_id).update(slug="frankenstein", **overrides)
+    SourceDownload.objects.filter(edition=edition).update(status=SourceDownload.Status.DOWNLOADED)
+    edition = Edition.objects.select_related("work", "source_download").get(id=edition.id)
+    model = settings.NLP_SPACY_MODELS.get(edition.language, "blank")
+    tasks.PipelineRun.objects.create(
+        edition=edition,
+        stage=tasks.PipelineRun.Stage.SENTENCES,
+        status=tasks.PipelineRun.Status.SUCCEEDED,
+        idempotency_key=f"{edition.id}:sentences",
+        processor_version="test",
+        input_hash=tasks._text_hash(edition.source_sha256, edition.language, model),
+    )
+    return edition
+
+
+def test_a_live_text_goes_to_the_shelf_without_a_level(monkeypatch, queued) -> None:
+    edition = arrived()
+
+    assert tasks.publishes_as_arrived(edition)
+    assert tasks.publication_blocker(edition) == ""
+
+    Edition.objects.filter(id=edition.id).update(status=Edition.Status.REVIEW)
+    edition.refresh_from_db()
+    assert tasks.publication_blocker(edition) == ""
+
+
+def test_a_text_nobody_waited_for_still_needs_its_level(monkeypatch, queued) -> None:
+    edition = arrived()
+    SourceDownload.objects.filter(edition=edition).update(live=False)
+    edition = Edition.objects.select_related("work", "source_download").get(id=edition.id)
+
+    assert not tasks.publishes_as_arrived(edition)
+    assert tasks.publication_blocker(edition) == "A CEFR level is required before publication."
+
+
+def test_almonium_is_told_the_level_is_provisional_until_one_is_judged(monkeypatch, queued) -> None:
+    from almonium_book_processor.catalog import publication
+
+    edition = arrived()
+    posted: list[dict] = []
+    monkeypatch.setattr(
+        publication,
+        "_signed_post",
+        lambda path, payload, failure: posted.append(payload) or {"bookId": str(uuid.uuid4())},
+    )
+
+    publication.publish_to_almonium(edition)
+    edition.cefr_level = "B2"
+    publication.publish_to_almonium(edition)
+
+    assert [(sent["cefrLevel"], sent["levelProvisional"]) for sent in posted] == [
+        ("C1", True),
+        ("B2", False),
+    ]
+
+
+def test_the_pipeline_shelves_a_live_text_before_its_word_lists(monkeypatch, queued) -> None:
+    edition = arrived()
+    order: list[str] = []
+    monkeypatch.setattr(tasks.split_edition_sentences, "run", lambda edition_id: None)
+    monkeypatch.setattr(tasks.publish_edition, "run", lambda edition_id: order.append("publish"))
+    for task, name in (
+        (tasks.analyze_edition_lexicon, "lexical"),
+        (tasks.analyze_edition_source_quality, "source_qa"),
+    ):
+        monkeypatch.setattr(task, "delay", lambda edition_id, name=name: order.append(name))
+
+    tasks.process_normalized_edition.run(str(edition.id))
+
+    assert order == ["publish", "lexical", "source_qa"]
+
+
+def test_a_live_text_the_shelf_refused_has_failed_its_reader(queued) -> None:
+    edition = arrived()
+    tasks.PipelineRun.objects.create(
+        edition=edition,
+        stage=tasks.PipelineRun.Stage.PUBLISH,
+        status=tasks.PipelineRun.Status.FAILED,
+        idempotency_key="refused",
+        processor_version="test",
+        input_hash="x",
+        error="Under copyright in UA and DE.",
+    )
+
+    status = APIClient().get(f"{ENDPOINT}{edition.id}/", **HEADERS).json()
+
+    assert (status["phase"], status["error"]) == ("failed", "Under copyright in UA and DE.")

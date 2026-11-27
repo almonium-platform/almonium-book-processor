@@ -16,6 +16,22 @@ keeps only what is open. Cross-repository work names its repository.
   `LIVE_DEADLINE_SECONDS` in `catalog/source_download.py`) and is not tried
   again: a library that is down fails the edition at once with the reason.
   Nothing sends `live` yet.
+- A live ingest goes to the shelf as it arrives: published when its sentences
+  are split, without a level (C1 as a stand-in, `levelProvisional: true`) and
+  without waiting for text warnings to be reviewed
+  (`tasks.publishes_as_arrived`, `tasks.PROVISIONAL_LEVEL`). A publication
+  Almonium refuses shows as a failed ingest. Measured on the laptop with
+  Gutenberg down: Through the Looking-Glass asked for from Gutenberg, taken
+  from Wikisource's exporter instead, readable in the product 17 s after the
+  request.
+- A source ingest can name `fallbacks`, other free texts of the same book
+  (`SourceDownload.fallbacks`, migration 0058): the next is fetched when the
+  one asked for cannot be had, and the row and the status body's new `source`
+  name the text that was stored. A live fetch waits 90 s for Wikisource's
+  exporter, which builds the file on request.
+- Fixed: `check_page_url` held every library but Gutenberg to a Wikisource
+  page, so a Standard Ebooks or Wolne Lektury text could not be asked for over
+  the API (the factory calls the service directly and never met it).
 - Measured the same day on the deployed host (4 ARM cores, staging slot, idle),
   from a queued EPUB to readable text: The Thirty-Nine Steps (742 blocks)
   13.5 s, The Age of Innocence (2,126) 22 s, Au Bonheur des Dames (3,004) 26 s,

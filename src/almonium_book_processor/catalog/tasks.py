@@ -437,10 +437,13 @@ def download_source_edition(self, edition_id: str, live: bool = False) -> None:
 
     A library that is slow or down this minute is tried again a few times; a
     link that cannot become a book fails the edition at once with the reason.
+    Where the request named other free texts of the book (``SourceDownload.fallbacks``),
+    the next one is tried before the edition is failed, and the row is rewritten to
+    name the text that was stored.
 
-    ``live`` is a reader waiting for the book (``settings.LIVE_QUEUE``): the library gets
-    seconds, a library that is down fails the edition at once so the reader can be offered
-    another text, and the steps up to readable text stay on the live queue.
+    ``live`` is a reader waiting for the book (``settings.LIVE_QUEUE``): a library gets
+    seconds, one that is down is passed over for the next text instead of being waited
+    for, and the steps up to readable text stay on the live queue.
     """
 
     from django.core.files import File
@@ -455,30 +458,54 @@ def download_source_edition(self, edition_id: str, live: bool = False) -> None:
     record = edition.source_download
     if record.status != SourceDownload.Status.PENDING or edition.source_file:
         return
+    live = live or record.live
     record.attempts += 1
     record.save(update_fields=["attempts", "updated_at"])
-    try:
-        fetched = download(record.download_url, record.source_kind, live=live)
-    except DownloadUnavailable as error:
-        if live:
-            # a retry minutes away is no use to a reader, and a job waiting for its time
-            # holds this worker's one place on the deployed broker (measured 2026-11-27)
-            _fail_download(edition, record, str(error))
-            return
+    candidates = [
+        {
+            "download_url": record.download_url,
+            "source_kind": record.source_kind,
+            "source_page_url": record.source_page_url,
+        },
+        *record.fallbacks,
+    ]
+    fetched = None
+    used = candidates[0]
+    said: list[str] = []
+    waited_for: DownloadUnavailable | None = None
+    for candidate in candidates:
+        try:
+            fetched = download(candidate["download_url"], candidate["source_kind"], live=live)
+            used = candidate
+            break
+        except DownloadUnavailable as error:
+            # a retry minutes away is no use to a reader; nobody waiting, the library asked
+            # for is given its tries before another text takes its place
+            if not live:
+                waited_for = error
+                break
+            said.append(str(error))
+        except DownloadRefused as error:
+            said.append(str(error))
+        except Exception as error:
+            _fail_download(edition, record, f"The download failed: {error}")
+            raise
+    if fetched is None and waited_for is not None:
         if self.request.retries < DOWNLOAD_RETRIES:
-            record.error = f"{error} Trying again."
+            record.error = f"{waited_for} Trying again."
             record.save(update_fields=["error", "updated_at"])
             raise self.retry(
                 countdown=DOWNLOAD_RETRY_SECONDS * (self.request.retries + 1)
-            ) from error
-        _fail_download(edition, record, f"{error} Gave up after {record.attempts} tries.")
+            ) from waited_for
+        _fail_download(edition, record, f"{waited_for} Gave up after {record.attempts} tries.")
         return
-    except DownloadRefused as error:
-        _fail_download(edition, record, str(error))
+    if fetched is None:
+        _fail_download(edition, record, " ".join(said))
         return
-    except Exception as error:
-        _fail_download(edition, record, f"The download failed: {error}")
-        raise
+    if used is not candidates[0]:
+        logger.warning(
+            "Edition %s is made from %s: %s", edition.id, used["download_url"], " ".join(said)
+        )
 
     try:
         with fetched.path.open("rb") as stream, transaction.atomic():
@@ -486,6 +513,10 @@ def download_source_edition(self, edition_id: str, live: bool = False) -> None:
             edition.save(update_fields=["source_file", "updated_at"])
             record.status = SourceDownload.Status.DOWNLOADED
             record.error = ""
+            # the text that was stored, which the shape verdict and the provenance name
+            record.download_url = used["download_url"]
+            record.source_kind = used["source_kind"]
+            record.source_page_url = used["source_page_url"]
             record.final_url = fetched.final_url
             record.size_bytes = fetched.size
             record.downloaded_at = timezone.now()
@@ -493,6 +524,9 @@ def download_source_edition(self, edition_id: str, live: bool = False) -> None:
                 update_fields=[
                     "status",
                     "error",
+                    "download_url",
+                    "source_kind",
+                    "source_page_url",
                     "final_url",
                     "size_bytes",
                     "downloaded_at",
@@ -583,6 +617,14 @@ def process_normalized_edition(self, edition_id: str) -> None:
     try:
         split_edition_sentences.run(edition_id)
         _finish_normalized_pipeline(edition)
+        edition.refresh_from_db()
+        if publishes_as_arrived(edition):
+            # the reader is waiting: on the shelf first, the word lists and checks after
+            try:
+                publish_edition.run(edition_id)
+            except Exception:
+                # the publish run keeps the reason, and the ingest's status reports it
+                logger.exception("Could not shelve live edition %s as it arrived", edition.id)
         for task, label in (
             (analyze_edition_lexicon, "lexical enrichment"),
             (analyze_edition_source_quality, "source-text QA"),
@@ -608,6 +650,29 @@ def process_normalized_edition(self, edition_id: str) -> None:
         raise
 
 
+# What an unadapted original is filed under until its level is judged: of 110 originals the
+# difficulty judges read by November 2026, 109 came out C1. Sent with ``levelProvisional``,
+# so the product says "not rated yet" rather than showing it as a verdict.
+PROVISIONAL_LEVEL = "C1"
+
+
+def publishes_as_arrived(edition: Edition) -> bool:
+    """Whether this edition goes to the shelf before its level is judged.
+
+    A text a reader asked for and waited for (``SourceDownload.live``) does, for as long as
+    it has no level: text warnings do not hold it and it carries a provisional level. Once
+    a level is set it is published like any other edition.
+    """
+
+    download = getattr(edition, "source_download", None)
+    return (
+        download is not None
+        and download.live
+        and edition.cefr_level is None
+        and edition.source_edition_id is None
+    )
+
+
 def publication_blocker(edition: Edition, *, allow_unpublished_source: bool = False) -> str:
     """Why this edition cannot go to Almonium right now, or an empty string.
 
@@ -618,7 +683,11 @@ def publication_blocker(edition: Edition, *, allow_unpublished_source: bool = Fa
 
     if edition.work.visibility != edition.work.Visibility.PUBLIC:
         return "Private imports cannot be published to the public catalog"
-    if edition.status not in {Edition.Status.READY, Edition.Status.PUBLISHED}:
+    as_arrived = publishes_as_arrived(edition)
+    publishable = {Edition.Status.READY, Edition.Status.PUBLISHED}
+    if as_arrived:
+        publishable.add(Edition.Status.REVIEW)
+    if edition.status not in publishable:
         return "Only ready editions can be published."
     from almonium_book_processor.catalog.adaptation_quality import adaptation_blocker
 
@@ -626,7 +695,7 @@ def publication_blocker(edition: Edition, *, allow_unpublished_source: bool = Fa
         return blocker
     if has_provisional_slug(edition) or not edition.title or not edition.author:
         return "Confirm the detected metadata before publication."
-    if edition.cefr_level is None:
+    if edition.cefr_level is None and not as_arrived:
         return "A CEFR level is required before publication."
     if edition.work.publication_year is None:
         return "A publication year is required before publication."

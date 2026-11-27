@@ -280,9 +280,29 @@ POST /api/v1/internal/source-ingests/
   "author": "Mary Shelley",
   "language": "en",
   "publication_year": 1818,
-  "live": false
+  "live": false,
+  "fallbacks": [
+    {"download_url": "https://standardebooks.org/ebooks/mary-shelley/frankenstein/downloads/mary-shelley_frankenstein.epub?source=download",
+     "source_kind": "standard_ebooks",
+     "source_page_url": "https://standardebooks.org/ebooks/mary-shelley/frankenstein"}
+  ]
 }
 ```
+
+`fallbacks` (at most five) are other free texts of the same book, best first,
+each checked like the request's own link. When the text asked for cannot be
+had, the next is fetched and the `SourceDownload` row is rewritten to name the
+text that was stored; the status body's `source` says which. A file that
+cannot become a book (a 404, not an EPUB) gives way at once. A library that is
+down gives way at once for a live ingest, and is tried again first when nobody
+waits.
+
+A live ingest is also published as it arrives (`tasks.publishes_as_arrived`):
+when its sentences are split it goes to Almonium without waiting for a level
+or for text warnings to be reviewed, with `cefrLevel` set to
+`tasks.PROVISIONAL_LEVEL` (C1) and `levelProvisional: true`. Once the edition
+has a level it is published like any other and sends `false`. If Almonium
+refuses the publication, the ingest's status reports `failed` with the reason.
 
 `live: true` says a reader is waiting for the text (absent means false). The
 fetch and the steps up to readable text then run on the `live` queue, which a
@@ -297,7 +317,8 @@ the caller can offer another text.
 `www.gutenberg.org`/`gutenberg.org` with an EPUB path (`/ebooks/<id>.epub3.images`,
 `/ebooks/<id>.epub[.no]images`, `/cache/epub/<id>/pg<id>[-images][-3].epub`), or
 `ws-export.wmcloud.org/?lang=..&page=..&format=epub-3` for Wikisource.
-`source_page_url` must be on `gutenberg.org` or `*.wikisource.org`. Anything
+`source_page_url` must be on the named library's hosts (`*.wikisource.org`
+for Wikisource). Anything
 else is a 400 naming the field. An `external_id` already used by another kind
 of job is a 409.
 

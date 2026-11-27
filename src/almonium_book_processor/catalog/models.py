@@ -355,6 +355,14 @@ class SourceDownload(TimestampedModel):
     production = models.JSONField(default=dict, blank=True)
     # Whether Almonium has been told the book is finished (the factory reports until then).
     reported_final = models.BooleanField(default=False)
+    # A reader asked for this text and waited for it: it was fetched and made readable on
+    # the live queue and went to the shelf as it arrived, before anyone judged its level
+    # (tasks.publishes_as_arrived).
+    live = models.BooleanField(default=False)
+    # Other free texts of the same book, best first, each {"download_url", "source_kind",
+    # "source_page_url"}: tried in order when this one cannot be had. The row's own three
+    # fields then name the text that was stored.
+    fallbacks = models.JSONField(default=list, blank=True)
     source_kind = models.CharField(max_length=20, choices=Kind.choices)
     source_page_url = models.URLField(max_length=1000)
     download_url = models.URLField(max_length=1000)

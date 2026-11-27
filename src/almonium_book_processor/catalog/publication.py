@@ -153,6 +153,9 @@ def withdraw_from_almonium(edition: Edition) -> bool:
 
 def publish_to_almonium(edition: Edition) -> str:
     """Send a versioned, explicit publication request to the product API."""
+    from almonium_book_processor.catalog.tasks import PROVISIONAL_LEVEL, publishes_as_arrived
+
+    as_arrived = publishes_as_arrived(edition)
     payload: dict[str, Any] = {
         "editionSlug": edition.slug,
         "sourceHash": edition.source_sha256,
@@ -168,7 +171,10 @@ def publish_to_almonium(edition: Edition) -> str:
         "translator": edition.translator or None,
         "publicationYear": edition.work.publication_year,
         "coverUrl": edition.work.cover_url or None,
-        "cefrLevel": edition.cefr_level,
+        "cefrLevel": PROVISIONAL_LEVEL if as_arrived else edition.cefr_level,
+        # true while nobody has judged the level: the reader asked for the text and got it
+        # as it arrived. A later publication with a judged level sends false.
+        "levelProvisional": as_arrived,
         # The work's adaptation floor and the levels it has gate-passing
         # editions at: found per book from pilot evidence, never promised.
         "adaptsTo": edition.work.adapts_to,
