@@ -131,6 +131,24 @@ services:
       model-cache-init:
         condition: service_completed_successfully
 
+  # A reader waiting for a book (settings.LIVE_QUEUE): the fetch and the steps up to
+  # readable text, nothing else, so the worker above never stands in front of them.
+  # One book at a time; LIVE_CONCURRENCY=2 reads two side by side for about 0.7 GB more.
+  live:
+    build: .
+    environment: *app-environment
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: celery -A almonium_book_processor.config worker --loglevel=INFO --concurrency=${LIVE_CONCURRENCY:-1} --queues=live --hostname=live@%h
+    volumes:
+      - books-media:/app/media
+      - books-models:/app/models
+    depends_on:
+      web:
+        condition: service_healthy
+      model-cache-init:
+        condition: service_completed_successfully
+
   # Offline sentence alignment only (SENTENCE_ALIGNMENT_QUEUE): minutes per book, so it
   # never holds the worker above. One process by default; with embeddings on Modal the
   # matching is single-core Python, so ALIGNER_CONCURRENCY=2 roughly halves a backfill.

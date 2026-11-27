@@ -38,6 +38,11 @@ MIN_BYTES = 24 * 1024
 # the same limit, and the whole transfer to the deadline.
 READ_TIMEOUT_SECONDS = 300
 DEADLINE_SECONDS = 15 * 60
+# A reader waiting for the book: a library that has not begun to answer by now is taken
+# as down, and the whole file must be here within the minute. Gutenberg's largest
+# illustrated EPUBs arrive in seconds; the exporter's long books do not make this.
+LIVE_READ_TIMEOUT_SECONDS = 20
+LIVE_DEADLINE_SECONDS = 60
 MAX_REDIRECTS = 5
 CHUNK = 64 * 1024
 EPUB_MAGIC = b"PK\x03\x04"
@@ -169,20 +174,26 @@ def gutenberg_alternates(url: str) -> list[str]:
     return [parts._replace(path=f"/ebooks/{match.group(1)}.{build}").geturl() for build in later]
 
 
-def download(url: str, source_kind: str, *, urlopen=None) -> Downloaded:
+def download(url: str, source_kind: str, *, urlopen=None, live: bool = False) -> Downloaded:
     """Fetch the EPUB behind ``url`` into a temporary file the caller removes.
 
     A Gutenberg address that answers 404 is tried in its other builds before it is given up.
+    ``live`` is a reader waiting: the library gets seconds to answer, not minutes.
     """
 
+    patience = (
+        (LIVE_READ_TIMEOUT_SECONDS, LIVE_DEADLINE_SECONDS)
+        if live
+        else (READ_TIMEOUT_SECONDS, DEADLINE_SECONDS)
+    )
     try:
-        return _download(url, source_kind, urlopen=urlopen)
+        return _download(url, source_kind, urlopen=urlopen, patience=patience)
     except DownloadRefused as refused:
         if not _another_build_may_do(refused) or source_kind != SourceDownload.Kind.GUTENBERG:
             raise
         for alternate in gutenberg_alternates(url):
             try:
-                return _download(alternate, source_kind, urlopen=urlopen)
+                return _download(alternate, source_kind, urlopen=urlopen, patience=patience)
             except DownloadRefused as also_refused:
                 if not _another_build_may_do(also_refused):
                     raise
@@ -195,15 +206,22 @@ def _another_build_may_do(refused: DownloadRefused) -> bool:
     return "HTTP 404" in str(refused) or "MB" in str(refused)
 
 
-def _download(url: str, source_kind: str, *, urlopen=None) -> Downloaded:
+def _download(
+    url: str,
+    source_kind: str,
+    *,
+    urlopen=None,
+    patience: tuple[int, int] = (READ_TIMEOUT_SECONDS, DEADLINE_SECONDS),
+) -> Downloaded:
     urlopen = urlopen or _open
+    read_timeout, deadline = patience
     check_download_url(url, source_kind)
     started = time.monotonic()
     current = url
     for _hop in range(MAX_REDIRECTS + 1):
         request = Request(current, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
         try:
-            response = urlopen(request, timeout=READ_TIMEOUT_SECONDS)
+            response = urlopen(request, timeout=read_timeout)
         except HTTPError as error:
             if error.code in (301, 302, 303, 307, 308):
                 location = error.headers.get("Location", "")
@@ -233,11 +251,11 @@ def _download(url: str, source_kind: str, *, urlopen=None) -> Downloaded:
             reason = getattr(error, "reason", error)
             raise DownloadUnavailable(f"{_host(current)} could not be reached: {reason}") from error
         with response:
-            return _store(response, current, started)
+            return _store(response, current, started, deadline)
     raise DownloadRefused(f"{_host(url)} redirected more than {MAX_REDIRECTS} times.")
 
 
-def _store(response, url: str, started: float) -> Downloaded:
+def _store(response, url: str, started: float, deadline: int = DEADLINE_SECONDS) -> Downloaded:
     declared = response.headers.get("Content-Length")
     if declared and declared.isdigit() and int(declared) > MAX_BYTES:
         raise DownloadRefused(
@@ -249,10 +267,8 @@ def _store(response, url: str, started: float) -> Downloaded:
         path = Path(temporary.name)
         try:
             while True:
-                if time.monotonic() - started > DEADLINE_SECONDS:
-                    raise DownloadUnavailable(
-                        f"{_host(url)} took over {DEADLINE_SECONDS // 60} minutes."
-                    )
+                if time.monotonic() - started > deadline:
+                    raise DownloadUnavailable(f"{_host(url)} took over {_span(deadline)}.")
                 try:
                     chunk = response.read(CHUNK)
                 except (HTTPException, OSError) as error:
@@ -284,6 +300,10 @@ def _store(response, url: str, started: float) -> Downloaded:
             "this size is an audiobook's track list, not the text."
         )
     return Downloaded(path=path, final_url=url, size=size)
+
+
+def _span(seconds: int) -> str:
+    return f"{seconds // 60} minutes" if seconds > 90 else f"{seconds} seconds"
 
 
 def _host(url: str) -> str:

@@ -208,6 +208,11 @@ NLP_EMBEDDING_CACHE_TEXTS = int(os.getenv("NLP_EMBEDDING_CACHE_TEXTS", "50000"))
 # so a book's alignment, minutes long, never holds the pipeline's local steps. The
 # pipeline queues every new translation or adaptation with its original in this model.
 SENTENCE_ALIGNMENT_QUEUE = os.getenv("SENTENCE_ALIGNMENT_QUEUE", "alignment")
+# A reader who asked for a book and is watching it arrive: the fetch and the steps up to
+# readable text run on this queue, which a worker of its own serves (compose `live`), so
+# nothing the ordinary worker is busy with stands in front of them. The book's word lists
+# and text checks follow on the ordinary queue.
+LIVE_QUEUE = "live"
 SENTENCE_ALIGNMENT_MODEL = os.getenv("SENTENCE_ALIGNMENT_MODEL", "sentence-transformers/LaBSE")
 # The model that reads the stretches the offline aligner left unconfirmed
 # (catalog/sentence_adjudication.py): a model alone, so it runs on a plan where AI_PLANS has

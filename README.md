@@ -279,9 +279,19 @@ POST /api/v1/internal/source-ingests/
   "title": "Frankenstein",
   "author": "Mary Shelley",
   "language": "en",
-  "publication_year": 1818
+  "publication_year": 1818,
+  "live": false
 }
 ```
+
+`live: true` says a reader is waiting for the text (absent means false). The
+fetch and the steps up to readable text then run on the `live` queue, which a
+worker of its own serves (compose `live`), so nothing the ordinary worker is
+busy with stands in front of them; the book's word lists and text checks follow
+on the ordinary queue. A live fetch gives the library 20 seconds to begin
+answering and a minute for the whole file, and a library that is down fails the
+edition at once with the reason in `error` instead of being tried again, so
+the caller can offer another text.
 
 `download_url` must be HTTPS on the named library's hosts:
 `www.gutenberg.org`/`gutenberg.org` with an EPUB path (`/ebooks/<id>.epub3.images`,

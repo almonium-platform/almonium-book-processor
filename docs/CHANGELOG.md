@@ -4,6 +4,30 @@ Newest first, one entry per day the service changed, with the commits that
 carry the work. Measurements recorded on the day live here too; the backlog
 keeps only what is open. Cross-repository work names its repository.
 
+## 2026-11-27
+
+- A source ingest can say a reader is waiting (`"live": true` on
+  `POST /api/v1/internal/source-ingests/`). Its fetch and the steps up to
+  readable text run on a new `live` queue with a worker of its own (compose
+  `live`; `almonium_books_live_<env>_<slot>` in almonium-infra), and its word
+  lists and text checks follow on the ordinary queue, so one reader's book
+  never waits for another's. A live fetch waits 20 seconds for the library's
+  first byte and a minute for the file (`LIVE_READ_TIMEOUT_SECONDS`,
+  `LIVE_DEADLINE_SECONDS` in `catalog/source_download.py`) and is not tried
+  again: a library that is down fails the edition at once with the reason.
+  Nothing sends `live` yet.
+- Measured the same day on the deployed host (4 ARM cores, staging slot, idle),
+  from a queued EPUB to readable text: The Thirty-Nine Steps (742 blocks)
+  13.5 s, The Age of Innocence (2,126) 22 s, Au Bonheur des Dames (3,004) 26 s,
+  Os Maias (6,547) 46 s, Les Trois Mousquetaires (8,850) 53 s; word lists about
+  as long again. Sentence splitting is nearly all of it, about twice the
+  laptop's time.
+- Found the same day, not fixed: on the deployed broker (RabbitMQ 4.1; the
+  local one is 3.13) a job waiting for its retry time holds the ordinary
+  worker's one place, so nothing behind it starts until it has run. A download
+  retrying a library that was down held a book for three minutes. Locally the
+  same two jobs do not block each other.
+
 ## 2026-10-08
 
 - `POST /api/v1/internal/source-ingests/` takes a public-domain text by its

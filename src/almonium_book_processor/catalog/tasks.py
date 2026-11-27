@@ -432,11 +432,15 @@ DOWNLOAD_RETRY_SECONDS = 120
 
 
 @shared_task(bind=True, acks_late=True, max_retries=DOWNLOAD_RETRIES)
-def download_source_edition(self, edition_id: str) -> None:
+def download_source_edition(self, edition_id: str, live: bool = False) -> None:
     """Fetch a source ingest's EPUB, attach it, and start the upload pipeline.
 
     A library that is slow or down this minute is tried again a few times; a
     link that cannot become a book fails the edition at once with the reason.
+
+    ``live`` is a reader waiting for the book (``settings.LIVE_QUEUE``): the library gets
+    seconds, a library that is down fails the edition at once so the reader can be offered
+    another text, and the steps up to readable text stay on the live queue.
     """
 
     from django.core.files import File
@@ -454,8 +458,13 @@ def download_source_edition(self, edition_id: str) -> None:
     record.attempts += 1
     record.save(update_fields=["attempts", "updated_at"])
     try:
-        fetched = download(record.download_url, record.source_kind)
+        fetched = download(record.download_url, record.source_kind, live=live)
     except DownloadUnavailable as error:
+        if live:
+            # a retry minutes away is no use to a reader, and a job waiting for its time
+            # holds this worker's one place on the deployed broker (measured 2026-11-27)
+            _fail_download(edition, record, str(error))
+            return
         if self.request.retries < DOWNLOAD_RETRIES:
             record.error = f"{error} Trying again."
             record.save(update_fields=["error", "updated_at"])
@@ -490,9 +499,29 @@ def download_source_edition(self, edition_id: str) -> None:
                     "updated_at",
                 ]
             )
-            transaction.on_commit(lambda: process_book_pipeline.delay(edition_id))
+            transaction.on_commit(lambda: _queue_book_pipeline(edition_id, live=live))
     finally:
         fetched.path.unlink(missing_ok=True)
+
+
+def queue_source_download(edition_id: str, *, live: bool) -> None:
+    """Queue a source ingest's fetch: beside the reader who waits for it, or with the rest."""
+
+    if live:
+        download_source_edition.apply_async(
+            (edition_id,), {"live": True}, queue=settings.LIVE_QUEUE
+        )
+    else:
+        download_source_edition.delay(edition_id)
+
+
+def _queue_book_pipeline(edition_id: str, *, live: bool) -> None:
+    # the pipeline queues the word lists and the text checks itself, on the ordinary
+    # queue, so a second reader's book is not kept waiting for the first one's
+    if live:
+        process_book_pipeline.apply_async((edition_id,), queue=settings.LIVE_QUEUE)
+    else:
+        process_book_pipeline.delay(edition_id)
 
 
 def _fail_download(edition: Edition, record: SourceDownload, reason: str) -> None:

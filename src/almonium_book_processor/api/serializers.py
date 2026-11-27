@@ -246,6 +246,8 @@ class SourceIngestSerializer(serializers.Serializer):
     languages = serializers.ListField(
         child=serializers.ChoiceField(choices=LANGUAGE_CHOICES), required=False, default=list
     )
+    # a reader is waiting for the text: the live queue, and no patience with a library
+    live = serializers.BooleanField(required=False, default=False)
 
     def validate(self, attrs):
         errors = {}

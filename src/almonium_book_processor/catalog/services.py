@@ -225,8 +225,12 @@ def create_source_ingest(
     publication_year: int | None = None,
     levels: list[str] | None = None,
     languages: list[str] | None = None,
+    live: bool = False,
 ) -> tuple[Edition, bool]:
     """Seed a public catalogue edition whose text a worker fetches from a free library.
+
+    ``live`` says a reader is waiting for the text: it is fetched and made readable on
+    the live queue, and a library that is down fails it at once (``tasks.queue_source_download``).
 
     ``levels`` and ``languages`` name what to make of the text once it is on the shelf; the
     factory (``catalog/factory.py``) starts that production when the shelf pipeline ends.
@@ -244,7 +248,7 @@ def create_source_ingest(
     if Edition.objects.filter(external_job_id=external_id).exists():
         raise SourceIngestConflict("This id already names another kind of job.")
 
-    from almonium_book_processor.catalog.tasks import download_source_edition
+    from almonium_book_processor.catalog.tasks import queue_source_download
 
     try:
         with transaction.atomic():
@@ -270,7 +274,7 @@ def create_source_ingest(
                     else {}
                 ),
             )
-            transaction.on_commit(lambda: download_source_edition.delay(str(edition.id)))
+            transaction.on_commit(lambda: queue_source_download(str(edition.id), live=live))
     except IntegrityError:
         existing = _source_ingest_by_id(external_id)
         if existing is None:

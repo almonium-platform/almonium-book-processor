@@ -474,3 +474,87 @@ def test_a_gutenberg_images_build_too_large_for_its_pictures_falls_back_to_the_p
     assert fetched.final_url == plain
     assert len(seen) == 3
     fetched.path.unlink()
+
+
+# --- a reader waiting for the book ---------------------------------------------
+
+
+@pytest.fixture
+def sent(monkeypatch):
+    """What went to a named queue, as (task, arguments, keyword arguments, queue)."""
+
+    log: list[tuple[str, tuple, dict, str]] = []
+    for name in ("download_source_edition", "process_book_pipeline"):
+        monkeypatch.setattr(
+            getattr(tasks, name),
+            "apply_async",
+            lambda args=(), kwargs=None, *, queue, name=name: log.append(
+                (name, tuple(args), kwargs or {}, queue)
+            ),
+        )
+    return log
+
+
+def test_a_live_ingest_is_fetched_on_the_live_queue(
+    queued, sent, django_capture_on_commit_callbacks
+) -> None:
+    with django_capture_on_commit_callbacks(execute=True):
+        edition = create(live=True)
+
+    assert sent == [("download_source_edition", (str(edition.id),), {"live": True}, "live")]
+    assert queued == []
+
+
+def test_an_ingest_nobody_waits_for_stays_on_the_ordinary_queue(
+    queued, sent, django_capture_on_commit_callbacks
+) -> None:
+    with django_capture_on_commit_callbacks(execute=True):
+        edition = create()
+
+    assert queued == [("download", str(edition.id))]
+    assert sent == []
+
+
+def test_a_live_book_is_made_readable_on_the_live_queue(
+    monkeypatch, queued, sent, django_capture_on_commit_callbacks
+) -> None:
+    edition = create(live=True)
+    timeouts: list[int] = []
+
+    def urlopen(request, timeout):
+        timeouts.append(timeout)
+        return FakeResponse(EPUB_BYTES)
+
+    monkeypatch.setattr(source_download, "_open", urlopen)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        tasks.download_source_edition.run(str(edition.id), live=True)
+
+    assert timeouts == [source_download.LIVE_READ_TIMEOUT_SECONDS]
+    assert sent == [("process_book_pipeline", (str(edition.id),), {}, "live")]
+    assert queued == []
+
+
+def test_a_library_that_is_down_fails_a_live_ingest_at_once(monkeypatch, queued, sent) -> None:
+    edition = create(live=True)
+    fake_web(monkeypatch, {GUTENBERG_EPUB: http_error(GUTENBERG_EPUB, 503)})
+
+    tasks.download_source_edition.run(str(edition.id), live=True)
+
+    edition.refresh_from_db()
+    edition.source_download.refresh_from_db()
+    assert edition.status == Edition.Status.FAILED
+    assert edition.source_download.status == SourceDownload.Status.FAILED
+    assert edition.source_download.error == "www.gutenberg.org answered HTTP 503."
+    assert edition.source_download.attempts == 1
+    status = APIClient().get(f"{ENDPOINT}{edition.id}/", **HEADERS).json()
+    assert (status["phase"], status["error"]) == ("failed", "www.gutenberg.org answered HTTP 503.")
+
+
+def test_a_live_download_that_drags_is_given_up_within_the_minute(monkeypatch) -> None:
+    clock = iter([0.0, source_download.LIVE_DEADLINE_SECONDS + 1.0])
+    monkeypatch.setattr(source_download.time, "monotonic", lambda: next(clock))
+    fake_web(monkeypatch, {GUTENBERG_EPUB: FakeResponse(EPUB_BYTES)})
+
+    with pytest.raises(source_download.DownloadUnavailable, match="took over 60 seconds"):
+        source_download.download(GUTENBERG_EPUB, "gutenberg", live=True)
