@@ -281,7 +281,8 @@ def start_live_levels() -> Edition | None:
 
     Such a book was fetched and published where the readers are (``SourceDownload.live``),
     with a stand-in level and no adaptations, because nothing there may spend the plans.
-    That environment's export listing marks it ``awaiting_levels``. The same edition is
+    That environment is ``FACTORY_LIVE_FROM``, and its export listing marks the book
+    ``awaiting_levels``. The same edition is
     pulled here, so the text and every reader's place in it stay what they are, and a
     production is queued like any other: the level is judged, the adaptations written, and
     all of it promoted back and published, which replaces the stand-in level.
@@ -292,7 +293,7 @@ def start_live_levels() -> Edition | None:
 
     from almonium_book_processor.catalog.production import VERSION, queue_production
 
-    target = promotion_target(settings.FACTORY_PROMOTE_TO)
+    target = promotion_target(settings.FACTORY_LIVE_FROM)
     if target is None:
         return None
     client = PromotionClient(target)
@@ -309,7 +310,7 @@ def start_live_levels() -> Edition | None:
         queue_production(
             edition.id,
             list(settings.FACTORY_LEVELS),
-            promote_to=settings.FACTORY_PROMOTE_TO,
+            promote_to=target.name,
             publish=True,
             origin=LIVE,
         )

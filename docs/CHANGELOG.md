@@ -12,7 +12,8 @@ keeps only what is open. Cross-repository work names its repository.
   the plans. That environment's export listing now marks it
   (`awaiting_levels`, with each entry's `language`): fetched live, published,
   no level, no job still running. A factory tick on the host reads the listing
-  of `FACTORY_PROMOTE_TO` before the wanted queue, pulls the first marked
+  of `FACTORY_LIVE_FROM` (a promotion target's name, `FACTORY_PROMOTE_TO` when
+  unset) before the wanted queue, pulls the first marked
   edition it has not tried (the same edition, so the text and readers' places
   stay), and queues a production of `FACTORY_LEVELS` that promotes and
   publishes back. One book a tick; a live production counts toward

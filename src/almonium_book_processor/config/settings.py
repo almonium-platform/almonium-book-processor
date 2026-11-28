@@ -455,6 +455,9 @@ FACTORY_LEVELS = [
 ]
 # the promotion target the finished editions are published to; empty stops at the verdict
 FACTORY_PROMOTE_TO = os.getenv("FACTORY_PROMOTE_TO", "")
+# the promotion target whose readers' own opened books (fetched live, not rated yet) this host
+# pulls, rates and promotes back; empty means the one the finished editions go to
+FACTORY_LIVE_FROM = os.getenv("FACTORY_LIVE_FROM", "") or FACTORY_PROMOTE_TO
 CLAUDE_CONFIG_DIRS = [
     path.strip() for path in os.getenv("CLAUDE_CONFIG_DIRS", "").split(",") if path.strip()
 ]

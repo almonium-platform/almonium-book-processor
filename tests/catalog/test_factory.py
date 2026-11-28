@@ -17,6 +17,7 @@ from almonium_book_processor.catalog.models import (
     Work,
 )
 from almonium_book_processor.catalog.production import VERSION as PRODUCTION_VERSION
+from almonium_book_processor.catalog.promotion import PromotionTarget
 from almonium_book_processor.catalog.publication import PublicationError
 
 pytestmark = pytest.mark.django_db
@@ -67,6 +68,7 @@ def almonium(monkeypatch, settings):
     settings.FACTORY_RESERVE_PERCENT = 15
     settings.FACTORY_LEVELS = ["B2", "B1"]
     settings.FACTORY_PROMOTE_TO = "staging"
+    settings.FACTORY_LIVE_FROM = "staging"
     answers = Almonium([ROW])
     monkeypatch.setattr(factory, "_signed_post", answers)
     monkeypatch.setattr(
@@ -391,7 +393,11 @@ def opened_book(monkeypatch, slug="looking-glass", **entry):
         ]
     )
     monkeypatch.setattr(factory, "PromotionClient", readers)
-    monkeypatch.setattr(factory, "promotion_target", lambda name: name or None)
+    monkeypatch.setattr(
+        factory,
+        "promotion_target",
+        lambda name: PromotionTarget(name, "https://readers.example.test", "t") if name else None,
+    )
     monkeypatch.setattr(factory, "source_compatibility_problem", lambda listing: "")
     monkeypatch.setattr(factory, "import_bundle", lambda data, origin=None: {})
     monkeypatch.setattr(
@@ -400,8 +406,11 @@ def opened_book(monkeypatch, slug="looking-glass", **entry):
     return edition, readers
 
 
-def test_a_book_a_reader_opened_gets_its_levels_before_the_next_wanted_book(almonium, monkeypatch):
+def test_a_book_a_reader_opened_gets_its_levels_before_the_next_wanted_book(
+    almonium, monkeypatch, settings
+):
     meters()
+    settings.FACTORY_LIVE_FROM = "prod"
     edition, readers = opened_book(monkeypatch)
 
     result = factory.tick()
@@ -410,7 +419,8 @@ def test_a_book_a_reader_opened_gets_its_levels_before_the_next_wanted_book(almo
     assert readers.pulled == [edition.slug]
     run = edition.pipeline_runs.get(processor_version=PRODUCTION_VERSION)
     assert run.summary["levels"] == ["B2", "B1"] and run.summary["origin"] == factory.LIVE
-    assert run.summary["promote_to"] == "staging" and run.summary["publish"] is True
+    # it goes back where its readers are, which need not be where the factory's books go
+    assert run.summary["promote_to"] == "prod" and run.summary["publish"] is True
     # the wanted queue was not read this tick, and the book counts as one under way
     assert not SourceDownload.objects.exists()
     assert factory.live_under_way() == [edition]
