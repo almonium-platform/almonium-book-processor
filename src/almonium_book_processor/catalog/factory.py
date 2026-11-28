@@ -281,7 +281,7 @@ def start_live_levels() -> Edition | None:
 
     Such a book was fetched and published where the readers are (``SourceDownload.live``),
     with a stand-in level and no adaptations, because nothing there may spend the plans.
-    That environment is ``FACTORY_LIVE_FROM``, and its export listing marks the book
+    Those environments are ``FACTORY_LIVE_FROM``, asked in order; an export listing marks the book
     ``awaiting_levels``. The same edition is
     pulled here, so the text and every reader's place in it stay what they are, and a
     production is queued like any other: the level is judged, the adaptations written, and
@@ -291,11 +291,23 @@ def start_live_levels() -> Edition | None:
     itself, whatever came of it: a held production is a person's to look at.
     """
 
+    for name in settings.FACTORY_LIVE_FROM:
+        target = promotion_target(name)
+        if target is None:
+            logger.warning("No promotion target named %s to take opened books from", name)
+            continue
+        try:
+            if (edition := _take_opened_book(target)) is not None:
+                return edition
+        except (PromotionError, ValueError) as error:
+            # one environment that cannot be asked does not keep the next from being asked
+            logger.warning("The factory could not take an opened book from %s: %s", name, error)
+    return None
+
+
+def _take_opened_book(target) -> Edition | None:
     from almonium_book_processor.catalog.production import VERSION, queue_production
 
-    target = promotion_target(settings.FACTORY_LIVE_FROM)
-    if target is None:
-        return None
     client = PromotionClient(target)
     listing = client.exports()
     if problem := source_compatibility_problem(listing):

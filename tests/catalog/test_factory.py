@@ -68,7 +68,7 @@ def almonium(monkeypatch, settings):
     settings.FACTORY_RESERVE_PERCENT = 15
     settings.FACTORY_LEVELS = ["B2", "B1"]
     settings.FACTORY_PROMOTE_TO = "staging"
-    settings.FACTORY_LIVE_FROM = "staging"
+    settings.FACTORY_LIVE_FROM = ["staging"]
     answers = Almonium([ROW])
     monkeypatch.setattr(factory, "_signed_post", answers)
     monkeypatch.setattr(
@@ -410,7 +410,7 @@ def test_a_book_a_reader_opened_gets_its_levels_before_the_next_wanted_book(
     almonium, monkeypatch, settings
 ):
     meters()
-    settings.FACTORY_LIVE_FROM = "prod"
+    settings.FACTORY_LIVE_FROM = ["prod"]
     edition, readers = opened_book(monkeypatch)
 
     result = factory.tick()
@@ -458,3 +458,40 @@ def test_readers_that_cannot_be_asked_do_not_stop_the_wanted_queue(almonium, mon
 
     assert result["started"] is not None
     assert SourceDownload.objects.count() == 1
+
+
+def test_opened_books_are_looked_for_in_each_environment_named(almonium, monkeypatch, settings):
+    from almonium_book_processor.catalog.promotion import PromotionError
+
+    meters()
+    settings.FACTORY_LIVE_FROM = ["prod", "missing", "staging"]
+    edition, readers = opened_book(monkeypatch)
+    offered = readers.exports
+    asked = []
+
+    class PerTarget:
+        def __init__(self, target):
+            self.name = target.name
+
+        def exports(self):
+            asked.append(self.name)
+            if self.name == "prod":
+                raise PromotionError("Could not ask prod what it offers")
+            return offered()
+
+        pull = staticmethod(readers.pull)
+
+    monkeypatch.setattr(factory, "PromotionClient", PerTarget)
+    monkeypatch.setattr(
+        factory,
+        "promotion_target",
+        lambda name: None if name == "missing" else PromotionTarget(name, "https://x.test", "t"),
+    )
+
+    result = factory.tick()
+
+    # prod could not be asked and one name is not configured: staging is still asked
+    assert asked == ["prod", "staging"]
+    assert result["started"] == edition.slug
+    run = edition.pipeline_runs.get(processor_version=PRODUCTION_VERSION)
+    assert run.summary["promote_to"] == "staging"

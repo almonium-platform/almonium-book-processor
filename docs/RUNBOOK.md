@@ -152,8 +152,9 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   in its own language, else a translation into the wanted language) and the
   finished editions are promoted and published to `FACTORY_PROMOTE_TO`.
   Before the wanted queue (28 November 2026) the tick asks
-  `FACTORY_LIVE_FROM` (a promotion target's name; `FACTORY_PROMOTE_TO` when
-  unset) for its export listing and takes the first edition
+  each target named in `FACTORY_LIVE_FROM` in turn (comma-separated names,
+  `prod,staging` on the owner's host; `FACTORY_PROMOTE_TO` when unset) for
+  its export listing and takes the first edition
   marked `awaiting_levels`: a book a reader opened as it arrived, on the
   shelf there with a stand-in level. It is pulled here, a production of
   `FACTORY_LEVELS` is queued for it, and the promotion back to that same
