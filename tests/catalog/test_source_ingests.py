@@ -651,6 +651,83 @@ def test_a_text_that_cannot_become_a_book_gives_way_to_the_next(
     assert queued[-1] == ("pipeline", str(edition.id))
 
 
+def _wrapped_epub(tmp_path) -> bytes:
+    """A real EPUB whose every line of print is a paragraph, as Gutenberg 8119 is."""
+
+    import hashlib
+
+    from ebooklib import epub
+
+    book = epub.EpubBook()
+    book.set_identifier("urn:test:wrapped")
+    book.set_title("Sklepy cynamonowe")
+    book.set_language("pl")
+    book.add_author("Bruno Schulz")
+    items = []
+    for number in range(3):
+        # each line its own words, so the file does not pack down to an audiobook stub's size
+        words = [hashlib.sha256(f"{number}.{line}".encode()).hexdigest() for line in range(300)]
+        lines = "".join(f"<p>pałuby, która nie wie, czemu {word}</p>" for word in words)
+        item = epub.EpubHtml(title=f"d{number}", file_name=f"d{number}.xhtml", lang="pl")
+        item.content = f"<h2>Opowiadanie {number + 1}</h2>{lines}"
+        book.add_item(item)
+        items.append(item)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", *items]
+    path = tmp_path / "wrapped.epub"
+    epub.write_epub(path, book)
+    data = path.read_bytes()
+    assert len(data) > source_download.MIN_BYTES
+    return data
+
+
+def test_a_text_with_no_paragraphs_gives_way_to_the_next(
+    monkeypatch, queued, django_capture_on_commit_callbacks, tmp_path
+) -> None:
+    # Sklepy cynamonowe was published from a file of 2,460 lines of print, and probed so
+    edition = create(fallbacks=[FALLBACK])
+    reported = []
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.source_shape.report_shape",
+        lambda url, verdict: reported.append((url, verdict)),
+    )
+    fake_web(
+        monkeypatch,
+        {
+            GUTENBERG_EPUB: FakeResponse(_wrapped_epub(tmp_path)),
+            STANDARD: FakeResponse(EPUB_BYTES),
+        },
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        tasks.download_source_edition.run(str(edition.id))
+
+    edition.source_download.refresh_from_db()
+    assert edition.source_download.source_kind == "standard_ebooks"
+    assert queued[-1] == ("pipeline", str(edition.id))
+    assert reported == [(GUTENBERG_EPUB, "suspect")]  # the catalogue ranks the file down
+
+
+def test_a_text_with_no_paragraphs_and_no_other_fails_with_the_reason(
+    monkeypatch, queued, tmp_path
+) -> None:
+    edition = create()
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.source_shape.report_shape", lambda url, verdict: None
+    )
+    fake_web(monkeypatch, {GUTENBERG_EPUB: FakeResponse(_wrapped_epub(tmp_path))})
+
+    tasks.download_source_edition.run(str(edition.id))
+
+    edition.refresh_from_db()
+    record = edition.source_download
+    assert edition.status == Edition.Status.FAILED and not edition.source_file
+    assert record.status == SourceDownload.Status.FAILED
+    assert record.error.startswith("The file has no paragraphs: each of its 900 is a line")
+    assert queued == []
+
+
 def test_nobody_waiting_the_library_asked_for_is_tried_again_before_another(
     monkeypatch, queued
 ) -> None:

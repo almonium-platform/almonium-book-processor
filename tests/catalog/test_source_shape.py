@@ -1,4 +1,4 @@
-from almonium_book_processor.catalog.source_shape import judge
+from almonium_book_processor.catalog.source_shape import judge, paragraph_shape, unreadable
 
 
 def metrics(**overrides):
@@ -106,3 +106,50 @@ def test_a_shape_report_is_signed_to_almonium_and_never_fails_without_it(monkeyp
             },
         )
     ]
+
+
+LINE = "pałuby, która nie wie, czemu nią jest, czemu musi trwać w tej gwałtem"
+
+
+def test_a_book_whose_paragraphs_are_lines_of_print_cannot_be_read():
+    # Sklepy cynamonowe from Gutenberg 8119: 2,460 paragraphs, 69 characters, 5% end a sentence
+    shape = paragraph_shape([LINE] * 950 + ["narzuconej formie, będącej parodią?"] * 50)
+    assert shape == {"paragraphs": 1000, "long_paragraph_chars": 69, "sentence_end_share": 0.05}
+
+    reason = unreadable(metrics(**shape))
+
+    assert reason == (
+        "The file has no paragraphs: each of its 1,000 is a line of the print, hardly one over "
+        "69 characters and 5% of them ending a sentence."
+    )
+    assert judge(metrics(**shape)) == ("suspect", ["1,000 paragraphs that are lines of print"])
+
+
+def test_dialogue_in_short_paragraphs_is_a_book():
+    # every line is short, and every line ends where its sentence does
+    shape = paragraph_shape(
+        ["— Nie wiem — powiedziała Adela.", "— A ja wiem!", "«Bien sûr.»"] * 200
+    )
+    assert shape["long_paragraph_chars"] < 100 and shape["sentence_end_share"] == 1.0
+    assert unreadable(metrics(**shape)) is None
+
+
+def test_verse_set_a_line_to_a_paragraph_is_not_refused():
+    # half its lines end on a full stop or a question; wrapped prose manages one in twenty
+    shape = paragraph_shape(
+        [
+            "Litwo! Ojczyzno moja! ty jesteś jak zdrowie.",
+            "Ile cię trzeba cenić, ten tylko się dowie,",
+        ]
+        * 300
+    )
+    assert unreadable(metrics(**shape)) is None
+
+
+def test_real_paragraphs_and_a_short_text_are_left_alone():
+    long = paragraph_shape([LINE * 6] * 300 + [LINE] * 300)
+    assert long["long_paragraph_chars"] > 100 and unreadable(metrics(**long)) is None
+    # too few paragraphs to tell a wrapped page from a list or a letter
+    assert unreadable(metrics(**paragraph_shape([LINE] * 150))) is None
+    # an ingest measured before paragraphs were counted has nothing to say
+    assert unreadable(metrics()) is None

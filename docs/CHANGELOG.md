@@ -4,6 +4,19 @@ Newest first, one entry per day the service changed, with the commits that
 carry the work. Measurements recorded on the day live here too; the backlog
 keeps only what is open. Cross-repository work names its repository.
 
+## 2026-11-28
+
+- A source file whose paragraphs are the lines of the print is refused at
+  download (`source_shape.unreadable`, `tasks._unreadable`): the next text
+  among the request's `fallbacks` is taken, the edition fails with the reason
+  when there is none, and Almonium is told the file is `suspect`. Sklepy
+  cynamonowe had been published from Gutenberg 8119 as 2,460 paragraphs of 69
+  characters, 5% of them ending a sentence, and its B2 probe was paid for on
+  those fragments. Of the 120 stored originals the rule refuses that one; the
+  nearest other has paragraphs past 144 characters, 95% of them ending a
+  sentence. The shape metrics now carry `paragraphs`, `long_paragraph_chars`
+  and `sentence_end_share`.
+
 ## 2026-11-27
 
 - A source ingest can say a reader is waiting (`"live": true` on

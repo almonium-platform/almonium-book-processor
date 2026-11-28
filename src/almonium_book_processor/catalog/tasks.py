@@ -476,6 +476,10 @@ def download_source_edition(self, edition_id: str, live: bool = False) -> None:
     for candidate in candidates:
         try:
             fetched = download(candidate["download_url"], candidate["source_kind"], live=live)
+            if reason := _unreadable(fetched.path, edition, candidate["download_url"]):
+                fetched.path.unlink(missing_ok=True)
+                fetched = None
+                raise DownloadRefused(reason)
             used = candidate
             break
         except DownloadUnavailable as error:
@@ -556,6 +560,17 @@ def _queue_book_pipeline(edition_id: str, *, live: bool) -> None:
         process_book_pipeline.apply_async((edition_id,), queue=settings.LIVE_QUEUE)
     else:
         process_book_pipeline.delay(edition_id)
+
+
+def _unreadable(path: Path, edition: Edition, download_url: str) -> str | None:
+    """Why a fetched file cannot be a book, or None; the catalogue is told to rank it down."""
+
+    from almonium_book_processor.catalog.source_shape import report_shape, unreadable_file
+
+    reason = unreadable_file(path, title=edition.title, language=edition.language)
+    if reason:
+        report_shape(download_url, "suspect")
+    return reason
 
 
 def _fail_download(edition: Edition, record: SourceDownload, reason: str) -> None:

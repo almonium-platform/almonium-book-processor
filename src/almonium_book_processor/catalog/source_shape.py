@@ -6,6 +6,13 @@ book, and 18 counted the Gutenberg preamble as a body chapter. Every one of thes
 the chapter sizes and titles before any judge reads a word. ``measure`` takes an ingest's
 artifact and ``judge`` says whether the shape is sound; the shake-down command runs both over
 books it never keeps, and an ingest can ask the same of what it is about to store.
+
+One shape is worse than a wrong cut. A file made from a plain-text transcription can hold
+every line of the print as a paragraph of its own: Gutenberg's Sklepy cynamonowe (8119) came in
+as 2,460 paragraphs of 69 characters, one in twenty of them ending a sentence. It was published
+so, and a level probe was paid for on fragments no writer could restructure. Nothing downstream
+can mend it, so ``unreadable`` says it in a sentence and the download refuses the file, taking
+the next library's text where the request named one.
 """
 
 from __future__ import annotations
@@ -26,6 +33,13 @@ LOPSIDED_SHARE = 0.40
 # own short sections (Zarathustra's aphorisms), this share of them is a cut gone wrong.
 TINY_CHAPTER_CHARS = 400
 TINY_CHAPTER_SHARE = 0.25
+# Prose whose paragraphs are the lines of the print: enough of them to tell, none longer than
+# a line and a bit, and hardly one ending where a sentence does. Verse set a line to a
+# paragraph ends its lines on punctuation far more often than this; real prose nearly always.
+WRAPPED_MIN_PARAGRAPHS = 200
+WRAPPED_LONG_PARAGRAPH_CHARS = 100
+WRAPPED_SENTENCE_END_SHARE = 0.25
+_SENTENCE_END = re.compile(r"[.!?…:][\s\"'“”‘’»«›‹)\]*_]*$")
 # Titles of pages that are matter around a book and never the story; ingest should see them.
 MATTER_TITLES = re.compile(
     r"^\s*(contents|table of contents|illustrations|list of illustrations|inhalt(sverzeichnis)?|"
@@ -34,6 +48,60 @@ MATTER_TITLES = re.compile(
     r"transcriber'?s note|there are several editions of this ebook.*)\s*\.?$",
     re.IGNORECASE,
 )
+
+
+def paragraph_shape(texts: list[str]) -> dict[str, Any]:
+    """How the paragraphs run: how many, how long the long ones are, how many end a sentence."""
+
+    lengths = sorted(len(text) for text in texts)
+    if not lengths:
+        return {"paragraphs": 0, "long_paragraph_chars": None, "sentence_end_share": None}
+    return {
+        "paragraphs": len(lengths),
+        # the 90th percentile: a book of real paragraphs has many far past a line's width
+        "long_paragraph_chars": lengths[min(len(lengths) - 1, len(lengths) * 9 // 10)],
+        "sentence_end_share": round(
+            sum(1 for text in texts if _SENTENCE_END.search(text)) / len(lengths), 3
+        ),
+    }
+
+
+def unreadable(metrics: dict[str, Any]) -> str | None:
+    """Why this text cannot be a book as it stands, or None: its paragraphs are lines of print."""
+
+    paragraphs = metrics.get("paragraphs") or 0
+    long_chars = metrics.get("long_paragraph_chars")
+    ending = metrics.get("sentence_end_share")
+    if (
+        paragraphs >= WRAPPED_MIN_PARAGRAPHS
+        and long_chars is not None
+        and long_chars <= WRAPPED_LONG_PARAGRAPH_CHARS
+        and ending is not None
+        and ending < WRAPPED_SENTENCE_END_SHARE
+    ):
+        return (
+            f"The file has no paragraphs: each of its {paragraphs:,} is a line of the print, "
+            f"hardly one over {long_chars} characters and {ending:.0%} of them ending a sentence."
+        )
+    return None
+
+
+def unreadable_file(path, *, title: str = "", language: str = "") -> str | None:
+    """``unreadable`` for a file not yet stored. A file that cannot be read says nothing here."""
+
+    from almonium_book_processor.ingest.source import ingest_source
+
+    try:
+        artifact = ingest_source(
+            path,
+            edition_slug="shape",
+            work_slug="shape",
+            title=title or None,
+            language=language or None,
+        )
+    except Exception:  # the ingest proper reports what is wrong with it, in its own words
+        return None
+    return unreadable(measure(artifact))
 
 
 def measure(artifact: BookArtifact) -> dict[str, Any]:
@@ -60,7 +128,17 @@ def measure(artifact: BookArtifact) -> dict[str, Any]:
         chapter["role"] = role
     body = [chapter for chapter in ordered if chapter["role"] == "body"]
     body_chars = sum(chapter["chars"] for chapter in body)
+    body_numbers = {
+        sequence for sequence in sorted(chapters) if chapters[sequence]["role"] == "body"
+    }
     return {
+        **paragraph_shape(
+            [
+                block.text
+                for block in artifact.blocks
+                if block.type == BlockType.PARAGRAPH and block.chapter in body_numbers
+            ]
+        ),
         "chapters": len(ordered),
         "body_chapters": len(body),
         "chars": sum(chapter["chars"] for chapter in ordered),
@@ -103,6 +181,8 @@ def judge(metrics: dict[str, Any]) -> tuple[str, list[str]]:
     tiny = metrics["tiny_body_chapters"]
     if body and tiny / body > TINY_CHAPTER_SHARE:
         reasons.append(f"{tiny} of {body} body chapters under {TINY_CHAPTER_CHARS} characters")
+    if unreadable(metrics):
+        reasons.append(f"{metrics['paragraphs']:,} paragraphs that are lines of print")
     return ("suspect" if reasons else "ok"), reasons
 
 
