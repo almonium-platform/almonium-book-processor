@@ -197,3 +197,30 @@ def test_a_work_already_decided_is_not_looked_at_again_and_a_hold_is_not_a_failu
 
     monkeypatch.setattr(covers, "choose_cover", held)
     tasks.choose_work_cover.run("dracula")
+
+
+def test_a_request_waits_for_an_almonium_that_is_restarting(monkeypatch):
+    monkeypatch.setenv("ALMONIUM_API_URL", "http://almonium.test/v1")
+    monkeypatch.setenv("ALMONIUM_BOOKS_PUBLISHER_SECRET", "secret")
+    attempts, waits = [], []
+
+    class Answer:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'["frankenstein"]'
+
+    def urlopen(request, timeout):
+        attempts.append(request.full_url)
+        if len(attempts) < 3:
+            raise ConnectionResetError(104, "Connection reset by peer")
+        return Answer()
+
+    monkeypatch.setattr(covers, "urlopen", urlopen)
+
+    assert covers.almonium("/pending", {}, pause=waits.append) == ["frankenstein"]
+    assert len(attempts) == 3 and waits == [covers.RESTART_WAIT_SECONDS] * 2

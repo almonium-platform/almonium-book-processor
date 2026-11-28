@@ -46,6 +46,8 @@ PICKS = 3  # a pick struck out by the second look is replaced at most twice
 # Commons asks automated clients to say who they are
 USER_AGENT = "Almonium/1.0 (https://almonium.com)"
 TIMEOUT_SECONDS = 300  # Almonium walks a work's Commons categories before it answers
+# how long an Almonium that is restarting is waited for: three minutes
+RESTART_WAITS, RESTART_WAIT_SECONDS = 12, 15
 
 INSTRUCTIONS = (
     "You choose cover art for a classic book in a reading app. You are shown contact "
@@ -185,7 +187,13 @@ def judge_here() -> bool:
     return seat.on_plan and not gateway.unavailable(seat)
 
 
-def almonium(path: str, payload: dict[str, Any], *, method: str = "POST") -> Any:
+def almonium(
+    path: str,
+    payload: dict[str, Any],
+    *,
+    method: str = "POST",
+    pause: Callable[[float], None] = time.sleep,
+) -> Any:
     """One signed request to Almonium's cover surface."""
 
     api_url = os.getenv("ALMONIUM_API_URL", "").rstrip("/")
@@ -193,26 +201,40 @@ def almonium(path: str, payload: dict[str, Any], *, method: str = "POST") -> Any
     if not api_url or not token:
         raise CoverError("Almonium is not configured (ALMONIUM_API_URL and the publisher secret).")
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
-    timestamp = str(int(time.time()))
-    signature = hmac.new(token.encode(), f"{timestamp}.".encode() + body, hashlib.sha256)
-    request = Request(
-        f"{api_url}/internal/covers{path}",
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "X-Almonium-Books-Timestamp": timestamp,
-            "X-Almonium-Books-Signature": signature.hexdigest(),
-        },
-        method=method,
-    )
-    try:
-        with urlopen(request, timeout=TIMEOUT_SECONDS) as response:  # noqa: S310
-            return json.loads(response.read())
-    except HTTPError as error:
-        detail = error.read().decode("utf-8", errors="replace")[:300]
-        raise CoverError(f"Almonium answered {path} with HTTP {error.code}: {detail}") from error
-    except (URLError, TimeoutError, json.JSONDecodeError) as error:
-        raise CoverError(f"Almonium could not be asked {path}: {error}") from error
+    for attempt in range(RESTART_WAITS + 1):
+        # signed afresh each time: a signature is good for five minutes
+        timestamp = str(int(time.time()))
+        signature = hmac.new(token.encode(), f"{timestamp}.".encode() + body, hashlib.sha256)
+        request = Request(
+            f"{api_url}/internal/covers{path}",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Almonium-Books-Timestamp": timestamp,
+                "X-Almonium-Books-Signature": signature.hexdigest(),
+            },
+            method=method,
+        )
+        try:
+            with urlopen(request, timeout=TIMEOUT_SECONDS) as response:  # noqa: S310
+                return json.loads(response.read())
+        except HTTPError as error:
+            if error.code in (502, 503, 504) and attempt < RESTART_WAITS:
+                pause(RESTART_WAIT_SECONDS)
+                continue
+            detail = error.read().decode("utf-8", errors="replace")[:300]
+            raise CoverError(
+                f"Almonium answered {path} with HTTP {error.code}: {detail}"
+            ) from error
+        except json.JSONDecodeError as error:
+            raise CoverError(f"Almonium answered {path} with something unreadable") from error
+        except (URLError, TimeoutError, ConnectionError) as error:
+            # Almonium restarting under the run (a deploy, a rebuild): an answer already paid
+            # for must not be lost to that, so the request waits for it to come back
+            if attempt == RESTART_WAITS:
+                raise CoverError(f"Almonium could not be asked {path}: {error}") from error
+            pause(RESTART_WAIT_SECONDS)
+    raise CoverError(f"Almonium could not be asked {path}")
 
 
 def pending() -> list[str]:
