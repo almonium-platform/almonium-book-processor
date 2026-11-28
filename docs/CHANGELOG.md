@@ -6,6 +6,11 @@ keeps only what is open. Cross-repository work names its repository.
 
 ## 2026-11-28
 
+- Live fetches that never got a text are removed
+  (`services.clear_abandoned_live_ingests`, called when the next live text is
+  asked for): fetched live, download failed, never published, no paragraph
+  stored, failed more than a day ago (`ABANDONED_LIVE_INGEST_AGE`). The work
+  goes with its last edition. Each try a reader made had left an empty edition.
 - A book a reader opened as it arrived gets its levels by itself
   (`factory.start_live_levels`). Such a book is on the shelf where the readers
   are with a stand-in level and no adaptations, and nothing there may spend
@@ -43,6 +48,16 @@ keeps only what is open. Cross-repository work names its repository.
   sentence, where the same file gave 19 chapters ("1", "2", "3" for Sierpień),
   350 note blocks and a note number in 161 paragraphs. No Wolne Lektury text
   is stored yet.
+- Dry runs of the Polish books to come found three more things the adapter
+  now does. The author's own notes stand as footnotes under their paragraphs,
+  without numbers (W pustyni i w puszczy: 57 of Sienkiewicz's, "Szlachetna26
+  Fatma" in 46 paragraphs). A text with no chapter headings is cut at the
+  blank lines its author set between chapters (Król Maciuś Pierwszy: 52
+  chapters, 50 of them within the pilot limits, where the size cut gave 22
+  pieces of 100 to 204 blocks and two that fit); a blank line inside a chapter
+  stays as a separator. A story that opens under its title and goes on at
+  "II" gets its "I" (Latarnik: its first part, 43% of the story, was read as
+  the title page and stood outside the level).
 
 ## 2026-11-27
 

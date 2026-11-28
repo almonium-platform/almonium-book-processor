@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
+from datetime import timedelta
 from pathlib import Path
 from typing import BinaryIO
 
@@ -10,7 +11,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
 from django.core.files import File
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import ProtectedError, Q
 from django.utils import timezone
 
 from almonium_book_processor.catalog.front_matter import chapter_roles
@@ -213,6 +214,43 @@ class SourceIngestConflict(RuntimeError):
     """The request's id already names something other than a source ingest."""
 
 
+# How long a live fetch that came to nothing is kept: Almonium reads why it failed within
+# minutes, and a day leaves the failure on the dashboard for whoever looks the next morning.
+ABANDONED_LIVE_INGEST_AGE = timedelta(days=1)
+
+
+def clear_abandoned_live_ingests() -> int:
+    """Remove what live fetches that never got a text left behind; return how many.
+
+    Every try a reader makes is its own edition and work (the request's id keys it), so a
+    library that is down for an evening leaves a row per try with no file and no text.
+    Only those go: fetched live, the download failed, never published, not one paragraph
+    stored, and old enough that nobody is still asking about it. Called when the next
+    live text is asked for, so no timer is needed.
+    """
+
+    stale = Edition.objects.filter(
+        source_download__live=True,
+        source_download__status=SourceDownload.Status.FAILED,
+        source_download__updated_at__lt=timezone.now() - ABANDONED_LIVE_INGEST_AGE,
+        published_at__isnull=True,
+        blocks__isnull=True,
+    ).exclude(status=Edition.Status.PUBLISHED)
+    removed = 0
+    for edition in stale.select_related("work"):
+        work = edition.work
+        try:
+            with transaction.atomic():
+                edition.delete()
+                if not work.editions.exists():
+                    work.delete()
+        except ProtectedError:
+            # something was made from it after all; it is not abandoned
+            continue
+        removed += 1
+    return removed
+
+
 def create_source_ingest(
     *,
     external_id: uuid.UUID,
@@ -254,6 +292,8 @@ def create_source_ingest(
 
     from almonium_book_processor.catalog.tasks import queue_source_download
 
+    if live:
+        clear_abandoned_live_ingests()
     try:
         with transaction.atomic():
             edition = _create_catalogue_edition(

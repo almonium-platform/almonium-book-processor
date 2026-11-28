@@ -873,3 +873,33 @@ def test_a_live_text_the_shelf_refused_has_failed_its_reader(queued) -> None:
     status = APIClient().get(f"{ENDPOINT}{edition.id}/", **HEADERS).json()
 
     assert (status["phase"], status["error"]) == ("failed", "Under copyright in UA and DE.")
+
+
+def test_the_next_live_request_clears_the_tries_that_never_got_a_text(
+    queued, sent, django_capture_on_commit_callbacks
+) -> None:
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from almonium_book_processor.catalog.services import ABANDONED_LIVE_INGEST_AGE
+
+    def failed(live: bool, age: timedelta) -> Edition:
+        edition = create(live=live)
+        SourceDownload.objects.filter(edition=edition).update(
+            status=SourceDownload.Status.FAILED, updated_at=timezone.now() - age
+        )
+        return edition
+
+    old = ABANDONED_LIVE_INGEST_AGE + timedelta(hours=1)
+    abandoned = failed(True, old)
+    recent = failed(True, timedelta(minutes=5))
+    ordinary = failed(False, old)
+
+    create(live=True)
+
+    kept = set(Edition.objects.values_list("id", flat=True))
+    # a failure Almonium may still be reading, and an ingest nobody waited for, stay
+    assert abandoned.id not in kept and {recent.id, ordinary.id} <= kept
+    # a work goes only with its last edition
+    assert all(work.editions.exists() for work in Work.objects.all())
