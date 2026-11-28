@@ -348,3 +348,103 @@ def test_a_second_want_for_a_text_on_the_shelf_does_not_fetch_it_again(almonium)
     assert SourceDownload.objects.count() == 1 and Edition.objects.count() == 1
     reserved = [payload for path, payload in almonium.posts if path == factory.PREPARATIONS_PATH]
     assert len(reserved) == 1  # the second want was not reserved either
+
+
+class Readers:
+    """Stands in for the environment the readers are in: what it offers, and what was pulled."""
+
+    def __init__(self, entries):
+        self.entries = entries
+        self.pulled = []
+
+    def __call__(self, target):
+        return self
+
+    def exports(self):
+        return {"origin": "staging.example.test", "editions": self.entries}
+
+    def pull(self, slug):
+        self.pulled.append(slug)
+        return b"bundle"
+
+
+def opened_book(monkeypatch, slug="looking-glass", **entry):
+    """A book a reader opened there, offered for its levels, landing here when pulled."""
+
+    work = Work.objects.create(slug=slug, title="Through the Looking-Glass", author="L. Carroll")
+    edition = Edition.objects.create(
+        work=work,
+        slug=f"{slug}-en",
+        title="Through the Looking-Glass",
+        language="en",
+        status=Edition.Status.READY,
+    )
+    readers = Readers(
+        [
+            {
+                "slug": edition.slug,
+                "id": str(edition.id),
+                "language": "en",
+                "awaiting_levels": True,
+                **entry,
+            }
+        ]
+    )
+    monkeypatch.setattr(factory, "PromotionClient", readers)
+    monkeypatch.setattr(factory, "promotion_target", lambda name: name or None)
+    monkeypatch.setattr(factory, "source_compatibility_problem", lambda listing: "")
+    monkeypatch.setattr(factory, "import_bundle", lambda data, origin=None: {})
+    monkeypatch.setattr(
+        "almonium_book_processor.catalog.tasks.produce_edition.delay", lambda run_id: None
+    )
+    return edition, readers
+
+
+def test_a_book_a_reader_opened_gets_its_levels_before_the_next_wanted_book(almonium, monkeypatch):
+    meters()
+    edition, readers = opened_book(monkeypatch)
+
+    result = factory.tick()
+
+    assert result["started"] == edition.slug and "levels" in result["reason"]
+    assert readers.pulled == [edition.slug]
+    run = edition.pipeline_runs.get(processor_version=PRODUCTION_VERSION)
+    assert run.summary["levels"] == ["B2", "B1"] and run.summary["origin"] == factory.LIVE
+    assert run.summary["promote_to"] == "staging" and run.summary["publish"] is True
+    # the wanted queue was not read this tick, and the book counts as one under way
+    assert not SourceDownload.objects.exists()
+    assert factory.live_under_way() == [edition]
+
+    # tried once: the next tick leaves it and goes on to the wanted queue
+    result = factory.tick()
+
+    assert readers.pulled == [edition.slug]
+    assert result["started"] != edition.slug and SourceDownload.objects.count() == 1
+
+
+def test_a_rated_book_and_an_unreadable_one_are_not_pulled(almonium, monkeypatch):
+    meters()
+    _, readers = opened_book(monkeypatch, awaiting_levels=False)
+    readers.entries.append({**readers.entries[0], "awaiting_levels": True, "language": "la"})
+
+    factory.tick()
+
+    assert readers.pulled == []
+    assert SourceDownload.objects.count() == 1
+
+
+def test_readers_that_cannot_be_asked_do_not_stop_the_wanted_queue(almonium, monkeypatch):
+    from almonium_book_processor.catalog.promotion import PromotionError
+
+    meters()
+    _, readers = opened_book(monkeypatch)
+
+    def unreachable():
+        raise PromotionError("Could not ask staging what it offers")
+
+    readers.exports = unreachable
+
+    result = factory.tick()
+
+    assert result["started"] is not None
+    assert SourceDownload.objects.count() == 1

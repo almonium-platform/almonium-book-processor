@@ -113,13 +113,15 @@ def queue_production(
     promote_to: str = "",
     publish: bool = False,
     carried: dict | None = None,
+    origin: str = "",
 ) -> PipelineRun:
     """Start a production from a source edition, or return the one under way.
 
     ``levels`` are the adaptations to make and ``languages`` the translations, in the
     ``register`` named or the first one the catalogue knows. ``carried`` is the state of a
     held production of the same source: what it already rewrote, repaired and settled is
-    not paid for again.
+    not paid for again. ``origin`` says who started it when that is not a person or a
+    want (``"live"``: a book a reader opened as it arrived).
     """
 
     from almonium_book_processor.catalog.adaptation_floor import PROBE_LEVELS
@@ -160,6 +162,7 @@ def queue_production(
                 "sign_off": sign_off,
                 "promote_to": promote_to,
                 "publish": publish,
+                "origin": origin,
                 "editions": {},
                 "starts": {},
                 "mended": dict((carried or {}).get("mended") or {}),

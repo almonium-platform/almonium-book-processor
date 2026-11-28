@@ -151,6 +151,15 @@ Level adaptation can run on one of the owner's plans instead of the API: set
   shelf the production is queued (`FACTORY_LEVELS` where the book is wanted
   in its own language, else a translation into the wanted language) and the
   finished editions are promoted and published to `FACTORY_PROMOTE_TO`.
+  Before the wanted queue (28 November 2026) the tick asks
+  `FACTORY_PROMOTE_TO` for its export listing and takes the first edition
+  marked `awaiting_levels`: a book a reader opened as it arrived, on the
+  shelf there with a stand-in level. It is pulled here, a production of
+  `FACTORY_LEVELS` is queued for it, and the promotion back publishes the
+  judged level over the stand-in. One such book a tick, counted toward
+  `FACTORY_MAX_PRODUCTIONS`, never tried twice by the factory itself; the
+  two environments must be at the same catalog migration or the tick logs
+  why and goes on to the wanted queue.
   `FACTORY_ENABLED=false` (the default) says this host makes no books and
   keeps the tick from doing anything. Where it is on, the catalogue page's
   "Books under way" panel has the factory's Start and Pause (paused until

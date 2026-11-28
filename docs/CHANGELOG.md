@@ -6,6 +6,22 @@ keeps only what is open. Cross-repository work names its repository.
 
 ## 2026-11-28
 
+- A book a reader opened as it arrived gets its levels by itself
+  (`factory.start_live_levels`). Such a book is on the shelf where the readers
+  are with a stand-in level and no adaptations, and nothing there may spend
+  the plans. That environment's export listing now marks it
+  (`awaiting_levels`, with each entry's `language`): fetched live, published,
+  no level, no job still running. A factory tick on the host reads the listing
+  of `FACTORY_PROMOTE_TO` before the wanted queue, pulls the first marked
+  edition it has not tried (the same edition, so the text and readers' places
+  stay), and queues a production of `FACTORY_LEVELS` that promotes and
+  publishes back. One book a tick; a live production counts toward
+  `FACTORY_MAX_PRODUCTIONS` (`factory.live_under_way`, the run's
+  `summary.origin` is `live`); a book tried once is not tried again by itself.
+  Promotion with publication now publishes an edition already on the shelf
+  again when what landed changes what Almonium is told
+  (`promotion.queue_publications`, `tasks.publication_stale`), which is how the
+  stand-in level is replaced. Not yet run against a real opened book.
 - A source file whose paragraphs are the lines of the print is refused at
   download (`source_shape.unreadable`, `tasks._unreadable`): the next text
   among the request's `fallbacks` is taken, the edition fails with the reason

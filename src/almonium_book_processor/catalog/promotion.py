@@ -63,6 +63,7 @@ from almonium_book_processor.catalog.models import (
     PipelineRun,
     QAWarning,
     ReviewDecision,
+    SourceDownload,
     TextQualityFinding,
     Work,
 )
@@ -499,6 +500,33 @@ def exportable_editions() -> list[Edition]:
     return [edition for edition in candidates if not promotion_blocker(edition)]
 
 
+def awaiting_levels(edition_ids: list) -> set:
+    """Which of these editions a reader opened as they arrived and nobody has rated yet.
+
+    A text fetched while its reader waited (``SourceDownload.live``) is on the shelf with a
+    stand-in level and no adaptations. The host that owns the plan accounts reads this mark,
+    pulls the edition and makes the rest (``factory.start_live_levels``). An edition with a
+    job still queued or running here is left out until it settles, so what is pulled is whole.
+    """
+
+    waiting = set(
+        SourceDownload.objects.filter(
+            live=True,
+            edition_id__in=edition_ids,
+            edition__status=Edition.Status.PUBLISHED,
+            edition__cefr_level__isnull=True,
+            edition__source_edition__isnull=True,
+        ).values_list("edition_id", flat=True)
+    )
+    if not waiting:
+        return waiting
+    busy = PipelineRun.objects.filter(
+        edition_id__in=waiting,
+        status__in=[PipelineRun.Status.QUEUED, PipelineRun.Status.RUNNING],
+    ).values_list("edition_id", flat=True)
+    return waiting - set(busy)
+
+
 def export_listing() -> dict[str, Any]:
     """What a puller has to know: what this build writes, and what may leave.
 
@@ -545,6 +573,7 @@ def export_listing() -> dict[str, Any]:
                 prev = changed.get(row["edition_id"])
                 if prev is None or last > prev:
                     changed[row["edition_id"]] = last
+    unrated = awaiting_levels(ids)
     return {
         "processor_version": __version__,
         "bundle_schema_version": BUNDLE_SCHEMA_VERSION,
@@ -555,8 +584,10 @@ def export_listing() -> dict[str, Any]:
                 "slug": edition.slug,
                 "id": str(edition.id),
                 "status": edition.status,
+                "language": edition.language,
                 "source_edition": edition.source_edition.slug if edition.source_edition else None,
                 "changed_at": changed[edition.id].isoformat() if changed.get(edition.id) else None,
+                "awaiting_levels": edition.id in unrated,
             }
             for edition in editions
         ],
@@ -865,19 +896,26 @@ def queue_publications(slugs: list[str]) -> list[str]:
 
     The product API is told about each edition in turn, because a derived
     edition cannot be published before the edition it was generated from is.
-    Returns the slugs that were queued; an edition already live here is not
-    published again.
+    Returns the slugs that were queued; an edition already live here is published
+    again only when what landed changes what Almonium is told about it: the level of a
+    book that went to the shelf as it arrived, for one.
     """
 
     from celery import chain
 
-    from almonium_book_processor.catalog.tasks import publish_edition
+    from almonium_book_processor.catalog.tasks import publication_stale, publish_edition
 
-    editions = {edition.slug: edition for edition in Edition.objects.filter(slug__in=slugs)}
+    editions = {
+        edition.slug: edition
+        for edition in Edition.objects.filter(slug__in=slugs).select_related(
+            "work", "source_edition"
+        )
+    }
     pending = [
         editions[slug]
         for slug in slugs
-        if slug in editions and editions[slug].status != Edition.Status.PUBLISHED
+        if slug in editions
+        and (editions[slug].status != Edition.Status.PUBLISHED or publication_stale(editions[slug]))
     ]
     if pending:
         chain(*[publish_edition.si(str(edition.id)) for edition in pending]).apply_async()

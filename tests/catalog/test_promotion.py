@@ -984,15 +984,91 @@ def test_the_export_listing_offers_what_may_leave_and_names_each_source():
     assert [
         {k: v for k, v in entry.items() if k != "changed_at"} for entry in body["editions"]
     ] == [
-        {"slug": "book-en", "id": str(original.id), "status": "ready", "source_edition": None},
+        {
+            "slug": "book-en",
+            "id": str(original.id),
+            "status": "ready",
+            "language": "en",
+            "source_edition": None,
+            "awaiting_levels": False,
+        },
         {
             "slug": "book-uk",
             "id": str(translation.id),
             "status": "ready",
+            "language": "uk",
             "source_edition": "book-en",
+            "awaiting_levels": False,
         },
     ]
     assert all(entry.get("changed_at") for entry in body["editions"])
+
+
+def live_arrival(slug: str) -> Edition:
+    """A book a reader opened as it arrived: published, fetched live, no level yet."""
+
+    from almonium_book_processor.catalog.models import SourceDownload
+
+    edition = build_edition(slug=slug, status=Edition.Status.PUBLISHED)
+    Edition.objects.filter(pk=edition.pk).update(cefr_level=None)
+    SourceDownload.objects.create(
+        edition=edition,
+        external_id=uuid.uuid4(),
+        source_kind="gutenberg",
+        source_page_url=f"https://www.gutenberg.org/ebooks/{slug}",
+        download_url=f"https://www.gutenberg.org/ebooks/{slug}.epub3.images",
+        status=SourceDownload.Status.DOWNLOADED,
+        live=True,
+    )
+    return edition
+
+
+def test_the_listing_marks_a_book_a_reader_opened_that_nobody_has_rated():
+    waiting = live_arrival("opened-en")
+    settling = live_arrival("settling-en")
+    PipelineRun.objects.create(
+        edition=settling,
+        stage=PipelineRun.Stage.LEXICAL,
+        status=PipelineRun.Status.RUNNING,
+        processor_version="1",
+        input_hash="",
+        idempotency_key="settling:lexical",
+    )
+    rated = live_arrival("rated-en")
+    Edition.objects.filter(pk=rated.pk).update(cefr_level="B2")
+
+    marks = {
+        entry["slug"]: entry["awaiting_levels"] for entry in promotion.export_listing()["editions"]
+    }
+
+    # a job still running there would be pulled half-done; a rated book needs nothing
+    assert marks == {"opened-en": True, "settling-en": False, "rated-en": False}
+    assert promotion.awaiting_levels([waiting.id]) == {waiting.id}
+
+
+def test_a_landed_level_republishes_a_book_already_on_the_shelf(monkeypatch):
+    from almonium_book_processor.catalog import tasks
+
+    edition = live_arrival("opened-en")
+    untouched = build_edition(slug="settled-en", status=Edition.Status.PUBLISHED)
+    for published in (edition, untouched):
+        # what Almonium was last told is what each holds now
+        published.refresh_from_db()
+        published.pipeline_runs.filter(stage=PipelineRun.Stage.PUBLISH).update(
+            input_hash=tasks.publication_input_hash(published)
+        )
+    queued = []
+    monkeypatch.setattr(
+        "celery.canvas._chain.apply_async", lambda self, *a, **k: queued.append(self)
+    )
+
+    assert promotion.queue_publications(["opened-en", untouched.slug]) == []
+
+    Edition.objects.filter(pk=edition.pk).update(cefr_level="B2")
+
+    # the level the host judged changes what Almonium is told: the stand-in goes
+    assert promotion.queue_publications(["opened-en", untouched.slug]) == ["opened-en"]
+    assert len(queued) == 1
 
 
 def test_the_export_endpoint_serves_a_bundle_that_lands_or_says_why_not():
