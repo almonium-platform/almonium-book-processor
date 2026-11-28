@@ -16,6 +16,16 @@ keeps only what is open. Cross-repository work names its repository.
   nearest other has paragraphs past 144 characters, 95% of them ending a
   sentence. The shape metrics now carry `paragraphs`, `long_paragraph_chars`
   and `sentence_end_share`.
+- Wolne Lektury texts come in as the author's alone
+  (`ingest/wolne_lektury.py`): the notes the library's editors wrote go, and
+  their numbers out of the text and the titles ("Pomona1 z ognia dnia
+  rozżagwionego2", "Pan175"); only notes marked `[przypis autorski]` stay.
+  In a collection each work is one chapter under its own title, its numbered
+  sections inside it and its subtitle joined to the title. Dry run on the
+  library's Sklepy cynamonowe: 15 chapters, 347 paragraphs, 99.7% ending a
+  sentence, where the same file gave 19 chapters ("1", "2", "3" for Sierpień),
+  350 note blocks and a note number in 161 paragraphs. No Wolne Lektury text
+  is stored yet.
 
 ## 2026-11-27
 

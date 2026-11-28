@@ -794,6 +794,148 @@ def test_wolne_lektury_pages_are_dropped_and_the_footnotes_stay(tmp_path) -> Non
     assert "wolne_lektury_matter_trimmed" in [w.code for w in artifact.warnings]
 
 
+def _wolne_lektury(tmp_path, pages: dict[str, str]):
+    source = tmp_path / "wolne.epub"
+    book = epub.EpubBook()
+    book.set_identifier("http://wolnelektury.pl/katalog/lektura/schulz-sklepy-cynamonowe")
+    book.set_title("Sklepy cynamonowe (zbiór)")
+    book.set_language("pl")
+    book.add_author("Bruno Schulz")
+    book.add_metadata("DC", "publisher", "Fundacja Wolne Lektury")
+    items = []
+    for name, content in pages.items():
+        item = epub.EpubHtml(title=name, file_name=f"EPUB/{name}", lang="pl")
+        item.content = content
+        book.add_item(item)
+        items.append(item)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", *items]
+    epub.write_epub(source, book)
+    return source
+
+
+def _note_number(number: int) -> str:
+    return (
+        f'<a class="anchor" id="anchor-{number}" href="annotations.xhtml#annotation-{number}">'
+        f"<sup>{number}</sup></a>"
+    )
+
+
+def _note(number: int, text: str) -> str:
+    return (
+        f'<div id="annotation-{number}" class="annotation">'
+        f'<a href="part1.xhtml#anchor-{number}">{number}</a>. {text}</div>'
+    )
+
+
+def test_the_librarys_own_notes_and_their_numbers_are_not_the_book(tmp_path) -> None:
+    # Sklepy cynamonowe: 349 notes by the library's editors, "Pomona1 z ognia dnia
+    # rozżagwionego2" in 161 paragraphs and "Pan175" as a chapter title
+    source = _wolne_lektury(
+        tmp_path,
+        {
+            "part1.xhtml": (
+                f'<h2 class="intitle">Pan{_note_number(1)}</h2>'
+                f"<p>Adela wracała jak Pomona{_note_number(2)} z ognia dnia"
+                f" rozżagwionego{_note_number(3)}, jak pisałem{_note_number(4)}.</p>"
+            ),
+            "annotations.xhtml": (
+                '<div id="footnotes"><h2>Przypisy:</h2>'
+                + _note(1, "Pan — bóg lasów. [przypis edytorski]")
+                + _note(2, "Pomona — bogini urodzaju. [przypis edytorski]")
+                + _note(3, "rozżagwiony — płonący. [przypis redakcyjny]")
+                + _note(4, "W pierwszym wydaniu. [przypis autorski]")
+                + "</div>"
+            ),
+        },
+    )
+
+    artifact = ingest_epub(source, edition_slug="sklepy-pl", work_slug="sklepy")
+
+    assert [block.text for block in artifact.blocks] == [
+        "Pan",
+        "Adela wracała jak Pomona z ognia dnia rozżagwionego, jak pisałem4.",
+        "Przypisy:",
+        "4. W pierwszym wydaniu. [przypis autorski]",
+    ]
+    assert "wolne_lektury_notes_dropped" in [w.code for w in artifact.warnings]
+
+
+def test_a_book_with_none_but_the_librarys_notes_has_no_notes_chapter(tmp_path) -> None:
+    source = _wolne_lektury(
+        tmp_path,
+        {
+            "part1.xhtml": f"<h2>Ptaki</h2><p>Nadeszły żółte dni{_note_number(1)} zimowe.</p>",
+            "annotations.xhtml": (
+                '<div id="footnotes"><h2>Przypisy:</h2>'
+                + _note(1, "żółte dni — tu: dni nudy. [przypis edytorski]")
+                + "</div>"
+            ),
+        },
+    )
+
+    artifact = ingest_epub(source, edition_slug="sklepy-pl", work_slug="sklepy")
+
+    assert [block.text for block in artifact.blocks] == ["Ptaki", "Nadeszły żółte dni zimowe."]
+
+
+def test_a_work_of_a_collection_is_one_chapter_under_its_own_title(tmp_path) -> None:
+    # Sierpień came in as chapters "1", "2" and "3": its title stands on a page of its own and
+    # each numbered section opens the next page. Long enough that the splitter would cut.
+    prose = "<p>" + "W lipcu ojciec mój wyjeżdżał do wód. " * 60 + "</p>"
+    source = _wolne_lektury(
+        tmp_path,
+        {
+            "part1.xhtml": '<div class="title-page"><h1 class="title">Sklepy cynamonowe</h1></div>',
+            "part2.xhtml": '<h2 class="intitle">Sierpień</h2>',
+            "part3.xhtml": f'<h2 class="h3">1</h2>{prose}',
+            "part4.xhtml": f'<h2 class="h3">2</h2>{prose}',
+            "part5.xhtml": (
+                '<h2 class="intitle">Traktat o Manekinach</h2>'
+                f'<h2 class="insubtitle">Ciąg dalszy</h2>{prose}'
+            ),
+        },
+    )
+
+    artifact = ingest_epub(source, edition_slug="sklepy-pl", work_slug="sklepy")
+
+    headings = [
+        (block.chapter, block.text, bool(block.attributes.get("part")))
+        for block in artifact.blocks
+        if block.type == "heading"
+    ]
+    assert headings == [
+        (0, "Sklepy cynamonowe", True),  # the collection's title page, a label
+        (0, "Sierpień", False),
+        (0, "1", False),
+        (0, "2", False),
+        (1, "Traktat o Manekinach. Ciąg dalszy", False),
+    ]
+    assert {block.chapter for block in artifact.blocks} == {0, 1}
+    assert "wolne_lektury_works_joined" in [w.code for w in artifact.warnings]
+
+
+def test_a_single_work_keeps_its_chapters(tmp_path) -> None:
+    # a novel has no work titles inside it; its headings are its chapters, as before
+    source = _wolne_lektury(
+        tmp_path,
+        {
+            "part1.xhtml": '<h2 class="h3">Rozdział I</h2><p>Pierwszy.</p>',
+            "part2.xhtml": '<h2 class="h3">Rozdział II</h2><p>Drugi.</p>',
+        },
+    )
+
+    artifact = ingest_epub(source, edition_slug="lalka-pl", work_slug="lalka")
+
+    assert [(block.chapter, block.text) for block in artifact.blocks] == [
+        (0, "Rozdział I"),
+        (0, "Pierwszy."),
+        (1, "Rozdział II"),
+        (1, "Drugi."),
+    ]
+
+
 def test_verse_set_with_line_breaks_and_no_paragraphs_is_read_as_stanzas(tmp_path) -> None:
     # Os Lusíadas on Gutenberg: a <div> with 2,656 <br> and not one <p>; it came in as 300 chars
     source = _book(
