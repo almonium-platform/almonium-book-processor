@@ -853,13 +853,44 @@ def test_the_librarys_own_notes_and_their_numbers_are_not_the_book(tmp_path) -> 
 
     artifact = ingest_epub(source, edition_slug="sklepy-pl", work_slug="sklepy")
 
-    assert [block.text for block in artifact.blocks] == [
-        "Pan",
-        "Adela wracała jak Pomona z ognia dnia rozżagwionego, jak pisałem4.",
-        "Przypisy:",
-        "4. W pierwszym wydaniu. [przypis autorski]",
+    assert [(block.type, block.text) for block in artifact.blocks] == [
+        ("heading", "Pan"),
+        ("paragraph", "Adela wracała jak Pomona z ognia dnia rozżagwionego, jak pisałem."),
+        # the author's own note is the book: under its paragraph, with no number to follow
+        ("footnote", "W pierwszym wydaniu."),
     ]
     assert "wolne_lektury_notes_dropped" in [w.code for w in artifact.warnings]
+
+
+def test_the_authors_notes_stand_under_their_paragraphs_in_order(tmp_path) -> None:
+    # W pustyni i w puszczy: 57 notes by Sienkiewicz, "Szlachetna26 Fatma", "Allach akbar27!"
+    source = _wolne_lektury(
+        tmp_path,
+        {
+            "part1.xhtml": (
+                "<h2>Rozdział I</h2>"
+                f"<p>— Szlachetna{_note_number(1)} Fatma zakazała."
+                f" — Allach akbar{_note_number(2)}!</p>"
+                "<p>Staś milczał.</p>"
+            ),
+            "annotations.xhtml": (
+                '<div id="footnotes"><h2>Przypisy:</h2>'
+                + _note(1, "szlachetna — tytuł krewnych Mahdiego. [przypis autorski]")
+                + _note(2, "Allach akbar! — „Bóg jest wielki”. [przypis autorski]")
+                + "</div>"
+            ),
+        },
+    )
+
+    artifact = ingest_epub(source, edition_slug="pustynia-pl", work_slug="pustynia")
+
+    assert [(block.type, block.text) for block in artifact.blocks] == [
+        ("heading", "Rozdział I"),
+        ("paragraph", "— Szlachetna Fatma zakazała. — Allach akbar!"),
+        ("footnote", "szlachetna — tytuł krewnych Mahdiego."),
+        ("footnote", "Allach akbar! — „Bóg jest wielki”."),
+        ("paragraph", "Staś milczał."),
+    ]
 
 
 def test_a_book_with_none_but_the_librarys_notes_has_no_notes_chapter(tmp_path) -> None:
@@ -933,6 +964,103 @@ def test_a_single_work_keeps_its_chapters(tmp_path) -> None:
         (0, "Pierwszy."),
         (1, "Rozdział II"),
         (1, "Drugi."),
+    ]
+
+
+def test_a_story_that_opens_under_its_title_gets_the_number_its_first_part_lacks(
+    tmp_path,
+) -> None:
+    # Latarnik: its title, the first part without a number, then "II" and "III". A chapter
+    # named after its book is read as a title page: 43% of the story stood outside its level.
+    source = _wolne_lektury(
+        tmp_path,
+        {
+            "part1.xhtml": '<h2 class="intitle">Latarnik</h2><p>Pewnego razu zdarzyło się.</p>',
+            "part2.xhtml": '<h2 class="h3">II</h2><p>Skawiński był to człowiek.</p>',
+            "part3.xhtml": '<h2 class="h3">III</h2><p>Rozpoczęły się dni.</p>',
+        },
+    )
+
+    artifact = ingest_epub(source, edition_slug="latarnik-pl", work_slug="latarnik")
+
+    assert [
+        (block.chapter, block.type, block.text, bool(block.attributes.get("part")))
+        for block in artifact.blocks
+    ] == [
+        (0, "heading", "Latarnik", True),
+        (0, "heading", "I", False),
+        (0, "paragraph", "Pewnego razu zdarzyło się.", False),
+        (1, "heading", "II", False),
+        (1, "paragraph", "Skawiński był to człowiek.", False),
+        (2, "heading", "III", False),
+        (2, "paragraph", "Rozpoczęły się dni.", False),
+    ]
+
+
+BREAK = '<p class="spacer">\xa0</p>'
+
+
+def test_a_text_with_no_headings_is_cut_at_its_authors_breaks(tmp_path) -> None:
+    # Król Maciuś Pierwszy: no chapter headings, 53 blank lines between its chapters. They were
+    # dropped as empty paragraphs and the book cut by size into 22 pieces of 150 paragraphs.
+    def chapter(number: int) -> str:
+        return f"<p>Rozdział {number} zaczyna się tutaj.</p><p>{'Maciuś myślał długo. ' * 160}</p>"
+
+    source = _wolne_lektury(
+        tmp_path,
+        {
+            "part1.xhtml": (
+                '<div id="book-text">'
+                '<h2 class="intitle">Król Maciuś Pierwszy</h2><h2 class="insubtitle">Powieść</h2>'
+                "<p>Więc kiedy byłem taki, jak na tej fotografii.</p>"
+                + BREAK
+                + BREAK.join(chapter(number) for number in range(1, 7))
+                + BREAK
+                + "<p>Koniec.</p></div>"
+            ),
+        },
+    )
+
+    artifact = ingest_epub(source, edition_slug="macius-pl", work_slug="macius")
+
+    opening = [(b.type, b.text[:32], bool(b.attributes.get("part"))) for b in artifact.blocks[:5]]
+    assert opening == [
+        ("heading", "Król Maciuś Pierwszy", True),  # the book's title, naming no chapter
+        ("heading", "Powieść", True),
+        ("paragraph", "Więc kiedy byłem taki, jak na te", False),  # the preface opens chapter 1
+        ("separator", "", False),
+        ("paragraph", "Rozdział 1 zaczyna się tutaj.", False),
+    ]
+    starts = {}
+    for block in artifact.blocks:
+        if block.type == "paragraph" and block.text.startswith("Rozdział"):
+            starts[block.text[:10]] = block.chapter
+    assert starts == {f"Rozdział {number}": number - 1 for number in range(1, 7)}
+    closing = [(b.chapter, b.type, b.text) for b in artifact.blocks[-2:]]
+    assert closing == [(5, "separator", ""), (5, "paragraph", "Koniec.")]
+    assert "wolne_lektury_cut_at_breaks" in [w.code for w in artifact.warnings]
+
+
+def test_a_break_inside_a_chapter_stays_in_the_text(tmp_path) -> None:
+    # W pustyni i w puszczy has its chapters at headings and ten breaks inside them
+    source = _wolne_lektury(
+        tmp_path,
+        {
+            "part1.xhtml": (
+                '<h2 class="h3">Rozdział I</h2><p>Staś milczał.</p>'
+                + BREAK
+                + "<p>Nazajutrz ruszyli dalej.</p>"
+            ),
+        },
+    )
+
+    artifact = ingest_epub(source, edition_slug="pustynia-pl", work_slug="pustynia")
+
+    assert [(block.chapter, block.type, block.text) for block in artifact.blocks] == [
+        (0, "heading", "Rozdział I"),
+        (0, "paragraph", "Staś milczał."),
+        (0, "separator", ""),
+        (0, "paragraph", "Nazajutrz ruszyli dalej."),
     ]
 
 
