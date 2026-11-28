@@ -152,6 +152,7 @@ def test_header_only_upload_adopts_file_metadata(tmp_path, monkeypatch, settings
         "publication_year": None,
         "provenance": {},
         "detected": False,
+        "has_cover": False,
     }
     edition = Edition.objects.select_related("work").get(id=response.data["id"])
 
@@ -402,6 +403,7 @@ def test_import_event_carries_detected_metadata(monkeypatch) -> None:
         "publicationYear": 1912,
         "provenance": {"title": "ai", "author": "source", "language": "source"},
         "detected": False,
+        "hasCover": False,
     }
 
 

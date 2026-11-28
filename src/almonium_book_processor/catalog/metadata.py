@@ -43,6 +43,7 @@ from almonium_book_processor.catalog.models import (
     PipelineRun,
     PromptTemplate,
 )
+from almonium_book_processor.ingest.epub_cover import has_cover
 from almonium_book_processor.languages import LANGUAGES, normalize_language_code
 from almonium_book_processor.models import EditionMetadata
 from almonium_book_processor.titles import calm_title
@@ -698,4 +699,18 @@ def metadata_payload(edition: Edition) -> dict[str, Any]:
         "publication_year": work.publication_year,
         "provenance": work.metadata_provenance,
         "detected": work.metadata_detected_at is not None,
+        "has_cover": _carries_cover(edition),
     }
+
+
+def _carries_cover(edition: Edition) -> bool:
+    """Whether a reader's own upload brings a cover image; a library edition's cover is
+    Almonium's to choose, so it is never asked."""
+
+    if edition.work.owner_id is None or not edition.source_file:
+        return False
+    try:
+        with edition.source_file.open("rb") as source:
+            return has_cover(source)
+    except OSError:
+        return False

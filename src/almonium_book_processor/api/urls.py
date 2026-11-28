@@ -8,6 +8,7 @@ from almonium_book_processor.api.views import (
     LibraryIngestView,
     PipelineRunViewSet,
     PrivateImportBlocksView,
+    PrivateImportCoverView,
     PrivateImportDetailView,
     PrivateImportMetadataView,
     PrivateImportSourceView,
@@ -64,6 +65,11 @@ urlpatterns = [
         "internal/imports/<uuid:import_id>/blocks/",
         PrivateImportBlocksView.as_view(),
         name="private-import-blocks",
+    ),
+    path(
+        "internal/imports/<uuid:import_id>/cover/",
+        PrivateImportCoverView.as_view(),
+        name="private-import-cover",
     ),
     path(
         "internal/imports/<uuid:import_id>/source/",

@@ -67,6 +67,7 @@ from almonium_book_processor.catalog.translation_jobs import (
     translation_job,
     translation_status,
 )
+from almonium_book_processor.ingest.epub_cover import find_cover
 
 
 class EditionViewSet(viewsets.ReadOnlyModelViewSet):
@@ -199,6 +200,23 @@ class PrivateImportSourceView(APIView):
             raise NotFound("Private import has no source file.")
         filename = os.path.basename(edition.source_file.name)
         return FileResponse(edition.source_file.open("rb"), as_attachment=True, filename=filename)
+
+
+class PrivateImportCoverView(APIView):
+    """The cover the owner's upload carries, for the owner's own shelf; 404 when it has none."""
+
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [InternalBooksPermission]
+
+    def get(self, request, import_id):
+        edition = _private_import(import_id, request.query_params.get("owner_id"))
+        found = None
+        if edition.source_file:
+            with edition.source_file.open("rb") as source:
+                found = find_cover(source)
+        if found is None:
+            raise NotFound("Private import has no cover.")
+        return HttpResponse(found[0], content_type=found[1])
 
 
 class TranslationEstimateView(APIView):
