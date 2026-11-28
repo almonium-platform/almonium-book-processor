@@ -396,6 +396,8 @@ CELERY_TASK_ROUTES = {
     # queued only where a plan serves the model (sentence_adjudication.queue_after)
     "almonium_book_processor.catalog.tasks.adjudicate_sentence_alignment": {"queue": PLAN_QUEUE},
     "almonium_book_processor.catalog.tasks.adjudicate_joined_alignment": {"queue": PLAN_QUEUE},
+    # queued only where the cover judge's plan is signed in (covers.judge_here)
+    "almonium_book_processor.catalog.tasks.choose_work_cover": {"queue": PLAN_QUEUE},
 }
 
 # The Claude Code CLI on the owner's subscription, for output-heavy generation
@@ -407,6 +409,10 @@ CLAUDE_CODE_TIMEOUT_SECONDS = float(os.getenv("CLAUDE_CODE_TIMEOUT_SECONDS", "18
 CLAUDE_CODE_WORKERS = int(os.getenv("CLAUDE_CODE_WORKERS", "4"))
 # The Codex CLI on the owner's ChatGPT plan, for the same owner-machine jobs. Name the binary
 # explicitly when an old one is first on the path: 0.114 cannot refresh the login.
+# Who looks at a work's cover candidates (catalog/covers.py): a seat that can be shown images,
+# so a claude-code one. Asked when a public edition is published, and by choose_covers.
+COVER_JUDGE = os.getenv("COVER_JUDGE", "claude-code:claude-sonnet-5-5:low")
+
 CODEX_BINARY = os.getenv("CODEX_BINARY", "codex")
 CODEX_TRANSLATION_MODEL = os.getenv("CODEX_TRANSLATION_MODEL", "gpt-6-astra")
 CODEX_TIMEOUT_SECONDS = float(os.getenv("CODEX_TIMEOUT_SECONDS", "1800"))

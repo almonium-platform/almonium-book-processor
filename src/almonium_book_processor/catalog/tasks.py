@@ -793,6 +793,44 @@ def publication_stale(edition: Edition) -> bool:
     return runs.exists() and not runs.filter(input_hash=publication_input_hash(edition)).exists()
 
 
+def queue_cover_choice(edition: Edition) -> None:
+    """A published public work gets its cover looked for, where the judge's plan is signed in.
+
+    A reader's own upload has no place on the shelf and no Commons page; its cover comes from
+    the file itself. Queuing must never fail the publication it follows.
+    """
+
+    from almonium_book_processor.catalog import covers
+
+    if edition.work.owner_id is not None:
+        return
+    try:
+        if covers.judge_here():
+            choose_work_cover.delay(edition.work.slug)
+    except Exception:  # noqa: BLE001 - the book is published either way
+        logger.exception("Could not queue the cover choice for %s", edition.work.slug)
+
+
+@shared_task(acks_late=True)
+def choose_work_cover(work_slug: str) -> None:
+    """Choose a work's cover if Almonium has none decided for it yet.
+
+    A work already decided is left alone: its other editions' publications must not look
+    again. A held call leaves the work pending for the next publication or choose_covers.
+    """
+
+    from almonium_book_processor.catalog import covers
+
+    try:
+        if work_slug not in covers.pending():
+            return
+        said = covers.choose_cover(work_slug)
+    except covers.Held as held:
+        logger.info("Cover choice for %s held: %s", work_slug, held)
+        return
+    logger.info("Cover for %s: %s %s", work_slug, said["status"], said["reason"][:200])
+
+
 @shared_task(acks_late=True)
 def publish_edition(edition_id: str) -> None:
     edition = Edition.objects.select_related("work", "source_edition").get(id=edition_id)
@@ -826,6 +864,7 @@ def publish_edition(edition_id: str) -> None:
         run.finished_at = timezone.now()
         run.summary = {"almonium_book_id": book_id}
         run.save(update_fields=["status", "progress", "finished_at", "summary", "updated_at"])
+        queue_cover_choice(edition)
     except Exception as error:
         run.status = PipelineRun.Status.FAILED
         run.finished_at = timezone.now()

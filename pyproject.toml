@@ -43,6 +43,8 @@ dev = [
 ]
 worker = [
   "openai>=2.8,<3",
+  # catalog/covers.py lays cover candidates out on contact sheets for the judge.
+  "pillow>=11,<13",
   # NLP_EMBEDDING_BACKEND=modal: the client that calls modal_apps/embeddings.py.
   "modal>=1.6,<2",
   "sentence-transformers>=5.1,<6",
